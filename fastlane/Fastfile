@@ -1,0 +1,91 @@
+# Fastfile for TetraTrack
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # Load API key for App Store Connect from environment variables
+    asc_key_id = ENV.fetch("ASC_KEY_ID")
+    asc_issuer_id = ENV.fetch("ASC_ISSUER_ID")
+    asc_key_path = ENV.fetch("ASC_KEY_PATH")
+
+    api_key = app_store_connect_api_key(
+      key_id: asc_key_id,
+      issuer_id: asc_issuer_id,
+      key_filepath: asc_key_path
+    )
+
+    # Fetch latest build number from TestFlight and increment
+    latest_build = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: "dev.dreamfold.TetraTrack"
+    )
+    new_build = latest_build + 1
+
+    increment_build_number(
+      xcodeproj: "TetraTrack.xcodeproj",
+      build_number: new_build
+    )
+
+    # Keep version in sync: 0.1.<build>
+    increment_version_number(
+      xcodeproj: "TetraTrack.xcodeproj",
+      version_number: "0.1.#{new_build}"
+    )
+
+    # Build the app
+    build_app(
+      scheme: "TetraTrack",
+      export_method: "app-store",
+      project: "TetraTrack.xcodeproj",
+      destination: "generic/platform=iOS",
+      xcargs: "-allowProvisioningUpdates -authenticationKeyPath '#{File.expand_path(asc_key_path)}' -authenticationKeyID #{asc_key_id} -authenticationKeyIssuerID #{asc_issuer_id}",
+      export_options: {
+        signingStyle: "automatic",
+        teamID: "N6BK2WX94Z"
+      }
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build and archive without uploading"
+  lane :build do
+    build_app(
+      scheme: "TetraTrack",
+      export_method: "app-store",
+      project: "TetraTrack.xcodeproj",
+      destination: "generic/platform=iOS"
+    )
+  end
+
+  desc "Upload metadata and screenshots to App Store Connect"
+  lane :upload_metadata do
+    asc_key_id = ENV.fetch("ASC_KEY_ID")
+    asc_issuer_id = ENV.fetch("ASC_ISSUER_ID")
+    asc_key_path = ENV.fetch("ASC_KEY_PATH")
+
+    api_key = app_store_connect_api_key(
+      key_id: asc_key_id,
+      issuer_id: asc_issuer_id,
+      key_filepath: asc_key_path
+    )
+
+    deliver(
+      api_key: api_key,
+      skip_binary_upload: true,
+      skip_app_version_update: true,
+      submit_for_review: false,
+      force: true,
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots",
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false
+    )
+  end
+end

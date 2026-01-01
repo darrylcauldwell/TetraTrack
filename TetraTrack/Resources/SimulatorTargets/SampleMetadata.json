@@ -1,0 +1,91 @@
+{
+  "displayName": "Sample Test Targets",
+  "description": "Example metadata file for simulator test fixtures",
+  "defaultTargetType": "tetrathlon",
+  "defaultLighting": "normal",
+  "captureConditions": {
+    "date": "2026-01-16T10:00:00Z",
+    "location": "Indoor range",
+    "camera": "iPhone 17 Pro",
+    "flash": true,
+    "notes": "Sample images for testing detection pipeline"
+  },
+  "images": {
+    "target_20260116_01.jpg": {
+      "displayName": "Center Group",
+      "description": "5 shot group clustered near center",
+      "expectedHoleCount": 5,
+      "difficulty": 2,
+      "lightingCondition": "flash",
+      "goldenMasterShots": [
+        { "x": 0.02, "y": 0.03, "score": 10, "tolerance": 0.03 },
+        { "x": -0.01, "y": -0.02, "score": 10, "tolerance": 0.03 },
+        { "x": 0.05, "y": -0.01, "score": 10, "tolerance": 0.03 },
+        { "x": 0.03, "y": 0.05, "score": 10, "tolerance": 0.03 },
+        { "x": -0.02, "y": 0.01, "score": 10, "tolerance": 0.03 }
+      ],
+      "expectedAnalysis": {
+        "mpiX": 0.014,
+        "mpiY": 0.012,
+        "standardDeviation": 0.032,
+        "extremeSpread": 0.07,
+        "tolerance": 0.02
+      },
+      "notes": "Reference image for center grouping validation"
+    },
+    "target_20260116_02.jpg": {
+      "displayName": "Spread Group",
+      "description": "10 shot group with wider spread",
+      "expectedHoleCount": 10,
+      "difficulty": 3,
+      "lightingCondition": "flash",
+      "goldenMasterShots": [
+        { "x": 0.15, "y": 0.10, "score": 8, "tolerance": 0.03 },
+        { "x": -0.12, "y": 0.08, "score": 8, "tolerance": 0.03 },
+        { "x": 0.08, "y": -0.15, "score": 8, "tolerance": 0.03 },
+        { "x": -0.05, "y": -0.10, "score": 8, "tolerance": 0.03 },
+        { "x": 0.02, "y": 0.02, "score": 10, "tolerance": 0.03 },
+        { "x": -0.08, "y": 0.12, "score": 8, "tolerance": 0.03 },
+        { "x": 0.10, "y": -0.08, "score": 8, "tolerance": 0.03 },
+        { "x": -0.15, "y": -0.05, "score": 8, "tolerance": 0.03 },
+        { "x": 0.05, "y": 0.15, "score": 8, "tolerance": 0.03 },
+        { "x": -0.02, "y": -0.18, "score": 6, "tolerance": 0.03 }
+      ],
+      "expectedAnalysis": {
+        "mpiX": -0.002,
+        "mpiY": -0.009,
+        "standardDeviation": 0.12,
+        "extremeSpread": 0.35,
+        "tolerance": 0.03
+      },
+      "notes": "Tests detection of multiple holes with varying spread"
+    },
+    "target_20260116_03.jpg": {
+      "displayName": "Dark Half Challenge",
+      "description": "Holes spanning light and dark areas",
+      "expectedHoleCount": 8,
+      "difficulty": 4,
+      "lightingCondition": "flash",
+      "notes": "Tests detection on half-black tetrathlon target"
+    },
+    "target_20260116_04.jpg": {
+      "displayName": "Empty Target",
+      "description": "Clean target with no holes",
+      "expectedHoleCount": 0,
+      "difficulty": 1,
+      "lightingCondition": "normal",
+      "notes": "Baseline for false positive testing"
+    },
+    "target_20260116_05.jpg": {
+      "displayName": "Single Shot",
+      "description": "Single hole for precision testing",
+      "expectedHoleCount": 1,
+      "difficulty": 1,
+      "lightingCondition": "normal",
+      "goldenMasterShots": [
+        { "x": 0.0, "y": 0.0, "score": 10, "tolerance": 0.02 }
+      ],
+      "notes": "Tests single hole detection accuracy"
+    }
+  }
+}

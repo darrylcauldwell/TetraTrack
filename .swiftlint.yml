@@ -1,0 +1,48 @@
+# SwiftLint configuration for TetraTrack
+
+excluded:
+  - .build
+  - DerivedData
+  - build
+  - TetraTrackShared/.build
+
+disabled_rules:
+  - trailing_comma
+  - todo
+  - cyclomatic_complexity
+  - function_body_length
+  - type_body_length
+  - file_length
+  - nesting
+  - large_tuple
+  - force_try
+  - force_cast
+  - function_parameter_count
+
+opt_in_rules:
+  - force_unwrapping
+  - contains_over_filter_count
+  - first_where
+  - sorted_first_last
+  - redundant_nil_coalescing
+  - closure_spacing
+
+line_length:
+  warning: 200
+  error: 350
+
+identifier_name:
+  min_length:
+    warning: 1
+  validates_start_with_lowercase: warning
+  allowed_symbols:
+    - _
+  excluded:
+    - id
+
+type_name:
+  min_length:
+    warning: 3
+  allowed_symbols:
+    - _
+  validates_start_with_lowercase: warning

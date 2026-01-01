@@ -1,0 +1,1 @@
+Finally! An app that knows the difference between a canter and an "enthusiastic trot". AI coaching, gait detection, fall alerts. Your horse approves. Probably.

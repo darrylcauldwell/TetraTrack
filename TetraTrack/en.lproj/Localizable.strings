@@ -1,0 +1,272 @@
+/*
+  Localizable.strings (English)
+  TetraTrack
+
+  English translations for the app.
+*/
+
+// MARK: - Tab Bar
+"Disciplines" = "Disciplines";
+"Horses" = "Horses";
+"Calendar" = "Calendar";
+"Live Sharing" = "Live Sharing";
+"Settings" = "Settings";
+
+// MARK: - Disciplines
+"Riding" = "Riding";
+"Running" = "Running";
+"Swimming" = "Swimming";
+"Shooting" = "Shooting";
+"Track your ride" = "Track your ride";
+"Track your run" = "Track your run";
+"Track your swim" = "Track your swim";
+"Track your shooting" = "Track your shooting";
+
+// MARK: - Live Sharing
+"Shared With Me" = "Shared With Me";
+"Sharing With" = "Sharing With";
+"Connected" = "Connected";
+"Pending" = "Pending";
+"Not Sent" = "Not Sent";
+"Not currently riding" = "Not currently riding";
+"Currently sharing your ride" = "Currently sharing your ride";
+"No riders sharing with you yet" = "No riders sharing with you yet";
+"When someone shares their rides with you, they'll appear here" = "When someone shares their rides with you, they'll appear here";
+"Add Trusted Contact" = "Add Trusted Contact";
+"Safer Together" = "Safer Together";
+"Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong." = "Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong.";
+"They can follow your rides and receive safety alerts" = "They can follow your rides and receive safety alerts";
+"Add & Send Invite" = "Add & Send Invite";
+"They'll receive a link to download the app" = "They'll receive a link to download the app";
+
+// MARK: - Permissions
+"Live Tracking" = "Live Tracking";
+"Fall Detection" = "Fall Detection";
+"Stationary Alerts" = "Stationary Alerts";
+"Emergency SOS" = "Emergency SOS";
+"Permissions" = "Permissions";
+"Can see your live location while you're riding" = "Can see your live location while you're riding";
+"Gets notified immediately if a fall is detected" = "Gets notified immediately if a fall is detected";
+"Gets warned if you stop moving unexpectedly" = "Gets warned if you stop moving unexpectedly";
+"Receives SMS with your GPS location in emergencies" = "Receives SMS with your GPS location in emergencies";
+
+// MARK: - Notifications
+"Notifications" = "Notifications";
+"Enable" = "Enable";
+"Enable to receive safety alerts" = "Enable to receive safety alerts";
+"You'll receive safety alerts from your contacts" = "You'll receive safety alerts from your contacts";
+
+// MARK: - Actions
+"Send invite" = "Send invite";
+"Send reminder" = "Send reminder";
+"Remove contact" = "Remove contact";
+"Cancel" = "Cancel";
+"OK" = "OK";
+"View" = "View";
+"Delete" = "Delete";
+"Save" = "Save";
+"Done" = "Done";
+"Edit" = "Edit";
+"Add" = "Add";
+"Close" = "Close";
+"Confirm" = "Confirm";
+"Continue" = "Continue";
+"Skip" = "Skip";
+"Retry" = "Retry";
+
+// MARK: - Riding
+"Start Ride" = "Start Ride";
+"Stop" = "Stop";
+"Pause" = "Pause";
+"Resume" = "Resume";
+"Distance" = "Distance";
+"Duration" = "Duration";
+"Avg Speed" = "Avg Speed";
+"Max Speed" = "Max Speed";
+"Elevation Gain" = "Elevation Gain";
+"Calories" = "Calories";
+"Heart Rate" = "Heart Rate";
+"Route" = "Route";
+"Ride Details" = "Ride Details";
+"Ride Summary" = "Ride Summary";
+
+// MARK: - Gaits
+"Walk" = "Walk";
+"Trot" = "Trot";
+"Canter" = "Canter";
+"Gallop" = "Gallop";
+"Halt" = "Halt";
+"Gait Analysis" = "Gait Analysis";
+
+// MARK: - Running
+"Start Run" = "Start Run";
+"Pace" = "Pace";
+"Avg Pace" = "Avg Pace";
+"Splits" = "Splits";
+"Laps" = "Laps";
+
+// MARK: - Swimming
+"Start Swim" = "Start Swim";
+"Pool Length" = "Pool Length";
+"Laps" = "Laps";
+"Strokes" = "Strokes";
+"SWOLF" = "SWOLF";
+
+// MARK: - Shooting
+"Start Session" = "Start Session";
+"Score" = "Score";
+"Shots" = "Shots";
+"Average" = "Average";
+"Target" = "Target";
+"Free Practice" = "Free Practice";
+"Competition Training" = "Competition Training";
+"Competition" = "Competition";
+"Pressure Insights" = "Pressure Insights";
+"Select Session Context" = "Select Session Context";
+"Track how pressure affects your performance" = "Track how pressure affects your performance";
+"Relaxed practice with no scoring pressure" = "Relaxed practice with no scoring pressure";
+"Practice under simulated competition conditions" = "Practice under simulated competition conditions";
+"Actual competition scoring" = "Actual competition scoring";
+"Pressure" = "Pressure";
+"Quick Entry" = "Quick Entry";
+"Scan & Score" = "Scan & Score";
+"Scan Card" = "Scan Card";
+"Mark holes" = "Mark holes";
+"Tetrathlon Practice" = "Tetrathlon Practice";
+"Shooting History" = "Shooting History";
+"View patterns over time" = "View patterns over time";
+"Analyse performance by context" = "Analyse performance by context";
+"Performance by Pressure Level" = "Performance by Pressure Level";
+"By Context" = "By Context";
+"Pattern Comparison" = "Pattern Comparison";
+"Key Insights" = "Key Insights";
+"Low Pressure" = "Low Pressure";
+"Training" = "Training";
+"sessions" = "sessions";
+"avg spread" = "avg spread";
+"spread" = "spread";
+
+// MARK: - Audio Coaching
+"Audio Coaching" = "Audio Coaching";
+"Voice Coaching" = "Voice Coaching";
+"Coaching Voice" = "Coaching Voice";
+"Coaching Language" = "Coaching Language";
+"Enable voice feedback during sessions" = "Enable voice feedback during sessions";
+"Great shot!" = "Great shot!";
+"Good grouping" = "Good grouping";
+"Focus on your breathing" = "Focus on your breathing";
+"Take your time" = "Take your time";
+"Excellent consistency" = "Excellent consistency";
+"Your groups are tightening" = "Your groups are tightening";
+"Steady improvement" = "Steady improvement";
+
+// MARK: - Settings
+"Language" = "Language";
+"App Language" = "App Language";
+"System Default" = "System Default";
+"Following system setting" = "Following system setting";
+"Audio Coaching" = "Audio Coaching";
+"Voice Coaching" = "Voice Coaching";
+"Appearance" = "Appearance";
+"About" = "About";
+"Privacy" = "Privacy";
+"Help" = "Help";
+"My Horses" = "My Horses";
+"Manage your horses" = "Manage your horses";
+"Your Profile" = "Your Profile";
+"Rider Profile" = "Rider Profile";
+"Health Integration" = "Health Integration";
+"Apple Watch" = "Apple Watch";
+"Data Management" = "Data Management";
+"Offline Maps" = "Offline Maps";
+
+// MARK: - Horses
+"Add Horse" = "Add Horse";
+"Edit Horse" = "Edit Horse";
+"Name" = "Name";
+"Breed" = "Breed";
+"Breed Type" = "Breed Type";
+"Color" = "Color";
+"Date of Birth" = "Date of Birth";
+"Notes" = "Notes";
+"Photo" = "Photo";
+"No horses yet" = "No horses yet";
+"Add your first horse" = "Add your first horse";
+
+// MARK: - Calendar
+"Competitions" = "Competitions";
+"Add Competition" = "Add Competition";
+"Edit Competition" = "Edit Competition";
+"Venue" = "Venue";
+"Date" = "Date";
+"Start Date" = "Start Date";
+"End Date" = "End Date";
+"Tasks" = "Tasks";
+"No competitions" = "No competitions";
+"No upcoming competitions" = "No upcoming competitions";
+
+// MARK: - Time
+"ago" = "ago";
+"just now" = "just now";
+"min" = "min";
+"hr" = "hr";
+"day" = "day";
+"days" = "days";
+"Today" = "Today";
+"Yesterday" = "Yesterday";
+"This Week" = "This Week";
+"This Month" = "This Month";
+"All Time" = "All Time";
+
+// MARK: - Units
+"km" = "km";
+"mi" = "mi";
+"m" = "m";
+"ft" = "ft";
+"km/h" = "km/h";
+"mph" = "mph";
+"bpm" = "bpm";
+"kcal" = "kcal";
+
+// MARK: - Errors
+"Error" = "Error";
+"Something went wrong" = "Something went wrong";
+"Please try again" = "Please try again";
+"No internet connection" = "No internet connection";
+"Unable to load data" = "Unable to load data";
+"Permission denied" = "Permission denied";
+
+// MARK: - GPS
+"GPS Signal" = "GPS Signal";
+"Acquiring GPS" = "Acquiring GPS";
+"Weak Signal" = "Weak Signal";
+"Strong Signal" = "Strong Signal";
+"Location access required" = "Location access required";
+
+// MARK: - Empty States
+"No data" = "No data";
+"No rides yet" = "No rides yet";
+"No runs yet" = "No runs yet";
+"No swims yet" = "No swims yet";
+"No sessions yet" = "No sessions yet";
+"Start your first ride" = "Start your first ride";
+"No Shooting History Yet" = "No Shooting History Yet";
+"No Data Yet" = "No Data Yet";
+"Complete some shooting sessions to see how pressure affects your performance." = "Complete some shooting sessions to see how pressure affects your performance.";
+"Start Practicing" = "Start Practicing";
+"Last Target" = "Last Target";
+
+// MARK: - Diagnostics
+"Sharing Diagnostics" = "Sharing Diagnostics";
+"Overall Status" = "Overall Status";
+"Health Checks" = "Health Checks";
+"Critical Issues" = "Critical Issues";
+"Warnings" = "Warnings";
+"Actions" = "Actions";
+"Run Health Check" = "Run Health Check";
+"Initialize Schema" = "Initialize Schema";
+"Refresh Subscriptions" = "Refresh Subscriptions";
+"Reset Sharing Data" = "Reset Sharing Data";
+"Ready to Share" = "Ready to Share";
+"Not Ready" = "Not Ready";
+"Troubleshooting Tips" = "Troubleshooting Tips";

@@ -1,0 +1,53 @@
+/*
+  Localizable.strings (English)
+  TetraTrack Watch App
+
+  English translations for the watch app.
+*/
+
+// MARK: - Navigation
+"Home" = "Home";
+"Start" = "Start";
+"Stop" = "Stop";
+"Pause" = "Pause";
+"Resume" = "Resume";
+
+// MARK: - Disciplines
+"Riding" = "Riding";
+"Running" = "Running";
+"Swimming" = "Swimming";
+"Shooting" = "Shooting";
+
+// MARK: - Stats
+"Distance" = "Distance";
+"Duration" = "Duration";
+"Speed" = "Speed";
+"Heart Rate" = "Heart Rate";
+"Calories" = "Calories";
+"Pace" = "Pace";
+
+// MARK: - Gaits
+"Walk" = "Walk";
+"Trot" = "Trot";
+"Canter" = "Canter";
+"Gallop" = "Gallop";
+"Halt" = "Halt";
+
+// MARK: - Status
+"Ready" = "Ready";
+"Recording" = "Recording";
+"Paused" = "Paused";
+"Completed" = "Completed";
+"GPS Signal" = "GPS Signal";
+"Acquiring GPS" = "Acquiring GPS";
+
+// MARK: - Messages
+"Tap to start" = "Tap to start";
+"Ride in progress" = "Ride in progress";
+"No active session" = "No active session";
+"Syncing with iPhone" = "Syncing with iPhone";
+
+// MARK: - Time
+"hr" = "hr";
+"min" = "min";
+"sec" = "sec";

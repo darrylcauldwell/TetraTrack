@@ -1,0 +1,30 @@
+/*
+  Localizable.strings (Swedish)
+  TetraTrack Widget
+
+  Swedish translations for widgets.
+*/
+
+// MARK: - Widget Titles
+"Recent Ride" = "Senaste Ridtur";
+"Training Stats" = "Träningsstatistik";
+"Quick Start" = "Snabbstart";
+"Next Competition" = "Nästa Tävling";
+
+// MARK: - Widget Descriptions
+"View your most recent ride" = "Visa din senaste ridtur";
+"Your training statistics at a glance" = "Din träningsstatistik i överblick";
+"Start a ride quickly" = "Starta en ridtur snabbt";
+"Your upcoming competition" = "Din kommande tävling";
+
+// MARK: - Stats
+"Distance" = "Distans";
+"Duration" = "Varaktighet";
+"Rides" = "Ridturer";
+"This Week" = "Denna Vecka";
+"This Month" = "Denna Månad";
+
+// MARK: - Status
+"No recent rides" = "Inga senaste ridturer";
+"No upcoming competitions" = "Inga kommande tävlingar";
+"Tap to start riding" = "Tryck för att börja rida";

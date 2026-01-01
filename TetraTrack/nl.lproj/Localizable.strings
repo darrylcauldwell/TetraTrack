@@ -1,0 +1,693 @@
+/*
+  Localizable.strings (Dutch)
+  TetraTrack
+
+  Dutch translations for the app.
+  Nederlandse vertalingen voor de app.
+*/
+
+// MARK: - Tab Bar
+"Disciplines" = "Disciplines";
+"Horses" = "Paarden";
+"Calendar" = "Kalender";
+"Live Sharing" = "Live Delen";
+"Settings" = "Instellingen";
+
+// MARK: - Disciplines
+"Riding" = "Paardrijden";
+"Running" = "Hardlopen";
+"Swimming" = "Zwemmen";
+"Shooting" = "Schieten";
+"Track your ride" = "Volg je rit";
+"Track your run" = "Volg je hardloopsessie";
+"Track your swim" = "Volg je zwemsessie";
+"Track your shooting" = "Volg je schietsessie";
+
+// MARK: - Live Sharing
+"Shared With Me" = "Gedeeld Met Mij";
+"Sharing With" = "Delen Met";
+"Connected" = "Verbonden";
+"Pending" = "In Afwachting";
+"Not Sent" = "Niet Verzonden";
+"Not currently riding" = "Momenteel niet aan het rijden";
+"Currently sharing your ride" = "Je rit wordt momenteel gedeeld";
+"No riders sharing with you yet" = "Nog geen ruiters die met je delen";
+"When someone shares their rides with you, they'll appear here" = "Wanneer iemand zijn ritten met je deelt, verschijnen ze hier";
+"Add Trusted Contact" = "Vertrouwd Contact Toevoegen";
+"Safer Together" = "Samen Veiliger";
+"Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong." = "Deel je live locatie met familie en vrienden zodat zij je sessies kunnen volgen en gewaarschuwd worden als er iets misgaat.";
+"They can follow your rides and receive safety alerts" = "Ze kunnen je ritten volgen en veiligheidsmeldingen ontvangen";
+"Add & Send Invite" = "Toevoegen & Uitnodiging Versturen";
+"They'll receive a link to download the app" = "Ze ontvangen een link om de app te downloaden";
+
+// MARK: - Permissions
+"Live Tracking" = "Live Tracking";
+"Fall Detection" = "Valdetectie";
+"Stationary Alerts" = "Stilstandmeldingen";
+"Emergency SOS" = "Nood SOS";
+"Permissions" = "Machtigingen";
+"Can see your live location while you're riding" = "Kan je live locatie zien terwijl je rijdt";
+"Gets notified immediately if a fall is detected" = "Wordt direct op de hoogte gesteld bij detectie van een val";
+"Gets warned if you stop moving unexpectedly" = "Wordt gewaarschuwd als je onverwacht stopt met bewegen";
+"Receives SMS with your GPS location in emergencies" = "Ontvangt SMS met je GPS-locatie in noodgevallen";
+
+// MARK: - Notifications
+"Notifications" = "Meldingen";
+"Enable" = "Inschakelen";
+"Enable to receive safety alerts" = "Schakel in om veiligheidsmeldingen te ontvangen";
+"You'll receive safety alerts from your contacts" = "Je ontvangt veiligheidsmeldingen van je contacten";
+
+// MARK: - Actions
+"Send invite" = "Uitnodiging versturen";
+"Send reminder" = "Herinnering versturen";
+"Remove contact" = "Contact verwijderen";
+"Cancel" = "Annuleren";
+"OK" = "OK";
+"View" = "Bekijken";
+"Delete" = "Verwijderen";
+"Save" = "Opslaan";
+"Done" = "Klaar";
+"Edit" = "Bewerken";
+"Add" = "Toevoegen";
+"Close" = "Sluiten";
+"Confirm" = "Bevestigen";
+"Continue" = "Doorgaan";
+"Skip" = "Overslaan";
+"Retry" = "Opnieuw Proberen";
+
+// MARK: - Riding
+"Start Ride" = "Start Rit";
+"Stop" = "Stop";
+"Pause" = "Pauzeren";
+"Resume" = "Hervatten";
+"Distance" = "Afstand";
+"Duration" = "Duur";
+"Avg Speed" = "Gem. Snelheid";
+"Max Speed" = "Max Snelheid";
+"Elevation Gain" = "Hoogteverschil";
+"Calories" = "Calorieën";
+"Heart Rate" = "Hartslag";
+"Route" = "Route";
+"Ride Details" = "Rit Details";
+"Ride Summary" = "Rit Samenvatting";
+
+// MARK: - Gaits
+"Walk" = "Stap";
+"Trot" = "Draf";
+"Canter" = "Galop";
+"Gallop" = "Galop";
+"Halt" = "Halt";
+"Gait Analysis" = "Ganganalyse";
+
+// MARK: - Running
+"Start Run" = "Start Hardlopen";
+"Pace" = "Tempo";
+"Avg Pace" = "Gem. Tempo";
+"Splits" = "Splits";
+"Laps" = "Rondjes";
+
+// MARK: - Swimming
+"Start Swim" = "Start Zwemmen";
+"Pool Length" = "Baanlengte";
+"Laps" = "Banen";
+"Strokes" = "Slagen";
+"SWOLF" = "SWOLF";
+
+// MARK: - Shooting
+"Start Session" = "Start Sessie";
+"Score" = "Score";
+"Shots" = "Schoten";
+"Average" = "Gemiddelde";
+"Target" = "Doel";
+"Free Practice" = "Vrije Training";
+"Competition Training" = "Wedstrijdtraining";
+"Competition" = "Wedstrijd";
+"Pressure Insights" = "Druk Inzichten";
+"Select Session Context" = "Selecteer Sessie Context";
+"Track how pressure affects your performance" = "Volg hoe druk je prestaties beïnvloedt";
+"Relaxed practice with no scoring pressure" = "Ontspannen training zonder scoredruk";
+"Practice under simulated competition conditions" = "Training onder gesimuleerde wedstrijdomstandigheden";
+"Actual competition scoring" = "Echte wedstrijdscores";
+"Pressure" = "Druk";
+"Quick Entry" = "Snelle Invoer";
+"Scan & Score" = "Scan & Score";
+"Scan Card" = "Scan Kaart";
+"Mark holes" = "Markeer gaten";
+"Tetrathlon Practice" = "Tetrathlon Training";
+"Shooting History" = "Schieten Geschiedenis";
+"View patterns over time" = "Bekijk patronen over tijd";
+"Analyse performance by context" = "Analyseer prestaties per context";
+"Performance by Pressure Level" = "Prestaties per Drukniveau";
+"By Context" = "Per Context";
+"Pattern Comparison" = "Patroonvergelijking";
+"Key Insights" = "Belangrijke Inzichten";
+"Low Pressure" = "Lage Druk";
+"Training" = "Training";
+"sessions" = "sessies";
+"avg spread" = "gem. spreiding";
+"spread" = "spreiding";
+
+// MARK: - Audio Coaching
+"Audio Coaching" = "Audiocoaching";
+"Voice Coaching" = "Spraakcoaching";
+"Coaching Voice" = "Coachingstem";
+"Coaching Language" = "Coachingtaal";
+"Enable voice feedback during sessions" = "Schakel spraakfeedback in tijdens sessies";
+
+// MARK: - Settings
+"Language" = "Taal";
+"App Language" = "App Taal";
+"System Default" = "Systeemstandaard";
+"Following system setting" = "Systeeminstelling volgen";
+"Appearance" = "Weergave";
+"About" = "Over";
+"Privacy" = "Privacy";
+"Help" = "Help";
+"My Horses" = "Mijn Paarden";
+"Manage your horses" = "Beheer je paarden";
+"Your Profile" = "Jouw Profiel";
+"Rider Profile" = "Ruitersprofiel";
+"Health Integration" = "Gezondheidsintegratie";
+"Apple Watch" = "Apple Watch";
+"Data Management" = "Gegevensbeheer";
+"Offline Maps" = "Offline Kaarten";
+
+// MARK: - Horses
+"Add Horse" = "Paard Toevoegen";
+"Edit Horse" = "Paard Bewerken";
+"Name" = "Naam";
+"Breed" = "Ras";
+"Breed Type" = "Rastype";
+"Color" = "Kleur";
+"Date of Birth" = "Geboortedatum";
+"Notes" = "Notities";
+"Photo" = "Foto";
+"No horses yet" = "Nog geen paarden";
+"Add your first horse" = "Voeg je eerste paard toe";
+
+// MARK: - Calendar
+"Competitions" = "Wedstrijden";
+"Add Competition" = "Wedstrijd Toevoegen";
+"Edit Competition" = "Wedstrijd Bewerken";
+"Venue" = "Locatie";
+"Date" = "Datum";
+"Start Date" = "Startdatum";
+"End Date" = "Einddatum";
+"Tasks" = "Taken";
+"No competitions" = "Geen wedstrijden";
+"No upcoming competitions" = "Geen aankomende wedstrijden";
+
+// MARK: - Time
+"ago" = "geleden";
+"just now" = "zojuist";
+"min" = "min";
+"hr" = "uur";
+"day" = "dag";
+"days" = "dagen";
+"Today" = "Vandaag";
+"Yesterday" = "Gisteren";
+"This Week" = "Deze Week";
+"This Month" = "Deze Maand";
+"All Time" = "Alle Tijd";
+"Last Target" = "Laatste Doel";
+
+// MARK: - Units
+"km" = "km";
+"mi" = "mi";
+"m" = "m";
+"ft" = "ft";
+"km/h" = "km/u";
+"mph" = "mph";
+"bpm" = "bpm";
+"kcal" = "kcal";
+
+// MARK: - Errors
+"Error" = "Fout";
+"Something went wrong" = "Er ging iets mis";
+"Please try again" = "Probeer het opnieuw";
+"No internet connection" = "Geen internetverbinding";
+"Unable to load data" = "Kan gegevens niet laden";
+"Permission denied" = "Toestemming geweigerd";
+
+// MARK: - GPS
+"GPS Signal" = "GPS Signaal";
+"Acquiring GPS" = "GPS verkrijgen";
+"Weak Signal" = "Zwak Signaal";
+"Strong Signal" = "Sterk Signaal";
+"Location access required" = "Locatietoegang vereist";
+
+// MARK: - Empty States
+"No data" = "Geen gegevens";
+"No rides yet" = "Nog geen ritten";
+"No runs yet" = "Nog geen hardloopsessies";
+"No swims yet" = "Nog geen zwemsessies";
+"No sessions yet" = "Nog geen sessies";
+"Start your first ride" = "Start je eerste rit";
+"No Shooting History Yet" = "Nog Geen Schietgeschiedenis";
+"No Data Yet" = "Nog Geen Gegevens";
+"Complete some shooting sessions to see how pressure affects your performance." = "Voltooi enkele schietsessies om te zien hoe druk je prestaties beïnvloedt.";
+"Start Practicing" = "Begin Met Oefenen";
+
+// MARK: - Diagnostics
+"Sharing Diagnostics" = "Diagnostiek Delen";
+"Overall Status" = "Algehele Status";
+"Health Checks" = "Gezondheidscontroles";
+"Critical Issues" = "Kritieke Problemen";
+"Warnings" = "Waarschuwingen";
+"Actions" = "Acties";
+"Run Health Check" = "Gezondheidscontrole Uitvoeren";
+"Initialize Schema" = "Schema Initialiseren";
+"Refresh Subscriptions" = "Abonnementen Vernieuwen";
+"Reset Sharing Data" = "Deelgegevens Resetten";
+"Ready to Share" = "Klaar om te Delen";
+"Not Ready" = "Niet Klaar";
+"Troubleshooting Tips" = "Tips voor Probleemoplossing";
+
+// MARK: - Audio Coaching Messages
+"Great shot!" = "Geweldige schot!";
+"Good grouping" = "Goede groepering";
+"Focus on your breathing" = "Focus op je ademhaling";
+"Take your time" = "Neem je tijd";
+"Excellent consistency" = "Uitstekende consistentie";
+"Your groups are tightening" = "Je groeperingen worden strakker";
+"Steady improvement" = "Gestage verbetering";
+
+// MARK: - Main Menu
+"Record a riding session" = "Rij-sessie opnemen";
+"Record a running session" = "Hardloopsessie opnemen";
+"Record a swimming session" = "Zwemsessie opnemen";
+"Record a shooting session" = "Schietsessie opnemen";
+"Training History" = "Trainingsgeschiedenis";
+"Review all sessions and insights" = "Alle sessies en inzichten bekijken";
+"Training Load" = "Trainingsbelasting";
+"Monitor fitness, fatigue, and form" = "Fitness, vermoeidheid en vorm monitoren";
+"Skills" = "Vaardigheden";
+"Perform off-discipline training drills" = "Oefeningen buiten discipline uitvoeren";
+"Calendar, competition day & tasks" = "Kalender, wedstrijddag & taken";
+"Family & emergency contacts" = "Familie & noodcontacten";
+"Track your tetrathlon training" = "Volg je tetrathlon training";
+"Review your training sessions" = "Bekijk je trainingsessies";
+"TetraTrack" = "TetraTrack";
+
+// MARK: - Running Sub-Menu
+"Outdoor Run" = "Buitenloop";
+"GPS route tracking" = "GPS-routetracking";
+"Track Run" = "Baanloop";
+"Automatic lap detection" = "Automatische rondedetectie";
+"Virtual Pacer" = "Virtuele Pacer";
+"Target pace" = "Doeltempo";
+"Intervals" = "Intervallen";
+"Training sets" = "Trainingssets";
+"Treadmill" = "Loopband";
+"Indoor tracked run" = "Binnen hardlopen met tracking";
+"Training Programs" = "Trainingsprogramma's";
+"C25K, 10K, Half Marathon" = "C25K, 10K, Halve Marathon";
+"Walking" = "Wandelen";
+"Cadence, symmetry & routes" = "Cadans, symmetrie & routes";
+
+// MARK: - Swimming Sub-Menu
+"Free Swim" = "Vrij Zwemmen";
+"Open session" = "Open sessie";
+"Structured sets" = "Gestructureerde sets";
+
+// MARK: - Shooting Sub-Menu
+"Low pressure practice session" = "Oefensessie met lage druk";
+"Practice under competition conditions" = "Training onder wedstrijdomstandigheden";
+"Official competition scoring" = "Officiële wedstrijdscores";
+"View patterns and pressure insights" = "Patronen en drukinzichten bekijken";
+
+// MARK: - Riding Sub-Menu & Drills
+"Riding Settings" = "Rij-instellingen";
+"Riding Drills" = "Rijoefeningen";
+"Heel Position" = "Hielenpositie";
+"Heels down balance" = "Hielen-omlaag balans";
+"Core Stability" = "Kernstabiliteit";
+"Independent seat" = "Onafhankelijke zit";
+"Two-Point" = "Lichte zit";
+"Half-seat hold" = "Halve zit vasthouden";
+"Balance Board" = "Balansbord";
+"Movement absorption" = "Bewegingsabsorptie";
+"Hip Mobility" = "Heupmobiliteit";
+"Following motion" = "Beweging volgen";
+"Posting Rhythm" = "Lichtrijden-ritme";
+"Metronome training" = "Metronoomtraining";
+"Rider Stillness" = "Stilte van de ruiter";
+"Quiet aids" = "Rustige hulpen";
+"Stirrup Pressure" = "Stijgbeugeldruk";
+"Heel weight" = "Hielgewicht";
+
+// MARK: - Shooting Drills
+"Balance Stance" = "Balanshouding";
+"One-leg stand" = "Eenbenig staan";
+"Box Technique" = "Boxtechniek";
+"Box technique" = "Boxtechniek";
+"Trigger Control" = "Trekkercontrole";
+"Trigger control" = "Trekkercontrole";
+"Tap Drill" = "Tikoefening";
+"Tap targets" = "Tikdoelen";
+"Wobble Tracking" = "Zwaai-tracking";
+"Track wobble" = "Zwaai volgen";
+"Recovery Speed" = "Herstelsnelheid";
+"Recovery speed" = "Herstelsnelheid";
+"Target Transitions" = "Doelwissels";
+"Target transitions" = "Doelwissels";
+"Endurance Hold" = "Uithoudingsgreep";
+"Endurance hold" = "Uithoudingsgreep";
+"Pressure Training" = "Druktraining";
+"Elevated HR" = "Verhoogde hartslag";
+
+// MARK: - Navigation Titles
+"GRACE Insights" = "GRACE Inzichten";
+"Practice Insights" = "Trainingsinzichten";
+"Exercise Library" = "Oefeningenbibliotheek";
+"Movement DNA" = "Bewegings-DNA";
+"Scan Target" = "Doel Scannen";
+"Session Detail" = "Sessiedetails";
+"Capture Tips" = "Opnametips";
+"Gait Tuning" = "Gang-afstemming";
+"Plan Route" = "Route Plannen";
+"Saved Routes" = "Opgeslagen Routes";
+"Route Details" = "Routedetails";
+"Preferences" = "Voorkeuren";
+"Select Photo" = "Foto Selecteren";
+"Select Video" = "Video Selecteren";
+"Medical Notes" = "Medische Notities";
+"Friends & Coaches" = "Vrienden & Coaches";
+"Add Friend" = "Vriend Toevoegen";
+"Filter Competitions" = "Wedstrijden Filteren";
+"Competition Media" = "Wedstrijdmedia";
+"Share Session" = "Sessie Delen";
+"Family Dashboard" = "Familie Dashboard";
+"My Training" = "Mijn Training";
+"Competition Stats" = "Wedstrijdstatistieken";
+"Ride History" = "Ritgeschiedenis";
+"Filter Rides" = "Ritten Filteren";
+"Ride Photos" = "Ritfoto's";
+"Photos & Videos" = "Foto's & Video's";
+"Drill Details" = "Oefeningdetails";
+"Edit Running PB" = "Hardloop-PR Bewerken";
+"Edit Swimming PB" = "Zwem-PR Bewerken";
+"Edit Shooting PB" = "Schiet-PR Bewerken";
+"Weight" = "Gewicht";
+"Height" = "Lengte";
+"Scoring Guide" = "Scorehandleiding";
+"Sync Status" = "Synchronisatiestatus";
+"Find Venue" = "Locatie Zoeken";
+"Session History" = "Sessiegeschiedenis";
+
+// MARK: - Section Headers
+"Event Details" = "Evenementdetails";
+"Date & Location" = "Datum & Locatie";
+"Entry & Booking" = "Inschrijving & Boeking";
+"Discipline Times" = "Disciplinetijden";
+"Travel Plan - Outbound" = "Reisplan - Heenreis";
+"Travel Plan - Return" = "Reisplan - Terugreis";
+"Discipline Scores" = "Disciplinescores";
+"Result" = "Resultaat";
+"Horse" = "Paard";
+"Competition Type" = "Wedstrijdtype";
+"Level" = "Niveau";
+"Round Result" = "Ronde Resultaat";
+"Placing" = "Plaatsing";
+"Route Composition" = "Routesamenstelling";
+"Surface Types" = "Ondergrondtypen";
+"Route Preferences" = "Routevoorkeuren";
+"Downloaded Regions" = "Gedownloade Regio's";
+"Available Regions" = "Beschikbare Regio's";
+"Summary" = "Samenvatting";
+"Personal Information" = "Persoonlijke Informatie";
+"Tetrathlon" = "Tetrathlon";
+"Voice Settings" = "Steminstellingen";
+"Milestone Intervals" = "Mijlpaalintervallen";
+"Basic Information" = "Basisinformatie";
+"Details" = "Details";
+"Videos" = "Video's";
+"Speed Thresholds" = "Snelheidsdrempels";
+"Detection Sensitivity" = "Detectiegevoeligheid";
+"Troubleshooting" = "Probleemoplossing";
+"Contact Info" = "Contactinfo";
+"Relationship" = "Relatie";
+"Share with" = "Delen met";
+"Share Duration" = "Deelduur";
+"Recent Sessions" = "Recente Sessies";
+"Dashboard" = "Dashboard";
+"Heart Rate Variability" = "Hartslagvariabiliteit";
+"Resting Heart Rate" = "Rustpols";
+"Subjective Measures" = "Subjectieve Metingen";
+"Task Details" = "Taakdetails";
+"Due Date" = "Vervaldatum";
+"Personal Best" = "Persoonlijk Record";
+"Session Type" = "Sessietype";
+"Rounds" = "Rondes";
+"Filter by Focus Area" = "Filteren op Focusgebied";
+"Select Drill" = "Oefening Selecteren";
+"Workout Details" = "Trainingsdetails";
+"Interval Details" = "Intervaldetails";
+"Date Range" = "Datumbereik";
+"Quick Presets" = "Snelle Voorinstellingen";
+"Media" = "Media";
+"Personal Bests" = "Persoonlijke Records";
+"Calorie Estimator" = "Caloriecalculator";
+"Body Measurements" = "Lichaamsmaten";
+"Changes take effect immediately" = "Wijzigingen worden direct doorgevoerd";
+
+// MARK: - Statistics
+"Total Rides" = "Totaal Ritten";
+"Total Distance" = "Totale Afstand";
+"Total Time" = "Totale Tijd";
+"Elevation" = "Hoogteverschil";
+"Avg Distance" = "Gem. Afstand";
+"Overview" = "Overzicht";
+"Weekly Activity" = "Wekelijkse Activiteit";
+"Personal Records" = "Persoonlijke Records";
+"Training Streaks" = "Trainingsreeksen";
+"Gait Distribution" = "Gangverdeling";
+"Turn Balance" = "Bochtbalans";
+"Lead Balance" = "Galopbalans";
+"Movement Quality" = "Bewegingskwaliteit";
+"Longest Ride" = "Langste Rit";
+"Top Speed" = "Topsnelheid";
+"Longest Duration" = "Langste Duur";
+"Most Climbing" = "Meeste Klimmen";
+"Current Streak" = "Huidige Reeks";
+"Longest Streak" = "Langste Reeks";
+"Training Days" = "Trainingsdagen";
+"Completed" = "Voltooid";
+"Avg Points" = "Gem. Punten";
+"Total Points" = "Totale Punten";
+"Tetrathlons" = "Tetrathlons";
+"Points Trend" = "Puntentrend";
+
+// MARK: - Ride Insights
+"Rhythm" = "Ritme";
+"Stability" = "Stabiliteit";
+"Lead" = "Galop";
+"Symmetry" = "Symmetrie";
+"Transitions" = "Overgangen";
+"Segment Details" = "Segmentdetails";
+"Elevation Profile" = "Hoogteprofiel";
+"Heart Rate by Gait" = "Hartslag per Gang";
+"Symmetry Over Time" = "Symmetrie Over Tijd";
+"Per-Rein by Gait" = "Per Teugel per Gang";
+"Transition Breakdown" = "Overgangsanalyse";
+
+// MARK: - Running Insights
+"Technique Score" = "Techniekscore";
+"Running Economy" = "Loopeconomie";
+"Cadence" = "Cadans";
+"Form" = "Vorm";
+"Fatigue" = "Vermoeidheid";
+"Recovery" = "Herstel";
+"Stillness" = "Stilte";
+"Posture" = "Houding";
+"Turnover" = "Pasfrequentie";
+"Bounce" = "Veerkracht";
+"Contact" = "Grondcontact";
+"Stride" = "Paslengte";
+
+// MARK: - GRACE Framework
+"Grow" = "Groeien";
+"Align" = "Uitlijnen";
+"Circle" = "Cirkel";
+"Enjoy" = "Genieten";
+"Ride Tall" = "Rechtop Rijden";
+"Gait Rhythm" = "Gangritme";
+"Balance" = "Balans";
+"Connection" = "Verbinding";
+"Effort" = "Inspanning";
+"Run Tall" = "Rechtop Lopen";
+"Light & Quick" = "Licht & Snel";
+"Forward Lean" = "Voorwaartse Helling";
+"Smooth Motion" = "Vloeiende Beweging";
+"Wellbeing" = "Welzijn";
+"Walk Upright" = "Rechtop Wandelen";
+"Step Tempo" = "Staptempo";
+"Gait Economy" = "Gangeconomie";
+"Endurance" = "Uithoudingsvermogen";
+"Swim Long" = "Lang Zwemmen";
+"Stroke Tempo" = "Slagtempo";
+"Catch & Pull" = "Vangen & Trekken";
+"Swim Economy" = "Zwemeconomie";
+"Precision" = "Precisie";
+"Efficiency" = "Efficiëntie";
+"Under Pressure" = "Onder Druk";
+
+// MARK: - Training Load Dashboard
+"Current Form" = "Huidige Vorm";
+"Fitness (CTL)" = "Fitness (CTL)";
+"Fatigue (ATL)" = "Vermoeidheid (ATL)";
+"Form (TSB)" = "Vorm (TSB)";
+"Today's TSS" = "TSS van Vandaag";
+"Chronic Training Load" = "Chronische Trainingsbelasting";
+"Acute Training Load" = "Acute Trainingsbelasting";
+"Training Stress Balance" = "Trainingsstressbalans";
+"Chronic Training Load (Fitness)" = "Chronische Trainingsbelasting (Fitness)";
+"Acute Training Load (Fatigue)" = "Acute Trainingsbelasting (Vermoeidheid)";
+"Training Stress Balance (Form)" = "Trainingsstressbalans (Vorm)";
+
+// MARK: - Training & Skills
+"Training Modes" = "Trainingsmodi";
+"Cross-Training Benefits" = "Cross-training Voordelen";
+"Insights" = "Inzichten";
+"Areas to Improve" = "Verbeterpunten";
+"Today's Workout" = "Training van Vandaag";
+"Progress by Category" = "Voortgang per Categorie";
+"Training Analysis" = "Trainingsanalyse";
+"Total Drills" = "Totaal Oefeningen";
+"Avg Score" = "Gem. Score";
+"AI Analysis" = "AI Analyse";
+"Strongest" = "Sterkste";
+"Focus Area" = "Focusgebied";
+"Generate AI Analysis" = "AI Analyse Genereren";
+"Apple Intelligence" = "Apple Intelligence";
+"Total Shots" = "Totaal Schoten";
+"Best Group" = "Beste Groep";
+
+// MARK: - Competition
+"Scorecard" = "Scorekaart";
+"Competition Day" = "Wedstrijddag";
+"Upcoming" = "Aankomend";
+"Past" = "Afgelopen";
+"All" = "Alle";
+"Type" = "Type";
+
+// MARK: - Family & Live Tracking
+"Speed" = "Snelheid";
+"Emergency Contacts" = "Noodcontacten";
+"Location Sharing" = "Locatie Delen";
+"Safety Features" = "Veiligheidsfuncties";
+
+// MARK: - Settings Labels
+"Connected to Apple Health" = "Verbonden met Apple Health";
+"Synced from Apple Health" = "Gesynchroniseerd van Apple Health";
+"Not Set" = "Niet Ingesteld";
+"No PB set" = "Geen PR ingesteld";
+"Refresh" = "Vernieuwen";
+"Competition Class" = "Wedstrijdklasse";
+"Run Distance" = "Loopafstand";
+"Swim Duration" = "Zwemduur";
+"Sex" = "Geslacht";
+"Age" = "Leeftijd";
+"BMI" = "BMI";
+
+// MARK: - Sensor Metrics
+"SpO2" = "SpO2";
+"Breathing" = "Ademhaling";
+
+// MARK: - Photo & Target
+"Take Photo" = "Foto Nemen";
+"Photo Library" = "Fotobibliotheek";
+"Quick Tips" = "Snelle Tips";
+"Use Flash" = "Flits Gebruiken";
+"Fill Frame" = "Kader Vullen";
+"Center Target" = "Doel Centreren";
+"Shoot Flat" = "Vlak Fotograferen";
+"Mark Target" = "Doel Markeren";
+"Save Scores" = "Scores Opslaan";
+"Next Hole" = "Volgend Gat";
+"Edit Holes" = "Gaten Bewerken";
+"Grouping" = "Groepering";
+"Position" = "Positie";
+"Pattern Analysis" = "Patroonanalyse";
+"Grouping Quality" = "Groeperingskwaliteit";
+"Shot Pattern" = "Schotpatroon";
+"Position Analysis" = "Positieanalyse";
+"View Details" = "Details Bekijken";
+"Score Trend" = "Scoretrend";
+"Consistency Trend" = "Consistentietrend";
+"Improvement Suggestions" = "Verbeteringsuggesties";
+
+// MARK: - Audio Coaching Categories
+"Session Start & End" = "Sessie Start & Einde";
+"Safety Status" = "Veiligheidsstatus";
+"Session Summaries" = "Sessiesamenvattingen";
+"Heart Rate Zones" = "Hartslagzones";
+"Gait Changes" = "Gangwisselingen";
+"Distance Milestones" = "Afstandsmijlpalen";
+"Time Milestones" = "Tijdsmijlpalen";
+"Workout Intervals" = "Trainingsintervallen";
+"Biomechanics Coaching" = "Biomechanica Coaching";
+"Pace Updates" = "Tempo-updates";
+"Lap Completions" = "Ronde Voltooiingen";
+"Cadence Feedback" = "Cadansfeedback";
+"Form Reminders" = "Vormherinneringen";
+"PB Race Coaching" = "PR Race Coaching";
+"Session Announcements" = "Sessieaankondigingen";
+"Rest Intervals" = "Rustintervallen";
+"Pace Summary" = "Temposamenvatting";
+"Drill Feedback" = "Oefeningsfeedback";
+"Stance Coaching" = "Houdingscoaching";
+"Cross-Country Timing" = "Cross-country Tijdwaarneming";
+
+// MARK: - Horse Gait Tuning
+"Stride Frequency" = "Pasfrequentie";
+"Stride Frequency Offset" = "Pasfrequentie-offset";
+"Walk to Trot Transition" = "Stap-draf Overgang";
+
+// MARK: - Ride Statistics Labels
+"Left" = "Links";
+"Right" = "Rechts";
+"Balanced" = "Gebalanceerd";
+"Uneven" = "Ongelijk";
+"Left Lead" = "Linksgalop";
+"Right Lead" = "Rechtsgalop";
+"Total riding time" = "Totale rijtijd";
+"No gait data available" = "Geen ganggegevens beschikbaar";
+"No turn data available" = "Geen bochtgegevens beschikbaar";
+"Avg Symmetry" = "Gem. Symmetrie";
+"Avg Rhythm" = "Gem. Ritme";
+"Weekly Trend" = "Wekelijkse Trend";
+"rides" = "ritten";
+"Start riding to build your streak!" = "Ga rijden om je reeks op te bouwen!";
+"Complete rides on consecutive days to earn streak badges" = "Voltooi ritten op opeenvolgende dagen om reeksbadges te verdienen";
+"AI Training Insights" = "AI Trainingsinzichten";
+"Analyzing your training data..." = "Je trainingsgegevens worden geanalyseerd...";
+"Generate Insights" = "Inzichten Genereren";
+"Tap refresh to generate AI-powered insights about your training patterns" = "Tik op vernieuwen voor AI-gestuurde inzichten over je trainingspatronen";
+
+// MARK: - Riding Insight Labels
+"Coupling Quality" = "Koppelingskwaliteit";
+"Cross-canter" = "Kruisgalop";
+"Left Rein" = "Linker Teugel";
+"Right Rein" = "Rechter Teugel";
+"Upward" = "Opwaarts";
+"Downward" = "Neerwaarts";
+
+// MARK: - Running Insight Labels
+"Efficiency Factor" = "Efficiëntiefactor";
+"Cardiac Drift" = "Cardiale Drift";
+"Good aerobic fitness" = "Goede aerobe fitheid";
+"Needs improvement" = "Verbetering nodig";
+"Breathing Efficiency" = "Ademhalingsefficiëntie";
+"Form Degradation Detected" = "Vormverslechtering Gedetecteerd";
+"SpO2 Desaturation Warning" = "SpO2 Desaturatiewaarschuwing";
+"Negative split" = "Negatieve split";
+"Positive split" = "Positieve split";
+"Even pacing" = "Gelijkmatig tempo";
+"Intensity" = "Intensiteit";
+"Running PB" = "Hardloop PR";
+"Swimming PB" = "Zwem PR";
+"Shooting PB" = "Schiet PR";
+"Practice" = "Training";
+"Competition Score" = "Wedstrijdscore";
+"Timed Test" = "Tijdtest";
