@@ -1,0 +1,388 @@
+//
+//  WatchConnectivityManager.swift
+//  TrackRide
+//
+//  iPhone-side WatchConnectivity manager
+//
+
+import Foundation
+import WatchConnectivity
+import Observation
+import os
+
+@Observable
+final class WatchConnectivityManager: NSObject, WatchConnecting {
+    // MARK: - State
+
+    private(set) var isReachable: Bool = false
+    private(set) var isPaired: Bool = false
+    private(set) var isWatchAppInstalled: Bool = false
+    private(set) var lastReceivedHeartRate: Int = 0
+    private(set) var lastMessageTime: Date?
+
+    // MARK: - Motion Tracking State (received from Watch)
+
+    private(set) var currentMotionMode: WatchMotionModeShared = .idle
+
+    // Shooting metrics
+    private(set) var stanceStability: Double = 0.0  // 0-100%
+
+    // Swimming metrics
+    private(set) var strokeCount: Int = 0
+    private(set) var strokeRate: Double = 0.0  // strokes per minute
+
+    // Running metrics
+    private(set) var verticalOscillation: Double = 0.0  // cm
+    private(set) var groundContactTime: Double = 0.0  // ms
+    private(set) var cadence: Int = 0  // steps per minute
+
+    // MARK: - Callbacks
+
+    var onCommandReceived: ((WatchCommand) -> Void)?
+    var onHeartRateReceived: ((Int) -> Void)?
+    var onVoiceNoteReceived: ((String) -> Void)?
+    var onMotionUpdate: ((WatchMotionModeShared, Double?, Int?, Double?, Double?, Double?, Int?) -> Void)?
+    var onStrokeDetected: (() -> Void)?
+
+    // Fall detection callbacks
+    var onWatchFallDetected: ((Double, Double, Double) -> Void)?  // confidence, impact, rotation
+    var onWatchFallConfirmedOK: (() -> Void)?
+    var onWatchFallEmergency: (() -> Void)?
+
+    // MARK: - Private
+
+    private var session: WCSession?
+
+    // MARK: - Singleton
+
+    static let shared = WatchConnectivityManager()
+
+    // MARK: - Initialization
+
+    private override init() {
+        super.init()
+    }
+
+    // MARK: - Setup
+
+    func activate() {
+        guard WCSession.isSupported() else {
+            Log.watch.debug("WCSession not supported")
+            return
+        }
+
+        session = WCSession.default
+        session?.delegate = self
+        session?.activate()
+    }
+
+    // MARK: - Sending Messages
+
+    /// Send ride status update to Watch
+    func sendStatusUpdate(
+        rideState: SharedRideState,
+        duration: TimeInterval,
+        distance: Double,
+        speed: Double,
+        gait: String,
+        heartRate: Int?,
+        heartRateZone: Int?,
+        averageHeartRate: Int?,
+        maxHeartRate: Int?,
+        horseName: String?,
+        rideType: String?,
+        // Discipline-specific metrics
+        walkPercent: Double? = nil,
+        trotPercent: Double? = nil,
+        canterPercent: Double? = nil,
+        gallopPercent: Double? = nil,
+        leftTurnCount: Int? = nil,
+        rightTurnCount: Int? = nil,
+        leftReinPercent: Double? = nil,
+        rightReinPercent: Double? = nil,
+        leftLeadPercent: Double? = nil,
+        rightLeadPercent: Double? = nil,
+        symmetryScore: Double? = nil,
+        rhythmScore: Double? = nil,
+        optimalTime: TimeInterval? = nil,
+        timeDifference: TimeInterval? = nil,
+        elevation: Double? = nil
+    ) {
+        let message = WatchMessage.statusUpdate(
+            rideState: rideState,
+            duration: duration,
+            distance: distance,
+            speed: speed,
+            gait: gait,
+            heartRate: heartRate,
+            heartRateZone: heartRateZone,
+            averageHeartRate: averageHeartRate,
+            maxHeartRate: maxHeartRate,
+            horseName: horseName,
+            rideType: rideType,
+            walkPercent: walkPercent,
+            trotPercent: trotPercent,
+            canterPercent: canterPercent,
+            gallopPercent: gallopPercent,
+            leftTurnCount: leftTurnCount,
+            rightTurnCount: rightTurnCount,
+            leftReinPercent: leftReinPercent,
+            rightReinPercent: rightReinPercent,
+            leftLeadPercent: leftLeadPercent,
+            rightLeadPercent: rightLeadPercent,
+            symmetryScore: symmetryScore,
+            rhythmScore: rhythmScore,
+            optimalTime: optimalTime,
+            timeDifference: timeDifference,
+            elevation: elevation
+        )
+
+        sendMessage(message)
+    }
+
+    /// Send a command to Watch (e.g., ride started confirmation)
+    func sendCommand(_ command: WatchCommand) {
+        let message = WatchMessage.command(command)
+        sendMessage(message)
+    }
+
+    /// Start motion tracking on Watch for a specific discipline
+    func startMotionTracking(mode: WatchMotionModeShared) {
+        let message = WatchMessage.startMotionTracking(mode: mode)
+        sendMessage(message)
+    }
+
+    /// Stop motion tracking on Watch
+    func stopMotionTracking() {
+        sendCommand(.stopMotionTracking)
+    }
+
+    /// Sync fall detection state to Watch
+    func syncFallStateToWatch(fallDetected: Bool, countdown: Int?) {
+        let message = WatchMessage.syncFallState(detected: fallDetected, countdown: countdown)
+        sendMessage(message)
+    }
+
+    /// Reset motion metrics (for new session)
+    func resetMotionMetrics() {
+        DispatchQueue.main.async {
+            self.currentMotionMode = .idle
+            self.stanceStability = 0.0
+            self.strokeCount = 0
+            self.strokeRate = 0.0
+            self.verticalOscillation = 0.0
+            self.groundContactTime = 0.0
+            self.cadence = 0
+        }
+    }
+
+    // MARK: - Private Methods
+
+    private func sendMessage(_ message: WatchMessage) {
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.debug("Session not activated, skipping message")
+            return
+        }
+
+        if session.isReachable {
+            // Use sendMessage for real-time updates
+            Log.watch.debug("Sending real-time message to Watch (reachable)")
+            session.sendMessage(message.toDictionary(), replyHandler: nil) { error in
+                Log.watch.error("Send error: \(error)")
+            }
+        } else {
+            // Use application context for non-urgent updates
+            Log.watch.debug("Watch not reachable, using application context")
+            updateApplicationContext(message)
+        }
+    }
+
+    private func updateApplicationContext(_ message: WatchMessage) {
+        guard let session = session,
+              session.activationState == .activated else {
+            return
+        }
+
+        do {
+            try session.updateApplicationContext(message.toDictionary())
+        } catch {
+            Log.watch.error("Context update error: \(error)")
+        }
+    }
+
+    private func handleReceivedMessage(_ message: [String: Any]) {
+        guard let watchMessage = WatchMessage.from(dictionary: message) else {
+            Log.watch.warning("Failed to parse message")
+            return
+        }
+
+        lastMessageTime = watchMessage.timestamp
+
+        // Handle command
+        if let command = watchMessage.command {
+            DispatchQueue.main.async {
+                self.onCommandReceived?(command)
+            }
+
+            // Handle heart rate update
+            if command == .heartRateUpdate, let hr = watchMessage.heartRate {
+                DispatchQueue.main.async {
+                    self.lastReceivedHeartRate = hr
+                    self.onHeartRateReceived?(hr)
+                }
+            }
+
+            // Handle voice note from Watch
+            if command == .voiceNote, let noteText = watchMessage.voiceNoteText {
+                DispatchQueue.main.async {
+                    self.onVoiceNoteReceived?(noteText)
+                }
+            }
+
+            // Handle motion update from Watch
+            if command == .motionUpdate {
+                let previousStrokeCount = self.strokeCount
+
+                DispatchQueue.main.async {
+                    if let mode = watchMessage.motionMode {
+                        self.currentMotionMode = mode
+                    }
+
+                    // Update shooting metrics
+                    if let stability = watchMessage.stanceStability {
+                        self.stanceStability = stability
+                    }
+
+                    // Update swimming metrics
+                    if let strokes = watchMessage.strokeCount {
+                        self.strokeCount = strokes
+                        // Detect new stroke
+                        if strokes > previousStrokeCount {
+                            self.onStrokeDetected?()
+                        }
+                    }
+                    if let rate = watchMessage.strokeRate {
+                        self.strokeRate = rate
+                    }
+
+                    // Update running metrics
+                    if let oscillation = watchMessage.verticalOscillation {
+                        self.verticalOscillation = oscillation
+                    }
+                    if let gct = watchMessage.groundContactTime {
+                        self.groundContactTime = gct
+                    }
+                    if let cad = watchMessage.cadence {
+                        self.cadence = cad
+                    }
+
+                    // Fire motion update callback
+                    self.onMotionUpdate?(
+                        self.currentMotionMode,
+                        watchMessage.stanceStability,
+                        watchMessage.strokeCount,
+                        watchMessage.strokeRate,
+                        watchMessage.verticalOscillation,
+                        watchMessage.groundContactTime,
+                        watchMessage.cadence
+                    )
+                }
+            }
+
+            // Handle fall detection from Watch
+            if command == .fallDetected {
+                let confidence = watchMessage.fallConfidence ?? 0.5
+                let impact = watchMessage.fallImpactMagnitude ?? 0
+                let rotation = watchMessage.fallRotationMagnitude ?? 0
+                DispatchQueue.main.async {
+                    self.onWatchFallDetected?(confidence, impact, rotation)
+                }
+            }
+
+            // Handle fall confirmed OK from Watch
+            if command == .fallConfirmedOK {
+                DispatchQueue.main.async {
+                    self.onWatchFallConfirmedOK?()
+                }
+            }
+
+            // Handle fall emergency from Watch
+            if command == .fallEmergency {
+                DispatchQueue.main.async {
+                    self.onWatchFallEmergency?()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - WCSessionDelegate
+
+extension WatchConnectivityManager: WCSessionDelegate {
+    func session(
+        _ session: WCSession,
+        activationDidCompleteWith activationState: WCSessionActivationState,
+        error: Error?
+    ) {
+        if let error = error {
+            Log.watch.error("Activation error: \(error)")
+            return
+        }
+
+        DispatchQueue.main.async {
+            self.isPaired = session.isPaired
+            self.isWatchAppInstalled = session.isWatchAppInstalled
+            self.isReachable = session.isReachable
+        }
+
+        Log.watch.info("Activated - paired: \(session.isPaired), installed: \(session.isWatchAppInstalled)")
+    }
+
+    func sessionDidBecomeInactive(_ session: WCSession) {
+        Log.watch.debug("Session became inactive")
+    }
+
+    func sessionDidDeactivate(_ session: WCSession) {
+        Log.watch.debug("Session deactivated")
+        // Reactivate for switching watches
+        session.activate()
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        DispatchQueue.main.async {
+            self.isReachable = session.isReachable
+        }
+        Log.watch.info("Reachability changed: \(session.isReachable)")
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        handleReceivedMessage(message)
+    }
+
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any],
+        replyHandler: @escaping ([String: Any]) -> Void
+    ) {
+        handleReceivedMessage(message)
+        replyHandler(["status": "received"])
+    }
+
+    func session(
+        _ session: WCSession,
+        didReceiveApplicationContext applicationContext: [String: Any]
+    ) {
+        handleReceivedMessage(applicationContext)
+    }
+
+    #if os(iOS)
+    func sessionWatchStateDidChange(_ session: WCSession) {
+        DispatchQueue.main.async {
+            self.isPaired = session.isPaired
+            self.isWatchAppInstalled = session.isWatchAppInstalled
+        }
+        Log.watch.info("Watch state changed - paired: \(session.isPaired)")
+    }
+    #endif
+}

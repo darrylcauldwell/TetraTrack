@@ -2,9 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>TetraTrack</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>location</string>
 		<string>remote-notification</string>
+		<string>fetch</string>
 	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>TetraTrack needs location access to record your horse riding routes, even when the app is in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TetraTrack needs location access to record your horse riding routes.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>TetraTrack uses your health data to display heart rate during rides and track your fitness progress.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>TetraTrack saves your rides as workouts in Apple Health to track your equestrian fitness.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>TetraTrack sends notifications to alert you when family members may need assistance during their ride.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TetraTrack can display photos taken during your rides to help you remember your adventures.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>TetraTrack uses speech recognition for hands-free voice notes during training sessions.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TetraTrack uses the microphone to record voice notes during your training sessions.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TetraTrack uses the camera to scan shooting targets and automatically detect and score shot holes.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>TetraTrack displays music playback controls so you can manage your music while riding.</string>
 </dict>
 </plist>

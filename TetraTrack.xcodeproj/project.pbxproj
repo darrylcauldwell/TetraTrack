@@ -1,0 +1,1287 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0193DE5457365929DD41FC9E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B791F1562E1DA15BE4F8A7C1 /* WidgetKit.framework */; };
+		12872E13C363106A38FB2A52 /* TrackRideWidgetExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33395BD8D2B84C06627A6456 /* TrackRideWidgetExtension.swift */; };
+		2A437D650EC55243DFAD5673 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20EA86492389BBC03207D4CA /* SwiftUI.framework */; };
+		3E9A84362F086966008F00C4 /* TetraTrack Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		71590A1E01AE75C3A0218113 /* TrackRideShared in Frameworks */ = {isa = PBXBuildFile; productRef = 8CA96B77452B1A8A8CAAE4D2 /* TrackRideShared */; };
+		7436F2E58CB41D8D18BC100C /* TrackRideShared in Frameworks */ = {isa = PBXBuildFile; productRef = 2AC0620F069ADC5E87280476 /* TrackRideShared */; };
+		9A5085F291BB97F6F362D732 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE76CD606845740366C21A43 /* Foundation.framework */; };
+		E32BFCC669D64EFA2CD4A809 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C40A1E9DAD851DFDCD4160A0 /* Assets.xcassets */; };
+		EDFD8E35B134CFDB920C6E82 /* TetraTrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3E9A81082F06CDCE008F00C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E9A80F52F06CDCC008F00C4;
+			remoteInfo = TrackRide;
+		};
+		3E9A81122F06CDCE008F00C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E9A80F52F06CDCC008F00C4;
+			remoteInfo = TrackRide;
+		};
+		3E9A84232F086966008F00C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E9A84152F086964008F00C4;
+			remoteInfo = "TrackRide Watch App Watch App";
+		};
+		3E9A842D2F086966008F00C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E9A84152F086964008F00C4;
+			remoteInfo = "TrackRide Watch App Watch App";
+		};
+		3E9A84342F086966008F00C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E9A84152F086964008F00C4;
+			remoteInfo = "TrackRide Watch App Watch App";
+		};
+		9A7DE33F0469D06E3FB17C5D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84CB7A672BCB40B671A2EE29;
+			remoteInfo = TrackRideWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3E9A84372F086966008F00C4 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				3E9A84362F086966008F00C4 /* TetraTrack Watch App Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8BF5F5B485E8481B14913331 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EDFD8E35B134CFDB920C6E82 /* TetraTrackWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		20EA86492389BBC03207D4CA /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		33395BD8D2B84C06627A6456 /* TrackRideWidgetExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRideWidgetExtension.swift; sourceTree = "<group>"; };
+		3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TetraTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TetraTrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TetraTrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TetraTrack Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch App Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch App Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		44C27A278CA2270E0961175C /* TrackRideWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = TrackRideWidgetExtension.entitlements; sourceTree = "<group>"; };
+		5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TetraTrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B791F1562E1DA15BE4F8A7C1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		C40A1E9DAD851DFDCD4160A0 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		EE76CD606845740366C21A43 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		FA0E1D1DD1445B58A5C2D862 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3E9A81192F06CDCE008F00C4 /* Exceptions for "TrackRide" folder in "TetraTrack" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3E9A80F52F06CDCC008F00C4 /* TetraTrack */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3E9A80F82F06CDCC008F00C4 /* TrackRide */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3E9A81192F06CDCE008F00C4 /* Exceptions for "TrackRide" folder in "TetraTrack" target */,
+			);
+			path = TrackRide;
+			sourceTree = "<group>";
+		};
+		3E9A810A2F06CDCE008F00C4 /* TrackRideTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TrackRideTests;
+			sourceTree = "<group>";
+		};
+		3E9A81142F06CDCE008F00C4 /* TrackRideUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TrackRideUITests;
+			sourceTree = "<group>";
+		};
+		3E9A84172F086964008F00C4 /* TrackRide Watch App Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "TrackRide Watch App Watch App";
+			sourceTree = "<group>";
+		};
+		3E9A84252F086966008F00C4 /* TrackRide Watch App Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "TrackRide Watch App Watch AppTests";
+			sourceTree = "<group>";
+		};
+		3E9A842F2F086966008F00C4 /* TrackRide Watch App Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "TrackRide Watch App Watch AppUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		22C0DF68335A58C966F62760 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A5085F291BB97F6F362D732 /* Foundation.framework in Frameworks */,
+				0193DE5457365929DD41FC9E /* WidgetKit.framework in Frameworks */,
+				2A437D650EC55243DFAD5673 /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A80F32F06CDCC008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71590A1E01AE75C3A0218113 /* TrackRideShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A81042F06CDCE008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A810E2F06CDCE008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84132F086964008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7436F2E58CB41D8D18BC100C /* TrackRideShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A841F2F086966008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84292F086966008F00C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3E9A80ED2F06CDCC008F00C4 = {
+			isa = PBXGroup;
+			children = (
+				3E9A80F82F06CDCC008F00C4 /* TrackRide */,
+				3E9A810A2F06CDCE008F00C4 /* TrackRideTests */,
+				3E9A81142F06CDCE008F00C4 /* TrackRideUITests */,
+				3E9A84172F086964008F00C4 /* TrackRide Watch App Watch App */,
+				3E9A84252F086966008F00C4 /* TrackRide Watch App Watch AppTests */,
+				3E9A842F2F086966008F00C4 /* TrackRide Watch App Watch AppUITests */,
+				3E9A80F72F06CDCC008F00C4 /* Products */,
+				58333DBF6855CC7F61716017 /* Frameworks */,
+				BE98E8B6D26F1AF3DCC2270E /* TrackRideWidgetExtension */,
+			);
+			sourceTree = "<group>";
+		};
+		3E9A80F72F06CDCC008F00C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */,
+				3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */,
+				3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */,
+				3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */,
+				3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */,
+				3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */,
+				5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		58333DBF6855CC7F61716017 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D663C933AA355BCB6AFC99DE /* iOS */,
+				B791F1562E1DA15BE4F8A7C1 /* WidgetKit.framework */,
+				20EA86492389BBC03207D4CA /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BE98E8B6D26F1AF3DCC2270E /* TrackRideWidgetExtension */ = {
+			isa = PBXGroup;
+			children = (
+				33395BD8D2B84C06627A6456 /* TrackRideWidgetExtension.swift */,
+				FA0E1D1DD1445B58A5C2D862 /* Info.plist */,
+				44C27A278CA2270E0961175C /* TrackRideWidgetExtension.entitlements */,
+				C40A1E9DAD851DFDCD4160A0 /* Assets.xcassets */,
+			);
+			path = TrackRideWidgetExtension;
+			sourceTree = "<group>";
+		};
+		D663C933AA355BCB6AFC99DE /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				EE76CD606845740366C21A43 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3E9A80F52F06CDCC008F00C4 /* TetraTrack */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A811A2F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack" */;
+			buildPhases = (
+				3E9A80F22F06CDCC008F00C4 /* Sources */,
+				3E9A80F32F06CDCC008F00C4 /* Frameworks */,
+				3E9A80F42F06CDCC008F00C4 /* Resources */,
+				3E9A84372F086966008F00C4 /* Embed Watch Content */,
+				8BF5F5B485E8481B14913331 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E9A84352F086966008F00C4 /* PBXTargetDependency */,
+				E7FFB5F3B11D9C71F80131E3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A80F82F06CDCC008F00C4 /* TrackRide */,
+			);
+			name = TetraTrack;
+			packageProductDependencies = (
+				8CA96B77452B1A8A8CAAE4D2 /* TrackRideShared */,
+			);
+			productName = TrackRide;
+			productReference = 3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3E9A81062F06CDCE008F00C4 /* TetraTrackTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A811F2F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrackTests" */;
+			buildPhases = (
+				3E9A81032F06CDCE008F00C4 /* Sources */,
+				3E9A81042F06CDCE008F00C4 /* Frameworks */,
+				3E9A81052F06CDCE008F00C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E9A81092F06CDCE008F00C4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A810A2F06CDCE008F00C4 /* TrackRideTests */,
+			);
+			name = TetraTrackTests;
+			productName = TrackRideTests;
+			productReference = 3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		3E9A81102F06CDCE008F00C4 /* TetraTrackUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A81222F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrackUITests" */;
+			buildPhases = (
+				3E9A810D2F06CDCE008F00C4 /* Sources */,
+				3E9A810E2F06CDCE008F00C4 /* Frameworks */,
+				3E9A810F2F06CDCE008F00C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E9A81132F06CDCE008F00C4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A81142F06CDCE008F00C4 /* TrackRideUITests */,
+			);
+			name = TetraTrackUITests;
+			productName = TrackRideUITests;
+			productReference = 3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch App" */;
+			buildPhases = (
+				3E9A84122F086964008F00C4 /* Sources */,
+				3E9A84132F086964008F00C4 /* Frameworks */,
+				3E9A84142F086964008F00C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A84172F086964008F00C4 /* TrackRide Watch App Watch App */,
+			);
+			name = "TetraTrack Watch App Watch App";
+			packageProductDependencies = (
+				2AC0620F069ADC5E87280476 /* TrackRideShared */,
+			);
+			productName = "TrackRide Watch App Watch App";
+			productReference = 3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3E9A84212F086966008F00C4 /* TetraTrack Watch App Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */;
+			buildPhases = (
+				3E9A841E2F086966008F00C4 /* Sources */,
+				3E9A841F2F086966008F00C4 /* Frameworks */,
+				3E9A84202F086966008F00C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E9A84242F086966008F00C4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A84252F086966008F00C4 /* TrackRide Watch App Watch AppTests */,
+			);
+			name = "TetraTrack Watch App Watch AppTests";
+			productName = "TrackRide Watch App Watch AppTests";
+			productReference = 3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		3E9A842B2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */;
+			buildPhases = (
+				3E9A84282F086966008F00C4 /* Sources */,
+				3E9A84292F086966008F00C4 /* Frameworks */,
+				3E9A842A2F086966008F00C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3E9A842E2F086966008F00C4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3E9A842F2F086966008F00C4 /* TrackRide Watch App Watch AppUITests */,
+			);
+			name = "TetraTrack Watch App Watch AppUITests";
+			productName = "TrackRide Watch App Watch AppUITests";
+			productReference = 3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		84CB7A672BCB40B671A2EE29 /* TetraTrackWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D33BA0ED84D07E848E105A5C /* Build configuration list for PBXNativeTarget "TetraTrackWidgetExtension" */;
+			buildPhases = (
+				805BA8A5C03B9970F24D1C93 /* Sources */,
+				22C0DF68335A58C966F62760 /* Frameworks */,
+				EA439F8C40DB2FE3B31C0481 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TetraTrackWidgetExtension;
+			productName = TrackRideWidgetExtension;
+			productReference = 5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3E9A80EE2F06CDCC008F00C4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					3E9A80F52F06CDCC008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+							com.apple.Push = {
+								enabled = 1;
+							};
+							com.apple.iCloud = {
+								enabled = 1;
+							};
+						};
+					};
+					3E9A81062F06CDCE008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 3E9A80F52F06CDCC008F00C4;
+					};
+					3E9A81102F06CDCE008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 3E9A80F52F06CDCC008F00C4;
+					};
+					3E9A84152F086964008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+						};
+					};
+					3E9A84212F086966008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 3E9A84152F086964008F00C4;
+					};
+					3E9A842B2F086966008F00C4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 3E9A84152F086964008F00C4;
+					};
+					84CB7A672BCB40B671A2EE29 = {
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+						};
+					};
+				};
+			};
+			buildConfigurationList = 3E9A80F12F06CDCC008F00C4 /* Build configuration list for PBXProject "TetraTrack" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3E9A80ED2F06CDCC008F00C4;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9320138F5D32C91F7D517ED0 /* XCLocalSwiftPackageReference "TrackRideShared" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3E9A80F72F06CDCC008F00C4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3E9A80F52F06CDCC008F00C4 /* TetraTrack */,
+				3E9A81062F06CDCE008F00C4 /* TetraTrackTests */,
+				3E9A81102F06CDCE008F00C4 /* TetraTrackUITests */,
+				3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */,
+				3E9A84212F086966008F00C4 /* TetraTrack Watch App Watch AppTests */,
+				3E9A842B2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests */,
+				84CB7A672BCB40B671A2EE29 /* TetraTrackWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3E9A80F42F06CDCC008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A81052F06CDCE008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A810F2F06CDCE008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84142F086964008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84202F086966008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A842A2F086966008F00C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EA439F8C40DB2FE3B31C0481 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E32BFCC669D64EFA2CD4A809 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3E9A80F22F06CDCC008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A81032F06CDCE008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A810D2F06CDCE008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84122F086964008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A841E2F086966008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9A84282F086966008F00C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		805BA8A5C03B9970F24D1C93 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				12872E13C363106A38FB2A52 /* TrackRideWidgetExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3E9A81092F06CDCE008F00C4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E9A80F52F06CDCC008F00C4 /* TetraTrack */;
+			targetProxy = 3E9A81082F06CDCE008F00C4 /* PBXContainerItemProxy */;
+		};
+		3E9A81132F06CDCE008F00C4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E9A80F52F06CDCC008F00C4 /* TetraTrack */;
+			targetProxy = 3E9A81122F06CDCE008F00C4 /* PBXContainerItemProxy */;
+		};
+		3E9A84242F086966008F00C4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			targetProxy = 3E9A84232F086966008F00C4 /* PBXContainerItemProxy */;
+		};
+		3E9A842E2F086966008F00C4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			targetProxy = 3E9A842D2F086966008F00C4 /* PBXContainerItemProxy */;
+		};
+		3E9A84352F086966008F00C4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			targetProxy = 3E9A84342F086966008F00C4 /* PBXContainerItemProxy */;
+		};
+		E7FFB5F3B11D9C71F80131E3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TrackRideWidgetExtension;
+			target = 84CB7A672BCB40B671A2EE29 /* TetraTrackWidgetExtension */;
+			targetProxy = 9A7DE33F0469D06E3FB17C5D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3E9A811B2F06CDCE008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TrackRide/TrackRide.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TrackRide/Info.plist;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		3E9A811C2F06CDCE008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TrackRide/TrackRide.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TrackRide/Info.plist;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		3E9A811D2F06CDCE008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		3E9A811E2F06CDCE008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		3E9A81202F06CDCE008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		3E9A81212F06CDCE008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		3E9A81232F06CDCE008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = TrackRide;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		3E9A81242F06CDCE008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = TrackRide;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		3E9A84382F086966008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "TrackRide Watch App Watch App/TrackRide Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TetraTrack;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "TetraTrack uses your health data to display heart rate during rides and track your fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "TetraTrack saves your rides as workouts in Apple Health to track your equestrian fitness.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = MyHorse.TrackRide;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Debug;
+		};
+		3E9A84392F086966008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "TrackRide Watch App Watch App/TrackRide Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TetraTrack;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "TetraTrack uses your health data to display heart rate during rides and track your fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "TetraTrack saves your rides as workouts in Apple Health to track your equestrian fitness.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = MyHorse.TrackRide;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Release;
+		};
+		3E9A843A2F086966008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Debug;
+		};
+		3E9A843B2F086966008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Release;
+		};
+		3E9A843C2F086966008F00C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "TrackRide Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Debug;
+		};
+		3E9A843D2F086966008F00C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "TrackRide Watch App Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.1;
+			};
+			name = Release;
+		};
+		91B89E24B32A7378E49D3B61 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = TrackRideWidgetExtension/TrackRideWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TrackRideWidgetExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.WidgetExtension;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				WRAPPER_EXTENSION = appex;
+			};
+			name = Release;
+		};
+		E8A2B7BA5AF82FC6A803847E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = TrackRideWidgetExtension/TrackRideWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = N6BK2WX94Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TrackRideWidgetExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.WidgetExtension;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = appex;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3E9A80F12F06CDCC008F00C4 /* Build configuration list for PBXProject "TetraTrack" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A811D2F06CDCE008F00C4 /* Debug */,
+				3E9A811E2F06CDCE008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A811A2F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A811B2F06CDCE008F00C4 /* Debug */,
+				3E9A811C2F06CDCE008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A811F2F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrackTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A81202F06CDCE008F00C4 /* Debug */,
+				3E9A81212F06CDCE008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A81222F06CDCE008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrackUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A81232F06CDCE008F00C4 /* Debug */,
+				3E9A81242F06CDCE008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A84382F086966008F00C4 /* Debug */,
+				3E9A84392F086966008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A843A2F086966008F00C4 /* Debug */,
+				3E9A843B2F086966008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E9A843C2F086966008F00C4 /* Debug */,
+				3E9A843D2F086966008F00C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D33BA0ED84D07E848E105A5C /* Build configuration list for PBXNativeTarget "TetraTrackWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				91B89E24B32A7378E49D3B61 /* Release */,
+				E8A2B7BA5AF82FC6A803847E /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		9320138F5D32C91F7D517ED0 /* XCLocalSwiftPackageReference "TrackRideShared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = TrackRideShared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2AC0620F069ADC5E87280476 /* TrackRideShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9320138F5D32C91F7D517ED0 /* XCLocalSwiftPackageReference "TrackRideShared" */;
+			productName = TrackRideShared;
+		};
+		8CA96B77452B1A8A8CAAE4D2 /* TrackRideShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9320138F5D32C91F7D517ED0 /* XCLocalSwiftPackageReference "TrackRideShared" */;
+			productName = TrackRideShared;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3E9A80EE2F06CDCC008F00C4 /* Project object */;
+}
