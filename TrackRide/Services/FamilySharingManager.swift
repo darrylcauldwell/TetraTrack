@@ -7,6 +7,7 @@ import CloudKit
 import SwiftData
 import Observation
 import CoreLocation
+import UIKit
 import os
 
 @Observable
@@ -18,8 +19,9 @@ final class FamilySharingManager: FamilySharing {
     var isCloudKitAvailable: Bool = false
     var currentUserID: String = ""
     var currentUserName: String = ""
-    var sharedWithMe: [LiveTrackingSession] = []  // Sessions shared by family members
+    var sharedWithMe: [LiveTrackingSession] = []  // Active sessions shared by family members
     var mySession: LiveTrackingSession?  // My current session being shared
+    var linkedRiders: [LinkedRider] = []  // People who share their rides with you (always visible)
 
     // Alert tracking
     private var sentWarningAlerts: Set<String> = []  // Rider IDs we've warned about
@@ -30,9 +32,13 @@ final class FamilySharingManager: FamilySharing {
     private let cloudKitEnabled = true
 
     // Local trusted contacts (stored separately from CloudKit shares)
-    @ObservationIgnored
     private var localContacts: [TrustedContact] = []
     private let contactsKey = "trustedContacts"
+    private let linkedRidersKey = "linkedRiders"
+    private let pendingRequestsKey = "pendingShareRequests"
+
+    // Pending share requests (requests received but not yet accepted)
+    private(set) var pendingRequests: [PendingShareRequest] = []
 
     private var container: CKContainer? {
         guard cloudKitEnabled else { return nil }
@@ -92,12 +98,10 @@ final class FamilySharingManager: FamilySharing {
                     self.currentUserID = userID.recordName
                 }
 
-                // Try to get user's name
-                if let identity = try? await container.userIdentity(forUserRecordID: userID) {
-                    let name = identity.nameComponents?.formatted() ?? "Rider"
-                    await MainActor.run {
-                        self.currentUserName = name
-                    }
+                // Try to get user's name (deprecated API, but no replacement available)
+                // Use device name as fallback since CloudKit sharing APIs have changed
+                await MainActor.run {
+                    self.currentUserName = UIDevice.current.name
                 }
             }
         } catch {
@@ -225,40 +229,97 @@ final class FamilySharingManager: FamilySharing {
     // MARK: - View Family Locations (Parent's device)
 
     func fetchFamilyLocations() async {
-        guard let privateDatabase = privateDatabase,
-              let zoneID = familyZoneID else { return }
+        var allSessions: [LiveTrackingSession] = []
 
-        let predicate = NSPredicate(format: "isActive == %@", NSNumber(value: true))
-        let query = CKQuery(recordType: liveTrackingRecordType, predicate: predicate)
+        // Query shared database for accepted shares
+        if let sharedDatabase = sharedDatabase {
+            do {
+                // Fetch all shared zones
+                let zones = try await sharedDatabase.allRecordZones()
 
-        do {
-            let (results, _) = try await privateDatabase.records(matching: query, inZoneWith: zoneID)
+                for zone in zones {
+                    let predicate = NSPredicate(value: true)  // Get all records
+                    let query = CKQuery(recordType: liveTrackingRecordType, predicate: predicate)
 
-            var sessions: [LiveTrackingSession] = []
-            for (_, result) in results {
-                if case .success(let record) = result {
-                    if let session = sessionFromRecord(record) {
-                        // Don't include our own session
-                        if session.riderID != currentUserID {
-                            sessions.append(session)
+                    let (results, _) = try await sharedDatabase.records(matching: query, inZoneWith: zone.zoneID)
 
-                            // Check for safety alerts
-                            await checkForSafetyAlerts(session: session)
+                    for (_, result) in results {
+                        if case .success(let record) = result {
+                            if let session = sessionFromRecord(record) {
+                                // Don't include our own session
+                                if session.riderID != currentUserID {
+                                    allSessions.append(session)
+                                }
+                            }
                         }
                     }
                 }
+            } catch {
+                Log.family.error("Failed to fetch from shared database: \(error)")
             }
-
-            await MainActor.run {
-                self.sharedWithMe = sessions
-            }
-
-            // Clear alerts for riders who are no longer stationary
-            clearResolvedAlerts(activeSessions: sessions)
-
-        } catch {
-            Log.family.error("Failed to fetch family locations: \(error)")
         }
+
+        // Also check private database (for testing/development)
+        if let privateDatabase = privateDatabase, let zoneID = familyZoneID {
+            do {
+                let predicate = NSPredicate(value: true)
+                let query = CKQuery(recordType: liveTrackingRecordType, predicate: predicate)
+
+                let (results, _) = try await privateDatabase.records(matching: query, inZoneWith: zoneID)
+
+                for (_, result) in results {
+                    if case .success(let record) = result {
+                        if let session = sessionFromRecord(record) {
+                            // Don't include our own session or duplicates
+                            if session.riderID != currentUserID &&
+                               !allSessions.contains(where: { $0.riderID == session.riderID }) {
+                                allSessions.append(session)
+                            }
+                        }
+                    }
+                }
+            } catch {
+                Log.family.error("Failed to fetch from private database: \(error)")
+            }
+        }
+
+        // Update linked riders with their current session status
+        await MainActor.run {
+            // Update existing linked riders
+            for i in linkedRiders.indices {
+                if let session = allSessions.first(where: { $0.riderID == linkedRiders[i].riderID }) {
+                    linkedRiders[i].isCurrentlyRiding = session.isActive
+                    linkedRiders[i].currentSession = session
+                } else {
+                    linkedRiders[i].isCurrentlyRiding = false
+                    linkedRiders[i].currentSession = nil
+                }
+            }
+
+            // Add any new riders we discovered from shares
+            for session in allSessions {
+                if !linkedRiders.contains(where: { $0.riderID == session.riderID }) {
+                    var newRider = LinkedRider(riderID: session.riderID, name: session.riderName)
+                    newRider.isCurrentlyRiding = session.isActive
+                    newRider.currentSession = session
+                    linkedRiders.append(newRider)
+                }
+            }
+
+            // Filter to active sessions for sharedWithMe
+            self.sharedWithMe = allSessions.filter { $0.isActive }
+        }
+
+        // Check for safety alerts on active sessions
+        for session in allSessions where session.isActive {
+            await checkForSafetyAlerts(session: session)
+        }
+
+        // Clear alerts for riders who are no longer stationary
+        clearResolvedAlerts(activeSessions: allSessions.filter { $0.isActive })
+
+        // Save linked riders
+        saveLinkedRiders()
     }
 
     // MARK: - Safety Alerts
@@ -420,6 +481,8 @@ final class FamilySharingManager: FamilySharing {
            let contacts = try? JSONDecoder().decode([TrustedContact].self, from: data) {
             localContacts = contacts
         }
+        loadLinkedRiders()
+        loadPendingRequests()
     }
 
     private func saveContacts() {
@@ -428,13 +491,149 @@ final class FamilySharingManager: FamilySharing {
         }
     }
 
-    func addContact(name: String, email: String?, relationship: String = "Family") {
+    // MARK: - Linked Riders Management
+
+    private func loadLinkedRiders() {
+        if let data = UserDefaults.standard.data(forKey: linkedRidersKey),
+           let riders = try? JSONDecoder().decode([LinkedRider].self, from: data) {
+            linkedRiders = riders
+        }
+    }
+
+    private func saveLinkedRiders() {
+        // Create copies without the non-codable currentSession
+        var ridersToSave = linkedRiders
+        for i in ridersToSave.indices {
+            ridersToSave[i].currentSession = nil
+        }
+        if let data = try? JSONEncoder().encode(ridersToSave) {
+            UserDefaults.standard.set(data, forKey: linkedRidersKey)
+        }
+    }
+
+    func addLinkedRider(riderID: String, name: String) {
+        // Don't add duplicates
+        guard !linkedRiders.contains(where: { $0.riderID == riderID }) else { return }
+
+        let rider = LinkedRider(riderID: riderID, name: name)
+        linkedRiders.append(rider)
+        saveLinkedRiders()
+    }
+
+    func removeLinkedRider(id: UUID) {
+        linkedRiders.removeAll { $0.id == id }
+        saveLinkedRiders()
+    }
+
+    // MARK: - Pending Share Requests Management
+
+    private func loadPendingRequests() {
+        if let data = UserDefaults.standard.data(forKey: pendingRequestsKey),
+           let requests = try? JSONDecoder().decode([PendingShareRequest].self, from: data) {
+            pendingRequests = requests
+        }
+    }
+
+    private func savePendingRequests() {
+        if let data = try? JSONEncoder().encode(pendingRequests) {
+            UserDefaults.standard.set(data, forKey: pendingRequestsKey)
+        }
+    }
+
+    /// Add a pending share request (called when a share URL is opened)
+    func addPendingRequest(from metadata: CKShare.Metadata) {
+        let ownerIdentity = metadata.ownerIdentity
+        let ownerID = ownerIdentity.userRecordID?.recordName ?? UUID().uuidString
+        let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown"
+
+        // Don't add duplicates
+        guard !pendingRequests.contains(where: { $0.ownerID == ownerID }) else {
+            Log.family.info("Pending request from \(ownerName) already exists")
+            return
+        }
+
+        // Don't add if already a linked rider
+        guard !linkedRiders.contains(where: { $0.riderID == ownerID }) else {
+            Log.family.info("Already linked with \(ownerName)")
+            return
+        }
+
+        let request = PendingShareRequest(
+            ownerID: ownerID,
+            ownerName: ownerName,
+            shareURL: metadata.share.url
+        )
+        pendingRequests.append(request)
+        savePendingRequests()
+        Log.family.info("Added pending request from \(ownerName)")
+    }
+
+    /// Accept a pending share request
+    func acceptPendingRequest(_ request: PendingShareRequest) async -> Bool {
+        guard let url = request.shareURL else {
+            Log.family.error("No share URL for pending request")
+            return false
+        }
+
+        let success = await acceptShare(from: url)
+
+        if success {
+            // Remove from pending
+            pendingRequests.removeAll { $0.id == request.id }
+            savePendingRequests()
+        }
+
+        return success
+    }
+
+    /// Decline a pending share request
+    func declinePendingRequest(_ request: PendingShareRequest) {
+        pendingRequests.removeAll { $0.id == request.id }
+        savePendingRequests()
+        Log.family.info("Declined request from \(request.ownerName)")
+    }
+
+    func addContact(
+        name: String,
+        phoneNumber: String = "",
+        email: String? = nil,
+        isEmergencyContact: Bool = true,
+        isPrimaryEmergency: Bool = false,
+        inviteStatus: InviteStatus = .notSent,
+        inviteSentDate: Date? = nil
+    ) {
+        // If this is the first contact, make it primary
+        let shouldBePrimary = isPrimaryEmergency || localContacts.isEmpty
+
         let contact = TrustedContact(
             name: name,
+            phoneNumber: phoneNumber,
             email: email,
-            relationship: relationship
+            isEmergencyContact: isEmergencyContact,
+            isPrimaryEmergency: shouldBePrimary,
+            inviteStatus: inviteStatus,
+            inviteSentDate: inviteSentDate
         )
         localContacts.append(contact)
+        saveContacts()
+    }
+
+    /// Get contacts configured for emergency alerts
+    var emergencyContacts: [TrustedContact] {
+        localContacts.filter { $0.isEmergencyContact && !$0.phoneNumber.isEmpty }
+    }
+
+    /// Get the primary emergency contact
+    var primaryEmergencyContact: TrustedContact? {
+        localContacts.first { $0.isPrimaryEmergency && $0.isEmergencyContact }
+            ?? emergencyContacts.first
+    }
+
+    /// Set a contact as the primary emergency contact
+    func setPrimaryEmergencyContact(id: UUID) {
+        for i in localContacts.indices {
+            localContacts[i].isPrimaryEmergency = (localContacts[i].id == id)
+        }
         saveContacts()
     }
 
@@ -446,6 +645,31 @@ final class FamilySharingManager: FamilySharing {
     func updateContact(_ contact: TrustedContact) {
         if let index = localContacts.firstIndex(where: { $0.id == contact.id }) {
             localContacts[index] = contact
+            saveContacts()
+        }
+    }
+
+    // MARK: - Invite Status Management
+
+    func markInviteSent(contactID: UUID) {
+        if let index = localContacts.firstIndex(where: { $0.id == contactID }) {
+            localContacts[index].inviteStatus = .pending
+            localContacts[index].inviteSentDate = Date()
+            saveContacts()
+        }
+    }
+
+    func markReminderSent(contactID: UUID) {
+        if let index = localContacts.firstIndex(where: { $0.id == contactID }) {
+            localContacts[index].lastReminderDate = Date()
+            localContacts[index].reminderCount += 1
+            saveContacts()
+        }
+    }
+
+    func markInviteAccepted(contactID: UUID) {
+        if let index = localContacts.firstIndex(where: { $0.id == contactID }) {
+            localContacts[index].inviteStatus = .accepted
             saveContacts()
         }
     }
@@ -472,6 +696,121 @@ final class FamilySharingManager: FamilySharing {
             return nil
         }
     }
+
+    // MARK: - Share Acceptance
+
+    /// Accept a CloudKit share from a URL (called when app opens via share link)
+    func acceptShare(from url: URL) async -> Bool {
+        guard let container = container else {
+            Log.family.error("CloudKit container not available for share acceptance")
+            return false
+        }
+
+        do {
+            // Extract share metadata from URL
+            let metadata = try await container.shareMetadata(for: url)
+
+            // Accept the share
+            let acceptedShare = try await container.accept(metadata)
+
+            // Get the owner's info to create a linked rider
+            let ownerIdentity = acceptedShare.owner.userIdentity
+            if let ownerID = ownerIdentity.userRecordID?.recordName {
+                let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown Rider"
+
+                await MainActor.run {
+                    addLinkedRider(riderID: ownerID, name: ownerName)
+                }
+
+                Log.family.info("Accepted share from \(ownerName)")
+            }
+
+            // Fetch locations to populate the linked rider's status
+            await fetchFamilyLocations()
+
+            return true
+        } catch {
+            Log.family.error("Failed to accept share: \(error)")
+            return false
+        }
+    }
+
+    /// Check if URL is a CloudKit share URL
+    func isCloudKitShareURL(_ url: URL) -> Bool {
+        url.scheme == "cloudkit" || url.host?.contains("icloud") == true
+    }
+}
+
+// MARK: - Trusted Contact Model
+
+// MARK: - Linked Rider Model (people who share their rides with you)
+
+struct LinkedRider: Identifiable, Codable {
+    let id: UUID
+    var riderID: String           // CloudKit user ID
+    var name: String
+    var addedDate: Date
+
+    // Current status (not persisted)
+    var isCurrentlyRiding: Bool = false
+    var currentSession: LiveTrackingSession?
+
+    init(
+        id: UUID = UUID(),
+        riderID: String,
+        name: String
+    ) {
+        self.id = id
+        self.riderID = riderID
+        self.name = name
+        self.addedDate = Date()
+    }
+
+    var initials: String {
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return name.prefix(2).uppercased()
+    }
+
+    // Codable conformance - exclude non-codable currentSession
+    enum CodingKeys: String, CodingKey {
+        case id, riderID, name, addedDate, isCurrentlyRiding
+    }
+}
+
+extension LinkedRider: Equatable {
+    static func == (lhs: LinkedRider, rhs: LinkedRider) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.riderID == rhs.riderID &&
+        lhs.name == rhs.name &&
+        lhs.isCurrentlyRiding == rhs.isCurrentlyRiding
+    }
+}
+
+// MARK: - Invite Status
+
+enum InviteStatus: String, Codable, Equatable {
+    case notSent = "not_sent"
+    case pending = "pending"
+    case accepted = "accepted"
+
+    var displayText: String {
+        switch self {
+        case .notSent: return "Invite not sent"
+        case .pending: return "Invite pending"
+        case .accepted: return "Connected"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .notSent: return "envelope"
+        case .pending: return "clock"
+        case .accepted: return "checkmark.circle.fill"
+        }
+    }
 }
 
 // MARK: - Trusted Contact Model
@@ -479,33 +818,189 @@ final class FamilySharingManager: FamilySharing {
 struct TrustedContact: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
+    var phoneNumber: String
     var email: String?
-    var relationship: String
-    var shareMyLocation: Bool
-    var receiveAlerts: Bool
-    var cloudKitShareURL: URL?
     var addedDate: Date
+
+    // Feature permissions (granular control)
+    var canViewLiveTracking: Bool      // Can see live location during rides
+    var receiveFallAlerts: Bool        // Receives fall detection notifications
+    var receiveStationaryAlerts: Bool  // Receives stationary/stopped alerts
+    var isEmergencyContact: Bool       // Receives emergency SOS (SMS with location)
+    var isPrimaryEmergency: Bool       // First to be contacted in emergency
+
+    // Legacy property for compatibility
+    var shareMyLocation: Bool {
+        get { canViewLiveTracking }
+        set { canViewLiveTracking = newValue }
+    }
+
+    // Invite tracking
+    var inviteStatus: InviteStatus
+    var inviteSentDate: Date?
+    var lastReminderDate: Date?
+    var reminderCount: Int
+
+    // Medical info (for emergency contacts)
+    var medicalNotes: String?
+
+    // CloudKit sharing
+    var cloudKitShareURL: URL?
 
     init(
         id: UUID = UUID(),
         name: String,
+        phoneNumber: String = "",
         email: String? = nil,
-        relationship: String = "Family",
-        shareMyLocation: Bool = true,
-        receiveAlerts: Bool = true,
+        canViewLiveTracking: Bool = true,
+        receiveFallAlerts: Bool = true,
+        receiveStationaryAlerts: Bool = true,
+        isEmergencyContact: Bool = true,
+        isPrimaryEmergency: Bool = false,
+        inviteStatus: InviteStatus = .notSent,
+        inviteSentDate: Date? = nil,
+        medicalNotes: String? = nil,
         cloudKitShareURL: URL? = nil
     ) {
         self.id = id
         self.name = name
+        self.phoneNumber = phoneNumber
         self.email = email
-        self.relationship = relationship
-        self.shareMyLocation = shareMyLocation
-        self.receiveAlerts = receiveAlerts
+        self.canViewLiveTracking = canViewLiveTracking
+        self.receiveFallAlerts = receiveFallAlerts
+        self.receiveStationaryAlerts = receiveStationaryAlerts
+        self.isEmergencyContact = isEmergencyContact
+        self.isPrimaryEmergency = isPrimaryEmergency
+        self.inviteStatus = inviteStatus
+        self.inviteSentDate = inviteSentDate
+        self.lastReminderDate = nil
+        self.reminderCount = 0
+        self.medicalNotes = medicalNotes
         self.cloudKitShareURL = cloudKitShareURL
         self.addedDate = Date()
     }
 
+    // Count of enabled features
+    var enabledFeatureCount: Int {
+        [canViewLiveTracking, receiveFallAlerts, receiveStationaryAlerts, isEmergencyContact]
+            .filter { $0 }.count
+    }
+
     var displayName: String {
-        name.isEmpty ? (email ?? "Contact") : name
+        name.isEmpty ? (email ?? phoneNumber) : name
+    }
+
+    var initials: String {
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return name.prefix(2).uppercased()
+    }
+
+    // For emergency SMS/calls
+    var callURL: URL? {
+        guard !phoneNumber.isEmpty else { return nil }
+        let cleaned = phoneNumber.replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+        return URL(string: "tel://\(cleaned)")
+    }
+
+    var smsURL: URL? {
+        guard !phoneNumber.isEmpty else { return nil }
+        let cleaned = phoneNumber.replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+        return URL(string: "sms://\(cleaned)")
+    }
+
+    // Time since invite was sent
+    var timeSinceInvite: String? {
+        guard let sentDate = inviteSentDate else { return nil }
+        let interval = Date().timeIntervalSince(sentDate)
+
+        if interval < 60 {
+            return "Just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return days == 1 ? "Yesterday" : "\(days) days ago"
+        }
+    }
+
+    // Generate invite message
+    func inviteMessage(isReminder: Bool = false, shareURL: URL? = nil) -> String {
+        let greeting = isReminder ? "Reminder: " : ""
+        let firstName = name.split(separator: " ").first.map(String.init) ?? "there"
+
+        var message = """
+        \(greeting)Hi \(firstName)! I've added you as a trusted contact on TetraTrack.
+
+        You can follow my horse rides live and receive safety alerts if I need help.
+
+        Download TetraTrack: https://apps.apple.com/app/tetratrack
+        """
+
+        if let url = shareURL {
+            message += "\n\nTap to connect: \(url.absoluteString)"
+        }
+
+        return message
+    }
+}
+
+// MARK: - Pending Share Request Model
+
+struct PendingShareRequest: Identifiable, Codable, Equatable {
+    let id: UUID
+    var ownerID: String           // CloudKit user ID of the person sharing
+    var ownerName: String         // Name of the person sharing
+    var shareURL: URL?            // CloudKit share URL
+    var receivedDate: Date
+
+    init(
+        id: UUID = UUID(),
+        ownerID: String,
+        ownerName: String,
+        shareURL: URL? = nil
+    ) {
+        self.id = id
+        self.ownerID = ownerID
+        self.ownerName = ownerName
+        self.shareURL = shareURL
+        self.receivedDate = Date()
+    }
+
+    var initials: String {
+        let parts = ownerName.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return ownerName.prefix(2).uppercased()
+    }
+
+    var timeSinceReceived: String {
+        let interval = Date().timeIntervalSince(receivedDate)
+
+        if interval < 60 {
+            return "Just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return days == 1 ? "Yesterday" : "\(days) days ago"
+        }
     }
 }

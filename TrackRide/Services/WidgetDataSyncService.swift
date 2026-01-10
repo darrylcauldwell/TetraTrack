@@ -48,15 +48,13 @@ final class WidgetDataSyncService {
     func syncCompetitions(context: ModelContext) {
         do {
             let now = Date()
+            // Fetch all and filter in Swift to avoid #Predicate variable capture crash
             var descriptor = FetchDescriptor<Competition>(
-                predicate: #Predicate<Competition> { competition in
-                    competition.date > now
-                },
                 sortBy: [SortDescriptor(\.date, order: .forward)]
             )
-            descriptor.fetchLimit = 5
 
-            let competitions = try context.fetch(descriptor)
+            let allCompetitions = try context.fetch(descriptor)
+            let competitions = allCompetitions.filter { $0.date > now }.prefix(5)
             let widgetCompetitions = competitions.map { competition in
                 WidgetCompetitionData(
                     id: competition.id,

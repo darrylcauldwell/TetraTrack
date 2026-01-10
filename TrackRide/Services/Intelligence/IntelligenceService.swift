@@ -26,12 +26,7 @@ final class IntelligenceService {
     private init() {
         #if canImport(FoundationModels)
         // Initialize with system language model
-        do {
-            session = try LanguageModelSession()
-        } catch {
-            Log.intelligence.error("IntelligenceService: Failed to initialize - \(error)")
-            session = nil
-        }
+        session = LanguageModelSession()
         #endif
     }
 

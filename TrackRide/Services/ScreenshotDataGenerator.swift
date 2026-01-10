@@ -113,15 +113,23 @@ struct ScreenshotDataGenerator {
             in: context
         )
 
-        // Create varied riding sessions
+        // Create varied riding sessions - hacking
         generateBadmintonHack(in: context, horse: bella, daysAgo: 0)
-        generateBurghleyXC(in: context, horse: bella, daysAgo: 2)
         generateChatsworthHack(in: context, horse: archie, daysAgo: 3)
-        generateBlenheimFlatwork(in: context, horse: bella, daysAgo: 5)
         generateCastleHowardTrail(in: context, horse: willow, daysAgo: 7)
-        generateAlthorpSchooling(in: context, horse: archie, daysAgo: 9)
         generateArundelBeachRide(in: context, horse: bella, daysAgo: 12)
-        generateHicksteadJumping(in: context, horse: bella, daysAgo: 14)
+
+        // Cross country
+        generateBurghleyXC(in: context, horse: bella, daysAgo: 2)
+
+        // Schooling sessions - varied types
+        generateBlenheimFlatwork(in: context, horse: bella, daysAgo: 1)
+        generateAlthorpSchooling(in: context, horse: archie, daysAgo: 4)
+        generateHicksteadJumping(in: context, horse: bella, daysAgo: 6)
+        generatePoleworkSession(in: context, horse: willow, daysAgo: 8)
+        generateGridworkSession(in: context, horse: bella, daysAgo: 10)
+        generateLungeSession(in: context, horse: archie, daysAgo: 11)
+        generateLateralWorkSession(in: context, horse: bella, daysAgo: 14)
 
         // Create running sessions
         generateRunningSessions(in: context)
@@ -522,6 +530,177 @@ struct ScreenshotDataGenerator {
         addAISummary(to: ride, summary: "Strong jumping session! The 47-metre clearance over the 1m fence shows excellent scope (and possibly excessive enthusiasm). Victory lap frequency is decreasing. Your core strength may need attention - consider more sit-ups.")
     }
 
+    // MARK: - Additional Schooling Sessions
+
+    private static func generatePoleworkSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
+        let ride = createRide(
+            name: "Polework Puzzle",
+            type: .schooling,
+            durationMinutes: 35,
+            distanceKm: 3.8,
+            daysAgo: daysAgo,
+            horse: horse,
+            in: context
+        )
+        ride.elevationGain = 0
+        ride.elevationLoss = 0
+        ride.maxSpeed = 5.2
+        ride.averageHeartRate = 108
+        ride.maxHeartRate = 132
+        ride.minHeartRate = 82
+        ride.leftTurns = 38
+        ride.rightTurns = 40
+        ride.leftLeadDuration = 195
+        ride.rightLeadDuration = 210
+        ride.leftReinDuration = 560
+        ride.rightReinDuration = 580
+        ride.leftReinSymmetry = 82
+        ride.rightReinSymmetry = 85
+        ride.leftReinRhythm = 78
+        ride.rightReinRhythm = 82
+        ride.notes = "Raised poles and trot grids with Drama Queen. She's convinced the blue poles are more dangerous than the others. Counting strides has improved - we only launched into orbit twice today. Progress!"
+
+        addGaitSegments(to: ride, segments: [
+            (.walk, 6, 400),
+            (.trot, 10, 1600),
+            (.walk, 4, 300),
+            (.trot, 8, 1400),
+            (.canter, 5, 800),
+            (.walk, 8, 500),
+        ], in: context)
+
+        generateArenaRoute(for: ride, location: .hickstead, in: context)
+        addWeatherData(to: ride, temp: 13, condition: "Cloudy")
+        addAISummary(to: ride, summary: "Great polework session! Your rhythm through the grids improved from 78% to 82% by the end. Drama Queen's suspicion of blue poles is noted. The 'orbit launches' are becoming more controlled.")
+    }
+
+    private static func generateGridworkSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
+        let ride = createRide(
+            name: "Bounce Grid Bootcamp",
+            type: .schooling,
+            durationMinutes: 40,
+            distanceKm: 4.5,
+            daysAgo: daysAgo,
+            horse: horse,
+            in: context
+        )
+        ride.elevationGain = 0
+        ride.elevationLoss = 0
+        ride.maxSpeed = 6.5
+        ride.averageHeartRate = 125
+        ride.maxHeartRate = 148
+        ride.minHeartRate = 88
+        ride.leftTurns = 32
+        ride.rightTurns = 35
+        ride.leftLeadDuration = 240
+        ride.rightLeadDuration = 265
+        ride.leftReinDuration = 620
+        ride.rightReinDuration = 590
+        ride.leftReinSymmetry = 88
+        ride.rightReinSymmetry = 86
+        ride.leftReinRhythm = 85
+        ride.rightReinRhythm = 83
+        ride.notes = "Bounce grids to one-stride combinations. Biscuit Thief has decided bounces are her favourite thing - she adds extra enthusiasm to every one. My back may disagree. The one-stride was... occasionally a no-stride."
+
+        addGaitSegments(to: ride, segments: [
+            (.walk, 8, 500),
+            (.trot, 12, 1800),
+            (.canter, 10, 1600),
+            (.walk, 5, 350),
+            (.canter, 8, 1200),
+            (.walk, 7, 450),
+        ], in: context)
+
+        generateArenaRoute(for: ride, location: .blenheimPalace, in: context)
+        addWeatherData(to: ride, temp: 14, condition: "Sunny")
+        addAISummary(to: ride, summary: "Excellent gridwork! Symmetry at 88% shows you're staying balanced over the fences. The 'extra enthusiasm' is building Biscuit's confidence. Consider the occasional no-stride as 'advanced scope demonstration'.")
+    }
+
+    private static func generateLungeSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
+        let ride = createRide(
+            name: "Lunge Day (Human Exercise)",
+            type: .schooling,
+            durationMinutes: 25,
+            distanceKm: 2.2,
+            daysAgo: daysAgo,
+            horse: horse,
+            in: context
+        )
+        ride.elevationGain = 0
+        ride.elevationLoss = 0
+        ride.maxSpeed = 4.8
+        ride.averageHeartRate = 95
+        ride.maxHeartRate = 118
+        ride.minHeartRate = 75
+        ride.leftTurns = 60
+        ride.rightTurns = 58
+        ride.leftLeadDuration = 180
+        ride.rightLeadDuration = 175
+        ride.leftReinDuration = 380
+        ride.rightReinDuration = 370
+        ride.leftReinSymmetry = 90
+        ride.rightReinSymmetry = 88
+        ride.leftReinRhythm = 86
+        ride.rightReinRhythm = 84
+        ride.notes = "Lungeing Chaos Theory - which means I got more exercise than him trying to keep the circle actually circular. He's convinced lunge line = impromptu tug-of-war. Equal work both reins achieved through sheer determination."
+
+        addGaitSegments(to: ride, segments: [
+            (.walk, 5, 300),
+            (.trot, 8, 900),
+            (.canter, 4, 500),
+            (.trot, 6, 700),
+            (.canter, 4, 450),
+            (.walk, 5, 350),
+        ], in: context)
+
+        generateArenaRoute(for: ride, location: .althorp, in: context)
+        addWeatherData(to: ride, temp: 11, condition: "Partly Cloudy")
+        addAISummary(to: ride, summary: "Good lunge session! Turn balance is nearly perfect at 51%/49%. Chaos Theory's 'creative interpretation' of the circle improved as the session progressed. Your step count must have been impressive!")
+    }
+
+    private static func generateLateralWorkSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
+        let ride = createRide(
+            name: "Leg Yield & Shoulder-In Safari",
+            type: .schooling,
+            durationMinutes: 45,
+            distanceKm: 5.0,
+            daysAgo: daysAgo,
+            horse: horse,
+            in: context
+        )
+        ride.elevationGain = 0
+        ride.elevationLoss = 0
+        ride.maxSpeed = 4.5
+        ride.averageHeartRate = 112
+        ride.maxHeartRate = 135
+        ride.minHeartRate = 85
+        ride.leftTurns = 55
+        ride.rightTurns = 52
+        ride.totalLeftAngle = 5500
+        ride.totalRightAngle = 5200
+        ride.leftLeadDuration = 220
+        ride.rightLeadDuration = 235
+        ride.leftReinDuration = 750
+        ride.rightReinDuration = 720
+        ride.leftReinSymmetry = 78
+        ride.rightReinSymmetry = 84
+        ride.leftReinRhythm = 76
+        ride.rightReinRhythm = 82
+        ride.notes = "Lateral work focus - leg yield improving! Shoulder-in left is still 'shoulder-somewhere-in-the-vicinity'. Biscuit's travers attempt was... a creative quarter pirouette. We'll call it intentional."
+
+        addGaitSegments(to: ride, segments: [
+            (.walk, 10, 650),
+            (.trot, 15, 2200),
+            (.walk, 5, 350),
+            (.trot, 12, 1800),
+            (.walk, 8, 500),
+        ], in: context)
+
+        generateArenaRoute(for: ride, location: .chatsworthHouse, in: context)
+        addWeatherData(to: ride, temp: 12, condition: "Cloudy")
+        addAISummary(to: ride, summary: "Solid lateral work! The 6% difference in symmetry between reins shows left is your weaker side - focus there next session. The 'creative quarter pirouette' shows Biscuit's athleticism. Glass half full!")
+    }
+
     // MARK: - Running Sessions
 
     private static func generateRunningSessions(in context: ModelContext) {
@@ -583,6 +762,66 @@ struct ScreenshotDataGenerator {
         treadmill.treadmillIncline = 2.0
         treadmill.notes = "It was raining. I have no regrets. Watched an entire episode of something while running. This is peak efficiency. Or laziness. Possibly both."
         context.insert(treadmill)
+
+        // Long Run
+        let longRun = RunningSession(name: "Sunday Long Run (Pain & Suffering)", sessionType: .longRun, runMode: .outdoor)
+        longRun.startDate = Calendar.current.date(byAdding: .day, value: -10, to: Date()) ?? Date()
+        longRun.endDate = longRun.startDate.addingTimeInterval(3600)
+        longRun.totalDistance = 10500
+        longRun.totalDuration = 3600
+        longRun.averageCadence = 162
+        longRun.maxCadence = 172
+        longRun.averageHeartRate = 145
+        longRun.maxHeartRate = 165
+        longRun.totalAscent = 125
+        longRun.totalDescent = 118
+        longRun.notes = "10.5km Sunday long run. The first 5km felt amazing. The last 5km felt like a negotiation with my legs. Discovered three new blisters and one new appreciation for sofas. The pub at the end was motivational."
+        context.insert(longRun)
+
+        // Tempo Run
+        let tempo = RunningSession(name: "Tempo Run (Comfortably Uncomfortable)", sessionType: .tempo, runMode: .outdoor)
+        tempo.startDate = Calendar.current.date(byAdding: .day, value: -12, to: Date()) ?? Date()
+        tempo.endDate = tempo.startDate.addingTimeInterval(1800)
+        tempo.totalDistance = 5800
+        tempo.totalDuration = 1800
+        tempo.averageCadence = 176
+        tempo.maxCadence = 182
+        tempo.averageHeartRate = 162
+        tempo.maxHeartRate = 175
+        tempo.totalAscent = 35
+        tempo.totalDescent = 32
+        tempo.notes = "Tempo pace practice - 'comfortably hard' they said. 'Uncomfortable and questioning life choices' is more accurate. Maintained pace for 4km though, which is a win. The voice coach was encouraging. Too encouraging."
+        context.insert(tempo)
+
+        // Virtual Pacer Session
+        let pacer = RunningSession(name: "Chase the Ghost (Virtual Pacer)", sessionType: .timeTrial, runMode: .outdoor)
+        pacer.startDate = Calendar.current.date(byAdding: .day, value: -15, to: Date()) ?? Date()
+        pacer.endDate = pacer.startDate.addingTimeInterval(420)
+        pacer.totalDistance = 1500
+        pacer.totalDuration = 420 // 7:00
+        pacer.averageCadence = 170
+        pacer.maxCadence = 182
+        pacer.averageHeartRate = 165
+        pacer.maxHeartRate = 180
+        pacer.totalAscent = 8
+        pacer.totalDescent = 6
+        pacer.notes = "Chasing my PB ghost on the 1500m. The ghost won by 42 seconds. The ghost is a show-off. Next time I'm setting a more achievable ghost. One that maybe takes a coffee break mid-run."
+        context.insert(pacer)
+
+        // Hill Repeats
+        let hills = RunningSession(name: "Hill Repeats (Stairway to Suffering)", sessionType: .intervals, runMode: .outdoor)
+        hills.startDate = Calendar.current.date(byAdding: .day, value: -17, to: Date()) ?? Date()
+        hills.endDate = hills.startDate.addingTimeInterval(1500)
+        hills.totalDistance = 4200
+        hills.totalDuration = 1500
+        hills.averageCadence = 168
+        hills.maxCadence = 178
+        hills.averageHeartRate = 158
+        hills.maxHeartRate = 182
+        hills.totalAscent = 185
+        hills.totalDescent = 180
+        hills.notes = "6x hill repeats. By rep 4, the hill had become my nemesis. By rep 6, we had reached an uneasy truce. My quads are filing a formal complaint with HR. The views from the top were lovely, when I could see through the tears."
+        context.insert(hills)
     }
 
     // MARK: - Swimming Sessions
@@ -627,6 +866,79 @@ struct ScreenshotDataGenerator {
             lap.duration = 22.0 + Double.random(in: -3...3)
             lap.strokeCount = 18 + Int.random(in: -2...3)
             lap.session = training
+            context.insert(lap)
+        }
+
+        // Open Water Session
+        let openWater = SwimmingSession(name: "Lake Adventure (Cold Water Shock)", poolMode: .openWater, poolLength: 0)
+        openWater.startDate = Calendar.current.date(byAdding: .day, value: -9, to: Date()) ?? Date()
+        openWater.endDate = openWater.startDate.addingTimeInterval(720)
+        openWater.totalDistance = 400
+        openWater.totalDuration = 720
+        openWater.totalStrokes = 320
+        openWater.notes = "First open water swim of the season! Water temperature: 'refreshing' (read: cold enough to reconsider life). Sighting practice went well - only swam into one buoy. The ducks were unimpressed by my technique."
+        context.insert(openWater)
+
+        // 50m Pool Session
+        let fiftyPool = SwimmingSession(name: "Olympic Pool Practice", poolMode: .pool, poolLength: 50)
+        fiftyPool.startDate = Calendar.current.date(byAdding: .day, value: -11, to: Date()) ?? Date()
+        fiftyPool.endDate = fiftyPool.startDate.addingTimeInterval(2400)
+        fiftyPool.totalDistance = 1500
+        fiftyPool.totalDuration = 1800
+        fiftyPool.totalStrokes = 1080
+        fiftyPool.notes = "50m pool - half the turns means twice the suffering per length. The extra distance between walls is psychological warfare. Flip turns are getting tidier though - only 60% of them involve mild panic now."
+        context.insert(fiftyPool)
+
+        // Add laps for 50m pool (30 laps)
+        for i in 0..<30 {
+            let lap = SwimmingLap()
+            lap.orderIndex = i
+            lap.distance = 50
+            lap.duration = 48.0 + Double.random(in: -5...5)
+            lap.strokeCount = 36 + Int.random(in: -3...3)
+            lap.session = fiftyPool
+            context.insert(lap)
+        }
+
+        // Technique Focus Session
+        let technique = SwimmingSession(name: "Catch & Pull Drills", poolMode: .pool, poolLength: 25)
+        technique.startDate = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        technique.endDate = technique.startDate.addingTimeInterval(1500)
+        technique.totalDistance = 750
+        technique.totalDuration = 1200
+        technique.totalStrokes = 480
+        technique.notes = "Technique drills - catch-up drill, fingertip drag, fist swimming. Discovered I've been 'swimming' with more splash than propulsion. Coach said my catch was 'improving' with a very diplomatic expression."
+        context.insert(technique)
+
+        // Add laps for technique (30 laps)
+        for i in 0..<30 {
+            let lap = SwimmingLap()
+            lap.orderIndex = i
+            lap.distance = 25
+            lap.duration = 28.0 + Double.random(in: -4...6)  // Slower for drills
+            lap.strokeCount = 16 + Int.random(in: -2...2)
+            lap.session = technique
+            context.insert(lap)
+        }
+
+        // Endurance Session
+        let endurance = SwimmingSession(name: "Distance Day (Channel Prep?)", poolMode: .pool, poolLength: 25)
+        endurance.startDate = Calendar.current.date(byAdding: .day, value: -18, to: Date()) ?? Date()
+        endurance.endDate = endurance.startDate.addingTimeInterval(3000)
+        endurance.totalDistance = 2000
+        endurance.totalDuration = 2400
+        endurance.totalStrokes = 1440
+        endurance.notes = "2km continuous swim! The first 500m were pleasant. The second 500m were okay. The third 500m involved counting tiles. The final 500m was powered by stubbornness and the promise of hot chocolate. Channel swim status: not yet."
+        context.insert(endurance)
+
+        // Add laps for endurance (80 laps)
+        for i in 0..<80 {
+            let lap = SwimmingLap()
+            lap.orderIndex = i
+            lap.distance = 25
+            lap.duration = 24.0 + Double.random(in: -3...4) + (Double(i) * 0.05)  // Slight fatigue
+            lap.strokeCount = 18 + Int.random(in: -2...2)
+            lap.session = endurance
             context.insert(lap)
         }
     }
@@ -675,6 +987,90 @@ struct ScreenshotDataGenerator {
         for (i, scoreSet) in scores.enumerated() {
             let end = ShootingEnd(orderIndex: i)
             end.session = training
+            context.insert(end)
+            addShots(to: end, scores: scoreSet, in: context)
+        }
+
+        // Dry Fire Practice
+        let dryFire = ShootingSession(
+            name: "Dry Fire Drills (Imaginary Excellence)",
+            targetType: .olympic,
+            distance: 10,
+            numberOfEnds: 3,
+            arrowsPerEnd: 5
+        )
+        dryFire.startDate = Calendar.current.date(byAdding: .day, value: -10, to: Date()) ?? Date()
+        dryFire.endDate = dryFire.startDate.addingTimeInterval(1200)
+        dryFire.notes = "Dry fire stability practice. Hold time improving - managed 4.2 seconds without wobble! The Watch says my stance is 'stable'. In my imagination, all shots were 10s. Reality may differ when we add actual ammunition."
+        context.insert(dryFire)
+
+        // Add ends with phantom scores for dry fire (all 10s in imagination!)
+        for i in 0..<3 {
+            let end = ShootingEnd(orderIndex: i)
+            end.session = dryFire
+            context.insert(end)
+            addShots(to: end, scores: [10, 10, 10, 10, 10], in: context)
+        }
+
+        // Match Simulation
+        let match = ShootingSession(
+            name: "Full Competition Simulation",
+            targetType: .olympic,
+            distance: 10,
+            numberOfEnds: 4,
+            arrowsPerEnd: 5
+        )
+        match.startDate = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        match.endDate = match.startDate.addingTimeInterval(1500)
+        match.notes = "Full competition simulation with time pressure! End 1 was shaky (nerves). End 2 was better (settled). End 3 was peak performance. End 4 was... character building. Total: 168 points. Improvement noted!"
+        context.insert(match)
+
+        let matchScores = [[6,8,8,10,8], [10,10,8,8,10], [10,10,10,8,10], [8,6,8,10,8]]
+        for (i, scoreSet) in matchScores.enumerated() {
+            let end = ShootingEnd(orderIndex: i)
+            end.session = match
+            context.insert(end)
+            addShots(to: end, scores: scoreSet, in: context)
+        }
+
+        // Precision Focus Session
+        let precision = ShootingSession(
+            name: "Precision Practice (Small Targets)",
+            targetType: .olympic,
+            distance: 10,
+            numberOfEnds: 3,
+            arrowsPerEnd: 5
+        )
+        precision.startDate = Calendar.current.date(byAdding: .day, value: -20, to: Date()) ?? Date()
+        precision.endDate = precision.startDate.addingTimeInterval(1100)
+        precision.notes = "Focus on the inner rings only. Aiming for the 10 exclusively. Results: mixed. Turns out 'aim better' isn't quite enough instruction. Sight picture was good though. Release needs work. Always needs work."
+        context.insert(precision)
+
+        let precisionScores = [[8,10,10,10,8], [10,8,10,10,10], [10,10,8,10,10]]
+        for (i, scoreSet) in precisionScores.enumerated() {
+            let end = ShootingEnd(orderIndex: i)
+            end.session = precision
+            context.insert(end)
+            addShots(to: end, scores: scoreSet, in: context)
+        }
+
+        // Pressure Practice
+        let pressure = ShootingSession(
+            name: "Under Pressure (Dad Watching)",
+            targetType: .olympic,
+            distance: 10,
+            numberOfEnds: 2,
+            arrowsPerEnd: 5
+        )
+        pressure.startDate = Calendar.current.date(byAdding: .day, value: -25, to: Date()) ?? Date()
+        pressure.endDate = pressure.startDate.addingTimeInterval(600)
+        pressure.notes = "Shot with dad watching. Discovered that being observed adds approximately 47% more wobble. Shot 3 of end 1 shall not be discussed. Managed to recover. Mental game: work in progress."
+        context.insert(pressure)
+
+        let pressureScores = [[10,8,4,8,10], [8,10,10,10,8]]  // Note the 4 - "shall not be discussed"
+        for (i, scoreSet) in pressureScores.enumerated() {
+            let end = ShootingEnd(orderIndex: i)
+            end.session = pressure
             context.insert(end)
             addShots(to: end, scores: scoreSet, in: context)
         }

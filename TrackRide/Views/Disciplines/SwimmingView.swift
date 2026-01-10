@@ -27,43 +27,28 @@ struct SwimmingView: View {
         CompetitionLevel(rawValue: selectedLevelRaw) ?? .junior
     }
 
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    private var menuItems: [DisciplineMenuItem] {
+        [
+            DisciplineMenuItem(
+                title: "Tetrathlon",
+                subtitle: selectedLevel.formattedSwimDuration,
+                icon: "stopwatch.fill",
+                color: .orange,
+                action: { startSession(type: .threeMinuteTest) }
+            ),
+            DisciplineMenuItem(
+                title: "Training",
+                subtitle: "Free swim",
+                icon: "figure.pool.swim",
+                color: AppColors.primary,
+                action: { startSession(type: .training) }
+            )
+        ]
+    }
 
     var body: some View {
-        VStack(spacing: 24) {
-            // Swim type options - two column grid
-            LazyVGrid(columns: columns, spacing: 12) {
-                // Tetrathlon Practice (timed test)
-                Button { startSession(type: .threeMinuteTest) } label: {
-                    DisciplineCard(
-                        title: "Tetrathlon",
-                        subtitle: selectedLevel.formattedSwimDuration,
-                        icon: "stopwatch.fill",
-                        color: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Training
-                Button { startSession(type: .training) } label: {
-                    DisciplineCard(
-                        title: "Training",
-                        subtitle: "Free swim",
-                        icon: "figure.pool.swim",
-                        color: AppColors.primary
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-
-            Spacer()
-        }
-        .padding(.top, 16)
-        .navigationTitle("Swimming")
+        DisciplineMenuView(items: menuItems)
+            .navigationTitle("Swimming")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -85,13 +70,6 @@ struct SwimmingView: View {
                     isThreeMinuteTest: session.name.contains("Test"),
                     testDuration: selectedLevel.swimDuration,
                     onEnd: {
-                        // Check for personal best on timed test
-                        if session.name.contains("Test") {
-                            SwimmingPersonalBests.shared.updatePersonalBest(
-                                distance: session.totalDistance,
-                                time: session.totalDuration
-                            )
-                        }
                         // Save to HealthKit
                         Task {
                             let healthKit = HealthKitManager.shared
@@ -99,6 +77,12 @@ struct SwimmingView: View {
                         }
                         // Sync sessions to widgets
                         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
+                        activeSession = nil
+                    },
+                    onDiscard: {
+                        // Delete without saving
+                        modelContext.delete(session)
+                        try? modelContext.save()
                         activeSession = nil
                     }
                 )

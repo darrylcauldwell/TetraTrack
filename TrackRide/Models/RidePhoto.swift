@@ -134,6 +134,56 @@ final class RidePhotoService {
         return await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .image)
     }
 
+    /// Find photos taken within 1 hour before and after a riding session
+    /// This captures pre-ride preparation and post-ride cool-down photos
+    func findPhotosForSession(_ ride: Ride) async -> [PHAsset] {
+        guard isAuthorized else { return [] }
+
+        let start = ride.startDate
+        let end = ride.endDate ?? Date()
+
+        // 1 hour buffer before and after the session
+        let bufferedStart = start.addingTimeInterval(-3600)  // 1 hour before
+        let bufferedEnd = end.addingTimeInterval(3600)       // 1 hour after
+
+        return await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .image)
+    }
+
+    /// Find photos and videos taken within 1 hour before and after a riding session
+    /// This captures pre-ride preparation and post-ride cool-down media
+    func findMediaForSession(_ ride: Ride) async -> (photos: [PHAsset], videos: [PHAsset]) {
+        guard isAuthorized else { return ([], []) }
+
+        let start = ride.startDate
+        let end = ride.endDate ?? Date()
+
+        // 1 hour buffer before and after the session
+        let bufferedStart = start.addingTimeInterval(-3600)  // 1 hour before
+        let bufferedEnd = end.addingTimeInterval(3600)       // 1 hour after
+
+        let photos = await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .image)
+        let videos = await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .video)
+
+        return (photos, videos)
+    }
+
+    /// Find photos and videos taken within 1 hour before and after a running session
+    func findMediaForRunningSession(_ session: RunningSession) async -> (photos: [PHAsset], videos: [PHAsset]) {
+        guard isAuthorized else { return ([], []) }
+
+        let start = session.startDate
+        let end = session.endDate ?? Date()
+
+        // 1 hour buffer before and after the session
+        let bufferedStart = start.addingTimeInterval(-3600)
+        let bufferedEnd = end.addingTimeInterval(3600)
+
+        let photos = await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .image)
+        let videos = await fetchAssets(from: bufferedStart, to: bufferedEnd, mediaType: .video)
+
+        return (photos, videos)
+    }
+
     /// Find all photos and videos for the full day(s) of a ride
     /// This captures all moments from the day, not just during the ride
     func findMediaForFullDay(_ ride: Ride) async -> (photos: [PHAsset], videos: [PHAsset]) {

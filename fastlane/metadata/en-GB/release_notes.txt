@@ -1,0 +1,33 @@
+What's New in Version 0.0.17
+
+We've been busy fixing things, adding things, and trying not to break other things. Here's what's new:
+
+PRETTIER PIXELS
+• Trusted Contacts got a makeover — cleaner, simpler, works on screens of all sizes (yes, even your mum's phone with the massive text)
+• Family Sharing is easier to manage — fewer taps to control who's watching your magnificent canter work
+
+MORE WAYS TO PRETEND YOU'RE TRAINING
+Demo data now includes:
+• Schooling sessions like "Polework Puzzle" and "Bounce Grid Bootcamp"
+• Running horrors including "Hill Repeats (Stairway to Suffering)" and "Sunday Long Run (Pain & Suffering)"
+• Swimming adventures from "Lake Adventure (Cold Water Shock)" to "Distance Day (Channel Prep?)"
+• Shooting practice with "Under Pressure (Dad Watching)" — we've all been there
+
+NERDY IMPROVEMENTS
+• Photos now link to your ENTIRE riding day, not just session time — so that selfie with your horse actually shows up
+• Rhythm detection got smarter — we're using ALL the sensors now, not just the easy ones
+• "Schooling Scores" explains what rhythm actually means (spoiler: it's about keeping a steady beat, not dancing)
+
+SQUASHED BUGS
+• Fixed that thing where photos weren't appearing for schooling rides
+• Movement Quality now has explanations a human can understand
+• Various invisible improvements that we're very proud of
+
+COMING SOON
+• Offline route planning with actual bridleways (no more accidentally routing through someone's garden)
+• Dressage test scoring
+• Video analysis (the AI will be honest, we can't help that)
+
+Thanks for riding with us. Every update is shaped by feedback from riders, runners, swimmers, and shooters like you.
+
+Train. Track. Triumph.

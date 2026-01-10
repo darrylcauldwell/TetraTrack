@@ -18,10 +18,14 @@ struct FamilyView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Active Rides Section (most important - at top)
-                    if !familySharing.sharedWithMe.isEmpty {
-                        ActiveRidesSection(sessions: familySharing.sharedWithMe)
-                    }
+                    // Pending Requests Section (always visible)
+                    PendingRequestsSection(
+                        pendingRequests: familySharing.pendingRequests,
+                        familySharing: familySharing
+                    )
+
+                    // Shared With Me Section (always visible)
+                    SharedWithMeSection(linkedRiders: familySharing.linkedRiders)
 
                     // My Sharing Card
                     MySharingCard(
@@ -31,7 +35,7 @@ struct FamilyView: View {
 
                     // Show either the contacts list OR the get started card (not both)
                     if familySharing.trustedContacts.isEmpty {
-                        // No contacts yet - show onboarding card
+                        // No contacts yet - show onboarding card with safety info
                         GetStartedCard(onAddMember: { showingAddMember = true })
                     } else {
                         // Has contacts - show the list
@@ -90,46 +94,318 @@ struct FamilyView: View {
     }
 }
 
-// MARK: - Active Rides Section
+// MARK: - Shared With Me Section (Always Visible)
 
-struct ActiveRidesSection: View {
-    let sessions: [LiveTrackingSession]
+struct SharedWithMeSection: View {
+    let linkedRiders: [LinkedRider]
 
-    var activeSessions: [LiveTrackingSession] {
-        sessions.filter { $0.isActive }
+    var activeCount: Int {
+        linkedRiders.filter { $0.isCurrentlyRiding }.count
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(AppColors.active)
-                Text("Live Rides")
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(AppColors.primary)
+                Text("Shared With Me")
                     .font(.headline)
                 Spacer()
-                Text("\(activeSessions.count) active")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            ForEach(activeSessions, id: \.id) { session in
-                NavigationLink(destination: LiveTrackingMapView(session: session)) {
-                    ActiveRideCard(session: session)
+                if activeCount > 0 {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(AppColors.active)
+                            .frame(width: 8, height: 8)
+                        Text("\(activeCount) riding")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.active)
+                    }
                 }
-                .buttonStyle(.plain)
             }
 
-            if activeSessions.isEmpty {
-                Text("No one currently riding")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+            if linkedRiders.isEmpty {
+                // Empty state
+                VStack(spacing: 8) {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                    Text("No riders sharing with you yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("When someone shares their rides with you, they'll appear here")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            } else {
+                // Show all linked riders
+                ForEach(linkedRiders) { rider in
+                    if rider.isCurrentlyRiding, let session = rider.currentSession {
+                        // Rider is active - show with navigation to live map
+                        NavigationLink(destination: LiveTrackingMapView(session: session)) {
+                            LinkedRiderCard(rider: rider)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        // Rider is not active - show status only
+                        LinkedRiderCard(rider: rider)
+                    }
+                }
             }
         }
         .padding()
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - Pending Requests Section
+
+struct PendingRequestsSection: View {
+    let pendingRequests: [PendingShareRequest]
+    let familySharing: FamilySharingManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                Image(systemName: "person.badge.clock.fill")
+                    .font(.title3)
+                    .foregroundStyle(pendingRequests.isEmpty ? Color.secondary : Color.orange)
+                Text("Pending Requests")
+                    .font(.headline)
+                Spacer()
+                if !pendingRequests.isEmpty {
+                    Text("\(pendingRequests.count)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.orange)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if pendingRequests.isEmpty {
+                // Empty state
+                VStack(spacing: 12) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.tertiary)
+
+                    Text("No pending requests")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text("When someone invites you to follow their rides, their request will appear here for you to accept or decline.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+            } else {
+                Text("Someone wants to share their rides with you")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                ForEach(pendingRequests) { request in
+                    PendingRequestCard(request: request, familySharing: familySharing)
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(pendingRequests.isEmpty ? Color(.systemGray6).opacity(0.5) : .orange.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(pendingRequests.isEmpty ? Color(.systemGray4).opacity(0.3) : .orange.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Pending Request Card
+
+struct PendingRequestCard: View {
+    let request: PendingShareRequest
+    let familySharing: FamilySharingManager
+    @State private var isAccepting = false
+    @State private var showingDeclineConfirmation = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(AppColors.primary.opacity(0.15))
+                    .frame(width: 48, height: 48)
+
+                Text(request.initials)
+                    .font(.headline)
+                    .foregroundStyle(AppColors.primary)
+            }
+
+            // Name and time
+            VStack(alignment: .leading, spacing: 4) {
+                Text(request.ownerName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("Received \(request.timeSinceReceived)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Action buttons
+            HStack(spacing: 8) {
+                // Decline button
+                Button {
+                    showingDeclineConfirmation = true
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.systemGray5))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                // Accept button
+                Button {
+                    acceptRequest()
+                } label: {
+                    if isAccepting {
+                        ProgressView()
+                            .frame(width: 36, height: 36)
+                    } else {
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(AppColors.success)
+                            .clipShape(Circle())
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isAccepting)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .confirmationDialog("Decline request from \(request.ownerName)?", isPresented: $showingDeclineConfirmation, titleVisibility: .visible) {
+            Button("Decline", role: .destructive) {
+                familySharing.declinePendingRequest(request)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You won't be able to see their live location or receive safety alerts from them.")
+        }
+    }
+
+    private func acceptRequest() {
+        isAccepting = true
+        Task {
+            _ = await familySharing.acceptPendingRequest(request)
+            await MainActor.run {
+                isAccepting = false
+            }
+        }
+    }
+}
+
+// MARK: - Linked Rider Card
+
+struct LinkedRiderCard: View {
+    let rider: LinkedRider
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar with status indicator
+            ZStack {
+                Circle()
+                    .fill(rider.isCurrentlyRiding ? AppColors.active.opacity(0.2) : Color(.systemGray5))
+                    .frame(width: 48, height: 48)
+
+                Text(rider.initials)
+                    .font(.headline)
+                    .foregroundStyle(rider.isCurrentlyRiding ? AppColors.active : .secondary)
+
+                // Live indicator when riding
+                if rider.isCurrentlyRiding {
+                    Circle()
+                        .fill(AppColors.active)
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.active, lineWidth: 2)
+                                .scaleEffect(1.5)
+                                .opacity(0.5)
+                        )
+                        .offset(x: 16, y: -16)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(rider.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(rider.isCurrentlyRiding ? .primary : .secondary)
+
+                if rider.isCurrentlyRiding, let session = rider.currentSession {
+                    // Show live stats
+                    HStack(spacing: 12) {
+                        Label(session.formattedDistance, systemImage: "arrow.left.and.right")
+                        Label(session.formattedDuration, systemImage: "clock")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    // Current gait
+                    HStack(spacing: 4) {
+                        Image(systemName: session.gait.icon)
+                        Text(session.gait.rawValue)
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(AppColors.gait(session.gait))
+                } else {
+                    Text("Not currently riding")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Spacer()
+
+            // Navigation hint when riding
+            if rider.isCurrentlyRiding {
+                VStack {
+                    Image(systemName: "map")
+                        .font(.title3)
+                        .foregroundStyle(AppColors.primary)
+                    Text("View")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            rider.isCurrentlyRiding ?
+            Color(.systemBackground).opacity(0.8) :
+            Color.clear
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -236,7 +512,7 @@ struct MySharingCard: View {
                     Image(systemName: tracker.rideState == .tracking ? "antenna.radiowaves.left.and.right" : "circle")
                         .foregroundStyle(tracker.rideState == .tracking ? AppColors.active : .secondary)
 
-                    Text(tracker.rideState == .tracking ? "Currently sharing your ride" : "Not riding - sharing inactive")
+                    Text(tracker.rideState == .tracking ? "Currently sharing your ride" : "Not riding - live sharing inactive")
                         .font(.subheadline)
                         .foregroundStyle(tracker.rideState == .tracking ? AppColors.active : .secondary)
                 }
@@ -283,7 +559,8 @@ struct TrustedContactsCard: View {
     let onAddMember: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
             HStack {
                 Image(systemName: "person.2.fill")
                     .foregroundStyle(AppColors.primary)
@@ -294,16 +571,22 @@ struct TrustedContactsCard: View {
 
                 Button(action: onAddMember) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundStyle(AppColors.primary)
                 }
             }
+            .padding(.bottom, 16)
 
-            ForEach(familySharing.trustedContacts) { contact in
+            // Contact list with dividers
+            ForEach(Array(familySharing.trustedContacts.enumerated()), id: \.element.id) { index, contact in
+                if index > 0 {
+                    Divider()
+                        .padding(.vertical, 4)
+                }
                 ContactRow(contact: contact, familySharing: familySharing)
             }
         }
-        .padding()
+        .padding(20)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
@@ -314,146 +597,365 @@ struct TrustedContactsCard: View {
 struct ContactRow: View {
     let contact: TrustedContact
     let familySharing: FamilySharingManager
-    @State private var shareWithContact: Bool
-    @State private var alertsFromContact: Bool
+    @State private var liveTracking: Bool
+    @State private var fallAlerts: Bool
+    @State private var stationaryAlerts: Bool
+    @State private var emergencySOS: Bool
     @State private var showingDeleteConfirmation = false
+    @State private var showingShareSheet = false
+    @State private var isExpanded = false
 
     init(contact: TrustedContact, familySharing: FamilySharingManager) {
         self.contact = contact
         self.familySharing = familySharing
-        self._shareWithContact = State(initialValue: contact.shareMyLocation)
-        self._alertsFromContact = State(initialValue: contact.receiveAlerts)
+        self._liveTracking = State(initialValue: contact.canViewLiveTracking)
+        self._fallAlerts = State(initialValue: contact.receiveFallAlerts)
+        self._stationaryAlerts = State(initialValue: contact.receiveStationaryAlerts)
+        self._emergencySOS = State(initialValue: contact.isEmergencyContact)
+    }
+
+    private var inviteStatusColor: Color {
+        switch contact.inviteStatus {
+        case .notSent: return .secondary
+        case .pending: return .orange
+        case .accepted: return AppColors.success
+        }
+    }
+
+    private var enabledCount: Int {
+        [liveTracking, fallAlerts, stationaryAlerts, emergencySOS].filter { $0 }.count
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Contact info header
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(AppColors.primary.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Text(contact.name.prefix(1).uppercased())
-                            .font(.headline)
-                            .foregroundStyle(AppColors.primary)
-                    )
+        VStack(spacing: 0) {
+            // Main contact row - tap to expand
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Name and Primary badge
+                        HStack(spacing: 8) {
+                            Text(contact.name)
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.primary)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(contact.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    if let email = contact.email, !email.isEmpty {
-                        Text(email)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            if contact.isPrimaryEmergency {
+                                Text("Primary")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(AppColors.error)
+                                    .clipShape(Capsule())
+                            }
+                        }
+
+                        // Invite status
+                        HStack(spacing: 4) {
+                            Image(systemName: contact.inviteStatus.icon)
+                                .font(.system(size: 11))
+                            Text(contact.inviteStatus == .pending ?
+                                 "Pending" + (contact.timeSinceInvite.map { " · \($0)" } ?? "") :
+                                 contact.inviteStatus.displayText)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(inviteStatusColor)
                     }
-                    Text(statusText)
+
+                    Spacer()
+
+                    // Expand chevron
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
+            }
+            .buttonStyle(.plain)
 
-                Spacer()
+            // Expanded settings
+            if isExpanded {
+                VStack(spacing: 0) {
+                    Divider()
+                        .padding(.top, 20)
+                        .padding(.bottom, 24)
 
-                // Delete button
-                Button {
-                    showingDeleteConfirmation = true
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundStyle(.red.opacity(0.7))
+                    VStack(spacing: 24) {
+                        // Invite status section (if not connected)
+                        if contact.inviteStatus != .accepted {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: contact.inviteStatus.icon)
+                                        .font(.title3)
+                                        .foregroundStyle(inviteStatusColor)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(contact.inviteStatus == .pending ? "Invite pending" : "Not yet invited")
+                                            .font(.body)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.primary)
+
+                                        if contact.inviteStatus == .pending {
+                                            if let timeSince = contact.timeSinceInvite {
+                                                Text("Sent \(timeSince)")
+                                                    .font(.subheadline)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                    Spacer()
+                                }
+
+                                if contact.inviteStatus == .pending && contact.reminderCount > 0 {
+                                    Text("\(contact.reminderCount) reminder\(contact.reminderCount == 1 ? "" : "s") sent")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button {
+                                    showingShareSheet = true
+                                } label: {
+                                    Label(
+                                        contact.inviteStatus == .pending ? "Send reminder" : "Send invite",
+                                        systemImage: contact.inviteStatus == .pending ? "arrow.clockwise" : "paperplane"
+                                    )
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(contact.inviteStatus == .pending ? .orange : AppColors.primary)
+                            }
+                            .padding(16)
+                            .background(Color(.systemGray6).opacity(0.5))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                            Divider()
+                                .padding(.vertical, 8)
+                        }
+
+                        // Feature permissions section
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Permissions")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .padding(.bottom, 4)
+
+                            // Live Tracking toggle
+                            FeatureToggleRow(
+                                icon: "location.fill",
+                                title: "Live Tracking",
+                                description: "Can see your live location while you're riding",
+                                color: AppColors.primary,
+                                isOn: $liveTracking
+                            ) { newValue in
+                                var updated = contact
+                                updated.canViewLiveTracking = newValue
+                                familySharing.updateContact(updated)
+                            }
+
+                            // Fall Detection toggle
+                            FeatureToggleRow(
+                                icon: "figure.fall",
+                                title: "Fall Detection",
+                                description: "Gets notified immediately if a fall is detected",
+                                color: AppColors.error,
+                                isOn: $fallAlerts
+                            ) { newValue in
+                                var updated = contact
+                                updated.receiveFallAlerts = newValue
+                                familySharing.updateContact(updated)
+                            }
+
+                            // Stationary Alerts toggle
+                            FeatureToggleRow(
+                                icon: "exclamationmark.triangle.fill",
+                                title: "Stationary Alerts",
+                                description: "Gets warned if you stop moving unexpectedly",
+                                color: AppColors.warning,
+                                isOn: $stationaryAlerts
+                            ) { newValue in
+                                var updated = contact
+                                updated.receiveStationaryAlerts = newValue
+                                familySharing.updateContact(updated)
+                            }
+
+                            // Emergency SOS toggle
+                            FeatureToggleRow(
+                                icon: "sos",
+                                title: "Emergency SOS",
+                                description: "Receives SMS with your GPS location in emergencies",
+                                color: .red,
+                                isOn: $emergencySOS
+                            ) { newValue in
+                                var updated = contact
+                                updated.isEmergencyContact = newValue
+                                familySharing.updateContact(updated)
+                            }
+                        }
+
+                        // Remove button
+                        Button(role: .destructive) {
+                            showingDeleteConfirmation = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "trash")
+                                Text("Remove contact")
+                            }
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.red.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        .padding(.top, 8)
+                    }
                 }
             }
-
-            // Per-contact toggles
-            VStack(spacing: 8) {
-                HStack {
-                    Label("Share my location", systemImage: "location.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Toggle("", isOn: $shareWithContact)
-                        .labelsHidden()
-                        .scaleEffect(0.8)
-                        .onChange(of: shareWithContact) { _, newValue in
-                            var updated = contact
-                            updated.shareMyLocation = newValue
-                            familySharing.updateContact(updated)
-                        }
-                }
-
-                HStack {
-                    Label("Safety alerts", systemImage: "bell.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Toggle("", isOn: $alertsFromContact)
-                        .labelsHidden()
-                        .scaleEffect(0.8)
-                        .onChange(of: alertsFromContact) { _, newValue in
-                            var updated = contact
-                            updated.receiveAlerts = newValue
-                            familySharing.updateContact(updated)
-                        }
-                }
-            }
-            .padding(.leading, 52)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 14)
         .confirmationDialog("Remove \(contact.name)?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Remove Contact", role: .destructive) {
                 familySharing.removeContact(id: contact.id)
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("They will no longer be able to see your live location.")
+            Text("They will no longer receive your live location or safety alerts.")
         }
-    }
-
-    private var statusText: String {
-        if shareWithContact && alertsFromContact {
-            return "Sharing location • Alerts on"
-        } else if shareWithContact {
-            return "Sharing location"
-        } else if alertsFromContact {
-            return "Alerts only"
-        } else {
-            return "Paused"
+        .sheet(isPresented: $showingShareSheet, onDismiss: {
+            if contact.inviteStatus == .notSent {
+                familySharing.markInviteSent(contactID: contact.id)
+            } else if contact.inviteStatus == .pending {
+                familySharing.markReminderSent(contactID: contact.id)
+            }
+        }) {
+            ShareSheet(items: [contact.inviteMessage(isReminder: contact.inviteStatus == .pending)])
         }
     }
 }
 
-// MARK: - Get Started Card
+// MARK: - Feature Toggle Row
+
+struct FeatureToggleRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    let color: Color
+    @Binding var isOn: Bool
+    let onChange: (Bool) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top row: Icon, Title, and Toggle
+            HStack(spacing: 14) {
+                // Icon with colored background
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(color)
+                }
+
+                Text(title)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Toggle("", isOn: $isOn)
+                    .labelsHidden()
+                    .onChange(of: isOn) { _, newValue in
+                        onChange(newValue)
+                    }
+            }
+
+            // Description on its own line
+            Text(description)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 10)
+                .padding(.leading, 58) // Align with title (44 icon + 14 spacing)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .background(Color(.systemGray6).opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Get Started Card (with integrated safety features)
 
 struct GetStartedCard: View {
     let onAddMember: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "location.fill.viewfinder")
-                .font(.system(size: 48))
-                .foregroundStyle(AppColors.primary.opacity(0.6))
+        VStack(spacing: 20) {
+            // Header
+            VStack(spacing: 12) {
+                Image(systemName: "location.fill.viewfinder")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppColors.primary.opacity(0.6))
 
-            Text("Ride Safer Together")
-                .font(.headline)
+                Text("Ride Safer Together")
+                    .font(.title3)
+                    .fontWeight(.semibold)
 
-            Text("Share your live location with family, friends, or instructors so they can follow along and receive safety alerts if you stop moving.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: 8) {
-                FeatureRow(icon: "location.fill", text: "Share your live location while riding")
-                FeatureRow(icon: "bell.fill", text: "Automatic alerts if you stop unexpectedly")
-                FeatureRow(icon: "figure.equestrian.sports", text: "Track gait and distance in real-time")
+                Text("Share your live location with family and friends so they can follow your rides and be alerted if something goes wrong.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.vertical, 8)
 
+            // Safety features in a compact grid
+            VStack(spacing: 12) {
+                HStack(spacing: 16) {
+                    SafetyFeatureItem(
+                        icon: "location.fill",
+                        title: "Live Tracking",
+                        color: AppColors.primary
+                    )
+                    SafetyFeatureItem(
+                        icon: "figure.fall",
+                        title: "Fall Detection",
+                        color: AppColors.error
+                    )
+                }
+
+                HStack(spacing: 16) {
+                    SafetyFeatureItem(
+                        icon: "exclamationmark.triangle.fill",
+                        title: "Stationary Alerts",
+                        color: AppColors.warning
+                    )
+                    SafetyFeatureItem(
+                        icon: "sos",
+                        title: "Emergency SOS",
+                        color: .red
+                    )
+                }
+            }
+
+            // Add contact button
             Button(action: onAddMember) {
                 Label("Add Trusted Contact", systemImage: "person.badge.plus")
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .tint(AppColors.primary)
+            .controlSize(.large)
         }
         .padding(24)
         .background(.ultraThinMaterial)
@@ -461,18 +963,25 @@ struct GetStartedCard: View {
     }
 }
 
-struct FeatureRow: View {
+// MARK: - Safety Feature Item
+
+struct SafetyFeatureItem: View {
     let icon: String
-    let text: String
+    let title: String
+    let color: Color
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 20)
-            Text(text)
                 .font(.subheadline)
+                .foregroundStyle(color)
+                .frame(width: 20)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -481,175 +990,138 @@ struct FeatureRow: View {
 struct AddFamilyMemberView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
-    @State private var email = ""
-    @State private var relationship = "Family"
     @State private var isLoading = false
     @State private var showingShareSheet = false
-    @State private var shareURL: URL?
-
-    private let relationships = ["Family", "Friend", "Instructor", "Carer", "Other"]
+    @State private var shareItems: [Any] = []
+    @FocusState private var isNameFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Illustration
-                    Image(systemName: "person.badge.plus")
-                        .font(.system(size: 48))
-                        .foregroundStyle(AppColors.primary)
-                        .padding(.top, 24)
+                    Spacer()
+                        .frame(height: 40)
 
-                    VStack(spacing: 8) {
+                    // Simple header
+                    VStack(spacing: 12) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 56))
+                            .foregroundStyle(AppColors.primary)
+
                         Text("Add Trusted Contact")
                             .font(.title2)
                             .fontWeight(.semibold)
 
-                        Text("Add family, friends, or instructors who can see your live location while riding and receive safety alerts.")
+                        Text("They can follow your rides and receive safety alerts")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal)
 
-                    // Contact details
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Name (required)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Name")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    Spacer()
+                        .frame(height: 40)
 
-                            TextField("e.g. Mum, Dad, Sarah", text: $name)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                    // Name field
+                    TextField("Name (e.g. Mum, Sarah)", text: $name)
+                        .textContentType(.name)
+                        .font(.title3)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .focused($isNameFieldFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            isNameFieldFocused = false
                         }
+                        .padding(.horizontal)
 
-                        // Email (optional)
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Email")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("(optional)")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
+                    Spacer()
+                        .frame(height: 40)
 
-                            TextField("contact@icloud.com", text: $email)
-                                .textContentType(.emailAddress)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-
-                        // Relationship picker
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Relationship")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Picker("Relationship", selection: $relationship) {
-                                ForEach(relationships, id: \.self) { rel in
-                                    Text(rel).tag(rel)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    Spacer(minLength: 20)
-
-                    // Add button
-                    VStack(spacing: 12) {
+                    // Single action button
+                    VStack(spacing: 8) {
                         Button {
-                            addContact()
-                        } label: {
-                            Text("Add Contact")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppColors.primary)
-                        .disabled(name.isEmpty)
-
-                        // Share link option
-                        Button {
-                            generateAndShareLink()
+                            isNameFieldFocused = false
+                            addAndInvite()
                         } label: {
                             if isLoading {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
+                                    .frame(height: 24)
                             } else {
-                                Label("Send Invite Link", systemImage: "square.and.arrow.up")
+                                Label("Add & Send Invite", systemImage: "paperplane.fill")
+                                    .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppColors.primary)
+                        .controlSize(.large)
                         .disabled(name.isEmpty || isLoading)
 
-                        Text("Send a link they can tap to connect with you")
+                        Text("They'll receive a link to download the app")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                     }
                     .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.bottom, 32)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
-                if let url = shareURL {
-                    ShareSheet(items: [
-                        "Join me on TetraTrack to follow my rides! Tap this link to connect:",
-                        url
-                    ])
-                }
+                ShareSheet(items: shareItems)
             }
         }
     }
 
-    private func addContact() {
-        FamilySharingManager.shared.addContact(
-            name: name,
-            email: email.isEmpty ? nil : email,
-            relationship: relationship
-        )
-        dismiss()
-    }
-
-    private func generateAndShareLink() {
-        // First add the contact locally
-        FamilySharingManager.shared.addContact(
-            name: name,
-            email: email.isEmpty ? nil : email,
-            relationship: relationship
-        )
-
+    private func addAndInvite() {
         isLoading = true
 
         Task {
-            if let url = await FamilySharingManager.shared.generateShareLink() {
-                await MainActor.run {
-                    shareURL = url
-                    showingShareSheet = true
-                    isLoading = false
+            // Generate CloudKit share URL
+            let shareURL = await FamilySharingManager.shared.generateShareLink()
+
+            await MainActor.run {
+                // Add the contact with pending invite status
+                FamilySharingManager.shared.addContact(
+                    name: name,
+                    phoneNumber: "",
+                    email: nil,
+                    isEmergencyContact: true,
+                    inviteStatus: .pending,
+                    inviteSentDate: Date()
+                )
+
+                // Generate share content with the CloudKit URL
+                let firstName = name.split(separator: " ").first.map(String.init) ?? "there"
+                var message = """
+                Hi \(firstName)! I've added you as a trusted contact on TetraTrack.
+
+                You can follow my horse rides live and receive safety alerts if I need help.
+
+                Download TetraTrack: https://apps.apple.com/app/tetratrack
+                """
+
+                if let url = shareURL {
+                    message += "\n\nTap to connect: \(url.absoluteString)"
                 }
-            } else {
-                // Fallback - just dismiss after adding contact
-                await MainActor.run {
-                    isLoading = false
-                    dismiss()
-                }
+
+                shareItems = [message]
+                isLoading = false
+                showingShareSheet = true
             }
         }
     }
 }
+
+// ShareSheet is defined in RideDetailView.swift
 
 #Preview {
     FamilyView()

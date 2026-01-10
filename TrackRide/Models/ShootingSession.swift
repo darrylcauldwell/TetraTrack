@@ -385,3 +385,161 @@ struct ScoreBreakdown {
         return Double(totalScore) / Double(maxPossible) * 100
     }
 }
+
+// MARK: - Target Scan Analysis (for historical pattern tracking)
+
+@Model
+final class TargetScanAnalysis {
+    var id: UUID = UUID()
+    var scanDate: Date = Date()
+    var notes: String = ""
+
+    // Total score and shot count
+    var totalScore: Int = 0
+    var shotCount: Int = 0
+
+    // Pattern metrics (for trend analysis)
+    var averageX: Double = 0.5        // Average X position (0.5 = centered)
+    var averageY: Double = 0.5        // Average Y position (0.5 = centered)
+    var spreadX: Double = 0           // X spread (standard deviation)
+    var spreadY: Double = 0           // Y spread (standard deviation)
+    var totalSpread: Double = 0       // Combined spread
+
+    // Bias from center (positive = right/low, negative = left/high)
+    var horizontalBias: Double = 0
+    var verticalBias: Double = 0
+
+    // Shot positions stored as JSON for flexibility
+    var shotPositionsJSON: Data?
+
+    // Image reference (optional - stored in app documents)
+    var imageFileName: String?
+
+    // Grouping quality (computed during save)
+    var groupingQualityRaw: String = "fair"
+
+    init() {}
+
+    // Computed properties
+    var groupingQuality: GroupingQuality {
+        get { GroupingQuality(rawValue: groupingQualityRaw) ?? .fair }
+        set { groupingQualityRaw = newValue.rawValue }
+    }
+
+    var shotPositions: [ScanShot] {
+        get {
+            guard let data = shotPositionsJSON else { return [] }
+            return (try? JSONDecoder().decode([ScanShot].self, from: data)) ?? []
+        }
+        set {
+            shotPositionsJSON = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var averageScore: Double {
+        guard shotCount > 0 else { return 0 }
+        return Double(totalScore) / Double(shotCount)
+    }
+
+    var formattedDate: String {
+        Formatters.dateTime(scanDate)
+    }
+
+    var biasDescription: String {
+        var parts: [String] = []
+
+        if abs(horizontalBias) > 0.08 {
+            parts.append(horizontalBias > 0 ? "Right" : "Left")
+        }
+        if abs(verticalBias) > 0.08 {
+            parts.append(verticalBias > 0 ? "Low" : "High")
+        }
+
+        return parts.isEmpty ? "Centered" : parts.joined(separator: " & ")
+    }
+
+    // Calculate metrics from shots
+    func calculateMetrics(from shots: [ScanShot], targetCenter: CGPoint) {
+        shotCount = shots.count
+        totalScore = shots.reduce(0) { $0 + $1.score }
+
+        guard !shots.isEmpty else { return }
+
+        // Average position
+        averageX = shots.map { $0.positionX }.reduce(0, +) / Double(shots.count)
+        averageY = shots.map { $0.positionY }.reduce(0, +) / Double(shots.count)
+
+        // Spread (standard deviation)
+        spreadX = sqrt(shots.map { pow($0.positionX - averageX, 2) }.reduce(0, +) / Double(shots.count))
+        spreadY = sqrt(shots.map { pow($0.positionY - averageY, 2) }.reduce(0, +) / Double(shots.count))
+        totalSpread = sqrt(spreadX * spreadX + spreadY * spreadY)
+
+        // Bias from target center
+        horizontalBias = averageX - targetCenter.x
+        verticalBias = averageY - targetCenter.y
+
+        // Determine grouping quality
+        if totalSpread < 0.05 {
+            groupingQuality = .excellent
+        } else if totalSpread < 0.10 {
+            groupingQuality = .good
+        } else if totalSpread < 0.15 {
+            groupingQuality = .fair
+        } else {
+            groupingQuality = .poor
+        }
+    }
+}
+
+// MARK: - Scan Shot (for JSON storage)
+
+struct ScanShot: Codable, Identifiable {
+    var id: UUID = UUID()
+    var positionX: Double
+    var positionY: Double
+    var score: Int
+    var confidence: Double
+
+    init(positionX: Double, positionY: Double, score: Int, confidence: Double = 1.0) {
+        self.positionX = positionX
+        self.positionY = positionY
+        self.score = score
+        self.confidence = confidence
+    }
+}
+
+// MARK: - Grouping Quality
+
+enum GroupingQuality: String, Codable, CaseIterable {
+    case excellent
+    case good
+    case fair
+    case poor
+
+    var displayText: String {
+        switch self {
+        case .excellent: return "Excellent"
+        case .good: return "Good"
+        case .fair: return "Fair"
+        case .poor: return "Needs Work"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .excellent: return "star.fill"
+        case .good: return "checkmark.circle.fill"
+        case .fair: return "circle.fill"
+        case .poor: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .excellent: return "yellow"
+        case .good: return "green"
+        case .fair: return "orange"
+        case .poor: return "red"
+        }
+    }
+}

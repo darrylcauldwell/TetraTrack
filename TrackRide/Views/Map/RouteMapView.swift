@@ -313,7 +313,8 @@ struct RouteMapView: View {
         let photoService = RidePhotoService.shared
         guard photoService.isAuthorized else { return }
 
-        let photos = await photoService.findPhotosForRide(ride)
+        // Use full-day search to capture all photos with GPS from the ride day
+        let (photos, _) = await photoService.findMediaForFullDay(ride)
 
         var annotations: [PhotoAnnotation] = []
         for asset in photos {

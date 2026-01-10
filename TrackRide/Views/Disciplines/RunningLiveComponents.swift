@@ -137,16 +137,16 @@ struct RunningLiveView: View {
             stopLocationTracking()
             AudioCoachManager.shared.stopRunningFormReminders()
         }
-        .confirmationDialog("End Run?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
-            Button("Save Run") {
+        .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
+            Button("Save") {
                 endSession()
             }
-            Button("Discard Run", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 discardSession()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this run?")
+            Text("Do you want to save or discard this session?")
         }
         .alert("Vehicle Detected", isPresented: $showingVehicleAlert) {
             Button("Stop & Save") {
@@ -1228,16 +1228,16 @@ struct TreadmillLiveView: View {
             stopHeartRateTracking()
             AudioCoachManager.shared.stopRunningFormReminders()
         }
-        .confirmationDialog("End Run?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
-            Button("Save Run") {
+        .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
+            Button("Save") {
                 endSession()
             }
-            Button("Discard Run", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 discardSession()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this run?")
+            Text("Do you want to save or discard this session?")
         }
         .sheet(isPresented: $showingDistanceInput) {
             TreadmillDistanceInputView(

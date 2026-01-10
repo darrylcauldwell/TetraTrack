@@ -152,6 +152,34 @@ Every ride displays on a detailed map with colour-coded sections by gait or spee
 - Download UK regional map data from OpenStreetMap (free, updated regularly)
 - All routing happens on-device - no API keys, no subscription fees
 - Data includes bridleways, byways, tracks, paths, and quiet roads
+- Data stored locally using SwiftData for fast queries
+
+**UK Regional Coverage:**
+Available regions for download:
+| Region | Coverage | Size |
+|--------|----------|------|
+| South East England | Kent, Surrey, Sussex, Hampshire, Berkshire, Oxfordshire, Buckinghamshire | ~280 MB |
+| South West England | Cornwall, Devon, Dorset, Somerset, Wiltshire, Gloucestershire | ~180 MB |
+| East of England | Norfolk, Suffolk, Essex, Cambridgeshire, Hertfordshire | ~150 MB |
+| East Midlands | Derbyshire, Leicestershire, Lincolnshire, Northamptonshire, Nottinghamshire, Rutland | ~120 MB |
+| West Midlands | Herefordshire, Shropshire, Staffordshire, Warwickshire, West Midlands, Worcestershire | ~100 MB |
+| Yorkshire & Humber | North Yorkshire, South Yorkshire, West Yorkshire, East Riding | ~130 MB |
+| North West England | Cheshire, Cumbria, Greater Manchester, Lancashire, Merseyside | ~140 MB |
+| North East England | County Durham, Northumberland, Tyne and Wear | ~50 MB |
+| Wales | All of Wales | ~90 MB |
+| Scotland | All of Scotland | ~150 MB |
+
+**Smart Region Detection:**
+- Tap anywhere on the map to start planning
+- TrackRide automatically detects which region contains your location
+- Prompts to download the correct region if data is needed
+- Shows download progress with phases: Downloading → Parsing → Indexing
+
+**Data Management:**
+- View all downloaded regions with node counts and storage sizes
+- Stale data warnings when region data is over 30 days old
+- Swipe to delete unwanted regions
+- Re-download regions anytime for updated data
 
 **Tap to Plan:**
 - Tap the map to add waypoints (start, via points, end)
@@ -170,7 +198,8 @@ Every ride displays on a detailed map with colour-coded sections by gait or spee
 - Total distance and estimated duration at walk
 - Way type breakdown (% bridleway, track, road, etc.)
 - Surface type breakdown (grass, gravel, asphalt, etc.)
-- Save routes for later use
+- Save routes with custom names for later use
+- View saved routes and load them for navigation
 
 **During Your Ride:**
 - Load a saved route before starting
@@ -203,6 +232,18 @@ Clear card-based interface makes it simple to:
 - Add family members by iCloud email
 - See who can view your rides
 - Enable safety alert notifications
+
+### Trusted Contacts
+
+**Add emergency contacts for quick access during incidents:**
+- **Contact cards** - Each trusted contact displayed with photo, name, and phone number
+- **One-tap calling** - Call any contact directly from the app
+- **Granular permissions** - Control what each contact can access:
+  - View your live location during rides
+  - Receive safety alerts when you're stationary
+  - Get fall detection notifications
+  - Access your ride history
+- **Easy management** - Add contacts from your address book, remove with swipe or tap
 
 ### Live Location Sharing
 
@@ -265,12 +306,38 @@ Practice exactly like competition day with manual score entry:
 
 ### Target Practice with Pattern Analysis
 
-**Scan your targets for shooting pattern feedback.** The camera detects shot holes and analyses your shooting patterns:
-- **Automatic hole detection** - Vision AI identifies shot positions on tetrathlon-style vertical oval targets
-- **Pattern analysis** - Grouping quality assessment (excellent, good, fair, or needs work)
-- **Directional feedback** - Identifies if shots are pulling left, right, high, or low
+**Scan your targets for shooting pattern feedback.** The camera detects shot holes and analyses your shooting patterns with advanced Vision AI.
+
+**Camera Features:**
+- **Alignment guide** - Oval target outline helps position your camera correctly
+- **Real-time alignment feedback** - Green border when target is well-aligned
+- **Auto-crop** - Automatically crops photo to detected target bounds for cleaner analysis
+- **Portrait orientation** - Optimised for tetrathlon-style vertical oval targets
+
+**Automatic Hole Detection:**
+- **Vision AI analysis** - Identifies shot positions using contour detection and morphological analysis
+- **Confidence scoring** - Each detected hole has a confidence rating
+- **Score calculation** - Automatic scoring based on distance from center (0-10 scale)
+
+**Interactive Correction Tools:**
+- **Zoom and pan** - Pinch to zoom, drag to pan for detailed inspection
+- **Add holes** - Tap to add missed holes with manual score selection (10, 8, 6, 4, 2, 0)
+- **Remove holes** - Tap detected holes to remove false positives
+- **Score picker** - Choose exact score when adding holes manually
+
+**Pattern Analysis:**
+- **Grouping quality** - Assessment rated as Excellent, Good, Fair, or Needs Work
+- **Spread calculation** - X and Y spread metrics showing consistency
+- **Directional bias** - Identifies if shots are pulling left, right, high, or low
 - **Outlier detection** - Highlights inconsistent shots that need attention
-- **Shot distribution visualization** - Visual plot showing where your shots landed relative to center
+- **Shot distribution visualization** - Visual plot showing where shots landed relative to center
+
+**Historical Pattern Tracking:**
+- **Save to history** - Toggle to save each scan for trend analysis
+- **Pattern metrics stored** - Average position, spread, bias, and grouping quality
+- **Shot positions recorded** - Full position data saved as JSON for future analysis
+- **Trend analysis** - Track how your patterns improve over time
+- **Identify recurring issues** - See if you consistently shoot high, low, left, or right
 
 ### AI Shooting Coach (Apple Intelligence)
 

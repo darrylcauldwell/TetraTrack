@@ -10,10 +10,11 @@ import MapKit
 struct RoutePlannerView: View {
     @Environment(\.routePlanning) private var routePlanning
     @Environment(\.modelContext) private var modelContext
+    @Environment(LocationManager.self) private var locationManager
 
     // MARK: - State
 
-    @State private var mapPosition: MapCameraPosition = .automatic
+    @State private var mapPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var waypoints: [RouteWaypoint] = []
     @State private var calculatedRoute: CalculatedRoute?
     @State private var isCalculating = false
@@ -31,8 +32,23 @@ struct RoutePlannerView: View {
     @State private var errorMessage: String?
     @State private var showingError = false
     @State private var showingNoDataWarning = false
+    @State private var detectedRegion: AvailableRegion?
+    @State private var isDownloadingRegion = false
 
     @State private var routeName = ""
+
+    /// Returns the region currently being downloaded, checking both local state and service
+    private var activeDownloadRegion: AvailableRegion? {
+        // First check local state (for downloads initiated from this view)
+        if isDownloadingRegion, let region = detectedRegion {
+            return region
+        }
+        // Otherwise check if there's any active download in the service
+        if let activeId = routePlanning.activeDownloads.keys.first {
+            return AvailableRegion.ukRegions.first { $0.id == activeId }
+        }
+        return nil
+    }
 
     enum RouteMode: String, CaseIterable {
         case pointToPoint = "Point to Point"
@@ -44,6 +60,11 @@ struct RoutePlannerView: View {
             ZStack(alignment: .bottom) {
                 mapView
                 controlPanel
+
+                // Download progress overlay - show if local state says downloading OR if there's an active download
+                if let region = activeDownloadRegion {
+                    downloadProgressOverlay(for: region)
+                }
             }
             .navigationTitle("Plan Route")
             .navigationBarTitleDisplayMode(.inline)
@@ -102,11 +123,29 @@ struct RoutePlannerView: View {
             } message: {
                 Text(errorMessage ?? "An error occurred")
             }
-            .alert("Map Data Required", isPresented: $showingNoDataWarning) {
-                Button("Download") { showingRegionDownload = true }
-                Button("Cancel", role: .cancel) {}
+            .onAppear {
+                // Request location permission if needed for the map button to work
+                if locationManager.needsPermission {
+                    locationManager.requestPermission()
+                }
+            }
+            .alert("Route Data Required", isPresented: $showingNoDataWarning) {
+                if let region = detectedRegion {
+                    Button("Download \(region.displayName)") {
+                        downloadDetectedRegion()
+                    }
+                    Button("Other Regions") { showingRegionDownload = true }
+                    Button("Cancel", role: .cancel) {}
+                } else {
+                    Button("Download Maps") { showingRegionDownload = true }
+                    Button("Cancel", role: .cancel) {}
+                }
             } message: {
-                Text("Please download map data for this area to plan routes.")
+                if let region = detectedRegion {
+                    Text("Route planning requires map data. Download \(region.displayName) (~\(region.formattedEstimatedSize)) to plan bridleway and trail routes in this area.")
+                } else {
+                    Text("Route planning requires map data. Please download map data for your area to plan bridleway and trail routes.")
+                }
             }
         }
     }
@@ -276,13 +315,19 @@ struct RoutePlannerView: View {
         guard let coordinate = proxy.convert(point, from: .local) else { return }
 
         // Check if we have data for this location
+        var hasData = false
         do {
-            guard try routePlanning.hasDataForLocation(coordinate) else {
-                showingNoDataWarning = true
-                return
-            }
+            hasData = try routePlanning.hasDataForLocation(coordinate)
         } catch {
-            // If check fails, try anyway
+            // If check fails, assume no data
+            hasData = false
+        }
+
+        if !hasData {
+            // Auto-detect which region contains this coordinate
+            detectedRegion = AvailableRegion.region(containing: coordinate)
+            showingNoDataWarning = true
+            return
         }
 
         // Add appropriate waypoint type
@@ -426,6 +471,84 @@ struct RoutePlannerView: View {
                 span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
             )
             mapPosition = .region(region)
+        }
+    }
+
+    private func downloadDetectedRegion() {
+        guard let region = detectedRegion else { return }
+
+        isDownloadingRegion = true
+        Task {
+            do {
+                try await routePlanning.downloadRegion(region)
+            } catch let error as OSMDataError {
+                // If already downloaded, the stored bounds may be wrong - fix them
+                if case .alreadyDownloaded = error {
+                    do {
+                        try routePlanning.fixRegionBounds(region)
+                        // Bounds fixed - region is now usable, no error to show
+                    } catch {
+                        await MainActor.run {
+                            errorMessage = "Failed to update region bounds: \(error.localizedDescription)"
+                            showingError = true
+                        }
+                    }
+                } else {
+                    await MainActor.run {
+                        errorMessage = error.localizedDescription
+                        showingError = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    showingError = true
+                }
+            }
+            await MainActor.run {
+                isDownloadingRegion = false
+                detectedRegion = nil
+            }
+        }
+    }
+
+    // MARK: - Download Progress Overlay
+
+    @ViewBuilder
+    private func downloadProgressOverlay(for region: AvailableRegion) -> some View {
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            // Progress card
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+
+                Text("Downloading \(region.displayName)")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+
+                if let progress = routePlanning.activeDownloads[region.id] {
+                    VStack(spacing: 8) {
+                        ProgressView(value: progress.progress)
+                            .tint(.white)
+
+                        Text(progress.message)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .frame(maxWidth: 200)
+                } else {
+                    Text("Preparing download...")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+            }
+            .padding(24)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
     }
 

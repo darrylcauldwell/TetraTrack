@@ -20,6 +20,25 @@ final class TrainingStreak {
 
     init() {}
 
+    /// Returns the effective current streak, accounting for missed days
+    /// If more than one day has passed since last activity, streak should show as 0
+    var effectiveCurrentStreak: Int {
+        guard let lastDate = lastActivityDate else { return 0 }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let lastDay = calendar.startOfDay(for: lastDate)
+        let daysDiff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
+
+        // If same day or consecutive day, streak is valid
+        if daysDiff <= 1 {
+            return currentStreak
+        }
+
+        // More than 1 day missed - streak is broken
+        return 0
+    }
+
     /// Record an activity and update streak
     func recordActivity() {
         let calendar = Calendar.current

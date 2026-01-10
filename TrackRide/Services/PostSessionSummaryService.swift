@@ -258,7 +258,7 @@ final class PostSessionSummaryService {
         voiceNotes: [String]
     ) -> SessionSummary {
         var praise: [String] = []
-        var improvements: [String] = []
+        let improvements: [String] = []
 
         // Analyze swimming metrics
         let lapCount = session.lapCount

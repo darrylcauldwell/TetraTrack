@@ -23,6 +23,250 @@ struct CompetitionTodo: Codable, Identifiable {
     }
 }
 
+// MARK: - Showjumping Class
+
+/// Represents a class/round at a showjumping competition
+struct ShowjumpingClass: Codable, Identifiable {
+    var id: UUID = UUID()
+    var name: String  // e.g., "90cm", "1m Open", "1.10m Championship"
+    var entryStatus: EntryStatus = .planning
+
+    // Results (when competition is completed)
+    var time: TimeInterval?  // Round time in seconds (optional)
+    var faults: Int?  // Knockdowns, refusals, time faults etc.
+    var jumpOffTime: TimeInterval?  // Jump-off time (if applicable)
+    var jumpOffFaults: Int?  // Jump-off faults
+    var placing: Int?  // 1st, 2nd, 3rd, etc.
+    var points: Double?  // Points earned (if applicable)
+    var notes: String = ""
+
+    enum EntryStatus: String, Codable, CaseIterable {
+        case planning = "Planning"
+        case entered = "Entered"
+        case scratched = "Scratched"
+        case completed = "Completed"
+
+        var icon: String {
+            switch self {
+            case .planning: return "clock"
+            case .entered: return "checkmark.circle"
+            case .scratched: return "xmark.circle"
+            case .completed: return "flag.checkered"
+            }
+        }
+    }
+
+    init(name: String, entryStatus: EntryStatus = .planning) {
+        self.name = name
+        self.entryStatus = entryStatus
+    }
+
+    /// Whether this class has any results recorded
+    var hasResults: Bool {
+        faults != nil || time != nil || placing != nil
+    }
+
+    /// Formatted time string
+    var formattedTime: String? {
+        guard let time = time else { return nil }
+        let minutes = Int(time) / 60
+        let seconds = time.truncatingRemainder(dividingBy: 60)
+        if minutes > 0 {
+            return String(format: "%d:%05.2f", minutes, seconds)
+        }
+        return String(format: "%.2f", seconds)
+    }
+
+    /// Formatted jump-off time string
+    var formattedJumpOffTime: String? {
+        guard let time = jumpOffTime else { return nil }
+        let minutes = Int(time) / 60
+        let seconds = time.truncatingRemainder(dividingBy: 60)
+        if minutes > 0 {
+            return String(format: "%d:%05.2f", minutes, seconds)
+        }
+        return String(format: "%.2f", seconds)
+    }
+
+    /// Result summary for display
+    var resultSummary: String {
+        var parts: [String] = []
+
+        if let faults = faults {
+            if faults == 0 {
+                parts.append("Clear")
+            } else {
+                parts.append("\(faults) faults")
+            }
+        }
+
+        if let time = formattedTime {
+            parts.append(time)
+        }
+
+        if let placing = placing {
+            parts.append(ordinalString(placing))
+        }
+
+        return parts.isEmpty ? "No result" : parts.joined(separator: " | ")
+    }
+
+    private func ordinalString(_ n: Int) -> String {
+        let suffix: String
+        let ones = n % 10
+        let tens = (n / 10) % 10
+
+        if tens == 1 {
+            suffix = "th"
+        } else {
+            switch ones {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(n)\(suffix)"
+    }
+}
+
+/// Common showjumping class heights for quick selection
+enum ShowjumpingHeight: String, CaseIterable {
+    case cm60 = "60cm"
+    case cm70 = "70cm"
+    case cm80 = "80cm"
+    case cm90 = "90cm"
+    case m100 = "1.00m"
+    case m105 = "1.05m"
+    case m110 = "1.10m"
+    case m115 = "1.15m"
+    case m120 = "1.20m"
+    case m130 = "1.30m"
+    case m140 = "1.40m"
+
+    var displayName: String { rawValue }
+}
+
+// MARK: - Dressage Class
+
+/// Represents a class at a dressage competition
+struct DressageClass: Codable, Identifiable {
+    var id: UUID = UUID()
+    var testName: String  // e.g., "Prelim 12", "Novice 27", "Elementary 49"
+    var className: String = ""  // Optional class name/description
+    var entryStatus: EntryStatus = .planning
+
+    // Results (when competition is completed)
+    var score: Double?  // Total marks achieved
+    var maxScore: Double?  // Maximum possible marks
+    var percentage: Double?  // Percentage achieved
+    var collectiveMarks: Double?  // Collective marks (if applicable)
+    var placing: Int?
+    var notes: String = ""
+
+    enum EntryStatus: String, Codable, CaseIterable {
+        case planning = "Planning"
+        case entered = "Entered"
+        case scratched = "Scratched"
+        case completed = "Completed"
+
+        var icon: String {
+            switch self {
+            case .planning: return "clock"
+            case .entered: return "checkmark.circle"
+            case .scratched: return "xmark.circle"
+            case .completed: return "flag.checkered"
+            }
+        }
+    }
+
+    init(testName: String, className: String = "", entryStatus: EntryStatus = .planning) {
+        self.testName = testName
+        self.className = className
+        self.entryStatus = entryStatus
+    }
+
+    /// Whether this class has any results recorded
+    var hasResults: Bool {
+        score != nil || percentage != nil || placing != nil
+    }
+
+    /// Calculated percentage from score/maxScore
+    var calculatedPercentage: Double? {
+        if let pct = percentage { return pct }
+        if let score = score, let max = maxScore, max > 0 {
+            return (score / max) * 100
+        }
+        return nil
+    }
+
+    /// Formatted percentage string
+    var formattedPercentage: String? {
+        guard let pct = calculatedPercentage else { return nil }
+        return String(format: "%.2f%%", pct)
+    }
+
+    /// Result summary for display
+    var resultSummary: String {
+        var parts: [String] = []
+
+        if let pct = formattedPercentage {
+            parts.append(pct)
+        }
+
+        if let placing = placing {
+            parts.append(ordinalString(placing))
+        }
+
+        return parts.isEmpty ? "No result" : parts.joined(separator: " | ")
+    }
+
+    private func ordinalString(_ n: Int) -> String {
+        let suffix: String
+        let ones = n % 10
+        let tens = (n / 10) % 10
+
+        if tens == 1 {
+            suffix = "th"
+        } else {
+            switch ones {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(n)\(suffix)"
+    }
+}
+
+/// Common dressage tests for quick selection (British Dressage)
+enum DressageTest: String, CaseIterable {
+    case introA = "Intro A"
+    case introB = "Intro B"
+    case introC = "Intro C"
+    case prelim1 = "Prelim 1"
+    case prelim2 = "Prelim 2"
+    case prelim7 = "Prelim 7"
+    case prelim12 = "Prelim 12"
+    case prelim13 = "Prelim 13"
+    case prelim14 = "Prelim 14"
+    case prelim17 = "Prelim 17"
+    case prelim18 = "Prelim 18"
+    case novice22 = "Novice 22"
+    case novice24 = "Novice 24"
+    case novice27 = "Novice 27"
+    case novice28 = "Novice 28"
+    case novice30 = "Novice 30"
+    case novice34 = "Novice 34"
+    case elem42 = "Elementary 42"
+    case elem43 = "Elementary 43"
+    case elem44 = "Elementary 44"
+    case elem49 = "Elementary 49"
+
+    var displayName: String { rawValue }
+}
+
 // MARK: - Competition
 
 @Model
@@ -56,6 +300,12 @@ final class Competition {
     var departureFromVenue: Date?
     var arrivalBackAtYard: Date?
     var isTravelPlanned: Bool = false
+
+    // Tetrathlon-specific start times
+    var shootingStartTime: Date?
+    var runningStartTime: Date?
+    var swimWarmupTime: Date?
+    var swimStartTime: Date?
 
     // Results (if completed)
     var isCompleted: Bool = false
@@ -102,6 +352,62 @@ final class Competition {
         todos.filter { !$0.isCompleted }.count
     }
 
+    // Showjumping classes - JSON encoded array of ShowjumpingClass
+    var showjumpingClassesData: Data?
+
+    @Transient var showjumpingClasses: [ShowjumpingClass] {
+        get {
+            guard let data = showjumpingClassesData else { return [] }
+            return (try? JSONDecoder().decode([ShowjumpingClass].self, from: data)) ?? []
+        }
+        set {
+            showjumpingClassesData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    /// Whether this competition has showjumping classes defined
+    var hasShowjumpingClasses: Bool {
+        !showjumpingClasses.isEmpty
+    }
+
+    /// Count of entered showjumping classes
+    var enteredClassesCount: Int {
+        showjumpingClasses.filter { $0.entryStatus == .entered || $0.entryStatus == .completed }.count
+    }
+
+    /// Count of classes with results
+    var classesWithResultsCount: Int {
+        showjumpingClasses.filter { $0.hasResults }.count
+    }
+
+    // Dressage classes - JSON encoded array of DressageClass
+    var dressageClassesData: Data?
+
+    @Transient var dressageClasses: [DressageClass] {
+        get {
+            guard let data = dressageClassesData else { return [] }
+            return (try? JSONDecoder().decode([DressageClass].self, from: data)) ?? []
+        }
+        set {
+            dressageClassesData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    /// Whether this competition has dressage classes defined
+    var hasDressageClasses: Bool {
+        !dressageClasses.isEmpty
+    }
+
+    /// Count of entered dressage classes
+    var enteredDressageClassesCount: Int {
+        dressageClasses.filter { $0.entryStatus == .entered || $0.entryStatus == .completed }.count
+    }
+
+    /// Count of dressage classes with results
+    var dressageClassesWithResultsCount: Int {
+        dressageClasses.filter { $0.hasResults }.count
+    }
+
     init() {}
 
     func addTodo(_ title: String) {
@@ -122,6 +428,50 @@ final class Competition {
         var current = todos
         current.removeAll { $0.id == id }
         todos = current
+    }
+
+    // MARK: - Showjumping Class Methods
+
+    func addShowjumpingClass(_ name: String, status: ShowjumpingClass.EntryStatus = .planning) {
+        var current = showjumpingClasses
+        current.append(ShowjumpingClass(name: name, entryStatus: status))
+        showjumpingClasses = current
+    }
+
+    func updateShowjumpingClass(_ classEntry: ShowjumpingClass) {
+        var current = showjumpingClasses
+        if let index = current.firstIndex(where: { $0.id == classEntry.id }) {
+            current[index] = classEntry
+            showjumpingClasses = current
+        }
+    }
+
+    func removeShowjumpingClass(_ id: UUID) {
+        var current = showjumpingClasses
+        current.removeAll { $0.id == id }
+        showjumpingClasses = current
+    }
+
+    // MARK: - Dressage Class Methods
+
+    func addDressageClass(_ testName: String, className: String = "", status: DressageClass.EntryStatus = .planning) {
+        var current = dressageClasses
+        current.append(DressageClass(testName: testName, className: className, entryStatus: status))
+        dressageClasses = current
+    }
+
+    func updateDressageClass(_ classEntry: DressageClass) {
+        var current = dressageClasses
+        if let index = current.firstIndex(where: { $0.id == classEntry.id }) {
+            current[index] = classEntry
+            dressageClasses = current
+        }
+    }
+
+    func removeDressageClass(_ id: UUID) {
+        var current = dressageClasses
+        current.removeAll { $0.id == id }
+        dressageClasses = current
     }
 
     var hasAnyScore: Bool {

@@ -1,0 +1,11 @@
+# App Store Connect App Identifier
+app_identifier("MyHorse.TrackRide")
+
+# Your Apple Developer account email
+apple_id(ENV["FASTLANE_USER"] || "darryl_cauldwell@hotmail.com")
+
+# App Store Connect Team (if you have multiple)
+# team_id("YOUR_TEAM_ID")
+
+# For App Store Connect API (optional - for CI/CD)
+# api_key_path("fastlane/api_key.json")

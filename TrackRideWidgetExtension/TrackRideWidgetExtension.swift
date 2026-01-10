@@ -494,11 +494,421 @@ struct HistoryWidgetView: View {
     }
 }
 
+// MARK: - Combined Dashboard Widget
+
+struct DashboardWidget: Widget {
+    let kind: String = "DashboardWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: DashboardTimelineProvider()) { entry in
+            DashboardWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
+        }
+        .configurationDisplayName("Training Dashboard")
+        .description("Competition countdown, tasks, and recent training at a glance.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+struct DashboardTimelineProvider: TimelineProvider {
+    func placeholder(in context: Context) -> DashboardTimelineEntry {
+        DashboardTimelineEntry(
+            date: Date(),
+            nextCompetition: WidgetDataProvider.shared.sampleCompetitions().first,
+            pendingTasks: WidgetDataProvider.shared.sampleTasks(),
+            recentSessions: WidgetDataProvider.shared.sampleSessions()
+        )
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (DashboardTimelineEntry) -> Void) {
+        let entry = DashboardTimelineEntry(
+            date: Date(),
+            nextCompetition: WidgetDataProvider.shared.getUpcomingCompetitions().first,
+            pendingTasks: WidgetDataProvider.shared.getPendingTasks(),
+            recentSessions: WidgetDataProvider.shared.getRecentSessions()
+        )
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<DashboardTimelineEntry>) -> Void) {
+        let entry = DashboardTimelineEntry(
+            date: Date(),
+            nextCompetition: WidgetDataProvider.shared.getUpcomingCompetitions().first,
+            pendingTasks: WidgetDataProvider.shared.getPendingTasks(),
+            recentSessions: WidgetDataProvider.shared.getRecentSessions()
+        )
+        let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+        completion(timeline)
+    }
+}
+
+struct DashboardTimelineEntry: TimelineEntry {
+    let date: Date
+    let nextCompetition: WidgetCompetition?
+    let pendingTasks: [WidgetTask]
+    let recentSessions: [WidgetSession]
+}
+
+struct DashboardWidgetView: View {
+    @Environment(\.widgetFamily) var family
+    var entry: DashboardTimelineEntry
+
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            smallDashboard
+        case .systemMedium:
+            mediumDashboard
+        case .systemLarge:
+            largeDashboard
+        default:
+            mediumDashboard
+        }
+    }
+
+    // MARK: - Small Widget (Competition Focus)
+
+    private var smallDashboard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Next competition countdown
+            if let competition = entry.nextCompetition {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundColor(WidgetColors.primary)
+                        .font(.caption)
+                    Spacer()
+                    Text(competition.countdownText)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(competition.daysUntil <= 7 ? WidgetColors.warning : WidgetColors.primary)
+                }
+
+                Text(competition.name)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+            } else {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                Text("No events")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
+            // Tasks and Sessions summary
+            HStack(spacing: 12) {
+                // Tasks count
+                HStack(spacing: 4) {
+                    Image(systemName: "checklist")
+                        .font(.caption2)
+                        .foregroundColor(entry.pendingTasks.isEmpty ? .green : WidgetColors.warning)
+                    Text("\(entry.pendingTasks.count)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+
+                Spacer()
+
+                // Recent session
+                if let session = entry.recentSessions.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: session.sessionType.icon)
+                            .font(.caption2)
+                            .foregroundColor(session.sessionType.color)
+                        Text(session.formattedDate)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Medium Widget (All Three Sections)
+
+    private var mediumDashboard: some View {
+        HStack(spacing: 12) {
+            // Left: Competition countdown
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundColor(WidgetColors.primary)
+                    Text("NEXT")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+
+                if let competition = entry.nextCompetition {
+                    Spacer()
+                    Text(competition.countdownText)
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(competition.daysUntil <= 7 ? WidgetColors.warning : WidgetColors.primary)
+
+                    Text(competition.name)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .lineLimit(2)
+
+                    Text(competition.formattedDate)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                } else {
+                    Spacer()
+                    Text("No events")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider()
+
+            // Right: Tasks and Recent
+            VStack(alignment: .leading, spacing: 8) {
+                // Tasks section
+                HStack {
+                    Image(systemName: "checklist")
+                        .foregroundColor(WidgetColors.primary)
+                        .font(.caption)
+                    Text("TASKS")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(entry.pendingTasks.count)")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(entry.pendingTasks.isEmpty ? .green : WidgetColors.warning)
+                }
+
+                if entry.pendingTasks.isEmpty {
+                    Text("All done!")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                } else {
+                    ForEach(entry.pendingTasks.prefix(2)) { task in
+                        HStack(spacing: 4) {
+                            Image(systemName: "circle")
+                                .font(.system(size: 6))
+                                .foregroundColor(.secondary)
+                            Text(task.title)
+                                .font(.caption2)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Recent session
+                HStack {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .foregroundColor(WidgetColors.primary)
+                        .font(.caption)
+                    Text("RECENT")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+
+                if let session = entry.recentSessions.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: session.sessionType.icon)
+                            .font(.caption2)
+                            .foregroundColor(session.sessionType.color)
+                        Text(session.name)
+                            .font(.caption2)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(session.formattedDuration)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Text("No sessions")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding()
+    }
+
+    // MARK: - Large Widget (Full Detail)
+
+    private var largeDashboard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                Image(systemName: "figure.equestrian.sports")
+                    .foregroundColor(WidgetColors.primary)
+                Text("TRAINING DASHBOARD")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            // Competition section
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "calendar")
+                            .font(.caption)
+                        Text("Next Competition")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if let competition = entry.nextCompetition {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(competition.countdownText)
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(competition.daysUntil <= 7 ? WidgetColors.warning : WidgetColors.primary)
+
+                            VStack(alignment: .leading) {
+                                Text(competition.name)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text("\(competition.formattedDate) • \(competition.location)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } else {
+                        Text("No upcoming events")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(Color(.secondarySystemBackground).opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            HStack(spacing: 12) {
+                // Tasks section
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "checklist")
+                            .font(.caption)
+                        Text("Tasks")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(entry.pendingTasks.count) pending")
+                            .font(.caption2)
+                            .foregroundColor(entry.pendingTasks.isEmpty ? .green : WidgetColors.warning)
+                    }
+
+                    if entry.pendingTasks.isEmpty {
+                        HStack {
+                            Spacer()
+                            VStack {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundColor(.green)
+                                Text("All done!")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    } else {
+                        ForEach(entry.pendingTasks.prefix(4)) { task in
+                            HStack(spacing: 6) {
+                                Image(systemName: "circle")
+                                    .font(.system(size: 8))
+                                    .foregroundColor(.secondary)
+                                Text(task.title)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .background(Color(.secondarySystemBackground).opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Recent sessions section
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption)
+                        Text("Recent")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+
+                    if entry.recentSessions.isEmpty {
+                        HStack {
+                            Spacer()
+                            VStack {
+                                Image(systemName: "figure.run")
+                                    .foregroundColor(.secondary)
+                                Text("No sessions")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    } else {
+                        ForEach(entry.recentSessions.prefix(4)) { session in
+                            HStack(spacing: 6) {
+                                Image(systemName: session.sessionType.icon)
+                                    .font(.caption2)
+                                    .foregroundColor(session.sessionType.color)
+                                    .frame(width: 16)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(session.name)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                    Text("\(session.formattedDuration) • \(session.formattedDate)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .background(Color(.secondarySystemBackground).opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding()
+    }
+}
+
 // MARK: - Widget Bundle
 
 @main
 struct TrackRideWidgetBundle: WidgetBundle {
     var body: some Widget {
+        DashboardWidget()
         CompetitionCalendarWidget()
         CompetitionTasksWidget()
         RecentHistoryWidget()

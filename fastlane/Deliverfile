@@ -1,0 +1,35 @@
+# Deliverfile - Fastlane deliver configuration
+
+# App metadata
+app_identifier("MyHorse.TrackRide")
+
+# Skip screenshots for now (we'll add them later)
+skip_screenshots(true)
+
+# Skip binary upload (we use Xcode for that)
+skip_binary_upload(true)
+
+# Skip app version update (needed for first-time apps without review details)
+skip_app_version_update(true)
+
+# Automatically submit for review after upload (set to false for safety)
+submit_for_review(false)
+
+# Force overwrite remote metadata
+force(true)
+
+# Metadata path
+metadata_path("./fastlane/metadata")
+
+# App categories - set in App Store Connect directly
+# primary_category("HEALTH_AND_FITNESS")
+# secondary_category("SPORTS")
+
+# Age rating - set in App Store Connect directly
+# app_rating_config_path("./fastlane/rating_config.json")
+
+# Copyright
+copyright("2026 Darryl Cauldwell")
+
+# App icon (1024x1024 PNG without alpha for App Store listing)
+app_icon("./TrackRide/Assets.xcassets/AppIcon.appiconset/tet1.png")

@@ -12,24 +12,41 @@ struct RegionDownloadView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var downloadedRegions: [DownloadedRegion] = []
+    @State private var incompleteDownloads: [DownloadState] = []
     @State private var selectedRegion: AvailableRegion?
-    @State private var showingDeleteConfirmation = false
-    @State private var regionToDelete: DownloadedRegion?
     @State private var errorMessage: String?
     @State private var showingError = false
 
     var body: some View {
         NavigationStack {
             List {
+                // Incomplete downloads section (resumable)
+                if !incompleteDownloads.isEmpty {
+                    Section {
+                        ForEach(incompleteDownloads, id: \.regionId) { state in
+                            IncompleteDownloadRow(
+                                state: state,
+                                onResume: { resumeDownload(state) },
+                                onCancel: { cancelDownload(state) }
+                            )
+                        }
+                    } header: {
+                        Text("Incomplete Downloads")
+                    } footer: {
+                        Text("These downloads were interrupted. Resume to continue or cancel to start fresh.")
+                    }
+                }
+
                 // Downloaded regions section
                 if !downloadedRegions.isEmpty {
                     Section("Downloaded Regions") {
                         ForEach(downloadedRegions, id: \.regionId) { region in
                             DownloadedRegionRow(region: region)
-                                .swipeActions(edge: .trailing) {
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button(role: .destructive) {
-                                        regionToDelete = region
-                                        showingDeleteConfirmation = true
+                                        // Delete immediately without confirmation
+                                        // Swipe delete is already a deliberate gesture
+                                        deleteRegion(region)
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
@@ -53,9 +70,9 @@ struct RegionDownloadView: View {
                 // Info section
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Offline Routing", systemImage: "wifi.slash")
+                        Label("Route Planning Data", systemImage: "map")
                             .font(.subheadline.weight(.semibold))
-                        Text("Download map data to plan routes without internet. Data includes bridleways, byways, tracks, and paths from OpenStreetMap.")
+                        Text("Route planning requires OpenStreetMap data for bridleways, byways, tracks, and paths. Download once, then plan routes anytime — even without internet.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -69,18 +86,9 @@ struct RegionDownloadView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .onAppear { loadDownloadedRegions() }
-            .alert("Delete Region?", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
-                    if let region = regionToDelete {
-                        deleteRegion(region)
-                    }
-                }
-            } message: {
-                if let region = regionToDelete {
-                    Text("This will remove all routing data for \(region.displayName). You can re-download it later.")
-                }
+            .onAppear {
+                loadDownloadedRegions()
+                loadIncompleteDownloads()
             }
             .alert("Error", isPresented: $showingError) {
                 Button("OK") {}
@@ -118,14 +126,55 @@ struct RegionDownloadView: View {
     }
 
     private func deleteRegion(_ region: DownloadedRegion) {
+        // CRITICAL: SwiftUI's swipe delete expects synchronous data source updates.
+        // We must update the local state FIRST before any async work.
+        // Using withAnimation helps SwiftUI properly coordinate with UICollectionView.
+
+        // 1. Optimistically remove from local state IMMEDIATELY with animation
+        let regionId = region.regionId
+        withAnimation {
+            downloadedRegions.removeAll { $0.regionId == regionId }
+        }
+
+        // 2. Perform actual deletion in background
         Task {
             do {
-                try await routePlanning.deleteRegion(region.regionId)
+                try await routePlanning.deleteRegion(regionId)
+                // Success - state is already correct
+            } catch {
+                // Failed - reload to restore state and show error
+                await MainActor.run {
+                    withAnimation {
+                        loadDownloadedRegions()
+                    }
+                    errorMessage = error.localizedDescription
+                    showingError = true
+                }
+            }
+        }
+    }
+
+    private func loadIncompleteDownloads() {
+        incompleteDownloads = DownloadState.getResumableDownloads()
+    }
+
+    private func resumeDownload(_ state: DownloadState) {
+        Task {
+            do {
+                try await routePlanning.resumeDownload(state)
                 loadDownloadedRegions()
+                loadIncompleteDownloads()
             } catch {
                 errorMessage = error.localizedDescription
                 showingError = true
             }
+        }
+    }
+
+    private func cancelDownload(_ state: DownloadState) {
+        Task {
+            await routePlanning.cancelDownload(state.regionId)
+            loadIncompleteDownloads()
         }
     }
 }
@@ -178,52 +227,110 @@ private struct AvailableRegionRow: View {
                     .font(.body.weight(.medium))
                 Spacer()
 
+                // Show status icon only when not actively downloading
+                // During download, the progress bar below shows status
                 if isDownloaded {
                     Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
                         .foregroundStyle(.green)
                 } else if let progress = downloadProgress {
-                    downloadStatusView(progress)
+                    // Only show icon for terminal states (complete/failed)
+                    // In-progress states show the progress bar below instead
+                    switch progress.phase {
+                    case .complete:
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.green)
+                    case .failed:
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.red)
+                    default:
+                        EmptyView()
+                    }
                 } else {
                     Button(action: onDownload) {
-                        Label("Download", systemImage: "arrow.down.circle")
-                            .font(.subheadline)
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                 }
             }
 
-            if !isDownloaded {
+            if !isDownloaded && downloadProgress == nil {
                 Text("~\(region.formattedEstimatedSize) download")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if let progress = downloadProgress {
-                VStack(alignment: .leading, spacing: 2) {
-                    ProgressView(value: progress.progress)
-                    Text(progress.message)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                // Show progress bar only during active download phases
+                if progress.phase != .complete && progress.phase != .failed {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ProgressView(value: progress.progress)
+                        Text(progress.message)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
         .padding(.vertical, 2)
     }
+}
 
-    @ViewBuilder
-    private func downloadStatusView(_ progress: OSMDataManager.DownloadProgress) -> some View {
-        switch progress.phase {
-        case .downloading, .parsing, .indexing:
-            ProgressView()
+private struct IncompleteDownloadRow: View {
+    let state: DownloadState
+    let onResume: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(state.regionDisplayName)
+                        .font(.body.weight(.medium))
+                    Text(state.progressDescription)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.orange)
+            }
+
+            // Progress indicator
+            if state.totalNodes > 0 {
+                let progress = Double(state.nodesProcessed + state.edgesProcessed) /
+                               Double(state.totalNodes + state.totalEdges)
+                VStack(alignment: .leading, spacing: 2) {
+                    ProgressView(value: progress)
+                    Text("\(Int(progress * 100))% complete")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Action buttons
+            HStack(spacing: 12) {
+                Button(action: onResume) {
+                    Label("Resume", systemImage: "play.fill")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-        case .complete:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
+
+                Button(role: .destructive, action: onCancel) {
+                    Label("Cancel", systemImage: "xmark")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 

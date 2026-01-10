@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
+import CloudKit
 import os
 
 @main
@@ -37,6 +38,8 @@ struct TrackRideApp: App {
             RouteWaypoint.self,
             OSMNode.self,
             DownloadedRegion.self,
+            // Shooting analysis
+            TargetScanAnalysis.self,
         ])
         // TODO: RE-ENABLE CLOUDKIT FOR PRODUCTION
         // When you have a paid Apple Developer account:
@@ -78,7 +81,7 @@ struct TrackRideApp: App {
                 }
                 .task {
                 // Request notification permissions
-                await NotificationManager.shared.requestAuthorization()
+                _ = await NotificationManager.shared.requestAuthorization()
                 // TODO: Re-enable when CloudKit is available
                 // await NotificationManager.shared.setupCloudKitSubscriptions()
             }
@@ -109,6 +112,9 @@ struct TrackRideApp: App {
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(from: oldPhase, to: newPhase)
             }
+            .onOpenURL { url in
+                handleIncomingURL(url)
+            }
         }
         .modelContainer(sharedModelContainer)
     }
@@ -132,8 +138,10 @@ struct TrackRideApp: App {
             AudioCoachManager.shared.stopSpeaking()
 
         case .active:
-            // App became active - no special handling needed
-            break
+            // App became active - restore download state from persistence
+            // This ensures UI shows correct state if a download completed/failed while in background
+            ServiceContainer.shared.routePlanning.restoreDownloadState()
+            Log.app.info("App became active - restored download state")
 
         @unknown default:
             break
@@ -155,7 +163,7 @@ struct TrackRideApp: App {
         WidgetDataSyncService.shared.syncAllWidgetData(context: sharedModelContainer.mainContext)
 
         // Configure route planning service
-        ServiceContainer.shared.routePlanning.configure(with: sharedModelContainer.mainContext)
+        ServiceContainer.shared.routePlanning.configure(with: sharedModelContainer.mainContext, container: sharedModelContainer)
 
         isConfigured = true
     }
@@ -206,6 +214,49 @@ struct TrackRideApp: App {
 
         Task {
             await tracker.startRide()
+        }
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        Log.app.info("Received URL: \(url)")
+
+        // Handle CloudKit share URLs
+        let familySharing = FamilySharingManager.shared
+        if familySharing.isCloudKitShareURL(url) {
+            Task {
+                // Store as pending request instead of auto-accepting
+                // This allows the user to review and accept/decline in the app
+                await storePendingShareRequest(from: url)
+            }
+        }
+    }
+
+    private func storePendingShareRequest(from url: URL) async {
+        guard let container = CKContainer.default() as CKContainer? else {
+            Log.app.error("CloudKit container not available")
+            return
+        }
+
+        do {
+            // Get share metadata from URL
+            let metadata = try await container.shareMetadata(for: url)
+
+            // Store as pending request
+            await MainActor.run {
+                FamilySharingManager.shared.addPendingRequest(from: metadata)
+            }
+
+            Log.app.info("Stored pending share request")
+        } catch {
+            Log.app.error("Failed to get share metadata: \(error)")
+
+            // Fallback: Try to accept directly (old behavior)
+            let success = await FamilySharingManager.shared.acceptShare(from: url)
+            if success {
+                Log.app.info("Successfully accepted CloudKit share (fallback)")
+            } else {
+                Log.app.error("Failed to accept CloudKit share")
+            }
         }
     }
 }

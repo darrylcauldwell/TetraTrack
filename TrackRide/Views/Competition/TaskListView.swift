@@ -84,7 +84,10 @@ struct TaskListView: View {
     // MARK: - Stats Header
 
     private var taskStatsHeader: some View {
-        HStack(spacing: 16) {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
             TaskStatBadge(
                 count: pendingTasks.count,
                 label: "Pending",
@@ -302,16 +305,17 @@ struct TaskStatBadge: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             Text("\(count)")
-                .font(.title2.bold())
+                .font(.title.bold())
                 .foregroundStyle(count > 0 ? color : .secondary)
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 20)
+        .padding(.horizontal, 12)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }

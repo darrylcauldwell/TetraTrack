@@ -28,76 +28,64 @@ struct RunningView: View {
         CompetitionLevel(rawValue: selectedLevelRaw) ?? .junior
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                // Track/GPS Mode Toggle
-                HStack {
-                    Text("Mode")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Picker("Mode", selection: $trackMode) {
-                        Label("GPS", systemImage: "location.fill").tag(false)
-                        Label("Track", systemImage: "circle.dashed").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
-                }
-                .padding(.horizontal, 16)
+    private var menuItems: [DisciplineMenuItem] {
+        [
+            DisciplineMenuItem(
+                title: "Run",
+                subtitle: trackMode ? "Track run" : "Free GPS run",
+                icon: "figure.run",
+                color: AppColors.primary,
+                action: { startSession(type: .easy) }
+            ),
+            DisciplineMenuItem(
+                title: "Virtual Pacer",
+                subtitle: "Target pace",
+                icon: "person.line.dotted.person.fill",
+                color: .cyan,
+                action: { showingPacerSetup = true }
+            ),
+            DisciplineMenuItem(
+                title: "Intervals",
+                subtitle: "Training sets",
+                icon: "timer",
+                color: .orange,
+                action: { showingIntervalSetup = true }
+            ),
+            DisciplineMenuItem(
+                title: "Tetrathlon",
+                subtitle: selectedLevel.formattedRunDistance,
+                icon: "stopwatch.fill",
+                color: .purple,
+                action: { startSession(type: .timeTrial) }
+            ),
+            DisciplineMenuItem(
+                title: "Treadmill",
+                subtitle: "Manual entry",
+                icon: "figure.run.treadmill",
+                color: .mint,
+                action: { showingTreadmillEntry = true }
+            )
+        ]
+    }
 
-                // Run type options - row-based list
-                VStack(spacing: 12) {
-                    // Run button
-                    RunTypeButton(
-                        title: "Run",
-                        icon: "figure.run",
-                        color: AppColors.primary,
-                        subtitle: "Free GPS run",
-                        action: { startSession(type: .easy) }
-                    )
-
-                    // Virtual Pacer button
-                    RunTypeButton(
-                        title: "Virtual Pacer",
-                        icon: "person.line.dotted.person.fill",
-                        color: .cyan,
-                        subtitle: "Target pace",
-                        action: { showingPacerSetup = true }
-                    )
-
-                    // Interval Run button
-                    RunTypeButton(
-                        title: "Intervals",
-                        icon: "timer",
-                        color: .orange,
-                        subtitle: "Training sets",
-                        action: { showingIntervalSetup = true }
-                    )
-
-                    // Tetrathlon Practice button
-                    RunTypeButton(
-                        title: "Tetrathlon",
-                        icon: "stopwatch.fill",
-                        color: .purple,
-                        subtitle: selectedLevel.formattedRunDistance,
-                        action: { startSession(type: .timeTrial) }
-                    )
-
-                    // Treadmill button
-                    RunTypeButton(
-                        title: "Treadmill",
-                        icon: "figure.run.treadmill",
-                        color: .mint,
-                        subtitle: "Manual entry",
-                        action: { showingTreadmillEntry = true }
-                    )
-                }
-                .padding(.horizontal, 16)
+    private var modePickerHeader: some View {
+        HStack {
+            Text("Mode")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Picker("Mode", selection: $trackMode) {
+                Label("GPS", systemImage: "location.fill").tag(false)
+                Label("Track", systemImage: "circle.dashed").tag(true)
             }
-            .padding(.top, 12)
+            .pickerStyle(.segmented)
+            .frame(width: 180)
         }
-        .navigationTitle("Running")
+    }
+
+    var body: some View {
+        DisciplineMenuView(items: menuItems, header: AnyView(modePickerHeader))
+            .navigationTitle("Running")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingIntervalSetup) {
                 IntervalSetupView(onStart: { settings in
@@ -117,13 +105,6 @@ struct RunningView: View {
                     intervalSettings: activeIntervalSettings,
                     targetDistance: session.sessionType == .timeTrial ? selectedLevel.runDistance : 0,
                     onEnd: {
-                        // Check for personal best on tetrathlon
-                        if session.sessionType == .timeTrial && session.totalDistance >= selectedLevel.runDistance * 0.95 {
-                            RunningPersonalBests.shared.updatePersonalBest(
-                                for: selectedLevel.runDistance,
-                                time: session.totalDuration
-                            )
-                        }
                         // Save to HealthKit
                         Task {
                             let healthKit = HealthKitManager.shared

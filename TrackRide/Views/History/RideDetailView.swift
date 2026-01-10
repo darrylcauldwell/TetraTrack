@@ -5,6 +5,7 @@
 
 import SwiftUI
 import Photos
+import AVKit
 
 struct RideDetailView: View {
     @Bindable var ride: Ride
@@ -12,8 +13,11 @@ struct RideDetailView: View {
     @State private var gpxFileURL: URL?
     @State private var showingGallery = false
     @State private var ridePhotos: [PHAsset] = []
-    @State private var hasLoadedPhotos = false
+    @State private var rideVideos: [PHAsset] = []
+    @State private var hasLoadedMedia = false
     @State private var showingTrimView = false
+    @State private var showingMediaEditor = false
+    @State private var selectedVideo: PHAsset?
 
     var body: some View {
         ScrollView {
@@ -90,8 +94,8 @@ struct RideDetailView: View {
                     ReinBalanceView(ride: ride)
                 }
 
-                // Symmetry & Rhythm (if has quality data)
-                if ride.overallSymmetry > 0 || ride.overallRhythm > 0 || ride.transitionCount > 0 {
+                // Schooling Scores (if has rhythm or turn data)
+                if ride.overallRhythm > 0 || (ride.leftTurns + ride.rightTurns) > 0 {
                     SymmetryRhythmView(ride: ride)
                 }
 
@@ -127,36 +131,69 @@ struct RideDetailView: View {
                     }
                 }
 
-                // Photo Gallery Section
-                if !ridePhotos.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Photos")
-                                .font(.headline)
-                            Spacer()
-                            NavigationLink(destination: RideGalleryView(ride: ride)) {
-                                Text("View All (\(ridePhotos.count))")
+                // Media Gallery Section (Photos & Videos)
+                // Always show for all riding sessions
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Photos & Videos")
+                            .font(.headline)
+                        Spacer()
+                        if !ridePhotos.isEmpty || !rideVideos.isEmpty {
+                            NavigationLink(destination: RideMediaGalleryView(ride: ride)) {
+                                Text("View All (\(ridePhotos.count + rideVideos.count))")
                                     .font(.subheadline)
                                     .foregroundStyle(AppColors.primary)
                             }
                         }
+                    }
 
-                        // Photo thumbnail preview
+                    if ridePhotos.isEmpty && rideVideos.isEmpty {
+                        // Empty state when no media found
+                        HStack {
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.title2)
+                                .foregroundStyle(.tertiary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("No photos or videos")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text("Media taken within 1 hour of this ride will appear here")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        // Media thumbnail preview
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(ridePhotos.prefix(5), id: \.localIdentifier) { asset in
+                                // Photos
+                                ForEach(ridePhotos.prefix(4), id: \.localIdentifier) { asset in
                                     PhotoThumbnail(asset: asset)
                                         .frame(width: 80, height: 80)
                                         .clipShape(RoundedRectangle(cornerRadius: 8))
                                 }
-                                if ridePhotos.count > 5 {
-                                    NavigationLink(destination: RideGalleryView(ride: ride)) {
+                                // Videos
+                                ForEach(rideVideos.prefix(2), id: \.localIdentifier) { asset in
+                                    VideoThumbnail(asset: asset)
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .onTapGesture {
+                                            selectedVideo = asset
+                                        }
+                                }
+                                // Show more indicator
+                                if ridePhotos.count + rideVideos.count > 6 {
+                                    NavigationLink(destination: RideMediaGalleryView(ride: ride)) {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: 8)
                                                 .fill(AppColors.cardBackground)
                                                 .frame(width: 80, height: 80)
                                             VStack {
-                                                Text("+\(ridePhotos.count - 5)")
+                                                Text("+\(ridePhotos.count + rideVideos.count - 6)")
                                                     .font(.title3)
                                                     .fontWeight(.semibold)
                                                 Text("more")
@@ -169,6 +206,18 @@ struct RideDetailView: View {
                             }
                         }
                     }
+
+                    // Manual add/edit button
+                    Button {
+                        showingMediaEditor = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "photo.badge.plus")
+                            Text(ridePhotos.isEmpty && rideVideos.isEmpty ? "Add Photos & Videos" : "Add More")
+                        }
+                        .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
                 }
 
                 // Date info
@@ -258,23 +307,38 @@ struct RideDetailView: View {
         .sheet(isPresented: $showingTrimView) {
             RideTrimView(ride: ride)
         }
+        .sheet(isPresented: $showingMediaEditor) {
+            RideMediaEditorView(ride: ride) {
+                // Refresh media after editing
+                hasLoadedMedia = false
+                Task {
+                    await loadMedia()
+                }
+            }
+        }
+        .sheet(item: $selectedVideo) { video in
+            VideoPlayerView(asset: video)
+        }
         .task {
-            await loadPhotos()
+            await loadMedia()
         }
     }
 
-    private func loadPhotos() async {
-        guard !hasLoadedPhotos else { return }
-        hasLoadedPhotos = true
+    private func loadMedia() async {
+        guard !hasLoadedMedia else { return }
+        hasLoadedMedia = true
 
         let photoService = RidePhotoService.shared
         if !photoService.isAuthorized {
             _ = await photoService.requestAuthorization()
         }
 
-        let photos = await photoService.findPhotosForRide(ride)
+        // Search within 1 hour before and after the session for all ride types
+        let (photos, videos) = await photoService.findMediaForSession(ride)
+
         await MainActor.run {
             ridePhotos = photos
+            rideVideos = videos
         }
     }
 

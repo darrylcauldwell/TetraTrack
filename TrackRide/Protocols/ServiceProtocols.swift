@@ -148,9 +148,9 @@ protocol RoutePlanning: AnyObject {
     /// Currently active downloads
     var activeDownloads: [String: OSMDataManager.DownloadProgress] { get }
 
-    /// Configure with model context
+    /// Configure with model context and container
     @MainActor
-    func configure(with context: ModelContext)
+    func configure(with context: ModelContext, container: ModelContainer)
 
     /// Download a region for offline routing
     @MainActor
@@ -167,6 +167,22 @@ protocol RoutePlanning: AnyObject {
     /// Get all downloaded regions
     @MainActor
     func getDownloadedRegions() throws -> [DownloadedRegion]
+
+    /// Fix bounds for an already downloaded region (if bounds were stored incorrectly)
+    @MainActor
+    func fixRegionBounds(_ region: AvailableRegion) throws
+
+    /// Get incomplete downloads that can be resumed
+    @MainActor
+    func getIncompleteDownloads() -> [DownloadState]
+
+    /// Resume an incomplete download
+    @MainActor
+    func resumeDownload(_ state: DownloadState) async throws
+
+    /// Cancel and clean up an incomplete download
+    @MainActor
+    func cancelDownload(_ regionId: String) async
 
     /// Calculate a route between points
     func calculateRoute(

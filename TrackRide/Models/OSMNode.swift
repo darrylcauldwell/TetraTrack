@@ -259,12 +259,23 @@ final class OSMNode {
     var longitude: Double = 0
     var regionId: String = ""  // Which downloaded region this belongs to
 
-    // Edges stored as JSON for performance (avoid relationship overhead)
-    // Edges are the outgoing connections from this node
-    var edgesJSON: String = "[]"
+    // Edges stored as binary Data (much faster than JSON string)
+    // Using PropertyListEncoder for speed - ~3x faster than JSON
+    var edgesData: Data = Data()
+
+    // Legacy JSON field for migration (will be removed in future)
+    var edgesJSON: String?
 
     // Cached transient properties
     @Transient private var _cachedEdges: [OSMEdge]?
+
+    // Shared encoders/decoders for performance (avoid repeated allocation)
+    @Transient private static let encoder: PropertyListEncoder = {
+        let e = PropertyListEncoder()
+        e.outputFormat = .binary  // Binary is faster than XML
+        return e
+    }()
+    @Transient private static let decoder = PropertyListDecoder()
 
     init() {}
 
@@ -286,23 +297,53 @@ final class OSMNode {
     var edges: [OSMEdge] {
         get {
             if let cached = _cachedEdges { return cached }
-            guard let data = edgesJSON.data(using: .utf8),
-                  let decoded = try? JSONDecoder().decode([OSMEdge].self, from: data) else {
-                return []
+
+            // Try binary format first (new format)
+            if !edgesData.isEmpty {
+                if let decoded = try? Self.decoder.decode([OSMEdge].self, from: edgesData) {
+                    _cachedEdges = decoded
+                    return decoded
+                }
             }
-            _cachedEdges = decoded
-            return decoded
+
+            // Fall back to legacy JSON format for migration
+            if let json = edgesJSON,
+               let data = json.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode([OSMEdge].self, from: data) {
+                _cachedEdges = decoded
+                // Migrate to binary format
+                if let binaryData = try? Self.encoder.encode(decoded) {
+                    edgesData = binaryData
+                    edgesJSON = nil  // Clear legacy data
+                }
+                return decoded
+            }
+
+            return []
         }
         set {
-            edgesJSON = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
+            if let data = try? Self.encoder.encode(newValue) {
+                edgesData = data
+                edgesJSON = nil  // Clear legacy format
+            }
             _cachedEdges = newValue
         }
     }
 
     /// Add an edge from this node
+    /// WARNING: This is slow for repeated calls - use setEdges() for bulk operations
     func addEdge(_ edge: OSMEdge) {
         var currentEdges = edges
         currentEdges.append(edge)
         edges = currentEdges
+    }
+
+    /// Set all edges at once (much faster than repeated addEdge calls)
+    func setEdges(_ newEdges: [OSMEdge]) {
+        if let data = try? Self.encoder.encode(newEdges) {
+            edgesData = data
+            edgesJSON = nil
+            _cachedEdges = newEdges
+        }
     }
 }

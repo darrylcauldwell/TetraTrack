@@ -968,3 +968,177 @@ enum RunningFormIssue {
     case tensionDetected    // Shoulder tension detected
     case slowTurnover       // Foot ground contact too long
 }
+
+// MARK: - PB Race Coaching
+
+extension AudioCoachManager {
+    /// Announce start of PB race attempt
+    func announcePBRaceStart(pbTime: TimeInterval, distance: Double) {
+        guard isEnabled else { return }
+
+        let pbFormatted = formatDurationForSpeech(pbTime)
+        let distanceFormatted = formatDistanceForSpeech(distance)
+
+        announce("Racing your personal best. Target: \(distanceFormatted) in \(pbFormatted). Good luck!")
+    }
+
+    /// Announce PB checkpoint status - call at distance checkpoints (e.g., every 250m for 1500m)
+    /// For 1500m race: checkpoints at ~250m, 500m, 750m, 1000m, 1250m = 5 cues
+    func announcePBCheckpoint(
+        checkpoint: Int,
+        totalCheckpoints: Int,
+        distanceCovered: Double,
+        totalDistance: Double,
+        currentTime: TimeInterval,
+        expectedTime: TimeInterval
+    ) {
+        guard isEnabled else { return }
+
+        let timeDifference = currentTime - expectedTime
+        let absDiff = Int(abs(timeDifference))
+        _ = totalDistance - distanceCovered  // Distance remaining calculated but not announced
+
+        // Distance announcement
+        let distanceText: String
+        if distanceCovered >= 1000 {
+            distanceText = String(format: "%.1f k", distanceCovered / 1000)
+        } else {
+            distanceText = "\(Int(distanceCovered)) meters"
+        }
+
+        var message = "\(distanceText). "
+
+        // Pace status
+        if abs(timeDifference) <= 2 {
+            message += "On PB pace"
+        } else if timeDifference < 0 {
+            // Ahead
+            if absDiff >= 8 {
+                message += "\(absDiff) seconds ahead. Excellent!"
+            } else {
+                message += "\(absDiff) seconds ahead"
+            }
+        } else {
+            // Behind
+            if absDiff >= 10 {
+                message += "\(absDiff) seconds behind. Push harder!"
+            } else if absDiff >= 5 {
+                message += "\(absDiff) seconds behind. Pick it up"
+            } else {
+                message += "\(absDiff) seconds behind. Stay with it"
+            }
+        }
+
+        // Add contextual encouragement at key checkpoints
+        let percentComplete = (distanceCovered / totalDistance) * 100
+        if percentComplete >= 80 {
+            message += ". Final push!"
+        } else if percentComplete >= 50 && percentComplete < 55 {
+            message += ". Halfway there"
+        }
+
+        announce(message)
+    }
+
+    /// Announce PB pace status - call periodically during race (legacy method)
+    func announcePBPaceStatus(currentTime: TimeInterval, expectedTime: TimeInterval, distanceCovered: Double, totalDistance: Double) {
+        guard isEnabled else { return }
+
+        let timeDifference = currentTime - expectedTime
+        let absDiff = Int(abs(timeDifference))
+
+        // Calculate percentage complete
+        let percentComplete = (distanceCovered / totalDistance) * 100
+
+        var message = ""
+
+        if abs(timeDifference) <= 3 {
+            // On track (within 3 seconds)
+            message = "On track for PB pace"
+            if percentComplete > 50 {
+                message += ". Keep it up!"
+            }
+        } else if timeDifference < 0 {
+            // Ahead of PB pace
+            if absDiff >= 10 {
+                message = "Excellent! \(absDiff) seconds ahead of PB pace"
+            } else {
+                message = "\(absDiff) seconds ahead of PB pace. Great work!"
+            }
+        } else {
+            // Behind PB pace
+            if absDiff >= 15 {
+                message = "Warning. \(absDiff) seconds behind PB pace. Dig deep!"
+            } else if absDiff >= 10 {
+                message = "\(absDiff) seconds behind PB pace. You can catch up!"
+            } else {
+                message = "\(absDiff) seconds behind PB pace. Stay focused"
+            }
+        }
+
+        announce(message)
+    }
+
+    /// Announce projected finish vs PB
+    func announcePBProjection(projectedTime: TimeInterval, pbTime: TimeInterval, distanceRemaining: Double) {
+        guard isEnabled else { return }
+
+        let difference = projectedTime - pbTime
+        let absDiff = Int(abs(difference))
+
+        var message = ""
+
+        if abs(difference) <= 5 {
+            message = "Projected finish right on your PB"
+        } else if difference < 0 {
+            message = "On pace for new PB by \(absDiff) seconds!"
+        } else {
+            let remainingFormatted = formatDistanceForSpeech(distanceRemaining)
+            message = "Currently \(absDiff) seconds off PB. \(remainingFormatted) to go. Push hard!"
+        }
+
+        announce(message)
+    }
+
+    /// Announce PB race completion
+    func announcePBRaceComplete(finalTime: TimeInterval, pbTime: TimeInterval, isNewPB: Bool) {
+        guard isEnabled else { return }
+
+        let difference = finalTime - pbTime
+        let absDiff = Int(abs(difference))
+        let timeFormatted = formatDurationForSpeech(finalTime)
+
+        var message = "Finished in \(timeFormatted). "
+
+        if isNewPB {
+            message += "Congratulations! New personal best by \(absDiff) seconds!"
+        } else if abs(difference) <= 3 {
+            message += "Matched your personal best. Great consistency!"
+        } else {
+            message += "\(absDiff) seconds behind your personal best. Good effort!"
+        }
+
+        announce(message)
+    }
+
+    /// Announce encouragement during PB race
+    func announcePBEncouragement(percentComplete: Double, isAhead: Bool) {
+        guard isEnabled else { return }
+
+        var message = ""
+
+        if percentComplete >= 90 {
+            message = isAhead ? "Final stretch! Maintain your lead!" : "Final push! Give it everything!"
+        } else if percentComplete >= 75 {
+            message = isAhead ? "Three quarters done. Stay strong!" : "Dig deep. You've got this!"
+        } else if percentComplete >= 50 {
+            message = isAhead ? "Halfway there. Looking good!" : "Halfway. Time to push!"
+        } else if percentComplete >= 25 {
+            message = "Quarter done. Settle into your rhythm"
+        }
+
+        if !message.isEmpty {
+            announce(message)
+        }
+    }
+}

@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import Combine
 import WidgetKit
+import Photos
 
 // MARK: - Next Competition Card
 
@@ -440,6 +441,12 @@ struct CompetitionDetailView: View {
     @State private var showingScorecard = false
     @State private var showingMediaEditor = false
 
+    // Auto-discovered photos and videos from competition days
+    @State private var discoveredPhotos: [PHAsset] = []
+    @State private var discoveredVideos: [PHAsset] = []
+    @State private var hasLoadedMedia = false
+    @State private var selectedVideo: PHAsset?
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -544,6 +551,18 @@ struct CompetitionDetailView: View {
                         .padding(.horizontal)
                     }
 
+                    // Showjumping Classes & Results (only for showjumping competitions)
+                    if competition.competitionType == .showJumping {
+                        ShowjumpingResultsView(competition: competition)
+                            .padding(.horizontal)
+                    }
+
+                    // Dressage Classes & Results (only for dressage competitions)
+                    if competition.competitionType == .dressage {
+                        DressageResultsView(competition: competition)
+                            .padding(.horizontal)
+                    }
+
                     // Status toggles
                     VStack(spacing: 12) {
                         Toggle(isOn: $competition.isEntered) {
@@ -589,28 +608,118 @@ struct CompetitionDetailView: View {
                         .padding(.horizontal)
                     }
 
-                    // Media Gallery (photos and videos)
-                    if !competition.photos.isEmpty || !competition.videoAssetIdentifiers.isEmpty {
-                        CompetitionMediaGallery(
-                            photos: competition.photos,
-                            videoAssetIdentifiers: competition.videoAssetIdentifiers,
-                            videoThumbnails: competition.videoThumbnails
-                        )
-                        .padding(.horizontal)
-                    }
-
-                    // Add Media button
-                    Button {
-                        showingMediaEditor = true
-                    } label: {
+                    // Media Gallery Section (auto-discovered + manually added)
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Image(systemName: "photo.badge.plus")
-                            Text(competition.photos.isEmpty && competition.videoAssetIdentifiers.isEmpty ? "Add Photos & Videos" : "Edit Photos & Videos")
+                            Text("Photos & Videos")
+                                .font(.headline)
+                            Spacer()
+                            let totalCount = discoveredPhotos.count + discoveredVideos.count + competition.photos.count + competition.videoAssetIdentifiers.count
+                            if totalCount > 0 {
+                                NavigationLink(destination: CompetitionMediaFullGalleryView(
+                                    competition: competition,
+                                    discoveredPhotos: discoveredPhotos,
+                                    discoveredVideos: discoveredVideos
+                                )) {
+                                    Text("View All (\(totalCount))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppColors.primary)
+                                }
+                            }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                        if discoveredPhotos.isEmpty && discoveredVideos.isEmpty && competition.photos.isEmpty && competition.videoAssetIdentifiers.isEmpty {
+                            // Empty state
+                            HStack {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.title2)
+                                    .foregroundStyle(.tertiary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("No photos or videos")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    if competition.endDate != nil {
+                                        Text("Media taken during the competition days will appear here")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    } else {
+                                        Text("Media taken on the competition day will appear here")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(AppColors.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        } else {
+                            // Media thumbnail preview
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    // Auto-discovered photos
+                                    ForEach(discoveredPhotos.prefix(3), id: \.localIdentifier) { asset in
+                                        PhotoThumbnail(asset: asset)
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                    // Auto-discovered videos
+                                    ForEach(discoveredVideos.prefix(2), id: \.localIdentifier) { asset in
+                                        VideoThumbnail(asset: asset)
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .onTapGesture {
+                                                selectedVideo = asset
+                                            }
+                                    }
+                                    // Manually added photos (stored as Data)
+                                    ForEach(Array(competition.photos.prefix(2).enumerated()), id: \.offset) { index, photoData in
+                                        if let uiImage = UIImage(data: photoData) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 80, height: 80)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        }
+                                    }
+                                    // Show more indicator
+                                    let totalCount = discoveredPhotos.count + discoveredVideos.count + competition.photos.count + competition.videoAssetIdentifiers.count
+                                    if totalCount > 7 {
+                                        NavigationLink(destination: CompetitionMediaFullGalleryView(
+                                            competition: competition,
+                                            discoveredPhotos: discoveredPhotos,
+                                            discoveredVideos: discoveredVideos
+                                        )) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(AppColors.cardBackground)
+                                                    .frame(width: 80, height: 80)
+                                                VStack {
+                                                    Text("+\(totalCount - 7)")
+                                                        .font(.title3)
+                                                        .fontWeight(.semibold)
+                                                    Text("more")
+                                                        .font(.caption2)
+                                                }
+                                                .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Manual add button
+                        Button {
+                            showingMediaEditor = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "photo.badge.plus")
+                                Text("Add More Photos & Videos")
+                            }
+                            .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
                     }
                     .padding(.horizontal)
 
@@ -650,6 +759,12 @@ struct CompetitionDetailView: View {
             .sheet(isPresented: $showingMediaEditor) {
                 CompetitionMediaEditorView(competition: competition)
             }
+            .sheet(item: $selectedVideo) { video in
+                VideoPlayerView(asset: video)
+            }
+            .task {
+                await loadMedia()
+            }
             .confirmationDialog("Delete Competition", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     modelContext.delete(competition)
@@ -660,6 +775,24 @@ struct CompetitionDetailView: View {
             } message: {
                 Text("Are you sure you want to delete this competition?")
             }
+        }
+    }
+
+    private func loadMedia() async {
+        guard !hasLoadedMedia else { return }
+        hasLoadedMedia = true
+
+        let photoService = RidePhotoService.shared
+        if !photoService.isAuthorized {
+            _ = await photoService.requestAuthorization()
+        }
+
+        // Fetch photos/videos from competition day(s) - handles multi-day automatically
+        let (photos, videos) = await photoService.findMediaForCompetition(competition)
+
+        await MainActor.run {
+            discoveredPhotos = photos
+            discoveredVideos = videos
         }
     }
 
@@ -833,6 +966,21 @@ struct CompetitionEditView: View {
     @State private var departureFromVenue: Date?
     @State private var arrivalBackAtYard: Date?
 
+    // Showjumping classes
+    @State private var showjumpingClasses: [ShowjumpingClass] = []
+    @State private var newClassName = ""
+    @State private var showingAddClass = false
+
+    // Dressage classes
+    @State private var dressageClasses: [DressageClass] = []
+    @State private var newDressageTest = ""
+
+    // Tetrathlon start times
+    @State private var shootingStartTime: Date?
+    @State private var runningStartTime: Date?
+    @State private var swimWarmupTime: Date?
+    @State private var swimStartTime: Date?
+
     var isEditing: Bool { competition != nil }
 
     var body: some View {
@@ -892,9 +1040,12 @@ struct CompetitionEditView: View {
                         DatePicker("Entry Deadline", selection: $entryDeadline, displayedComponents: .date)
                     }
 
-                    Toggle("Stable Booking Deadline", isOn: $hasStableDeadline)
-                    if hasStableDeadline {
-                        DatePicker("Stable Deadline", selection: $stableDeadline, displayedComponents: .date)
+                    // Stable booking not applicable for tetrathlon/triathlon competitions
+                    if competitionType != .tetrathlon && competitionType != .triathlon {
+                        Toggle("Stable Booking Deadline", isOn: $hasStableDeadline)
+                        if hasStableDeadline {
+                            DatePicker("Stable Deadline", selection: $stableDeadline, displayedComponents: .date)
+                        }
                     }
 
                     TextField("Entry Fee (optional)", value: $entryFee, format: .currency(code: "GBP"))
@@ -905,16 +1056,151 @@ struct CompetitionEditView: View {
                         .textInputAutocapitalization(.never)
                 }
 
+                // Showjumping Classes Section (only for Show Jumping competitions)
+                if competitionType == .showJumping {
+                    Section {
+                        ForEach(showjumpingClasses) { classEntry in
+                            ShowjumpingClassEditRow(
+                                classEntry: classEntry,
+                                onUpdate: { updated in
+                                    if let index = showjumpingClasses.firstIndex(where: { $0.id == updated.id }) {
+                                        showjumpingClasses[index] = updated
+                                    }
+                                },
+                                onDelete: {
+                                    showjumpingClasses.removeAll { $0.id == classEntry.id }
+                                }
+                            )
+                        }
+
+                        // Add new class
+                        HStack {
+                            TextField("Add class (e.g., 90cm)", text: $newClassName)
+                            Button {
+                                guard !newClassName.isEmpty else { return }
+                                showjumpingClasses.append(ShowjumpingClass(name: newClassName))
+                                newClassName = ""
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(AppColors.primary)
+                            }
+                            .disabled(newClassName.isEmpty)
+                        }
+
+                        // Quick add buttons
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(ShowjumpingHeight.allCases, id: \.self) { height in
+                                    Button(height.displayName) {
+                                        // Only add if not already present
+                                        if !showjumpingClasses.contains(where: { $0.name == height.displayName }) {
+                                            showjumpingClasses.append(ShowjumpingClass(name: height.displayName))
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(showjumpingClasses.contains { $0.name == height.displayName })
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Classes to Enter")
+                    } footer: {
+                        Text("Add the showjumping classes you plan to enter. You can record results for each class after the competition.")
+                    }
+                }
+
+                // Dressage Classes Section (only for Dressage competitions)
+                if competitionType == .dressage {
+                    Section {
+                        ForEach(dressageClasses) { classEntry in
+                            DressageClassEditRow(
+                                classEntry: classEntry,
+                                onUpdate: { updated in
+                                    if let index = dressageClasses.firstIndex(where: { $0.id == updated.id }) {
+                                        dressageClasses[index] = updated
+                                    }
+                                },
+                                onDelete: {
+                                    dressageClasses.removeAll { $0.id == classEntry.id }
+                                }
+                            )
+                        }
+
+                        // Add new class
+                        HStack {
+                            TextField("Add test (e.g., Prelim 12)", text: $newDressageTest)
+                            Button {
+                                guard !newDressageTest.isEmpty else { return }
+                                dressageClasses.append(DressageClass(testName: newDressageTest))
+                                newDressageTest = ""
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(AppColors.primary)
+                            }
+                            .disabled(newDressageTest.isEmpty)
+                        }
+
+                        // Quick add buttons
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(DressageTest.allCases, id: \.self) { test in
+                                    Button(test.displayName) {
+                                        if !dressageClasses.contains(where: { $0.testName == test.displayName }) {
+                                            dressageClasses.append(DressageClass(testName: test.displayName))
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(dressageClasses.contains { $0.testName == test.displayName })
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Tests to Enter")
+                    } footer: {
+                        Text("Add the dressage tests you plan to ride. You can record scores and percentages after the competition.")
+                    }
+                }
+
+                // Tetrathlon Start Times (only for tetrathlon/triathlon competitions)
+                if competitionType == .tetrathlon || competitionType == .triathlon {
+                    Section("Discipline Times") {
+                        DatePicker("Shooting Start", selection: Binding(
+                            get: { shootingStartTime ?? date },
+                            set: { shootingStartTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Running Start", selection: Binding(
+                            get: { runningStartTime ?? date },
+                            set: { runningStartTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Swim Warmup", selection: Binding(
+                            get: { swimWarmupTime ?? date },
+                            set: { swimWarmupTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Swim Start", selection: Binding(
+                            get: { swimStartTime ?? date },
+                            set: { swimStartTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+                    }
+                }
+
                 Section("Travel Plan") {
                     DatePicker("Start Time", selection: Binding(
                         get: { startTime ?? date },
                         set: { startTime = $0 }
                     ), displayedComponents: [.date, .hourAndMinute])
 
-                    DatePicker("Course Walk Time", selection: Binding(
-                        get: { courseWalkTime ?? date },
-                        set: { courseWalkTime = $0 }
-                    ), displayedComponents: [.date, .hourAndMinute])
+                    // Course walk not applicable for tetrathlon/triathlon/dressage
+                    if competitionType != .tetrathlon && competitionType != .triathlon && competitionType != .dressage {
+                        DatePicker("Course Walk Time", selection: Binding(
+                            get: { courseWalkTime ?? date },
+                            set: { courseWalkTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+                    }
 
                     DatePicker("Arrival at Venue", selection: Binding(
                         get: { estimatedArrivalAtVenue ?? date },
@@ -989,6 +1275,18 @@ struct CompetitionEditView: View {
                     departureFromYard = comp.departureFromYard
                     departureFromVenue = comp.departureFromVenue
                     arrivalBackAtYard = comp.arrivalBackAtYard
+
+                    // Showjumping classes
+                    showjumpingClasses = comp.showjumpingClasses
+
+                    // Dressage classes
+                    dressageClasses = comp.dressageClasses
+
+                    // Tetrathlon start times
+                    shootingStartTime = comp.shootingStartTime
+                    runningStartTime = comp.runningStartTime
+                    swimWarmupTime = comp.swimWarmupTime
+                    swimStartTime = comp.swimStartTime
                 }
             }
         }
@@ -1022,6 +1320,24 @@ struct CompetitionEditView: View {
         comp.departureFromYard = departureFromYard
         comp.departureFromVenue = departureFromVenue
         comp.arrivalBackAtYard = arrivalBackAtYard
+
+        // Showjumping classes (only save if showjumping)
+        if competitionType == .showJumping {
+            comp.showjumpingClasses = showjumpingClasses
+        }
+
+        // Dressage classes (only save if dressage)
+        if competitionType == .dressage {
+            comp.dressageClasses = dressageClasses
+        }
+
+        // Tetrathlon start times (only save if tetrathlon/triathlon)
+        if competitionType == .tetrathlon || competitionType == .triathlon {
+            comp.shootingStartTime = shootingStartTime
+            comp.runningStartTime = runningStartTime
+            comp.swimWarmupTime = swimWarmupTime
+            comp.swimStartTime = swimStartTime
+        }
 
         if competition == nil {
             modelContext.insert(comp)
@@ -1577,5 +1893,787 @@ struct CompetitionFilterSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Competition Media Full Gallery
+
+struct CompetitionMediaFullGalleryView: View {
+    let competition: Competition
+    let discoveredPhotos: [PHAsset]
+    let discoveredVideos: [PHAsset]
+
+    @State private var selectedPhoto: PHAsset?
+    @State private var selectedVideo: PHAsset?
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2)
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Auto-discovered Photos
+                if !discoveredPhotos.isEmpty {
+                    Text("Photos from Competition (\(discoveredPhotos.count))")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    LazyVGrid(columns: columns, spacing: 2) {
+                        ForEach(discoveredPhotos, id: \.localIdentifier) { asset in
+                            PhotoThumbnail(asset: asset)
+                                .aspectRatio(1, contentMode: .fill)
+                                .clipped()
+                                .onTapGesture {
+                                    selectedPhoto = asset
+                                }
+                        }
+                    }
+                }
+
+                // Auto-discovered Videos
+                if !discoveredVideos.isEmpty {
+                    Text("Videos from Competition (\(discoveredVideos.count))")
+                        .font(.headline)
+                        .padding(.horizontal)
+                        .padding(.top, discoveredPhotos.isEmpty ? 0 : 8)
+
+                    LazyVGrid(columns: columns, spacing: 2) {
+                        ForEach(discoveredVideos, id: \.localIdentifier) { asset in
+                            VideoThumbnail(asset: asset)
+                                .aspectRatio(1, contentMode: .fill)
+                                .clipped()
+                                .onTapGesture {
+                                    selectedVideo = asset
+                                }
+                        }
+                    }
+                }
+
+                // Manually added photos
+                if !competition.photos.isEmpty {
+                    Text("Added Photos (\(competition.photos.count))")
+                        .font(.headline)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                    LazyVGrid(columns: columns, spacing: 2) {
+                        ForEach(Array(competition.photos.enumerated()), id: \.offset) { index, photoData in
+                            if let uiImage = UIImage(data: photoData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(minWidth: 0, maxWidth: .infinity)
+                                    .aspectRatio(1, contentMode: .fill)
+                                    .clipped()
+                            }
+                        }
+                    }
+                }
+
+                // Multi-day info
+                if let endDate = competition.endDate, endDate != competition.date {
+                    Text("Showing media from \(formattedDateRange(competition.date, endDate))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding()
+                }
+            }
+        }
+        .navigationTitle("Competition Media")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $selectedPhoto) { asset in
+            PhotoDetailView(asset: asset)
+        }
+        .sheet(item: $selectedVideo) { asset in
+            VideoPlayerView(asset: asset)
+        }
+    }
+
+    private func formattedDateRange(_ start: Date, _ end: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+    }
+}
+
+// MARK: - Showjumping Class Edit Row
+
+struct ShowjumpingClassEditRow: View {
+    let classEntry: ShowjumpingClass
+    let onUpdate: (ShowjumpingClass) -> Void
+    let onDelete: () -> Void
+
+    @State private var selectedStatus: ShowjumpingClass.EntryStatus
+
+    init(classEntry: ShowjumpingClass, onUpdate: @escaping (ShowjumpingClass) -> Void, onDelete: @escaping () -> Void) {
+        self.classEntry = classEntry
+        self.onUpdate = onUpdate
+        self.onDelete = onDelete
+        self._selectedStatus = State(initialValue: classEntry.entryStatus)
+    }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(classEntry.name)
+                    .fontWeight(.medium)
+
+                if classEntry.hasResults {
+                    Text(classEntry.resultSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Menu {
+                ForEach(ShowjumpingClass.EntryStatus.allCases, id: \.self) { status in
+                    Button {
+                        var updated = classEntry
+                        updated.entryStatus = status
+                        onUpdate(updated)
+                        selectedStatus = status
+                    } label: {
+                        Label(status.rawValue, systemImage: status.icon)
+                    }
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: selectedStatus.icon)
+                    Text(selectedStatus.rawValue)
+                }
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(statusColor.opacity(0.15))
+                .foregroundStyle(statusColor)
+                .clipShape(Capsule())
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        switch selectedStatus {
+        case .planning: return .orange
+        case .entered: return .green
+        case .scratched: return .red
+        case .completed: return AppColors.primary
+        }
+    }
+}
+
+// MARK: - Showjumping Results View
+
+struct ShowjumpingResultsView: View {
+    @Bindable var competition: Competition
+    @State private var editingClass: ShowjumpingClass?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "arrow.up.forward")
+                    .foregroundStyle(AppColors.primary)
+                Text("Showjumping Results")
+                    .font(.headline)
+            }
+
+            if competition.showjumpingClasses.isEmpty {
+                Text("No classes entered for this competition")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(competition.showjumpingClasses) { classEntry in
+                    ShowjumpingClassResultRow(
+                        classEntry: classEntry,
+                        onTap: {
+                            editingClass = classEntry
+                        }
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(item: $editingClass) { classEntry in
+            ShowjumpingClassResultEditor(
+                classEntry: classEntry,
+                onSave: { updated in
+                    competition.updateShowjumpingClass(updated)
+                    editingClass = nil
+                }
+            )
+        }
+    }
+}
+
+struct ShowjumpingClassResultRow: View {
+    let classEntry: ShowjumpingClass
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(classEntry.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+
+                    if classEntry.hasResults {
+                        HStack(spacing: 12) {
+                            if let faults = classEntry.faults {
+                                Label(faults == 0 ? "Clear" : "\(faults) faults", systemImage: faults == 0 ? "checkmark.circle.fill" : "xmark.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(faults == 0 ? .green : .orange)
+                            }
+                            if let time = classEntry.formattedTime {
+                                Label(time, systemImage: "stopwatch")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let placing = classEntry.placing {
+                                Label(ordinalString(placing), systemImage: "medal")
+                                    .font(.caption)
+                                    .foregroundStyle(placing <= 3 ? .yellow : .secondary)
+                            }
+                        }
+                    } else {
+                        Text("Tap to add result")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func ordinalString(_ n: Int) -> String {
+        let suffix: String
+        let ones = n % 10
+        let tens = (n / 10) % 10
+
+        if tens == 1 {
+            suffix = "th"
+        } else {
+            switch ones {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(n)\(suffix)"
+    }
+}
+
+struct ShowjumpingClassResultEditor: View {
+    let classEntry: ShowjumpingClass
+    let onSave: (ShowjumpingClass) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var faults: String = ""
+    @State private var timeMinutes: String = ""
+    @State private var timeSeconds: String = ""
+    @State private var jumpOffFaults: String = ""
+    @State private var jumpOffMinutes: String = ""
+    @State private var jumpOffSeconds: String = ""
+    @State private var placing: String = ""
+    @State private var points: String = ""
+    @State private var notes: String = ""
+    @State private var hasJumpOff = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Round Result") {
+                    HStack {
+                        Text("Faults")
+                        Spacer()
+                        TextField("0", text: $faults)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                    }
+
+                    HStack {
+                        Text("Time")
+                        Spacer()
+                        TextField("0", text: $timeMinutes)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 40)
+                        Text(":")
+                        TextField("00.00", text: $timeSeconds)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                    }
+                }
+
+                Section {
+                    Toggle("Jump-off", isOn: $hasJumpOff)
+
+                    if hasJumpOff {
+                        HStack {
+                            Text("J/O Faults")
+                            Spacer()
+                            TextField("0", text: $jumpOffFaults)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
+
+                        HStack {
+                            Text("J/O Time")
+                            Spacer()
+                            TextField("0", text: $jumpOffMinutes)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 40)
+                            Text(":")
+                            TextField("00.00", text: $jumpOffSeconds)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
+                    }
+                } header: {
+                    Text("Jump-off")
+                }
+
+                Section("Placing") {
+                    HStack {
+                        Text("Placing")
+                        Spacer()
+                        TextField("e.g., 1", text: $placing)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                    }
+
+                    HStack {
+                        Text("Points")
+                        Spacer()
+                        TextField("Optional", text: $points)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+                }
+
+                Section("Notes") {
+                    TextField("Notes about this round", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+            }
+            .navigationTitle(classEntry.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                }
+            }
+            .onAppear {
+                loadData()
+            }
+        }
+    }
+
+    private func loadData() {
+        if let f = classEntry.faults {
+            faults = "\(f)"
+        }
+        if let time = classEntry.time {
+            let minutes = Int(time) / 60
+            let seconds = time.truncatingRemainder(dividingBy: 60)
+            timeMinutes = minutes > 0 ? "\(minutes)" : ""
+            timeSeconds = String(format: "%.2f", seconds)
+        }
+        if let jof = classEntry.jumpOffFaults {
+            jumpOffFaults = "\(jof)"
+            hasJumpOff = true
+        }
+        if let jot = classEntry.jumpOffTime {
+            let minutes = Int(jot) / 60
+            let seconds = jot.truncatingRemainder(dividingBy: 60)
+            jumpOffMinutes = minutes > 0 ? "\(minutes)" : ""
+            jumpOffSeconds = String(format: "%.2f", seconds)
+            hasJumpOff = true
+        }
+        if let p = classEntry.placing {
+            placing = "\(p)"
+        }
+        if let pts = classEntry.points {
+            points = String(format: "%.1f", pts)
+        }
+        notes = classEntry.notes
+    }
+
+    private func save() {
+        var updated = classEntry
+        updated.faults = Int(faults)
+        updated.placing = Int(placing)
+        updated.points = Double(points)
+        updated.notes = notes
+        updated.entryStatus = .completed
+
+        // Parse time
+        let mins = Double(timeMinutes) ?? 0
+        let secs = Double(timeSeconds) ?? 0
+        if mins > 0 || secs > 0 {
+            updated.time = (mins * 60) + secs
+        }
+
+        // Parse jump-off
+        if hasJumpOff {
+            updated.jumpOffFaults = Int(jumpOffFaults)
+            let joMins = Double(jumpOffMinutes) ?? 0
+            let joSecs = Double(jumpOffSeconds) ?? 0
+            if joMins > 0 || joSecs > 0 {
+                updated.jumpOffTime = (joMins * 60) + joSecs
+            }
+        }
+
+        onSave(updated)
+    }
+}
+
+// MARK: - Dressage Class Edit Row
+
+struct DressageClassEditRow: View {
+    let classEntry: DressageClass
+    let onUpdate: (DressageClass) -> Void
+    let onDelete: () -> Void
+
+    @State private var selectedStatus: DressageClass.EntryStatus
+
+    init(classEntry: DressageClass, onUpdate: @escaping (DressageClass) -> Void, onDelete: @escaping () -> Void) {
+        self.classEntry = classEntry
+        self.onUpdate = onUpdate
+        self.onDelete = onDelete
+        self._selectedStatus = State(initialValue: classEntry.entryStatus)
+    }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(classEntry.testName)
+                    .fontWeight(.medium)
+
+                if !classEntry.className.isEmpty {
+                    Text(classEntry.className)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if classEntry.hasResults {
+                    Text(classEntry.resultSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Menu {
+                ForEach(DressageClass.EntryStatus.allCases, id: \.self) { status in
+                    Button {
+                        var updated = classEntry
+                        updated.entryStatus = status
+                        onUpdate(updated)
+                        selectedStatus = status
+                    } label: {
+                        Label(status.rawValue, systemImage: status.icon)
+                    }
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: selectedStatus.icon)
+                    Text(selectedStatus.rawValue)
+                }
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(statusColor.opacity(0.15))
+                .foregroundStyle(statusColor)
+                .clipShape(Capsule())
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        switch selectedStatus {
+        case .planning: return .orange
+        case .entered: return .green
+        case .scratched: return .red
+        case .completed: return AppColors.primary
+        }
+    }
+}
+
+// MARK: - Dressage Results View
+
+struct DressageResultsView: View {
+    @Bindable var competition: Competition
+    @State private var editingClass: DressageClass?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "circle.hexagonpath")
+                    .foregroundStyle(AppColors.primary)
+                Text("Dressage Results")
+                    .font(.headline)
+            }
+
+            if competition.dressageClasses.isEmpty {
+                Text("No tests entered for this competition")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(competition.dressageClasses) { classEntry in
+                    DressageClassResultRow(
+                        classEntry: classEntry,
+                        onTap: {
+                            editingClass = classEntry
+                        }
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(item: $editingClass) { classEntry in
+            DressageClassResultEditor(
+                classEntry: classEntry,
+                onSave: { updated in
+                    competition.updateDressageClass(updated)
+                    editingClass = nil
+                }
+            )
+        }
+    }
+}
+
+struct DressageClassResultRow: View {
+    let classEntry: DressageClass
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(classEntry.testName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+
+                    if classEntry.hasResults {
+                        HStack(spacing: 12) {
+                            if let pct = classEntry.formattedPercentage {
+                                Label(pct, systemImage: "percent")
+                                    .font(.caption)
+                                    .foregroundStyle(percentageColor)
+                            }
+                            if let placing = classEntry.placing {
+                                Label(ordinalString(placing), systemImage: "medal")
+                                    .font(.caption)
+                                    .foregroundStyle(placing <= 3 ? .yellow : .secondary)
+                            }
+                        }
+                    } else {
+                        Text("Tap to add result")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var percentageColor: Color {
+        guard let pct = classEntry.calculatedPercentage else { return .secondary }
+        if pct >= 70 { return .green }
+        if pct >= 65 { return .blue }
+        if pct >= 60 { return .orange }
+        return .secondary
+    }
+
+    private func ordinalString(_ n: Int) -> String {
+        let suffix: String
+        let ones = n % 10
+        let tens = (n / 10) % 10
+
+        if tens == 1 {
+            suffix = "th"
+        } else {
+            switch ones {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(n)\(suffix)"
+    }
+}
+
+struct DressageClassResultEditor: View {
+    let classEntry: DressageClass
+    let onSave: (DressageClass) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var score: String = ""
+    @State private var maxScore: String = ""
+    @State private var percentage: String = ""
+    @State private var collectiveMarks: String = ""
+    @State private var placing: String = ""
+    @State private var notes: String = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Score") {
+                    HStack {
+                        Text("Score")
+                        Spacer()
+                        TextField("Marks", text: $score)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                        Text("/")
+                        TextField("Max", text: $maxScore)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+
+                    HStack {
+                        Text("Percentage")
+                        Spacer()
+                        TextField("e.g., 65.5", text: $percentage)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                        Text("%")
+                    }
+
+                    HStack {
+                        Text("Collective Marks")
+                        Spacer()
+                        TextField("Optional", text: $collectiveMarks)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+                }
+
+                Section("Placing") {
+                    HStack {
+                        Text("Placing")
+                        Spacer()
+                        TextField("e.g., 1", text: $placing)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                    }
+                }
+
+                Section("Notes") {
+                    TextField("Notes about this test", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+            }
+            .navigationTitle(classEntry.testName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                }
+            }
+            .onAppear {
+                loadData()
+            }
+        }
+    }
+
+    private func loadData() {
+        if let s = classEntry.score {
+            score = String(format: "%.1f", s)
+        }
+        if let m = classEntry.maxScore {
+            maxScore = String(format: "%.0f", m)
+        }
+        if let p = classEntry.percentage {
+            percentage = String(format: "%.2f", p)
+        }
+        if let c = classEntry.collectiveMarks {
+            collectiveMarks = String(format: "%.1f", c)
+        }
+        if let pl = classEntry.placing {
+            placing = "\(pl)"
+        }
+        notes = classEntry.notes
+    }
+
+    private func save() {
+        var updated = classEntry
+        updated.score = Double(score)
+        updated.maxScore = Double(maxScore)
+        updated.percentage = Double(percentage)
+        updated.collectiveMarks = Double(collectiveMarks)
+        updated.placing = Int(placing)
+        updated.notes = notes
+        updated.entryStatus = .completed
+
+        onSave(updated)
     }
 }

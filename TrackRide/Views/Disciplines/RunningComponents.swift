@@ -9,16 +9,42 @@ import SwiftUI
 import SwiftData
 import CoreLocation
 import MapKit
+import Photos
+import PhotosUI
 import os
 
 // MARK: - Pacer Settings
+
+enum PacerMode: String, CaseIterable {
+    case targetPace = "pace"
+    case targetTime = "time"
+    case racePB = "pb"
+
+    var label: String {
+        switch self {
+        case .targetPace: return "Pace"
+        case .targetTime: return "Time"
+        case .racePB: return "Race PB"
+        }
+    }
+}
 
 struct PacerSettings {
     var targetPace: TimeInterval = 300 // 5:00/km default
     var targetDistance: Double = 0     // optional target distance
     var targetTime: TimeInterval = 0   // optional target time
     var useTargetTime: Bool = false    // use time-based target instead of pace
+    var usePBPace: Bool = false        // use PB pace for competition distance
     var announceInterval: TimeInterval = 60 // how often to announce status
+
+    /// Distance checkpoints for PB race announcements (as fraction of total distance)
+    /// For 1500m: 250m, 500m, 750m, 1000m, 1250m = 5 checkpoints before finish
+    static let pbCheckpointFractions: [Double] = [0.17, 0.33, 0.5, 0.67, 0.83]
+
+    /// Get distance checkpoints in meters for a given total distance
+    func pbCheckpoints(for totalDistance: Double) -> [Double] {
+        Self.pbCheckpointFractions.map { $0 * totalDistance }
+    }
 }
 
 // MARK: - Run Type Button
@@ -32,32 +58,33 @@ struct RunTypeButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.system(size: 28))
+                    .font(.system(size: 32))
                     .foregroundStyle(color)
                     .frame(width: 44)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(.primary)
                     if let subtitle = subtitle {
                         Text(subtitle)
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
@@ -460,29 +487,54 @@ struct IntervalSetupView: View {
 struct VirtualPacerSetupView: View {
     let onStart: (PacerSettings) -> Void
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("selectedCompetitionLevel") private var competitionLevelRaw: String = CompetitionLevel.junior.rawValue
 
     @State private var settings = PacerSettings()
+    @State private var pacerMode: PacerMode = .targetPace
     @State private var paceMinutes: Int = 5
     @State private var paceSeconds: Int = 0
     @State private var targetDistanceKm: Double = 5.0
     @State private var targetTimeMinutes: Int = 25
     @State private var targetTimeSeconds: Int = 0
 
+    private var personalBests: RunningPersonalBests { RunningPersonalBests.shared }
+
+    private var competitionLevel: CompetitionLevel {
+        CompetitionLevel(rawValue: competitionLevelRaw) ?? .junior
+    }
+
+    private var pbPace: TimeInterval? {
+        let pb = personalBests.personalBest(for: competitionLevel.runDistance)
+        guard pb > 0 else { return nil }
+        // Calculate pace per km from PB
+        return (pb / competitionLevel.runDistance) * 1000
+    }
+
+    private var hasPB: Bool {
+        personalBests.personalBest(for: competitionLevel.runDistance) > 0
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 // Pace Mode Selection
                 Section {
-                    Picker("Mode", selection: $settings.useTargetTime) {
-                        Text("Target Pace").tag(false)
-                        Text("Target Time").tag(true)
+                    Picker("Mode", selection: $pacerMode) {
+                        ForEach(PacerMode.allCases, id: \.self) { mode in
+                            Text(mode.label).tag(mode)
+                        }
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: pacerMode) { _, newValue in
+                        settings.useTargetTime = (newValue == .targetTime)
+                        settings.usePBPace = (newValue == .racePB)
+                    }
                 } header: {
                     Text("Pacer Mode")
                 }
 
-                if settings.useTargetTime {
+                switch pacerMode {
+                case .targetTime:
                     // Target time mode
                     Section {
                         HStack {
@@ -523,7 +575,69 @@ struct VirtualPacerSetupView: View {
                         let pace = calculatedPaceFromTarget
                         Text("Required pace: \(formatPace(pace))/km")
                     }
-                } else {
+
+                case .racePB:
+                    // Race PB mode
+                    Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "trophy.fill")
+                                    .foregroundStyle(.yellow)
+                                Text("Race Your Personal Best")
+                                    .font(.headline)
+                            }
+
+                            if hasPB, let pace = pbPace {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Competition Distance")
+                                        Spacer()
+                                        Text(competitionLevel.formattedRunDistance)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.cyan)
+                                    }
+
+                                    HStack {
+                                        Text("Your PB")
+                                        Spacer()
+                                        Text(personalBests.formattedPB(for: competitionLevel.runDistance))
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.yellow)
+                                    }
+
+                                    HStack {
+                                        Text("PB Pace")
+                                        Spacer()
+                                        Text(formatPace(pace) + "/km")
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                            } else {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .font(.title)
+                                        .foregroundStyle(.orange)
+                                    Text("No PB Set")
+                                        .font(.headline)
+                                    Text("Set your \(competitionLevel.formattedRunDistance) PB in Settings → Rider Profile to use this feature.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                            }
+                        }
+                    } header: {
+                        Text("Personal Best")
+                    } footer: {
+                        if hasPB {
+                            Text("Audio coaching will tell you if you're on track, ahead, or behind your PB pace.")
+                        }
+                    }
+
+                case .targetPace:
                     // Target pace mode
                     Section {
                         HStack {
@@ -586,7 +700,8 @@ struct VirtualPacerSetupView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        if settings.useTargetTime {
+                        switch pacerMode {
+                        case .targetTime:
                             HStack {
                                 Text("Goal:")
                                 Spacer()
@@ -594,7 +709,17 @@ struct VirtualPacerSetupView: View {
                                     .fontWeight(.medium)
                                     .foregroundStyle(.cyan)
                             }
-                        } else {
+                        case .racePB:
+                            if hasPB, let pace = pbPace {
+                                HStack {
+                                    Text("PB Pace:")
+                                    Spacer()
+                                    Text(formatPace(pace) + "/km")
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.yellow)
+                                }
+                            }
+                        case .targetPace:
                             HStack {
                                 Text("Target Pace:")
                                 Spacer()
@@ -614,16 +739,24 @@ struct VirtualPacerSetupView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Start") {
-                        if settings.useTargetTime {
+                        switch pacerMode {
+                        case .targetTime:
                             settings.targetDistance = targetDistanceKm * 1000
                             settings.targetTime = TimeInterval(targetTimeMinutes * 60 + targetTimeSeconds)
                             settings.targetPace = calculatedPaceFromTarget
-                        } else {
+                        case .racePB:
+                            if let pace = pbPace {
+                                settings.targetPace = pace
+                                settings.targetDistance = competitionLevel.runDistance
+                                settings.targetTime = personalBests.personalBest(for: competitionLevel.runDistance)
+                            }
+                        case .targetPace:
                             settings.targetPace = TimeInterval(paceMinutes * 60 + paceSeconds)
                         }
                         onStart(settings)
                     }
                     .fontWeight(.semibold)
+                    .disabled(pacerMode == .racePB && !hasPB)
                 }
             }
         }
@@ -915,16 +1048,16 @@ struct RunningPauseStopButton: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
-        .confirmationDialog("End Run", isPresented: $showingStopOptions, titleVisibility: .visible) {
-            Button("Save Run") {
+        .confirmationDialog("End Session", isPresented: $showingStopOptions, titleVisibility: .visible) {
+            Button("Save") {
                 onStop()
             }
-            Button("Discard Run", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 onDiscard()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this run?")
+            Text("Do you want to save or discard this session?")
         }
     }
 }
@@ -935,6 +1068,11 @@ struct RunningSessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: RunningSession
     @State private var showingTrimView = false
+    @State private var sessionPhotos: [PHAsset] = []
+    @State private var sessionVideos: [PHAsset] = []
+    @State private var hasLoadedMedia = false
+    @State private var showingMediaEditor = false
+    @State private var selectedVideo: PHAsset?
 
     var body: some View {
         NavigationStack {
@@ -1034,6 +1172,89 @@ struct RunningSessionDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
+                    // Photos & Videos section
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Photos & Videos")
+                                .font(.headline)
+                            Spacer()
+                            if !sessionPhotos.isEmpty || !sessionVideos.isEmpty {
+                                NavigationLink(destination: RunningMediaGalleryView(session: session)) {
+                                    Text("View All (\(sessionPhotos.count + sessionVideos.count))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppColors.primary)
+                                }
+                            }
+                        }
+
+                        if sessionPhotos.isEmpty && sessionVideos.isEmpty {
+                            HStack {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.title2)
+                                    .foregroundStyle(.tertiary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("No photos or videos")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    Text("Media taken within 1 hour of this run will appear here")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(AppColors.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(sessionPhotos.prefix(4), id: \.localIdentifier) { asset in
+                                        PhotoThumbnail(asset: asset)
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                    ForEach(sessionVideos.prefix(2), id: \.localIdentifier) { asset in
+                                        VideoThumbnail(asset: asset)
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .onTapGesture {
+                                                selectedVideo = asset
+                                            }
+                                    }
+                                    if sessionPhotos.count + sessionVideos.count > 6 {
+                                        NavigationLink(destination: RunningMediaGalleryView(session: session)) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(AppColors.cardBackground)
+                                                    .frame(width: 80, height: 80)
+                                                VStack {
+                                                    Text("+\(sessionPhotos.count + sessionVideos.count - 6)")
+                                                        .font(.title3)
+                                                        .fontWeight(.semibold)
+                                                    Text("more")
+                                                        .font(.caption2)
+                                                }
+                                                .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Button {
+                            showingMediaEditor = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "photo.badge.plus")
+                                Text(sessionPhotos.isEmpty && sessionVideos.isEmpty ? "Add Photos & Videos" : "Add More")
+                            }
+                            .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(.horizontal)
+
                     // Notes section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -1097,6 +1318,217 @@ struct RunningSessionDetailView: View {
             }
             .sheet(isPresented: $showingTrimView) {
                 RunningSessionTrimView(session: session)
+            }
+            .sheet(isPresented: $showingMediaEditor) {
+                RunningMediaEditorView(session: session) {
+                    hasLoadedMedia = false
+                    Task {
+                        await loadMedia()
+                    }
+                }
+            }
+            .sheet(item: $selectedVideo) { video in
+                VideoPlayerView(asset: video)
+            }
+            .task {
+                await loadMedia()
+            }
+        }
+    }
+
+    private func loadMedia() async {
+        guard !hasLoadedMedia else { return }
+        hasLoadedMedia = true
+
+        let photoService = RidePhotoService.shared
+        if !photoService.isAuthorized {
+            _ = await photoService.requestAuthorization()
+        }
+
+        let (photos, videos) = await photoService.findMediaForRunningSession(session)
+
+        await MainActor.run {
+            sessionPhotos = photos
+            sessionVideos = videos
+        }
+    }
+}
+
+// MARK: - Running Media Gallery
+
+struct RunningMediaGalleryView: View {
+    let session: RunningSession
+
+    @State private var photos: [PHAsset] = []
+    @State private var videos: [PHAsset] = []
+    @State private var isLoading = true
+    @State private var selectedPhoto: PHAsset?
+    @State private var selectedVideo: PHAsset?
+    @State private var photoService = RidePhotoService.shared
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2),
+        GridItem(.flexible(), spacing: 2)
+    ]
+
+    var body: some View {
+        VStack {
+            if !photoService.isAuthorized {
+                MediaPermissionView {
+                    Task {
+                        _ = await photoService.requestAuthorization()
+                        await loadMedia()
+                    }
+                }
+            } else if isLoading {
+                ProgressView("Finding photos & videos...")
+            } else if photos.isEmpty && videos.isEmpty {
+                EmptyMediaView()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if !photos.isEmpty {
+                            Text("Photos (\(photos.count))")
+                                .font(.headline)
+                                .padding(.horizontal)
+
+                            LazyVGrid(columns: columns, spacing: 2) {
+                                ForEach(photos, id: \.localIdentifier) { asset in
+                                    PhotoThumbnail(asset: asset)
+                                        .aspectRatio(1, contentMode: .fill)
+                                        .clipped()
+                                        .onTapGesture {
+                                            selectedPhoto = asset
+                                        }
+                                }
+                            }
+                        }
+
+                        if !videos.isEmpty {
+                            Text("Videos (\(videos.count))")
+                                .font(.headline)
+                                .padding(.horizontal)
+                                .padding(.top, photos.isEmpty ? 0 : 8)
+
+                            LazyVGrid(columns: columns, spacing: 2) {
+                                ForEach(videos, id: \.localIdentifier) { asset in
+                                    VideoThumbnail(asset: asset)
+                                        .aspectRatio(1, contentMode: .fill)
+                                        .clipped()
+                                        .onTapGesture {
+                                            selectedVideo = asset
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Photos & Videos")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $selectedPhoto) { asset in
+            PhotoDetailView(asset: asset)
+        }
+        .sheet(item: $selectedVideo) { asset in
+            VideoPlayerView(asset: asset)
+        }
+        .task {
+            await loadMedia()
+        }
+    }
+
+    private func loadMedia() async {
+        isLoading = true
+        let (sessionPhotos, sessionVideos) = await photoService.findMediaForRunningSession(session)
+        photos = sessionPhotos
+        videos = sessionVideos
+        isLoading = false
+    }
+}
+
+// MARK: - Running Media Editor
+
+struct RunningMediaEditorView: View {
+    let session: RunningSession
+    let onDismiss: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var selectedVideos: [PhotosPickerItem] = []
+    @State private var isProcessing = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                VStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                    Text("Photos and videos taken within 1 hour of your run are automatically linked.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Text("Use the options below to add media from other times.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+
+                Spacer()
+
+                PhotosPicker(
+                    selection: $selectedPhotos,
+                    maxSelectionCount: 20,
+                    matching: .images,
+                    photoLibrary: .shared()
+                ) {
+                    Label("Add Photos", systemImage: "photo.badge.plus")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                PhotosPicker(
+                    selection: $selectedVideos,
+                    maxSelectionCount: 10,
+                    matching: .videos,
+                    photoLibrary: .shared()
+                ) {
+                    Label("Add Videos", systemImage: "video.badge.plus")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Spacer()
+
+                if !selectedPhotos.isEmpty || !selectedVideos.isEmpty {
+                    Text("Selected: \(selectedPhotos.count) photos, \(selectedVideos.count) videos")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding()
+            .navigationTitle("Add Media")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                        onDismiss()
+                    }
+                    .disabled(isProcessing)
+                }
             }
         }
     }

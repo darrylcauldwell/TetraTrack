@@ -153,16 +153,16 @@ struct TrackingView: View {
         .overlay(alignment: .top) {
             VoiceNoteRecordingOverlay()
         }
-        .confirmationDialog("End Ride", isPresented: $showingExitConfirmation, titleVisibility: .visible) {
-            Button("Save Ride") {
+        .confirmationDialog("End Session", isPresented: $showingExitConfirmation, titleVisibility: .visible) {
+            Button("Save") {
                 rideTracker?.stopRide()
             }
-            Button("Discard Ride", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 rideTracker?.discardRide()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this ride?")
+            Text("Do you want to save or discard this session?")
         }
         .alert("Vehicle Detected", isPresented: vehicleAlertBinding) {
             Button("Stop & Save") {

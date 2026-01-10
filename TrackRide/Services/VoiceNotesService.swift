@@ -55,7 +55,8 @@ final class VoiceNotesService: NSObject {
         self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-GB"))
         super.init()
         speechRecognizer?.delegate = self
-        checkAuthorization()
+        // Don't check authorization on init - wait until user actually taps mic button
+        // This prevents permission prompts appearing when views load
     }
 
     // MARK: - Authorization

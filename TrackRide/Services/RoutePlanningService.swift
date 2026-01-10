@@ -35,11 +35,11 @@ final class RoutePlanningService: RoutePlanning {
         self.dataManager = OSMDataManager()
     }
 
-    func configure(with context: ModelContext) {
+    func configure(with context: ModelContext, container: ModelContainer) {
         guard !isConfigured else { return }
 
         self.modelContext = context
-        self.dataManager.configure(with: context)
+        self.dataManager.configure(with: context, container: container)
         self.routingEngine = HorseRoutingEngine(modelContext: context)
         self.isConfigured = true
 
@@ -62,6 +62,32 @@ final class RoutePlanningService: RoutePlanning {
 
     func getDownloadedRegions() throws -> [DownloadedRegion] {
         try dataManager.getDownloadedRegions()
+    }
+
+    /// Fix bounds for an already downloaded region
+    /// This is needed if the region was downloaded with incorrect bounds (from parsed data instead of predefined bounds)
+    func fixRegionBounds(_ region: AvailableRegion) throws {
+        try dataManager.fixRegionBounds(region)
+    }
+
+    /// Get incomplete downloads that can be resumed
+    func getIncompleteDownloads() -> [DownloadState] {
+        dataManager.getIncompleteDownloads()
+    }
+
+    /// Restore download state from persistence (call when app returns to foreground)
+    func restoreDownloadState() {
+        dataManager.restoreDownloadState()
+    }
+
+    /// Resume an incomplete download
+    func resumeDownload(_ state: DownloadState) async throws {
+        try await dataManager.resumeDownload(state)
+    }
+
+    /// Cancel and clean up an incomplete download
+    func cancelDownload(_ regionId: String) async {
+        await dataManager.cancelDownload(regionId)
     }
 
     /// Find available regions that contain a coordinate

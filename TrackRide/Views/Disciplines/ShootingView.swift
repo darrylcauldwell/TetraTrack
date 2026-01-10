@@ -24,53 +24,35 @@ struct ShootingView: View {
     @State private var showingTraining = false
     @State private var showingSettings = false
 
-    private var personalBests: ShootingPersonalBests { ShootingPersonalBests.shared }
-
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    private var menuItems: [DisciplineMenuItem] {
+        [
+            DisciplineMenuItem(
+                title: "Competition",
+                subtitle: "2x 5-shot cards",
+                icon: "trophy.fill",
+                color: .orange,
+                action: { showingCompetition = true }
+            ),
+            DisciplineMenuItem(
+                title: "Target Practice",
+                subtitle: "Scan & analyse",
+                icon: "target",
+                color: .blue,
+                action: { showingFreePractice = true }
+            ),
+            DisciplineMenuItem(
+                title: "Training",
+                subtitle: "Drills & balance",
+                icon: "figure.stand",
+                color: AppColors.primary,
+                action: { showingTraining = true }
+            )
+        ]
+    }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                // Competition Practice button
-                Button { showingCompetition = true } label: {
-                    DisciplineCard(
-                        title: "Competition",
-                        subtitle: "2x 5-shot cards",
-                        icon: "trophy.fill",
-                        color: .orange
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Free Practice button
-                Button { showingFreePractice = true } label: {
-                    DisciplineCard(
-                        title: "Target Practice",
-                        subtitle: "Scan & analyse",
-                        icon: "target",
-                        color: .blue
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Training Drills button
-                Button { showingTraining = true } label: {
-                    DisciplineCard(
-                        title: "Training",
-                        subtitle: "Drills & balance",
-                        icon: "figure.stand",
-                        color: AppColors.primary
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-        }
-        .navigationTitle("Shooting")
+        DisciplineMenuView(items: menuItems)
+            .navigationTitle("Shooting")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -92,7 +74,8 @@ struct ShootingView: View {
             .sheet(isPresented: $showingTraining) {
                 ShootingTrainingView()
                     .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.hidden)
+                    .interactiveDismissDisabled()
             }
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()

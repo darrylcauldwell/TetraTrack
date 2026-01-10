@@ -620,7 +620,6 @@ struct PauseResumeButton: View {
     let onTap: () -> Void
     var onStop: (() -> Void)? = nil
     var onDiscard: (() -> Void)? = nil
-
     @State private var showingStopOptions = false
 
     private let buttonSize: CGFloat = 120
@@ -670,16 +669,16 @@ struct PauseResumeButton: View {
             }
         }
         .animation(.spring(response: 0.3), value: isPaused)
-        .confirmationDialog("End Ride", isPresented: $showingStopOptions, titleVisibility: .visible) {
-            Button("Save Ride") {
+        .confirmationDialog("End Session", isPresented: $showingStopOptions, titleVisibility: .visible) {
+            Button("Save") {
                 onStop?()
             }
-            Button("Discard Ride", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this ride?")
+            Text("Do you want to save or discard this session?")
         }
     }
 }
@@ -758,16 +757,16 @@ struct PauseStopButton: View {
             }
 
         }
-        .confirmationDialog("End Ride", isPresented: $showingStopOptions, titleVisibility: .visible) {
-            Button("Save Ride") {
+        .confirmationDialog("End Session", isPresented: $showingStopOptions, titleVisibility: .visible) {
+            Button("Save") {
                 onStop()
             }
-            Button("Discard Ride", role: .destructive) {
+            Button("Discard", role: .destructive) {
                 onDiscard()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Do you want to save or discard this ride?")
+            Text("Do you want to save or discard this session?")
         }
     }
 }

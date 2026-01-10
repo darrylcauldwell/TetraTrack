@@ -72,7 +72,10 @@ struct CalculatedRoute {
 }
 
 /// On-device A* routing engine optimized for horse riding
-actor HorseRoutingEngine {
+/// Note: Uses @MainActor instead of actor to ensure ModelContext access stays on the main thread.
+/// ModelContext is not Sendable and must only be accessed from the thread that created it.
+@MainActor
+final class HorseRoutingEngine {
 
     private let modelContext: ModelContext
     private let logger = Logger(subsystem: "com.trackride", category: "HorseRoutingEngine")
@@ -83,8 +86,40 @@ actor HorseRoutingEngine {
     /// Search radius for finding nearest node (in degrees, ~500m)
     private let nearestNodeSearchRadius = 0.005
 
+    /// Node cache - built once at start of routing to avoid repeated database fetches
+    /// Key: osmId, Value: OSMNode
+    private var nodeCache: [Int64: OSMNode] = [:]
+
+    /// Coordinate cache for fast lookups during A*
+    private var coordCache: [Int64: CLLocationCoordinate2D] = [:]
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+    }
+
+    /// Build node cache for routing - call once at start of route calculation
+    private func buildNodeCache() throws {
+        // Only rebuild if cache is empty
+        guard nodeCache.isEmpty else { return }
+
+        let descriptor = FetchDescriptor<OSMNode>()
+        let allNodes = try modelContext.fetch(descriptor)
+
+        nodeCache.reserveCapacity(allNodes.count)
+        coordCache.reserveCapacity(allNodes.count)
+
+        for node in allNodes {
+            nodeCache[node.osmId] = node
+            coordCache[node.osmId] = node.coordinate
+        }
+
+        logger.info("Built node cache with \(allNodes.count) nodes")
+    }
+
+    /// Clear cache after routing is complete to free memory
+    private func clearCache() {
+        nodeCache.removeAll()
+        coordCache.removeAll()
     }
 
     // MARK: - Public API
@@ -97,8 +132,12 @@ actor HorseRoutingEngine {
         preferences: RoutingPreferences = RoutingPreferences()
     ) async throws -> CalculatedRoute {
 
+        // Build node cache once at start - critical for performance
+        try buildNodeCache()
+        defer { clearCache() }
+
         // Build full waypoint list
-        var allPoints = [start] + waypoints + [end]
+        let allPoints = [start] + waypoints + [end]
 
         // Route between consecutive waypoints
         var fullCoordinates: [CLLocationCoordinate2D] = []
@@ -210,9 +249,9 @@ actor HorseRoutingEngine {
         preferences: RoutingPreferences
     ) async throws -> SegmentResult {
 
-        // Find nearest graph nodes to start/end
-        let startNode = try await findNearestNode(to: start)
-        let endNode = try await findNearestNode(to: end)
+        // Find nearest graph nodes to start/end (using cache)
+        let startNode = try findNearestNode(to: start)
+        let endNode = try findNearestNode(to: end)
 
         logger.debug("Routing from node \(startNode.osmId) to \(endNode.osmId)")
 
@@ -240,7 +279,7 @@ actor HorseRoutingEngine {
             // Found the goal
             if current.nodeId == endNode.osmId {
                 logger.debug("Route found after \(iterations) iterations")
-                return try await reconstructPath(
+                return try reconstructPath(
                     cameFrom: cameFrom,
                     endNodeId: current.nodeId,
                     startCoord: start,
@@ -250,8 +289,8 @@ actor HorseRoutingEngine {
 
             closedSet.insert(current.nodeId)
 
-            // Get current node and its edges
-            guard let currentNode = try await getNode(by: current.nodeId) else {
+            // Get current node and its edges (O(1) cache lookup)
+            guard let currentNode = getNode(by: current.nodeId) else {
                 continue
             }
 
@@ -275,7 +314,7 @@ actor HorseRoutingEngine {
                     cameFrom[edge.toNodeId] = (current.nodeId, edge)
                     gScore[edge.toNodeId] = tentativeG
 
-                    if let toCoord = try? await getNodeCoordinate(edge.toNodeId) {
+                    if let toCoord = getNodeCoordinate(edge.toNodeId) {
                         let h = heuristic(from: toCoord, to: endNode.coordinate)
                         let f = tentativeG + h
                         openSet.insert(AStarNode(nodeId: edge.toNodeId, fScore: f))
@@ -302,7 +341,7 @@ actor HorseRoutingEngine {
         endNodeId: Int64,
         startCoord: CLLocationCoordinate2D,
         endCoord: CLLocationCoordinate2D
-    ) async throws -> SegmentResult {
+    ) throws -> SegmentResult {
 
         var coordinates: [CLLocationCoordinate2D] = []
         var segments: [CalculatedRoute.RouteSegmentInfo] = []
@@ -311,9 +350,9 @@ actor HorseRoutingEngine {
         var nodeId = endNodeId
         var pathEdges: [(coord: CLLocationCoordinate2D, edge: OSMEdge?)] = []
 
-        // Walk back through the path
+        // Walk back through the path (using cache)
         while let (prevId, edge) = cameFrom[nodeId] {
-            if let coord = try? await getNodeCoordinate(nodeId) {
+            if let coord = getNodeCoordinate(nodeId) {
                 pathEdges.append((coord, edge))
                 totalDistance += edge.distance
             }
@@ -321,7 +360,7 @@ actor HorseRoutingEngine {
         }
 
         // Add start node
-        if let startNodeCoord = try? await getNodeCoordinate(nodeId) {
+        if let startNodeCoord = getNodeCoordinate(nodeId) {
             pathEdges.append((startNodeCoord, nil))
         }
 
@@ -380,23 +419,20 @@ actor HorseRoutingEngine {
         )
     }
 
-    // MARK: - Database Queries
+    // MARK: - Database Queries (using cache for performance)
 
-    private func findNearestNode(to coordinate: CLLocationCoordinate2D) async throws -> OSMNode {
+    private func findNearestNode(to coordinate: CLLocationCoordinate2D) throws -> OSMNode {
         let lat = coordinate.latitude
         let lon = coordinate.longitude
         let delta = nearestNodeSearchRadius
 
-        let descriptor = FetchDescriptor<OSMNode>(
-            predicate: #Predicate { node in
-                node.latitude >= lat - delta &&
-                node.latitude <= lat + delta &&
-                node.longitude >= lon - delta &&
-                node.longitude <= lon + delta
-            }
-        )
-
-        let candidates = try modelContext.fetch(descriptor)
+        // Use cache instead of database query
+        let candidates = nodeCache.values.filter { node in
+            node.latitude >= lat - delta &&
+            node.latitude <= lat + delta &&
+            node.longitude >= lon - delta &&
+            node.longitude <= lon + delta
+        }
 
         guard let nearest = candidates.min(by: {
             haversineDistance(from: $0.coordinate, to: coordinate) <
@@ -408,18 +444,14 @@ actor HorseRoutingEngine {
         return nearest
     }
 
-    private func getNode(by osmId: Int64) async throws -> OSMNode? {
-        let descriptor = FetchDescriptor<OSMNode>(
-            predicate: #Predicate { $0.osmId == osmId }
-        )
-        return try modelContext.fetch(descriptor).first
+    private func getNode(by osmId: Int64) -> OSMNode? {
+        // O(1) lookup from cache
+        return nodeCache[osmId]
     }
 
-    private func getNodeCoordinate(_ osmId: Int64) async throws -> CLLocationCoordinate2D {
-        guard let node = try await getNode(by: osmId) else {
-            throw RoutingError.nodeNotFound
-        }
-        return node.coordinate
+    private func getNodeCoordinate(_ osmId: Int64) -> CLLocationCoordinate2D? {
+        // O(1) lookup from coordinate cache
+        return coordCache[osmId]
     }
 
     /// Find reachable points at approximately a given distance (for loop routing)
@@ -441,8 +473,8 @@ actor HorseRoutingEngine {
                 bearing: bearing
             )
 
-            // Find nearest routable node to that point
-            if let node = try? await findNearestNode(to: targetCoord) {
+            // Find nearest routable node to that point (using cache)
+            if let node = try? findNearestNode(to: targetCoord) {
                 candidates.append(node.coordinate)
             }
         }

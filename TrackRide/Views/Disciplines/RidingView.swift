@@ -9,58 +9,51 @@ import SwiftUI
 
 struct RidingView: View {
     @State private var showingTraining = false
+    @State private var showingTracking = false
+    @State private var showingRoutePlanner = false
 
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    private var menuItems: [DisciplineMenuItem] {
+        [
+            DisciplineMenuItem(
+                title: "Track Ride",
+                subtitle: "GPS & gait tracking",
+                icon: "location.fill",
+                color: .green,
+                action: { showingTracking = true }
+            ),
+            DisciplineMenuItem(
+                title: "Training",
+                subtitle: "Off-horse drills",
+                icon: "figure.stand",
+                color: AppColors.primary,
+                action: { showingTraining = true }
+            ),
+            DisciplineMenuItem(
+                title: "Plan Route",
+                subtitle: "Bridleways & trails",
+                icon: "map.fill",
+                color: .orange,
+                action: { showingRoutePlanner = true }
+            )
+        ]
+    }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                // Track Ride
-                NavigationLink(destination: TrackingView()) {
-                    DisciplineCard(
-                        title: "Track Ride",
-                        subtitle: "GPS & gait tracking",
-                        icon: "location.fill",
-                        color: .green
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Training Drills
-                Button { showingTraining = true } label: {
-                    DisciplineCard(
-                        title: "Training",
-                        subtitle: "Off-horse drills",
-                        icon: "figure.stand",
-                        color: AppColors.primary
-                    )
-                }
-                .buttonStyle(.plain)
-
-                // Plan Route
-                NavigationLink(destination: RoutePlannerView()) {
-                    DisciplineCard(
-                        title: "Plan Route",
-                        subtitle: "Bridleways & trails",
-                        icon: "map.fill",
-                        color: .orange
-                    )
-                }
-                .buttonStyle(.plain)
+        DisciplineMenuView(items: menuItems)
+            .navigationTitle("Riding")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showingTracking) {
+                TrackingView()
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-        }
-        .navigationTitle("Riding")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingTraining) {
-            RidingTrainingView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
+            .navigationDestination(isPresented: $showingRoutePlanner) {
+                RoutePlannerView()
+            }
+            .sheet(isPresented: $showingTraining) {
+                RidingTrainingView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.hidden)
+                    .interactiveDismissDisabled()
+            }
     }
 }
 

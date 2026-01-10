@@ -323,12 +323,14 @@ struct StreakStatsView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
-                            Text("\(streak.currentStreak)")
-                                .font(.system(size: 36, weight: .bold))
-                                .foregroundStyle(streakColor)
-                            + Text(" days")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(streak.currentStreak)")
+                                    .font(.system(size: 36, weight: .bold))
+                                    .foregroundStyle(streakColor)
+                                Text("days")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                            }
 
                             Text(streak.streakMessage)
                                 .font(.caption)

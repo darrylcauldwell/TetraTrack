@@ -29,10 +29,15 @@ actor OSMParser {
     private let batchSize = 1000
 
     // Highway types we care about for horse routing
+    // Focus on dedicated horse routes, rural tracks, and quiet lanes
     private let routingHighways: Set<String> = [
-        "bridleway", "byway", "track", "path",
-        "unclassified", "tertiary", "secondary", "primary",
-        "residential", "living_street", "cycleway"
+        "bridleway",    // Dedicated horse paths
+        "byway",        // BOATs (Byway Open to All Traffic)
+        "track",        // Rural tracks (mostly horse-legal)
+        "path",         // Paths (check horse access)
+        "unclassified", // Minor roads / quiet lanes
+        "residential",  // Residential streets for connectivity
+        "service"       // Service roads (farm access, etc.)
     ]
 
     init(regionId: String, modelContext: ModelContext) {
@@ -261,7 +266,7 @@ actor OSMParser {
             guard offset + Int(headerLength) <= data.count else { break }
 
             // Skip header for now (contains type string)
-            let headerData = data.subdata(in: offset..<offset+Int(headerLength))
+            _ = data.subdata(in: offset..<offset+Int(headerLength))  // Header data read but not parsed
             offset += Int(headerLength)
 
             // Read Blob length (from header, but we'll estimate)

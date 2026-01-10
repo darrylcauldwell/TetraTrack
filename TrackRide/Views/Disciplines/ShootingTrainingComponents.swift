@@ -25,11 +25,6 @@ struct ShootingTrainingView: View {
         streaks.first
     }
 
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -37,8 +32,8 @@ struct ShootingTrainingView: View {
                     // Training Streak Banner
                     ShootingStreakBanner(streak: streak, modelContext: modelContext)
 
-                    // Training drills - two column grid
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    // Training drills - single column
+                    VStack(spacing: 12) {
                         // Balance Drill
                         Button { showingBalanceDrill = true } label: {
                             DisciplineCard(
@@ -101,10 +96,14 @@ struct ShootingTrainingView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Training Drills")
             .navigationBarTitleDisplayMode(.inline)
-            .glassNavigation()
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.medium))
+                    }
                 }
             }
             .fullScreenCover(isPresented: $showingBalanceDrill) {
@@ -133,7 +132,7 @@ struct ShootingStreakBanner: View {
     let modelContext: ModelContext
 
     private var currentStreak: Int {
-        streak?.currentStreak ?? 0
+        streak?.effectiveCurrentStreak ?? 0
     }
 
     private var longestStreak: Int {
@@ -145,76 +144,57 @@ struct ShootingStreakBanner: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Main streak display
-            HStack(spacing: 16) {
-                // Flame icon with streak count
-                ZStack {
-                    Circle()
-                        .fill(streakGradient)
-                        .frame(width: 60, height: 60)
+        VStack(spacing: 12) {
+            // Header row
+            HStack {
+                Text("Training Streak")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
 
-                    VStack(spacing: -2) {
-                        Image(systemName: streakIcon)
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text("\(currentStreak)")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
-                }
+                Spacer()
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(currentStreak > 0 ? "Day Streak!" : "Start Training")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    Text(streakMessage)
-                        .font(.caption)
+                if totalTrainingDays > 0 {
+                    Text("\(totalTrainingDays) days trained")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                }
+            }
+
+            // Current streak row
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .font(.body)
+                        .foregroundStyle(currentStreak > 0 ? .orange : .gray)
+                    Text("Current Streak")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                // Stats column
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trophy.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.yellow)
-                        Text("\(longestStreak)")
-                            .font(.subheadline.bold())
-                    }
-                    Text("Best")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                Text("\(currentStreak) \(currentStreak == 1 ? "day" : "days")")
+                    .font(.subheadline.bold())
             }
-            .padding(16)
 
-            // Training days info
-            if totalTrainingDays > 0 {
-                Divider()
-                    .padding(.horizontal)
-
-                HStack {
-                    Label("\(totalTrainingDays) training days", systemImage: "calendar")
-                        .font(.caption)
+            // Best streak row
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy.fill")
+                        .font(.body)
+                        .foregroundStyle(.yellow)
+                    Text("Best Streak")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    if let lastDate = streak?.lastActivityDate {
-                        Text(lastDate, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+
+                Spacer()
+
+                Text("\(longestStreak) \(longestStreak == 1 ? "day" : "days")")
+                    .font(.subheadline.bold())
             }
         }
+        .padding(12)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
@@ -229,42 +209,6 @@ struct ShootingStreakBanner: View {
                 )
         )
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-    }
-
-    private var streakGradient: LinearGradient {
-        if currentStreak >= 7 {
-            return LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
-        } else if currentStreak >= 3 {
-            return LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing)
-        } else if currentStreak > 0 {
-            return LinearGradient(colors: [AppColors.primary, AppColors.primary.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        } else {
-            return LinearGradient(colors: [.gray, .gray.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        }
-    }
-
-    private var streakIcon: String {
-        if currentStreak >= 7 {
-            return "flame.fill"
-        } else if currentStreak >= 3 {
-            return "bolt.fill"
-        } else if currentStreak > 0 {
-            return "star.fill"
-        } else {
-            return "target"
-        }
-    }
-
-    private var streakMessage: String {
-        if currentStreak >= 7 {
-            return "You're on fire! Keep the momentum going."
-        } else if currentStreak >= 3 {
-            return "Great consistency! Build that muscle memory."
-        } else if currentStreak > 0 {
-            return "Good start! Train daily to build your streak."
-        } else {
-            return "Complete a drill today to start your streak!"
-        }
     }
 }
 

@@ -952,6 +952,9 @@ final class RideTracker {
     private func handleMotion(_ sample: MotionSample) {
         guard rideState == .tracking else { return }
 
+        // Feed motion data to gait analyzer for improved detection
+        gaitAnalyzer.processMotion(sample)
+
         // Lead analysis (during canter/gallop)
         leadAnalyzer.processMotionSample(sample, currentGait: currentGait)
         currentLead = leadAnalyzer.currentLead

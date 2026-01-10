@@ -1,124 +1,124 @@
 # TrackRide - App Store Metadata
 
-## App Name
-TrackRide - Tetrathlon Training
+## App Name (30 characters max)
+TrackRide
 
 ## Subtitle (30 characters max)
-Your Complete Training Partner
+Tetrathlon & Eventing Trainer
 
 ## Category
 Primary: Health & Fitness
 Secondary: Sports
 
 ## Keywords (100 characters max)
-tetrathlon,riding,running,swimming,shooting,horse,equestrian,gps,training,pony club,eventing,fitness
+tetrathlon,pony club,eventing,horse riding,gps tracker,gait,running,swimming,shooting,equestrian,AI
 
 ---
 
 ## App Description (4000 characters max)
 
-TrackRide is the complete training companion for tetrathlon, eventing, and multi-discipline athletes. Whether you're schooling in the arena, conditioning on trails, competing in Pony Club events, or training across all four disciplines, TrackRide captures every session and turns it into insights that help you become a better athlete.
+Your horse just spooked at a plastic bag. Again. But don't worry — TrackRide was still tracking your involuntary canter transition.
 
-**FOUR DISCIPLINES, ONE APP**
+Welcome to the only training app that actually gets tetrathlon and eventing. We know you're not just a runner who occasionally sits on a horse, or a swimmer who dabbles in target practice. You're gloriously, chaotically multi-talented — and finally, there's an app for that.
 
-• Riding — GPS tracking with automatic gait detection (walk, trot, canter, gallop), turn balance analysis, lead tracking, and beautiful gait-coloured route maps
-• Running — 1500m time trials with virtual pacer, interval training, cadence tracking, and voice coaching
-• Swimming — 3-minute test simulation, stroke detection via Apple Watch, SWOLF efficiency scoring
-• Shooting — Competition card practice, stance stability tracking, dry fire drills with Watch accelerometer feedback
+AUTOMATIC GAIT DETECTION (AKA MAGIC)
 
-**YOUR AI TRAINING COACH (Apple Intelligence)**
+TrackRide knows when you're walking, trotting, cantering, or executing an unplanned gallop toward the gate. No buttons to press. No "was that a canter or a very enthusiastic trot?" debates. Just ride, and watch your route paint itself in gorgeous gait-coloured glory.
 
-Powered by Apple Intelligence, TrackRide goes beyond tracking to become your intelligent training partner — all processed privately on your device:
+Secretly favouring your left rein? We'll notice. Spending 90% of your "canter fitness session" in walk? The numbers don't lie. But we won't judge — much.
 
-• Post-session summaries explaining what went well and what to work on
-• Natural language search: "Show me rides where I worked on collection"
-• Recovery analysis telling you when you're ready for hard training
-• Personalised coaching suggestions based on your patterns
+YOUR AI COACH (WHO NEVER GETS TIRED OF YOUR QUESTIONS)
 
-**KEEP YOUR FAMILY SAFE**
+Powered by Apple Intelligence, TrackRide analyses every session and actually tells you something useful:
 
-Riding alone doesn't mean being alone. Share your live location with family members who can track your route, see your current gait, and receive automatic safety alerts if you stop moving unexpectedly. Advanced fall detection uses a 2-phase algorithm with heart rate integration.
+"Lovely balanced session today! Your rhythm scores are up 15% this week. Maybe add some walk breaks next time — your heart rate was working harder than your horse."
 
-**APPLE WATCH INTEGRATION**
+Ask anything: "Show me rides where I worked on collection" or "Why am I always slower on Mondays?" It's like having a coach in your pocket, minus the shouting.
 
-Your Watch becomes your training computer:
-• Large glove-friendly buttons for ride control
-• Live heart rate streaming with zone indicators
-• Discipline-specific displays (hacking, flatwork, cross-country)
-• Haptic feedback for gait changes and milestones
-• Shooting stance stability measurement
-• Swimming stroke detection and counting
-• Running form quality indicators
+FOUR DISCIPLINES, ONE SLIGHTLY OBSESSIVE APP
 
-**COMPETITION CALENDAR**
+• RIDING — GPS tracking, gait detection, balance analysis, turn counting, elevation profiles, and yes, we'll find photos you took mid-hack
+• RUNNING — 1500m time trials with virtual pacer (race your ghost!), intervals, treadmill mode for hamster wheel days, and AirPods coaching that reminds you to stop hunching
+• SWIMMING — 3-minute test simulation, automatic stroke counting via Apple Watch, SWOLF scores to obsess over, and lap-by-lap breakdowns
+• SHOOTING — Competition cards, stance stability tracking (your Watch knows when you're wobbling), dry fire drills, and AI pattern analysis that's surprisingly honest
 
-Never miss an event. Track your entire tetrathlon and eventing season with countdown timers, task checklists, and horse assignments. Record results and compare performance across competitions.
+FAMILY SAFETY (KEEP MUM HAPPY)
 
-**MANAGE MULTIPLE HORSES**
+Riding alone doesn't mean being alone. Share your live location so family can see exactly where you are, what gait you're in, and panic slightly less.
 
-Create detailed profiles for each horse with training history, gait distribution statistics, health notes, and workload recommendations. Photos and videos link from your Apple Photos library.
+Fall detection uses a clever 2-phase system — we check for impact, then check if you're still moving. Apple Watch heart rate helps too. If you don't respond, we alert your trusted contacts with your GPS location. Safety first, dramatic dismounts second.
 
-**VOICE COACHING**
+APPLE WATCH: BIG BUTTONS FOR GLOVED FINGERS
 
-Hands-free audio cues via AirPods keep you informed:
-• Distance milestones and pace updates
-• Gait change announcements
-• Heart rate zone alerts
-• Form reminders during running
-• AI-powered session summaries read aloud
+We made the buttons huge. Like, comically large. Because we've tried tapping tiny icons in winter gloves and it's not fun. Heart rate zones, gait breakdown, session stats — all on your wrist without fishing your phone out of your pocket.
 
-**INTEGRATIONS**
+COMPETITION READY
 
-• Apple Health — Automatic workout export with MET-based calorie calculations
-• Strava — One-tap auto-upload
-• Garmin Connect & MyFitnessPal — Sync your sessions
-• GPX Export — Share your routes
+Track your entire Pony Club season with countdown timers, task checklists (pack the hairnets!), and competition results. Manage multiple horses with profiles, training histories, and smart workload recommendations so you know who's ready to work and who needs a spa day.
 
-**PRIVACY FIRST**
+PRIVACY FIRST
 
-Your data stays yours. Everything remains on your devices and personal iCloud. Apple Intelligence processes locally — nothing is sent externally. Family sharing is opt-in only.
+Your data stays on your devices. Apple Intelligence processes locally. We're not selling your canter statistics to anyone. Promise.
 
-TrackRide requires iOS 17.0+ and supports Apple Watch with watchOS 10.0+. Apple Intelligence features require iPhone 15 Pro or later with iOS 18.0+.
+---
 
-Train. Track. Triumph.
+Requires iOS 17.0+. Apple Watch features require watchOS 10.0+. Apple Intelligence features require iPhone 15 Pro or later.
+
+Train. Track. Triumph. (Try not to spook at the plastic bags.)
 
 ---
 
 ## Promotional Text (170 characters max)
-NEW: Humorous AI coaching summaries, improved gait detection accuracy, and enhanced Apple Watch displays. Your tetrathlon training just got more fun!
+Finally! An app that knows the difference between a canter and an "enthusiastic trot". AI coaching, gait detection, fall alerts. Your horse approves. Probably.
 
 ---
 
 ## What's New (4000 characters max)
 
-Version 1.0 — Initial Release
+What's New in Version 0.0.17
 
-TrackRide brings together everything you need to train for tetrathlon, eventing, and multi-discipline competitions:
+We've been busy fixing things, adding things, and trying not to break other things. Here's what's new:
 
-• Complete GPS tracking for riding with automatic gait detection
-• Running training with 1500m time trials and virtual pacer
-• Swimming with stroke detection and SWOLF scoring
-• Shooting practice with stance stability feedback
-• Apple Intelligence-powered coaching and insights
-• Family safety features with fall detection
-• Competition calendar with task management
-• Apple Watch companion app
-• Strava and Apple Health integration
+PRETTIER PIXELS
+• Trusted Contacts got a makeover — cleaner, simpler, works on screens of all sizes (yes, even your mum's phone with the massive text)
+• Family Sharing is easier to manage — fewer taps to control who's watching your magnificent canter work
 
-Whether you're training for Pony Club Championships or just want to track your hacks, TrackRide is here to help you become a better athlete.
+MORE WAYS TO PRETEND YOU'RE TRAINING
+Demo data now includes:
+• Schooling sessions like "Polework Puzzle" and "Bounce Grid Bootcamp"
+• Running horrors including "Hill Repeats (Stairway to Suffering)" and "Sunday Long Run (Pain & Suffering)"
+• Swimming adventures from "Lake Adventure (Cold Water Shock)" to "Distance Day (Channel Prep?)"
+• Shooting practice with "Under Pressure (Dad Watching)" — we've all been there
 
-Happy training! 🐴🏃‍♂️🏊‍♂️🎯
+NERDY IMPROVEMENTS
+• Photos now link to your ENTIRE riding day, not just session time — so that selfie with your horse actually shows up
+• Rhythm detection got smarter — we're using ALL the sensors now, not just the easy ones
+• "Schooling Scores" explains what rhythm actually means (spoiler: it's about keeping a steady beat, not dancing)
+
+SQUASHED BUGS
+• Fixed that thing where photos weren't appearing for schooling rides
+• Movement Quality now has explanations a human can understand
+• Various invisible improvements that we're very proud of
+
+COMING SOON
+• Offline route planning with actual bridleways (no more accidentally routing through someone's garden)
+• Dressage test scoring
+• Video analysis (the AI will be honest, we can't help that)
+
+Thanks for riding with us. Every update is shaped by feedback from riders, runners, swimmers, and shooters like you.
+
+Train. Track. Triumph. 🐴
 
 ---
 
 ## Support URL
-https://trackride.app/support
+(Not required - use App Store Connect's built-in support)
 
 ## Marketing URL
-https://trackride.app
+(Optional - leave blank)
 
 ## Privacy Policy URL
-https://trackride.app/privacy
+(Not required for apps that don't collect data - see App Privacy section below)
 
 ---
 
@@ -127,49 +127,57 @@ https://trackride.app/privacy
 ### iPhone 6.9" (Required - iPhone 16 Pro Max / 17 Pro Max)
 Resolution: 1320 x 2868 pixels (portrait)
 
-1. **Home Screen** — "Four disciplines. One app. Your complete tetrathlon training companion."
-2. **Riding - Big Button** — "One tap to start. Glove-friendly design for riders."
-3. **Live Map** — "See your route come alive with gait-coloured tracking."
-4. **Ride Detail** — "Every session captured. GPS, gaits, turns, and AI insights."
-5. **Competition Calendar** — "Never miss an event. Track your entire season."
-6. **Horse Profiles** — "Every horse deserves their own record."
-7. **AI Insights** — "Your personal coach powered by Apple Intelligence."
-8. **Running** — "1500m time trials, intervals, and voice coaching."
-9. **Swimming** — "Stroke detection and SWOLF scoring with Apple Watch."
-10. **Family Safety** — "Riding alone doesn't mean being alone."
+1. **Home Screen** — "Four disciplines. One app. Built for tetrathlon."
+2. **Big Start Button** — "One tap. Glove-friendly. Start riding instantly."
+3. **Live Gait Map** — "Watch your route paint itself, colour-coded by gait."
+4. **Ride Analysis** — "Every detail captured. GPS, gaits, turns, AI insights."
+5. **AI Coach** — "Personalised feedback powered by Apple Intelligence."
+6. **Family Safety** — "They see where you are. You focus on riding."
+7. **Horse Profiles** — "Every horse. Complete history. Smart recommendations."
+8. **Running** — "1500m trials. Virtual pacer. Voice coaching."
+9. **Swimming** — "Stroke detection. SWOLF scoring. Lap breakdown."
+10. **Competition Calendar** — "Your entire season. Never miss an event."
 
 ### Apple Watch 46mm (Required for watchOS apps)
 Resolution: 396 x 484 pixels
 
-1. **Riding Controls** — "Large buttons. Works with gloves."
-2. **Live Heart Rate** — "Your fitness data on your wrist."
-3. **Discipline Selection** — "Switch disciplines instantly."
+1. **Riding Controls** — "Big buttons. Works with gloves."
+2. **Live Stats** — "Heart rate, gait, distance — all on your wrist."
+3. **Quick Start** — "Tap and ride. It's that simple."
 
 ---
 
-## App Store Preview Video Script (Optional)
+## App Store Preview Video Script (30 seconds)
 
-**Opening (3s)**
-"TrackRide — Train for Tetrathlon"
+**Hook (3s)**
+Close-up of gloved hand tapping big green START button
+"Train like a champion."
 
-**Riding (8s)**
-Show big start button → Live tracking with gait indicator → Route map with coloured segments
+**Riding (7s)**
+Split screen: rider on horse / phone showing live gait detection
+Route map painting with gait colours
+"Automatic gait detection. Beautiful route maps."
 
-**Other Disciplines (6s)**
-Quick cuts: Running time trial → Swimming strokes → Shooting practice
+**Multi-discipline (5s)**
+Quick cuts: Running with pace overlay → Swimming stroke count → Shooting stance feedback
+"Four disciplines. One app."
 
 **AI Insights (5s)**
-Show AI summary appearing after ride: "Epic XC session! Your heart rate peaked at 182bpm..."
+AI summary appearing: "Excellent session! Your canter work has improved..."
+"AI coaching that learns from you."
 
 **Family Safety (4s)**
-Show live tracking map with family member notification
+Parent's phone showing live map with rider's location
+"Keep your family connected."
 
-**Apple Watch (4s)**
-Show Watch displays: riding stats, heart rate, controls
+**Watch (3s)**
+Watch showing riding stats, finger tapping through screens
+"Complete control on your wrist."
 
 **Closing (3s)**
+TrackRide logo
 "Train. Track. Triumph."
-App Store badge
+Download on the App Store badge
 
 ---
 
@@ -181,6 +189,84 @@ App Store badge
 
 ---
 
+## App Privacy (Nutrition Labels)
+
+### Data Used to Track You
+**None** — TrackRide does not track you across other companies' apps or websites.
+
+### Data Linked to You
+
+**Health & Fitness**
+| Data Type | Purpose |
+|-----------|---------|
+| Health | Export workouts to Apple Health (heart rate, calories, distance) |
+| Fitness | Activity tracking, gait analysis, performance metrics |
+
+**Location**
+| Data Type | Purpose |
+|-----------|---------|
+| Precise Location | GPS route mapping, distance calculation, elevation profiles |
+| Coarse Location | Weather data retrieval |
+
+**User Content**
+| Data Type | Purpose |
+|-----------|---------|
+| Photos or Videos | Link training photos to sessions (references only — photos stay in Apple Photos) |
+| Audio Data | Voice notes transcription during sessions (audio not stored, only text) |
+
+**Identifiers**
+| Data Type | Purpose |
+|-----------|---------|
+| User ID | iCloud sync and family sharing identification |
+
+**Sensitive Info**
+| Data Type | Purpose |
+|-----------|---------|
+| Health Records | Optional rider measurements for calorie calculations |
+
+### Data Not Linked to You
+
+**Usage Data**
+| Data Type | Purpose |
+|-----------|---------|
+| Product Interaction | App functionality (session states, preferences) |
+
+### Data Not Collected
+- Financial Info
+- Contact Info (emergency contacts stored locally, not collected by developer)
+- Contacts
+- Browsing History
+- Search History
+- Diagnostics
+- Advertising Data
+
+### Privacy Practices Summary
+
+**Data Storage:**
+- All data stored on-device using SwiftData
+- Optional iCloud sync via CloudKit (user's private database)
+- No data sent to external servers (except OpenStreetMap for routing)
+
+**Third-Party Services:**
+- OpenStreetMap/Overpass API — Anonymous routing queries only
+- Apple WeatherKit — Location-based weather (Apple service)
+- No analytics, crash reporting, or advertising SDKs
+
+**AI Processing:**
+- All AI features use Apple Intelligence (on-device processing)
+- No data leaves the device for AI analysis
+
+**Family Sharing:**
+- Live location shared only with explicitly invited trusted contacts
+- Sharing is opt-in and granular (can limit to specific permissions)
+- Data shared via user's private CloudKit database
+
+**Photos:**
+- App stores references only — actual photos remain in Apple Photos
+- No photos uploaded to external servers
+
+---
+
 ## Localizations
 
 Currently available in:
@@ -189,6 +275,34 @@ Currently available in:
 - English (Australia)
 
 Future localizations planned:
-- German
+- German (strong equestrian market)
 - French
 - Dutch (strong equestrian market)
+- Swedish
+
+---
+
+## App Store Optimization Notes
+
+**Primary Value Propositions (in order):**
+1. Only app purpose-built for tetrathlon/eventing athletes
+2. Automatic gait detection — no manual logging
+3. AI coaching powered by Apple Intelligence
+4. Family safety with fall detection
+5. Apple Watch integration with glove-friendly design
+
+**Target Audience:**
+- Pony Club members (ages 8-25)
+- Parents of young riders (safety features)
+- Eventing competitors
+- Adult amateur riders
+- Tetrathlon coaches
+
+**Competitor Differentiation:**
+- vs Strava: Gait detection, multi-discipline, horse profiles
+- vs Equilab: AI coaching, tetrathlon support, family safety
+- vs Apple Fitness: Horse-specific features, gait analysis, competition calendar
+
+**Seasonal Considerations:**
+- Peak downloads: Spring (competition season starts)
+- Update promotional text for: Championships season, winter training, back-to-school

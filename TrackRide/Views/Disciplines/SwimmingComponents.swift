@@ -175,6 +175,7 @@ struct SwimmingLiveView: View {
     let isThreeMinuteTest: Bool
     let testDuration: TimeInterval  // Configurable duration for timed tests
     let onEnd: () -> Void
+    var onDiscard: (() -> Void)? = nil
 
     @State private var elapsedTime: TimeInterval = 0
     @State private var lengthCount: Int = 0
@@ -195,8 +196,6 @@ struct SwimmingLiveView: View {
     @State private var watchUpdateTimer: Timer?
 
     private let watchManager = WatchConnectivityManager.shared
-
-    private var personalBests: SwimmingPersonalBests { SwimmingPersonalBests.shared }
 
     // Calculate SWOLF score (strokes + time per length)
     private var averageSWOLF: Double {
@@ -224,8 +223,25 @@ struct SwimmingLiveView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Background
+        GeometryReader { geometry in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    // Header
+                    headerView
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+
+                    // Stats content
+                    statsContentView(geometry: geometry)
+                        .padding(.horizontal)
+
+                    // Bottom controls
+                    controlsView(geometry: geometry)
+                        .padding(.bottom, 16)
+                }
+            }
+        }
+        .background(
             LinearGradient(
                 colors: [
                     Color(.systemBackground),
@@ -236,301 +252,7 @@ struct SwimmingLiveView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                // Header with close button and Watch status
-                HStack {
-                    // Watch connection indicator
-                    if watchManager.isReachable {
-                        HStack(spacing: 4) {
-                            Image(systemName: "applewatch.radiowaves.left.and.right")
-                            Text("Watch")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "applewatch.slash")
-                            Text("No Watch")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    // Voice notes button - only show when paused
-                    if !isRunning {
-                        VoiceNoteToolbarButton { note in
-                            let service = VoiceNotesService.shared
-                            session.notes = service.appendNote(note, to: session.notes)
-                        }
-                    }
-
-                    Button(action: cancelSession) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-
-                Spacer()
-
-                if isThreeMinuteTest {
-                    // Timer display - countdown for 3-min test
-                    VStack(spacing: 8) {
-                        Text(testComplete ? "Time!" : (hasStarted ? "Time Remaining" : "3-Minute Test"))
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(formatTime(hasStarted ? timeRemaining : testDuration))
-                            .font(.system(size: 72, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(timeRemaining < 30 && hasStarted ? .red : .primary)
-                    }
-
-                    // Show PB before starting
-                    if !hasStarted {
-                        HStack {
-                            Image(systemName: "trophy.fill")
-                                .foregroundStyle(.yellow)
-                            Text("Personal Best:")
-                                .font(.headline)
-                            Text(personalBests.pb3MinDistance > 0 ? personalBests.formattedPBDistance() : "No PB yet")
-                                .font(.headline.bold())
-                                .foregroundStyle(personalBests.pb3MinDistance > 0 ? .orange : .secondary)
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                } else {
-                    // Count up for training
-                    VStack(spacing: 8) {
-                        Text("Duration")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(formatTime(elapsedTime))
-                            .font(.system(size: 72, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                    }
-                }
-
-                // Length count and distance
-                VStack(spacing: 16) {
-                    // Lengths and Distance
-                    HStack(spacing: 40) {
-                        VStack(spacing: 4) {
-                            Text("Lengths")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(lengthCount)")
-                                .font(.system(size: 48, weight: .bold, design: .rounded))
-                                .foregroundStyle(.blue)
-                        }
-
-                        VStack(spacing: 4) {
-                            Text("Distance")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(String(format: "%.0fm", totalDistance))
-                                .font(.system(size: 48, weight: .bold, design: .rounded))
-                                .foregroundStyle(.blue)
-                        }
-                    }
-
-                    // Watch stroke tracking (when connected)
-                    if watchManager.isReachable && hasStarted {
-                        HStack(spacing: 32) {
-                            VStack(spacing: 4) {
-                                Text("Strokes")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("\(strokeCount)")
-                                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.cyan)
-                            }
-
-                            VStack(spacing: 4) {
-                                Text("Rate")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(String(format: "%.0f/min", strokeRate))
-                                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.cyan)
-                            }
-
-                            if averageSWOLF > 0 {
-                                VStack(spacing: 4) {
-                                    Text("SWOLF")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text(String(format: "%.0f", averageSWOLF))
-                                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                                        .foregroundStyle(swolfColor)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-
-                    // PB comparison section (only for 3-minute test)
-                    if isThreeMinuteTest && hasStarted {
-                        VStack(spacing: 12) {
-                            // Pace indicator with color
-                            if totalDistance > 0 {
-                                HStack(spacing: 20) {
-                                    // Current pace
-                                    VStack(spacing: 4) {
-                                        Text("Pace")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        Text(formatPace(currentPace))
-                                            .font(.system(size: 24, weight: .semibold, design: .rounded))
-                                            .monospacedDigit()
-                                    }
-
-                                    // vs PB indicator
-                                    if personalBests.pb3MinDistance > 0 {
-                                        VStack(spacing: 4) {
-                                            Text("vs PB")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                            HStack(spacing: 4) {
-                                                Image(systemName: paceStatusIcon)
-                                                Text(paceStatusText)
-                                            }
-                                            .font(.system(size: 20, weight: .bold))
-                                            .foregroundStyle(paceColor)
-                                        }
-                                    }
-
-                                    // Projected distance
-                                    VStack(spacing: 4) {
-                                        Text("Projected")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        Text(String(format: "%.0fm", projectedDistance))
-                                            .font(.system(size: 24, weight: .semibold, design: .rounded))
-                                            .monospacedDigit()
-                                            .foregroundStyle(projectedDistanceColor)
-                                    }
-                                }
-                            }
-
-                            // PB info bar
-                            HStack {
-                                Image(systemName: "trophy.fill")
-                                    .foregroundStyle(.yellow)
-                                Text("PB: \(personalBests.pb3MinDistance > 0 ? personalBests.formattedPBDistance() : "--")")
-                                    .font(.subheadline)
-                                Spacer()
-                                if personalBests.pb3MinDistance > 0 {
-                                    if totalDistance > personalBests.pb3MinDistance {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "star.fill")
-                                            Text("New PB!")
-                                        }
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(.yellow)
-                                    } else if projectedDistance > personalBests.pb3MinDistance && elapsedTime > 30 {
-                                        Text("On track for PB!")
-                                            .font(.caption.bold())
-                                            .foregroundStyle(.green)
-                                    }
-                                } else {
-                                    Text("Set your first PB!")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(.orange)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-
-                Spacer()
-
-                // Big lap button
-                if !testComplete {
-                    VStack(spacing: 12) {
-                        Button(action: recordLength) {
-                            VStack(spacing: 8) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 80))
-                                Text("Tap Each Length")
-                                    .font(.headline)
-                            }
-                            .foregroundStyle(.white)
-                            .frame(width: 200, height: 200)
-                            .background(
-                                Circle()
-                                    .fill(.blue)
-                                    .shadow(color: .blue.opacity(0.3), radius: 10, y: 5)
-                            )
-                        }
-                        .sensoryFeedback(.impact(weight: .heavy), trigger: lengthCount)
-                        .disabled(!isRunning && hasStarted)
-
-                        Text("\(Int(poolLength))m pool")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                // Control buttons
-                if !hasStarted {
-                    // Start button
-                    Button(action: startSession) {
-                        Label("Start", systemImage: "play.fill")
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(.green)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.horizontal, 40)
-                } else if testComplete {
-                    // Finish button
-                    Button(action: endSession) {
-                        Label("Save & Finish", systemImage: "checkmark.circle.fill")
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(.green)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.horizontal, 40)
-                } else {
-                    // Stop button (for training or early end)
-                    Button(action: { testComplete = true; stopTimer() }) {
-                        Label("Stop", systemImage: "stop.fill")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 32)
-                            .padding(.vertical, 12)
-                            .background(.red)
-                            .clipShape(Capsule())
-                    }
-                }
-
-                Spacer()
-            }
-            .padding()
-        }
+        )
         .onAppear {
             setupMotionCallbacks()
         }
@@ -543,6 +265,264 @@ struct SwimmingLiveView: View {
         }
     }
 
+    // MARK: - Header View
+
+    private var headerView: some View {
+        HStack(spacing: 12) {
+            // Watch connection indicator
+            if watchManager.isReachable {
+                HStack(spacing: 4) {
+                    Image(systemName: "applewatch.radiowaves.left.and.right")
+                    Text("Watch")
+                }
+                .font(.caption)
+                .foregroundStyle(.green)
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "applewatch.slash")
+                    Text("No Watch")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Right side controls
+            HStack(spacing: 8) {
+                // Voice notes button - only show when paused
+                if !isRunning {
+                    VoiceNoteToolbarButton { note in
+                        let service = VoiceNotesService.shared
+                        session.notes = service.appendNote(note, to: session.notes)
+                    }
+                    .frame(width: 44, height: 44)
+                }
+
+                // Close button
+                Button(action: cancelSession) {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+            }
+        }
+    }
+
+    // MARK: - Stats Content View
+
+    private func statsContentView(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 20) {
+            // Timer/Duration display
+            timerDisplay
+                .padding(.top, 8)
+
+            // Lengths and Distance
+            lengthsDistanceDisplay
+
+            // Watch stroke tracking (when connected)
+            if watchManager.isReachable && hasStarted {
+                strokeTrackingDisplay
+            }
+
+            // Pace display (only for timed test)
+            if isThreeMinuteTest && hasStarted && totalDistance > 0 {
+                paceDisplay
+            }
+
+            // Lap button
+            if !testComplete {
+                lapButton(geometry: geometry)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+
+    private var timerDisplay: some View {
+        VStack(spacing: 8) {
+            if isThreeMinuteTest {
+                Text(testComplete ? "Time!" : (hasStarted ? "Time Remaining" : "Timed Test"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(formatTime(hasStarted ? timeRemaining : testDuration))
+                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(timeRemaining < 30 && hasStarted ? .red : .primary)
+            } else {
+                Text("Duration")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(formatTime(elapsedTime))
+                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    private var lengthsDistanceDisplay: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("\(lengthCount)")
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.blue)
+                Text("Lengths")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 4) {
+                Text(String(format: "%.0f", totalDistance))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.blue)
+                Text("Meters")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var strokeTrackingDisplay: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("\(strokeCount)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.cyan)
+                Text("Strokes")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 4) {
+                Text(String(format: "%.0f", strokeRate))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.cyan)
+                Text("Rate/min")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            if averageSWOLF > 0 {
+                VStack(spacing: 4) {
+                    Text(String(format: "%.0f", averageSWOLF))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(swolfColor)
+                    Text("SWOLF")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var paceDisplay: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text(formatPace(currentPace))
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text("Pace /100m")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 4) {
+                Text(String(format: "%.0fm", projectedDistance))
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text("Projected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func lapButton(geometry: GeometryProxy) -> some View {
+        let buttonSize = min(geometry.size.width * 0.38, 140.0)
+
+        return VStack(spacing: 12) {
+            Button(action: recordLength) {
+                Text("Tap Each Length")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: buttonSize, height: buttonSize)
+                    .background(
+                        Circle()
+                            .fill(.blue)
+                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                    )
+            }
+            .sensoryFeedback(.impact(weight: .heavy), trigger: lengthCount)
+            .disabled(!isRunning && hasStarted)
+
+            Text("\(Int(poolLength))m pool")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Controls View
+
+    private func controlsView(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 12) {
+            if !hasStarted {
+                // Start button
+                Button(action: startSession) {
+                    Label("Start", systemImage: "play.fill")
+                        .font(.title3.bold())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: min(geometry.size.width - 80, 300))
+                        .padding(.vertical, 16)
+                        .background(.green)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            } else if testComplete {
+                // Finish button
+                Button(action: endSession) {
+                    Label("Save & Finish", systemImage: "checkmark.circle.fill")
+                        .font(.title3.bold())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: min(geometry.size.width - 80, 300))
+                        .padding(.vertical, 16)
+                        .background(.green)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            } else {
+                // Stop button (for training or early end)
+                Button(action: { testComplete = true; stopTimer() }) {
+                    Label("Stop", systemImage: "stop.fill")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(.red)
+                        .clipShape(Capsule())
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
     // SWOLF color indicator - lower is better
     private var swolfColor: Color {
         if averageSWOLF < 40 { return .green }
@@ -550,39 +530,10 @@ struct SwimmingLiveView: View {
         return .orange
     }
 
-    // Projected distance if current pace maintained for full 3 minutes
+    // Projected distance if current pace maintained for full test duration
     private var projectedDistance: Double {
         guard elapsedTime > 0, totalDistance > 0 else { return 0 }
         return (totalDistance / elapsedTime) * testDuration
-    }
-
-    private var projectedDistanceColor: Color {
-        guard personalBests.pb3MinDistance > 0 else { return .primary }
-        if projectedDistance > personalBests.pb3MinDistance + 10 { return .green }
-        if projectedDistance < personalBests.pb3MinDistance - 10 { return .red }
-        return .yellow
-    }
-
-    private var paceColor: Color {
-        guard personalBests.pb3MinDistance > 0, elapsedTime > 30 else { return .primary }
-        if projectedDistance > personalBests.pb3MinDistance + 10 { return .green }
-        if projectedDistance < personalBests.pb3MinDistance - 10 { return .red }
-        return .yellow
-    }
-
-    private var paceStatusIcon: String {
-        guard personalBests.pb3MinDistance > 0, elapsedTime > 30 else { return "equal.circle.fill" }
-        if projectedDistance > personalBests.pb3MinDistance + 10 { return "arrow.up.circle.fill" }
-        if projectedDistance < personalBests.pb3MinDistance - 10 { return "arrow.down.circle.fill" }
-        return "equal.circle.fill"
-    }
-
-    private var paceStatusText: String {
-        guard personalBests.pb3MinDistance > 0, elapsedTime > 30 else { return "---" }
-        let diff = projectedDistance - personalBests.pb3MinDistance
-        if abs(diff) < 5 { return "On PB" }
-        let sign = diff > 0 ? "+" : ""
-        return "\(sign)\(Int(diff))m"
     }
 
     private func startSession() {
@@ -657,8 +608,12 @@ struct SwimmingLiveView: View {
     private func cancelSession() {
         stopTimer()
         stopMotionTracking()
-        // Don't save - just close
-        onEnd()
+        // Use onDiscard if provided to properly delete session, otherwise just close
+        if let onDiscard = onDiscard {
+            onDiscard()
+        } else {
+            onEnd()
+        }
     }
 
     private func formatTime(_ interval: TimeInterval) -> String {
