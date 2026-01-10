@@ -1,0 +1,103 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List available simulators
+        run: xcrun simctl list devices available
+
+      - name: Resolve Swift packages
+        working-directory: TrackRide
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack
+
+      - name: Build
+        working-directory: TrackRide
+        run: |
+          xcodebuild build \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run Unit Tests
+        working-directory: TrackRide
+        run: |
+          xcodebuild test \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TrackRide/TestResults.xcresult
+          retention-days: 7
+
+  ui-tests:
+    name: UI Tests
+    runs-on: macos-15
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Resolve Swift packages
+        working-directory: TrackRide
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack
+
+      - name: Run UI Tests
+        working-directory: TrackRide
+        run: |
+          xcodebuild test \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrackUITests \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath UITestResults.xcresult
+
+      - name: Upload UI Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-results
+          path: TrackRide/UITestResults.xcresult
+          retention-days: 7

@@ -1,0 +1,36 @@
+# Fastfile for TetraTrack / TrackRide
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # Increment build number
+    increment_build_number(
+      xcodeproj: "TetraTrack.xcodeproj"
+    )
+
+    # Build the app
+    build_app(
+      scheme: "TetraTrack",
+      export_method: "app-store",
+      project: "TetraTrack.xcodeproj",
+      destination: "generic/platform=iOS"
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build and archive without uploading"
+  lane :build do
+    build_app(
+      scheme: "TetraTrack",
+      export_method: "app-store",
+      project: "TetraTrack.xcodeproj",
+      destination: "generic/platform=iOS"
+    )
+  end
+end
