@@ -68,6 +68,21 @@ struct RegionDownloadView: View {
                     }
                 }
 
+                // Clear stuck downloads section - shows when activeDownloads has entries but incompleteDownloads is empty
+                if !routePlanning.activeDownloads.isEmpty && incompleteDownloads.isEmpty {
+                    Section {
+                        Button(role: .destructive) {
+                            clearAllStuckDownloads()
+                        } label: {
+                            Label("Clear Stuck Downloads", systemImage: "xmark.circle")
+                        }
+                    } header: {
+                        Text("Stuck Downloads")
+                    } footer: {
+                        Text("Downloads appear stuck. Tap to clear and try again.")
+                    }
+                }
+
                 // Info section
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -187,6 +202,22 @@ struct RegionDownloadView: View {
             loadIncompleteDownloads()
         }
     }
+
+    private func clearAllStuckDownloads() {
+        Task {
+            // Cancel all active downloads
+            for regionId in routePlanning.activeDownloads.keys {
+                await routePlanning.cancelDownload(regionId)
+            }
+            // Also clear any persisted state
+            for state in DownloadState.loadAll().values {
+                DownloadState.remove(regionId: state.regionId)
+                DownloadState.deleteJsonFile(for: state.regionId)
+            }
+            loadIncompleteDownloads()
+            loadDownloadedRegions()
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -282,17 +313,22 @@ private struct AvailableRegionRow: View {
             if let progress = downloadProgress {
                 // Show progress bar only during active download phases
                 if progress.phase != .complete && progress.phase != .failed {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ProgressView(value: progress.progress)
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(progress.message)
-                                .font(.caption2)
+                            ProgressView(value: progress.progress)
+                            Text("\(Int(progress.progress * 100))%")
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Cancel", action: onCancel)
-                                .font(.caption2)
-                                .foregroundStyle(.red)
+                                .monospacedDigit()
+                            Button(action: onCancel) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(.red)
+                            }
                         }
+                        Text(progress.message)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }

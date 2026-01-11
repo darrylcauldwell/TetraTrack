@@ -54,6 +54,7 @@ struct CompetitionCalendarView: View {
     @Query(filter: #Predicate<Horse> { !$0.isArchived }, sort: \Horse.name) private var horses: [Horse]
 
     @State private var showingAddCompetition = false
+    @State private var showingStats = false
     @State private var selectedCompetition: Competition?
     @State private var viewMode: ViewMode = .upcoming
     @State private var showingFilters = false
@@ -263,7 +264,9 @@ struct CompetitionCalendarView: View {
             .navigationTitle("Competitions")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: CompetitionStatsView()) {
+                    Button {
+                        showingStats = true
+                    } label: {
                         Image(systemName: "chart.bar.xaxis")
                     }
                 }
@@ -293,6 +296,9 @@ struct CompetitionCalendarView: View {
                         Image(systemName: "plus")
                     }
                 }
+            }
+            .navigationDestination(isPresented: $showingStats) {
+                CompetitionStatsView()
             }
             .sheet(isPresented: $showingAddCompetition) {
                 CompetitionEditView(competition: nil)
