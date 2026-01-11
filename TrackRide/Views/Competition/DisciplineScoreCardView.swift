@@ -2,16 +2,27 @@
 //  DisciplineScoreCardView.swift
 //  TrackRide
 //
-//  Score card displaying discipline results for Triathlon/Tetrathlon
+//  Inline editable score card for Triathlon/Tetrathlon results
 //
 
 import SwiftUI
 
-/// Score card displaying all discipline results for a competition with edit capability
+/// Inline editable score card for entering and displaying discipline results
 struct DisciplineScoreCardView: View {
     @Bindable var competition: Competition
 
-    @State private var showingResultsEditor = false
+    // Input state for each discipline
+    @State private var shootingScoreText: String = ""
+    @State private var poolLength: Double = 25
+    @State private var swimLengths: Int = 0
+    @State private var swimExtraMeters: Int = 0
+    @State private var runMinutes: Int = 0
+    @State private var runSeconds: Int = 0
+    @State private var ridingPenalties: String = ""
+    @State private var individualPlacementText: String = ""
+    @State private var teamPlacementText: String = ""
+
+    @State private var hasLoaded = false
 
     private var isTetrathlon: Bool {
         competition.competitionType == .tetrathlon
@@ -21,256 +32,13 @@ struct DisciplineScoreCardView: View {
         competition.competitionType == .triathlon
     }
 
-    /// Check if a discipline should be shown (always for tetrathlon, configurable for triathlon)
+    /// Check if a discipline should be shown
     private func showDiscipline(_ discipline: TriathlonDiscipline) -> Bool {
-        if isTetrathlon {
-            return true
-        }
+        if isTetrathlon { return true }
         return competition.hasTriathlonDiscipline(discipline)
     }
 
-    private var hasAnyResults: Bool {
-        (showDiscipline(.shooting) && competition.shootingScore != nil) ||
-        (showDiscipline(.swimming) && competition.swimmingTime != nil) ||
-        (showDiscipline(.running) && competition.runningTime != nil) ||
-        (showDiscipline(.riding) && competition.ridingScore != nil)
-    }
-
-    var body: some View {
-        if isTetrathlon || isTriathlon {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with title and edit button
-                HStack {
-                    Text(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        showingResultsEditor = true
-                    } label: {
-                        Label(hasAnyResults ? "Edit" : "Add Results", systemImage: hasAnyResults ? "pencil" : "plus")
-                            .font(.subheadline)
-                    }
-                }
-                .padding(.bottom, 4)
-
-                if hasAnyResults {
-                    // Show discipline scores
-                    if isTetrathlon {
-                        // Tetrathlon: Fixed 4 disciplines
-                        disciplineRow(for: .shooting)
-                        disciplineRow(for: .swimming)
-                        disciplineRow(for: .running)
-                        disciplineRow(for: .riding)
-                    } else {
-                        // Triathlon: Configurable 3 disciplines in order
-                        ForEach(competition.triathlonDisciplines, id: \.self) { discipline in
-                            disciplineRow(for: discipline)
-                        }
-                    }
-
-                    Divider()
-
-                    // Total
-                    HStack {
-                        Text("Total")
-                            .font(.headline)
-                        Spacer()
-                        if let total = competition.storedTotalPoints {
-                            Text(String(format: "%.0f pts", total))
-                                .font(.headline)
-                                .foregroundStyle(AppColors.primary)
-                        } else {
-                            Text("—")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    // Placements (Triathlon)
-                    if isTriathlon {
-                        Divider()
-
-                        // Individual placement row
-                        HStack {
-                            Text("Individual")
-                            Spacer()
-                            if let individual = competition.individualPlacement {
-                                Text(formatPlacement(individual))
-                                    .font(.headline)
-                                    .foregroundStyle(AppColors.primary)
-                            } else {
-                                Text("—")
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-
-                        // Team placement row
-                        HStack {
-                            Text("Team")
-                            Spacer()
-                            if let team = competition.teamPlacement {
-                                Text(formatPlacement(team))
-                                    .font(.headline)
-                                    .foregroundStyle(AppColors.primary)
-                            } else {
-                                Text("—")
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                } else {
-                    // Empty state
-                    Text("No results entered yet")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .sheet(isPresented: $showingResultsEditor) {
-                TriathlonResultsEditorView(competition: competition)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func disciplineRow(for discipline: TriathlonDiscipline) -> some View {
-        switch discipline {
-        case .shooting:
-            DisciplineScoreRow(
-                discipline: "Shooting",
-                icon: discipline.icon,
-                rawValue: competition.shootingScore.map { "\($0)" },
-                points: competition.shootingPoints
-            )
-        case .swimming:
-            DisciplineScoreRow(
-                discipline: "Swimming",
-                icon: discipline.icon,
-                rawValue: competition.swimmingTime.map { formatSwimTime($0) },
-                points: competition.swimmingPoints,
-                subtitle: competition.swimmingDistance.map { "\(Int($0))m" }
-            )
-        case .running:
-            DisciplineScoreRow(
-                discipline: "Running",
-                icon: discipline.icon,
-                rawValue: competition.runningTime.map { formatRunTime($0) },
-                points: competition.runningPoints
-            )
-        case .riding:
-            DisciplineScoreRow(
-                discipline: "Riding",
-                icon: discipline.icon,
-                rawValue: competition.ridingScore.map { String(format: "%.1f pen", $0) },
-                points: competition.ridingPoints
-            )
-        }
-    }
-
-    private func formatSwimTime(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let hundredths = Int((seconds.truncatingRemainder(dividingBy: 1)) * 100)
-        if minutes > 0 {
-            return String(format: "%d:%02d.%02d", minutes, secs, hundredths)
-        } else {
-            return String(format: "%d.%02d", secs, hundredths)
-        }
-    }
-
-    private func formatRunTime(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, secs)
-    }
-
-    private func formatPlacement(_ place: Int) -> String {
-        let suffix: String
-        switch place {
-        case 1: suffix = "st"
-        case 2: suffix = "nd"
-        case 3: suffix = "rd"
-        default: suffix = "th"
-        }
-        return "\(place)\(suffix)"
-    }
-}
-
-/// Single discipline score row
-struct DisciplineScoreRow: View {
-    let discipline: String
-    let icon: String
-    let rawValue: String?
-    let points: Double?
-    var subtitle: String? = nil
-
-    var body: some View {
-        HStack {
-            // Icon and discipline name
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .frame(width: 24)
-                    .foregroundStyle(AppColors.primary)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(discipline)
-                        .font(.subheadline)
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-
-            // Raw value
-            if let raw = rawValue {
-                Text(raw)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 80, alignment: .trailing)
-            } else {
-                Text("—")
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 80, alignment: .trailing)
-            }
-
-            // Points
-            if let pts = points {
-                Text(String(format: "%.0f", pts))
-                    .font(.subheadline.monospacedDigit())
-                    .fontWeight(.medium)
-                    .frame(width: 60, alignment: .trailing)
-            } else {
-                Text("—")
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 60, alignment: .trailing)
-            }
-        }
-    }
-}
-
-// MARK: - Triathlon/Tetrathlon Results Editor
-
-/// Editor view for entering Triathlon/Tetrathlon results
-struct TriathlonResultsEditorView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Bindable var competition: Competition
-
-    // Raw result inputs
-    @State private var shootingScoreText: String = ""
-    @State private var poolLength: Double = 25  // Pool length in meters
-    @State private var swimLengths: Int = 4     // Number of lengths swum
-    @State private var swimExtraMeters: Int = 0 // Additional meters beyond complete lengths
-    @State private var runMinutes: Int = 0
-    @State private var runSeconds: Int = 0
-    @State private var ridingPenalties: String = ""
-
-    /// Calculated swim distance from (pool length × lengths) + extra meters
+    /// Calculated swim distance
     private var swimDistance: Double {
         poolLength * Double(swimLengths) + Double(swimExtraMeters)
     }
@@ -280,195 +48,7 @@ struct TriathlonResultsEditorView: View {
         competition.level.swimDuration
     }
 
-    // Placements (Triathlon only)
-    @State private var individualPlacementText: String = ""
-    @State private var teamPlacementText: String = ""
-
-    private var isTetrathlon: Bool {
-        competition.competitionType == .tetrathlon
-    }
-
-    /// Check if a discipline should be shown (always for tetrathlon, configurable for triathlon)
-    private func showDiscipline(_ discipline: TriathlonDiscipline) -> Bool {
-        if isTetrathlon {
-            return true  // Tetrathlon always has all 4 disciplines
-        }
-        return competition.hasTriathlonDiscipline(discipline)
-    }
-
-    /// Returns the form section for entering results for a specific discipline
-    @ViewBuilder
-    private func disciplineSection(for discipline: TriathlonDiscipline) -> some View {
-        switch discipline {
-        case .shooting:
-            Section("Shooting") {
-                HStack {
-                    Text("Score")
-                    Spacer()
-                    TextField("0", text: $shootingScoreText)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
-                    Text("/ 100")
-                        .foregroundStyle(.secondary)
-                }
-
-                // Show calculated score (entry × 10)
-                if let enteredScore = Int(shootingScoreText), enteredScore > 0 {
-                    HStack {
-                        Text("Calculated Score")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(enteredScore * 10) / 1000")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                HStack {
-                    Text("Points")
-                        .font(.headline)
-                    Spacer()
-                    if let enteredScore = Int(shootingScoreText) {
-                        // Multiply by 10 to get actual score for points calculation
-                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateShootingPoints(rawScore: enteredScore * 10)))
-                            .font(.title2.bold())
-                            .foregroundStyle(AppColors.primary)
-                    } else {
-                        Text("Enter score")
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-
-        case .swimming:
-            Section("Swimming (\(competition.level.formattedSwimDuration))") {
-                HStack {
-                    Text("Pool Length")
-                    Spacer()
-                    Picker("Pool", selection: $poolLength) {
-                        Text("20m").tag(20.0)
-                        Text("25m").tag(25.0)
-                        Text("33m").tag(33.0)
-                        Text("50m").tag(50.0)
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                HStack {
-                    Text("Lengths")
-                    Spacer()
-                    Picker("Lengths", selection: $swimLengths) {
-                        ForEach(0..<21) { Text("\($0)").tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
-
-                HStack {
-                    Text("Extra Meters")
-                    Spacer()
-                    Picker("Extra", selection: $swimExtraMeters) {
-                        ForEach(0..<50) { Text("\($0)m").tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
-
-                HStack {
-                    Text("Total Distance")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(Int(swimDistance))m")
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Text("Time")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(competition.level.formattedSwimDuration)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Always show points calculation using fixed time
-                HStack {
-                    Text("Points")
-                        .font(.headline)
-                    Spacer()
-                    if swimDistance > 0 {
-                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)))
-                            .font(.title2.bold())
-                            .foregroundStyle(AppColors.primary)
-                    } else {
-                        Text("Enter distance")
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-
-        case .running:
-            Section("Running (1500m)") {
-                HStack {
-                    Text("Time")
-                    Spacer()
-                    Picker("Min", selection: $runMinutes) {
-                        ForEach(0..<20) { Text("\($0)").tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    Text(":")
-                    Picker("Sec", selection: $runSeconds) {
-                        ForEach(0..<60) { Text(String(format: "%02d", $0)).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
-
-                let runTime = Double(runMinutes * 60 + runSeconds)
-                HStack {
-                    Text("Points")
-                        .font(.headline)
-                    Spacer()
-                    if runTime > 0 {
-                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)))
-                            .font(.title2.bold())
-                            .foregroundStyle(AppColors.primary)
-                    } else {
-                        Text("Enter time")
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-
-        case .riding:
-            Section("Riding") {
-                HStack {
-                    Text("Penalties")
-                    Spacer()
-                    TextField("0", text: $ridingPenalties)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 80)
-                }
-
-                HStack {
-                    Text("Points")
-                        .font(.headline)
-                    Spacer()
-                    if let penalties = Double(ridingPenalties) {
-                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRidingPoints(penalties: penalties)))
-                            .font(.title2.bold())
-                            .foregroundStyle(AppColors.primary)
-                    } else {
-                        Text("Enter penalties")
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Get the list of disciplines to display in the correct order
+    /// Get disciplines in correct order
     private var disciplinesToShow: [TriathlonDiscipline] {
         if isTetrathlon {
             return [.shooting, .swimming, .running, .riding]
@@ -477,80 +57,343 @@ struct TriathlonResultsEditorView: View {
         }
     }
 
+    /// Calculate total points from current inputs
+    private var totalPoints: Double {
+        var total: Double = 0
+
+        if showDiscipline(.shooting), let score = Int(shootingScoreText) {
+            total += PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)
+        }
+
+        if showDiscipline(.swimming), swimDistance > 0 {
+            total += PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
+        }
+
+        let runTime = Double(runMinutes * 60 + runSeconds)
+        if showDiscipline(.running), runTime > 0 {
+            total += PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)
+        }
+
+        if showDiscipline(.riding), let penalties = Double(ridingPenalties) {
+            total += PonyClubScoringService.calculateRidingPoints(penalties: penalties)
+        }
+
+        return total
+    }
+
     var body: some View {
-        NavigationStack {
-            Form {
-                // Show disciplines in the configured order
+        if isTetrathlon || isTriathlon {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                Text(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
+                    .font(.headline)
+
+                // Discipline rows
                 ForEach(disciplinesToShow, id: \.self) { discipline in
-                    disciplineSection(for: discipline)
+                    disciplineInputRow(for: discipline)
+                }
+
+                Divider()
+
+                // Total
+                HStack {
+                    Text("Total")
+                        .font(.headline)
+                    Spacer()
+                    Text(totalPoints > 0 ? String(format: "%.0f pts", totalPoints) : "—")
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(totalPoints > 0 ? AppColors.primary : .secondary)
                 }
 
                 // Placements (Triathlon only)
-                if !isTetrathlon {
-                    Section("Placements") {
-                        HStack {
-                            Text("Individual")
-                            Spacer()
-                            TextField("—", text: $individualPlacementText)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 60)
-                        }
+                if isTriathlon {
+                    Divider()
 
-                        HStack {
-                            Text("Team")
-                            Spacer()
-                            TextField("—", text: $teamPlacementText)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 60)
-                        }
-                    }
-                }
-
-                // Total
-                Section("Total") {
                     HStack {
-                        Text("Total Points")
-                            .font(.headline)
+                        Text("Individual")
                         Spacer()
-                        Text(calculateTotalDisplay())
-                            .font(.headline)
-                            .foregroundStyle(AppColors.primary)
+                        TextField("—", text: $individualPlacementText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 50)
+                            .onChange(of: individualPlacementText) { _, _ in saveResults() }
+                    }
+
+                    HStack {
+                        Text("Team")
+                        Spacer()
+                        TextField("—", text: $teamPlacementText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 50)
+                            .onChange(of: teamPlacementText) { _, _ in saveResults() }
                     }
                 }
             }
-            .navigationTitle(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveResults() }
-                }
-            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .onAppear { loadExistingResults() }
         }
     }
 
+    @ViewBuilder
+    private func disciplineInputRow(for discipline: TriathlonDiscipline) -> some View {
+        VStack(spacing: 8) {
+            switch discipline {
+            case .shooting:
+                shootingRow()
+            case .swimming:
+                swimmingRow()
+            case .running:
+                runningRow()
+            case .riding:
+                ridingRow()
+            }
+        }
+    }
+
+    // MARK: - Shooting Row
+
+    @ViewBuilder
+    private func shootingRow() -> some View {
+        HStack(alignment: .center) {
+            // Icon and label
+            HStack(spacing: 8) {
+                Image(systemName: TriathlonDiscipline.shooting.icon)
+                    .frame(width: 24)
+                    .foregroundStyle(AppColors.primary)
+                Text("Shoot")
+                    .font(.subheadline)
+            }
+
+            Spacer()
+
+            // Input
+            HStack(spacing: 4) {
+                TextField("0", text: $shootingScoreText)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 50)
+                    .onChange(of: shootingScoreText) { _, _ in saveResults() }
+                Text("/100")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Points
+            if let score = Int(shootingScoreText), score > 0 {
+                Text(String(format: "%.0f", PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)))
+                    .font(.subheadline.monospacedDigit().bold())
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 50, alignment: .trailing)
+            } else {
+                Text("—")
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 50, alignment: .trailing)
+            }
+        }
+    }
+
+    // MARK: - Swimming Row
+
+    @ViewBuilder
+    private func swimmingRow() -> some View {
+        VStack(spacing: 6) {
+            // Main row
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Image(systemName: TriathlonDiscipline.swimming.icon)
+                        .frame(width: 24)
+                        .foregroundStyle(AppColors.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Swim")
+                            .font(.subheadline)
+                        Text(competition.level.formattedSwimDuration)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Distance display
+                Text("\(Int(swimDistance))m")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .trailing)
+
+                // Points
+                if swimDistance > 0 {
+                    Text(String(format: "%.0f", PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)))
+                        .font(.subheadline.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primary)
+                        .frame(width: 50, alignment: .trailing)
+                } else {
+                    Text("—")
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 50, alignment: .trailing)
+                }
+            }
+
+            // Swim inputs row
+            HStack(spacing: 12) {
+                Spacer()
+
+                // Pool length
+                HStack(spacing: 4) {
+                    Text("Pool:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: $poolLength) {
+                        Text("20m").tag(20.0)
+                        Text("25m").tag(25.0)
+                        Text("33m").tag(33.0)
+                        Text("50m").tag(50.0)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .onChange(of: poolLength) { _, _ in saveResults() }
+                }
+
+                // Lengths
+                HStack(spacing: 4) {
+                    Text("Lengths:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: $swimLengths) {
+                        ForEach(0..<21) { Text("\($0)").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .onChange(of: swimLengths) { _, _ in saveResults() }
+                }
+
+                // Extra meters
+                HStack(spacing: 4) {
+                    Text("+")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: $swimExtraMeters) {
+                        ForEach(0..<50) { Text("\($0)m").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .onChange(of: swimExtraMeters) { _, _ in saveResults() }
+                }
+            }
+        }
+    }
+
+    // MARK: - Running Row
+
+    @ViewBuilder
+    private func runningRow() -> some View {
+        HStack(alignment: .center) {
+            HStack(spacing: 8) {
+                Image(systemName: TriathlonDiscipline.running.icon)
+                    .frame(width: 24)
+                    .foregroundStyle(AppColors.primary)
+                Text("Run")
+                    .font(.subheadline)
+            }
+
+            Spacer()
+
+            // Time input
+            HStack(spacing: 2) {
+                Picker("", selection: $runMinutes) {
+                    ForEach(0..<20) { Text("\($0)").tag($0) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .onChange(of: runMinutes) { _, _ in saveResults() }
+
+                Text(":")
+                    .foregroundStyle(.secondary)
+
+                Picker("", selection: $runSeconds) {
+                    ForEach(0..<60) { Text(String(format: "%02d", $0)).tag($0) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .onChange(of: runSeconds) { _, _ in saveResults() }
+            }
+
+            // Points
+            let runTime = Double(runMinutes * 60 + runSeconds)
+            if runTime > 0 {
+                Text(String(format: "%.0f", PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)))
+                    .font(.subheadline.monospacedDigit().bold())
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 50, alignment: .trailing)
+            } else {
+                Text("—")
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 50, alignment: .trailing)
+            }
+        }
+    }
+
+    // MARK: - Riding Row
+
+    @ViewBuilder
+    private func ridingRow() -> some View {
+        HStack(alignment: .center) {
+            HStack(spacing: 8) {
+                Image(systemName: TriathlonDiscipline.riding.icon)
+                    .frame(width: 24)
+                    .foregroundStyle(AppColors.primary)
+                Text("Ride")
+                    .font(.subheadline)
+            }
+
+            Spacer()
+
+            // Penalties input
+            HStack(spacing: 4) {
+                TextField("0", text: $ridingPenalties)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 50)
+                    .onChange(of: ridingPenalties) { _, _ in saveResults() }
+                Text("pen")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Points
+            if let penalties = Double(ridingPenalties) {
+                Text(String(format: "%.0f", PonyClubScoringService.calculateRidingPoints(penalties: penalties)))
+                    .font(.subheadline.monospacedDigit().bold())
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 50, alignment: .trailing)
+            } else {
+                Text("—")
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 50, alignment: .trailing)
+            }
+        }
+    }
+
+    // MARK: - Load/Save
+
     private func loadExistingResults() {
-        // Shooting score is stored as /1000, display as /100
+        guard !hasLoaded else { return }
+        hasLoaded = true
+
+        // Shooting (stored as /1000, display as /100)
         if let score = competition.shootingScore {
             shootingScoreText = "\(score / 10)"
         }
 
-        // Load swimming distance - extract pool length, lengths, and extra meters
+        // Swimming distance
         if let distance = competition.swimmingDistance {
-            // Try common pool lengths to find a match
             let poolLengths: [Double] = [25, 20, 33, 50]
             var matched = false
             for pool in poolLengths {
-                let totalLengths = distance / pool
-                let wholeLengths = Int(totalLengths)
+                let wholeLengths = Int(distance / pool)
                 let extra = distance - (pool * Double(wholeLengths))
-
-                // Check if this pool length gives a reasonable result
                 if wholeLengths >= 0 && wholeLengths <= 20 && extra >= 0 && extra < pool {
                     poolLength = pool
                     swimLengths = wholeLengths
@@ -559,152 +402,82 @@ struct TriathlonResultsEditorView: View {
                     break
                 }
             }
-            // If no exact match found, default to 25m pool
             if !matched {
                 poolLength = 25
-                let wholeLengths = Int(distance / 25)
-                swimLengths = min(wholeLengths, 20)
-                swimExtraMeters = Int(distance - (25 * Double(swimLengths)))
+                swimLengths = min(Int(distance / 25), 20)
+                swimExtraMeters = Int(distance.truncatingRemainder(dividingBy: 25))
             }
         }
 
+        // Running
         if let time = competition.runningTime {
             runMinutes = Int(time) / 60
             runSeconds = Int(time) % 60
         }
 
+        // Riding
         if let penalties = competition.ridingScore {
             ridingPenalties = String(format: "%.1f", penalties)
         }
 
+        // Placements
         if let individual = competition.individualPlacement {
             individualPlacementText = "\(individual)"
         }
-
         if let team = competition.teamPlacement {
             teamPlacementText = "\(team)"
         }
     }
 
-    private func calculateTotalDisplay() -> String {
-        var total: Double = 0
-        var hasAny = false
-
-        // Shooting: multiply entered score by 10
-        if showDiscipline(.shooting), let enteredScore = Int(shootingScoreText) {
-            total += PonyClubScoringService.calculateShootingPoints(rawScore: enteredScore * 10)
-            hasAny = true
-        }
-
-        // Swimming: use fixed time from competition level
-        if showDiscipline(.swimming), swimDistance > 0 {
-            total += PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
-            hasAny = true
-        }
-
-        let runTime = Double(runMinutes * 60 + runSeconds)
-        if showDiscipline(.running), runTime > 0 {
-            total += PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)
-            hasAny = true
-        }
-
-        if showDiscipline(.riding), let penalties = Double(ridingPenalties) {
-            total += PonyClubScoringService.calculateRidingPoints(penalties: penalties)
-            hasAny = true
-        }
-
-        return hasAny ? String(format: "%.0f", total) : "—"
-    }
-
     private func saveResults() {
-        // Save raw results based on which disciplines are included
-        // Shooting: multiply entered score by 10 to get /1000 scale
-        if showDiscipline(.shooting), let enteredScore = Int(shootingScoreText) {
-            competition.shootingScore = enteredScore * 10
+        // Shooting
+        if showDiscipline(.shooting), let score = Int(shootingScoreText) {
+            competition.shootingScore = score * 10
+            competition.shootingPoints = PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)
         }
 
-        // Swimming: save distance and fixed time from level
+        // Swimming
         if showDiscipline(.swimming) {
             competition.swimmingDistance = swimDistance
-            competition.swimmingTime = swimTime  // Fixed time based on level
+            competition.swimmingTime = swimTime
+            if swimDistance > 0 {
+                competition.swimmingPoints = PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
+            }
         }
 
+        // Running
         if showDiscipline(.running) {
             let runTime = Double(runMinutes * 60 + runSeconds)
             competition.runningTime = runTime > 0 ? runTime : nil
+            if runTime > 0 {
+                competition.runningPoints = PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)
+            }
         }
 
-        if showDiscipline(.riding) {
-            competition.ridingScore = Double(ridingPenalties)
-        }
-
-        // Calculate and save points for included disciplines
-        if showDiscipline(.shooting), let score = competition.shootingScore {
-            competition.shootingPoints = PonyClubScoringService.calculateShootingPoints(rawScore: score)
-        }
-
-        if showDiscipline(.swimming), let time = competition.swimmingTime, let distance = competition.swimmingDistance {
-            competition.swimmingPoints = PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: time, distanceMeters: distance)
-        }
-
-        if showDiscipline(.running), let time = competition.runningTime {
-            competition.runningPoints = PonyClubScoringService.calculateRunningPoints(timeInSeconds: time)
-        }
-
-        if showDiscipline(.riding), let penalties = competition.ridingScore {
+        // Riding
+        if showDiscipline(.riding), let penalties = Double(ridingPenalties) {
+            competition.ridingScore = penalties
             competition.ridingPoints = PonyClubScoringService.calculateRidingPoints(penalties: penalties)
         }
 
-        // Calculate total - sum up only included disciplines
-        var total: Double = 0
-        var hasAllResults = true
-
-        if showDiscipline(.shooting) {
-            if let pts = competition.shootingPoints {
-                total += pts
-            } else {
-                hasAllResults = false
-            }
+        // Total
+        if totalPoints > 0 {
+            competition.storedTotalPoints = totalPoints
         }
 
-        if showDiscipline(.swimming) {
-            if let pts = competition.swimmingPoints {
-                total += pts
-            } else {
-                hasAllResults = false
-            }
-        }
-
-        if showDiscipline(.running) {
-            if let pts = competition.runningPoints {
-                total += pts
-            } else {
-                hasAllResults = false
-            }
-        }
-
-        if showDiscipline(.riding) {
-            if let pts = competition.ridingPoints {
-                total += pts
-            } else {
-                hasAllResults = false
-            }
-        }
-
-        if total > 0 {
-            competition.storedTotalPoints = total
-        }
-
-        // Save placements (Triathlon only)
-        if !isTetrathlon {
+        // Placements
+        if isTriathlon {
             competition.individualPlacement = Int(individualPlacementText)
             competition.teamPlacement = Int(teamPlacementText)
         }
 
-        // Mark as completed if all included discipline results are entered
-        competition.isCompleted = hasAllResults && total > 0
-
-        dismiss()
+        // Mark completed if all disciplines have results
+        var hasAll = true
+        if showDiscipline(.shooting) && competition.shootingPoints == nil { hasAll = false }
+        if showDiscipline(.swimming) && competition.swimmingPoints == nil { hasAll = false }
+        if showDiscipline(.running) && competition.runningPoints == nil { hasAll = false }
+        if showDiscipline(.riding) && competition.ridingPoints == nil { hasAll = false }
+        competition.isCompleted = hasAll && totalPoints > 0
     }
 }
 
@@ -712,21 +485,12 @@ struct TriathlonResultsEditorView: View {
     @Previewable @State var competition: Competition = {
         let comp = Competition()
         comp.competitionTypeRaw = "triathlon"
-        comp.shootingScore = 920
-        comp.shootingPoints = 920
-        comp.swimmingTime = 95.5
-        comp.swimmingDistance = 100
-        comp.swimmingPoints = 870
-        comp.runningTime = 378
-        comp.runningPoints = 904
-        comp.storedTotalPoints = 2694
-        comp.individualPlacement = 3
-        comp.teamPlacement = 1
+        comp.levelRaw = "Junior"
         return comp
     }()
 
-    VStack {
+    ScrollView {
         DisciplineScoreCardView(competition: competition)
+            .padding()
     }
-    .padding()
 }
