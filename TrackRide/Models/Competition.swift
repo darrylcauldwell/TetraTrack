@@ -366,6 +366,11 @@ final class Competition {
     // Todo list for follow-up tasks
     var todosData: Data?  // JSON encoded CompetitionTodo array
 
+    // Weather tracking
+    var weatherData: Data?  // Encoded WeatherConditions at competition
+
+    @Transient private var _cachedWeather: WeatherConditions??
+
     @Transient var todos: [CompetitionTodo] {
         get {
             guard let data = todosData else { return [] }
@@ -378,6 +383,25 @@ final class Competition {
 
     var pendingTodosCount: Int {
         todos.filter { !$0.isCompleted }.count
+    }
+
+    /// Decoded weather conditions at competition (cached to avoid repeated JSON decoding)
+    var weather: WeatherConditions? {
+        get {
+            if let cached = _cachedWeather { return cached }
+            guard let data = weatherData else { return nil }
+            let decoded = try? JSONDecoder().decode(WeatherConditions.self, from: data)
+            _cachedWeather = .some(decoded)
+            return decoded
+        }
+        set {
+            weatherData = try? JSONEncoder().encode(newValue)
+            _cachedWeather = .some(newValue)
+        }
+    }
+
+    var hasWeatherData: Bool {
+        weather != nil
     }
 
     // Showjumping classes - JSON encoded array of ShowjumpingClass

@@ -62,7 +62,8 @@ struct RegionDownloadView: View {
                             region: region,
                             isDownloaded: isDownloaded(region),
                             downloadProgress: routePlanning.activeDownloads[region.id],
-                            onDownload: { downloadRegion(region) }
+                            onDownload: { downloadRegion(region) },
+                            onCancel: { cancelActiveDownload(region.id) }
                         )
                     }
                 }
@@ -177,6 +178,13 @@ struct RegionDownloadView: View {
             loadIncompleteDownloads()
         }
     }
+
+    private func cancelActiveDownload(_ regionId: String) {
+        Task {
+            await routePlanning.cancelDownload(regionId)
+            loadIncompleteDownloads()
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -219,6 +227,7 @@ private struct AvailableRegionRow: View {
     let isDownloaded: Bool
     let downloadProgress: OSMDataManager.DownloadProgress?
     let onDownload: () -> Void
+    let onCancel: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -246,7 +255,12 @@ private struct AvailableRegionRow: View {
                             .font(.title2)
                             .foregroundStyle(.red)
                     default:
-                        EmptyView()
+                        // Show cancel button during active download
+                        Button(action: onCancel) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } else {
                     Button(action: onDownload) {
@@ -268,9 +282,15 @@ private struct AvailableRegionRow: View {
                 if progress.phase != .complete && progress.phase != .failed {
                     VStack(alignment: .leading, spacing: 2) {
                         ProgressView(value: progress.progress)
-                        Text(progress.message)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        HStack {
+                            Text(progress.message)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Cancel", action: onCancel)
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
             }

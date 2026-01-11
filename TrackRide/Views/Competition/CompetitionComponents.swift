@@ -442,6 +442,9 @@ struct CompetitionDetailView: View {
     @State private var showingScorecard = false
     @State private var showingMediaEditor = false
 
+    // User activity for Maps and Siri integration
+    @State private var userActivity: NSUserActivity?
+
     // Auto-discovered photos and videos from competition days
     @State private var discoveredPhotos: [PHAsset] = []
     @State private var discoveredVideos: [PHAsset] = []
@@ -485,16 +488,18 @@ struct CompetitionDetailView: View {
                         DetailRow(icon: "calendar", title: "Date", value: competition.formattedDateRange)
                         DetailRow(icon: "mappin", title: "Venue", value: competition.venue.isEmpty ? "Not set" : competition.venue)
 
-                        // Map view for venue (if coordinates available)
+                        // Map view for venue (if coordinates available) - static, non-interactive
                         if let lat = competition.venueLatitude, let lon = competition.venueLongitude {
                             Map(initialPosition: .region(MKCoordinateRegion(
                                 center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
                             ))) {
                                 Marker(competition.venue.isEmpty ? "Venue" : competition.venue, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
                             }
                             .frame(height: 150)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .disabled(true)
+                            .allowsHitTesting(false)
                         }
 
                         if let deadline = competition.entryDeadline {
@@ -574,6 +579,12 @@ struct CompetitionDetailView: View {
                     // Dressage Classes & Results (only for dressage competitions)
                     if competition.competitionType == .dressage {
                         DressageResultsView(competition: competition)
+                            .padding(.horizontal)
+                    }
+
+                    // Weather conditions (for completed competitions with weather data)
+                    if competition.isCompleted, let weather = competition.weather {
+                        CompetitionWeatherView(weather: weather)
                             .padding(.horizontal)
                     }
 
@@ -670,31 +681,30 @@ struct CompetitionDetailView: View {
                             .background(AppColors.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         } else {
-                            // Media thumbnail preview
+                            // Media thumbnail preview (preserve original aspect ratios)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     // Auto-discovered photos
                                     ForEach(discoveredPhotos.prefix(3), id: \.localIdentifier) { asset in
-                                        PhotoThumbnail(asset: asset)
-                                            .frame(width: 60, height: 80)
+                                        PhotoThumbnail(asset: asset, preserveAspectRatio: true, maxHeight: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                     }
                                     // Auto-discovered videos
                                     ForEach(discoveredVideos.prefix(2), id: \.localIdentifier) { asset in
-                                        VideoThumbnail(asset: asset)
-                                            .frame(width: 60, height: 80)
+                                        VideoThumbnail(asset: asset, preserveAspectRatio: true, maxHeight: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                             .onTapGesture {
                                                 selectedVideo = asset
                                             }
                                     }
-                                    // Manually added photos (stored as Data)
+                                    // Manually added photos (stored as Data) - preserve aspect ratio
                                     ForEach(Array(competition.photos.prefix(2).enumerated()), id: \.offset) { index, photoData in
                                         if let uiImage = UIImage(data: photoData) {
+                                            let aspectRatio = uiImage.size.width / uiImage.size.height
                                             Image(uiImage: uiImage)
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fill)
-                                                .frame(width: 60, height: 80)
+                                                .frame(width: 80 * aspectRatio, height: 80)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                         }
                                     }
@@ -778,6 +788,17 @@ struct CompetitionDetailView: View {
             }
             .task {
                 await loadMedia()
+            }
+            .onAppear {
+                // Donate user activity for Maps and Siri Suggestions
+                let activity = CompetitionUserActivityService.shared.createActivity(for: competition)
+                activity.becomeCurrent()
+                userActivity = activity
+            }
+            .onDisappear {
+                // Resign activity when leaving the view
+                userActivity?.resignCurrent()
+                userActivity = nil
             }
             .confirmationDialog("Delete Competition", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
@@ -2125,71 +2146,70 @@ struct CompetitionMediaFullGalleryView: View {
     @State private var selectedPhoto: PHAsset?
     @State private var selectedVideo: PHAsset?
 
+    // Two columns for better aspect ratio display
     private let columns = [
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2)
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
     ]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Auto-discovered Photos
+                // Auto-discovered Photos (preserve aspect ratio)
                 if !discoveredPhotos.isEmpty {
                     Text("Photos from Competition (\(discoveredPhotos.count))")
                         .font(.headline)
                         .padding(.horizontal)
 
-                    LazyVGrid(columns: columns, spacing: 2) {
+                    LazyVGrid(columns: columns, spacing: 8) {
                         ForEach(discoveredPhotos, id: \.localIdentifier) { asset in
-                            PhotoThumbnail(asset: asset)
-                                .aspectRatio(1, contentMode: .fill)
-                                .clipped()
+                            AspectRatioPhotoThumbnail(asset: asset)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .onTapGesture {
                                     selectedPhoto = asset
                                 }
                         }
                     }
+                    .padding(.horizontal, 8)
                 }
 
-                // Auto-discovered Videos
+                // Auto-discovered Videos (preserve aspect ratio)
                 if !discoveredVideos.isEmpty {
                     Text("Videos from Competition (\(discoveredVideos.count))")
                         .font(.headline)
                         .padding(.horizontal)
                         .padding(.top, discoveredPhotos.isEmpty ? 0 : 8)
 
-                    LazyVGrid(columns: columns, spacing: 2) {
+                    LazyVGrid(columns: columns, spacing: 8) {
                         ForEach(discoveredVideos, id: \.localIdentifier) { asset in
-                            VideoThumbnail(asset: asset)
-                                .aspectRatio(1, contentMode: .fill)
-                                .clipped()
+                            AspectRatioVideoThumbnail(asset: asset)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .onTapGesture {
                                     selectedVideo = asset
                                 }
                         }
                     }
+                    .padding(.horizontal, 8)
                 }
 
-                // Manually added photos
+                // Manually added photos (preserve aspect ratio)
                 if !competition.photos.isEmpty {
                     Text("Added Photos (\(competition.photos.count))")
                         .font(.headline)
                         .padding(.horizontal)
                         .padding(.top, 8)
 
-                    LazyVGrid(columns: columns, spacing: 2) {
+                    LazyVGrid(columns: columns, spacing: 8) {
                         ForEach(Array(competition.photos.enumerated()), id: \.offset) { index, photoData in
                             if let uiImage = UIImage(data: photoData) {
                                 Image(uiImage: uiImage)
                                     .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(minWidth: 0, maxWidth: .infinity)
-                                    .aspectRatio(1, contentMode: .fill)
-                                    .clipped()
+                                    .aspectRatio(contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }
                     }
+                    .padding(.horizontal, 8)
                 }
 
                 // Multi-day info
@@ -2215,6 +2235,159 @@ struct CompetitionMediaFullGalleryView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+    }
+}
+
+// MARK: - Aspect Ratio Preserving Thumbnails for Gallery
+
+/// Photo thumbnail that preserves original aspect ratio for gallery views
+struct AspectRatioPhotoThumbnail: View {
+    let asset: PHAsset
+
+    @State private var image: UIImage?
+    private let photoService = RidePhotoService.shared
+
+    private var aspectRatio: CGFloat {
+        guard asset.pixelHeight > 0 else { return 1 }
+        return CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
+    }
+
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(aspectRatio, contentMode: .fit)
+            } else {
+                Rectangle()
+                    .fill(Color(.secondarySystemBackground))
+                    .aspectRatio(aspectRatio, contentMode: .fit)
+                    .overlay {
+                        ProgressView()
+                    }
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() async {
+        if let cached = photoService.getCachedThumbnail(for: asset.localIdentifier) {
+            self.image = cached
+            return
+        }
+
+        let size = CGSize(width: 400, height: 400)
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: size,
+            contentMode: .aspectFit,
+            options: options
+        ) { result, _ in
+            if let result = result {
+                photoService.cacheThumbnail(result, for: asset.localIdentifier)
+                Task { @MainActor in
+                    self.image = result
+                }
+            }
+        }
+    }
+}
+
+/// Video thumbnail that preserves original aspect ratio for gallery views
+struct AspectRatioVideoThumbnail: View {
+    let asset: PHAsset
+
+    @State private var image: UIImage?
+    private let photoService = RidePhotoService.shared
+
+    private var aspectRatio: CGFloat {
+        guard asset.pixelHeight > 0 else { return 16.0 / 9.0 }
+        return CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
+    }
+
+    var body: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(aspectRatio, contentMode: .fit)
+            } else {
+                Rectangle()
+                    .fill(Color(.secondarySystemBackground))
+                    .aspectRatio(aspectRatio, contentMode: .fit)
+                    .overlay {
+                        ProgressView()
+                    }
+            }
+
+            // Play icon overlay
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(.white)
+                .shadow(radius: 2)
+
+            // Duration badge
+            if asset.duration > 0 {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Text(formatDuration(asset.duration))
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(.black.opacity(0.6))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .padding(6)
+                    }
+                }
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() async {
+        if let cached = photoService.getCachedThumbnail(for: asset.localIdentifier) {
+            self.image = cached
+            return
+        }
+
+        let size = CGSize(width: 400, height: 400)
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: size,
+            contentMode: .aspectFit,
+            options: options
+        ) { result, _ in
+            if let result = result {
+                photoService.cacheThumbnail(result, for: asset.localIdentifier)
+                Task { @MainActor in
+                    self.image = result
+                }
+            }
+        }
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
@@ -2894,5 +3067,15 @@ struct DressageClassResultEditor: View {
         updated.entryStatus = .completed
 
         onSave(updated)
+    }
+}
+
+// MARK: - Competition Weather View
+
+struct CompetitionWeatherView: View {
+    let weather: WeatherConditions
+
+    var body: some View {
+        WeatherDetailView(weather: weather, title: "Weather Conditions")
     }
 }

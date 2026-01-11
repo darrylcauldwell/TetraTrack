@@ -183,6 +183,56 @@ extension IntelligenceService {
     }
 }
 
+// MARK: - Competition Insights (Apple Intelligence)
+
+@available(iOS 26.0, *)
+extension IntelligenceService {
+    /// Generate performance summary for triathlon/tetrathlon competitions
+    func generateCompetitionPerformanceSummary(stats: CompetitionStatistics) async throws -> CompetitionPerformanceSummary {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildCompetitionPerformancePrompt(stats)
+        let response = try await session.respond(to: prompt, generating: CompetitionPerformanceSummary.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze trends across competition data
+    func analyzeCompetitionTrends(competitions: [Competition]) async throws -> CompetitionTrendAnalysis {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildCompetitionTrendsPrompt(competitions)
+        let response = try await session.respond(to: prompt, generating: CompetitionTrendAnalysis.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze weather impact on competition performance
+    func analyzeWeatherImpact(competitions: [Competition]) async throws -> WeatherImpactAnalysis {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildWeatherImpactPrompt(competitions)
+        let response = try await session.respond(to: prompt, generating: WeatherImpactAnalysis.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+}
+
 // MARK: - Prompt Builders
 
 @available(iOS 26.0, *)
@@ -386,6 +436,134 @@ private extension IntelligenceService {
         Use shooting terminology appropriate for tetrathlon pistol shooting. Be encouraging but honest.
         """
     }
+
+    // MARK: - Competition Prompt Builders
+
+    func buildCompetitionPerformancePrompt(_ stats: CompetitionStatistics) -> String {
+        var disciplineInfo = ""
+        if stats.averageShootingPoints > 0 {
+            disciplineInfo += "- Shooting: avg \(String(format: "%.0f", stats.averageShootingPoints)) pts"
+            if let best = stats.bestShooting {
+                disciplineInfo += " (PB: \(best.formattedValue) at \(best.venue))"
+            }
+            disciplineInfo += "\n"
+        }
+        if stats.averageSwimmingPoints > 0 {
+            disciplineInfo += "- Swimming: avg \(String(format: "%.0f", stats.averageSwimmingPoints)) pts"
+            if let best = stats.bestSwimming {
+                disciplineInfo += " (PB: \(best.formattedValue) at \(best.venue))"
+            }
+            disciplineInfo += "\n"
+        }
+        if stats.averageRunningPoints > 0 {
+            disciplineInfo += "- Running: avg \(String(format: "%.0f", stats.averageRunningPoints)) pts"
+            if let best = stats.bestRunning {
+                disciplineInfo += " (PB: \(best.formattedValue) at \(best.venue))"
+            }
+            disciplineInfo += "\n"
+        }
+        if stats.averageRidingPoints > 0 {
+            disciplineInfo += "- Riding: avg \(String(format: "%.0f", stats.averageRidingPoints)) pts"
+            if let best = stats.bestRiding {
+                disciplineInfo += " (PB: \(best.formattedValue) at \(best.venue))"
+            }
+            disciplineInfo += "\n"
+        }
+
+        return """
+        Generate a performance summary for this Pony Club tetrathlon/triathlon competitor:
+
+        Completed competitions: \(stats.completedCompetitions)
+        Tetrathlons: \(stats.tetrathlonCount)
+        Triathlons: \(stats.triathlonCount)
+        Average total points: \(String(format: "%.0f", stats.averageTotalPoints))
+        Best total points: \(stats.bestTotal?.formattedValue ?? "N/A") at \(stats.bestTotal?.venue ?? "unknown")
+
+        Discipline breakdown:
+        \(disciplineInfo)
+
+        Provide a brief, encouraging 2-3 sentence summary highlighting:
+        1. Overall performance level
+        2. Strongest discipline (contributes most to score)
+        3. One encouraging observation about their progress
+        """
+    }
+
+    func buildCompetitionTrendsPrompt(_ competitions: [Competition]) -> String {
+        let completedComps = competitions.filter { $0.isCompleted }.sorted { $0.date < $1.date }
+        guard completedComps.count >= 2 else {
+            return "Not enough data for trend analysis. Need at least 2 completed competitions."
+        }
+
+        var compList = ""
+        for comp in completedComps.suffix(10) {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .short
+            let date = dateFormatter.string(from: comp.date)
+            let venue = comp.venue.isEmpty ? "Unknown" : comp.venue
+            let total = comp.storedTotalPoints ?? 0
+
+            compList += "- \(date) at \(venue): \(String(format: "%.0f", total)) pts"
+            if let shooting = comp.shootingPoints { compList += ", Shoot: \(String(format: "%.0f", shooting))" }
+            if let swimming = comp.swimmingPoints { compList += ", Swim: \(String(format: "%.0f", swimming))" }
+            if let running = comp.runningPoints { compList += ", Run: \(String(format: "%.0f", running))" }
+            if let riding = comp.ridingPoints { compList += ", Ride: \(String(format: "%.0f", riding))" }
+            compList += "\n"
+        }
+
+        return """
+        Analyze trends in this tetrathlon/triathlon competitor's recent performances:
+
+        Recent competitions (oldest to newest):
+        \(compList)
+
+        Identify:
+        1. Overall scoring trend (improving, maintaining, declining)
+        2. Which disciplines are improving most
+        3. Any patterns (better at certain venues, seasonal variations)
+        4. One specific observation that could help the athlete
+
+        Be concise and insightful. Focus on actionable patterns.
+        """
+    }
+
+    func buildWeatherImpactPrompt(_ competitions: [Competition]) -> String {
+        let compsWithWeather = competitions.filter { $0.isCompleted && $0.hasWeatherData }
+        guard compsWithWeather.count >= 2 else {
+            return "Not enough weather data for analysis. Need at least 2 competitions with recorded weather."
+        }
+
+        var weatherData = ""
+        for comp in compsWithWeather.suffix(10) {
+            guard let weather = comp.weather else { continue }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .short
+            let date = dateFormatter.string(from: comp.date)
+            let total = comp.storedTotalPoints ?? 0
+
+            weatherData += "- \(date): \(String(format: "%.0f", total)) pts | "
+            weatherData += "Temp: \(weather.formattedTemperature), "
+            weatherData += "Wind: \(weather.formattedWindSpeed), "
+            weatherData += "Conditions: \(weather.condition)"
+            if let riding = comp.ridingPoints { weatherData += " | Riding: \(String(format: "%.0f", riding))" }
+            weatherData += "\n"
+        }
+
+        return """
+        Analyze how weather affects this tetrathlon/triathlon competitor's performance:
+
+        Competition data with weather:
+        \(weatherData)
+
+        Consider:
+        1. Does temperature affect performance?
+        2. Do wind conditions impact scores (especially riding)?
+        3. Are there patterns in wet vs dry conditions?
+        4. Any recommendations for adapting to different weather?
+
+        Provide brief, practical insights about weather impact. Focus on patterns that could help preparation.
+        """
+    }
 }
 
 // MARK: - Generable Types for Guided Generation
@@ -572,6 +750,65 @@ struct ShootingCoachingInsights: Codable, Sendable {
     /// Confidence level in the analysis (1-5)
     let confidenceLevel: Int
 }
+
+// MARK: - Competition Insight Types (Apple Intelligence)
+
+@available(iOS 26.0, *)
+@Generable
+struct CompetitionPerformanceSummary: Codable, Sendable {
+    /// Brief 2-3 sentence performance summary
+    let summary: String
+
+    /// The athlete's strongest discipline
+    let strongestDiscipline: String
+
+    /// Percentage contribution of strongest discipline
+    let strongestContribution: Int
+
+    /// Overall performance level (beginner, intermediate, advanced, elite)
+    let performanceLevel: String
+
+    /// Encouraging observation
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct CompetitionTrendAnalysis: Codable, Sendable {
+    /// Overall trend direction (improving, maintaining, declining)
+    let overallTrend: String
+
+    /// Brief trend summary
+    let summary: String
+
+    /// Disciplines showing most improvement
+    let improvingDisciplines: [String]
+
+    /// Identified patterns
+    let patterns: [String]
+
+    /// Actionable insight for the athlete
+    let actionableInsight: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct WeatherImpactAnalysis: Codable, Sendable {
+    /// Brief summary of weather impact
+    let summary: String
+
+    /// Best performing conditions
+    let bestConditions: String
+
+    /// Challenging conditions identified
+    let challengingConditions: String
+
+    /// Weather-related patterns
+    let patterns: [String]
+
+    /// Practical recommendations
+    let recommendations: [String]
+}
 #else
 // Fallback types when Foundation Models not available
 struct RideSummary: Codable, Sendable {
@@ -650,6 +887,31 @@ struct ShootingCoachingInsights: Codable, Sendable {
     let recommendedDrills: [String]
     let encouragement: String
     let confidenceLevel: Int
+}
+
+// Competition insight fallback types
+struct CompetitionPerformanceSummary: Codable, Sendable {
+    let summary: String
+    let strongestDiscipline: String
+    let strongestContribution: Int
+    let performanceLevel: String
+    let encouragement: String
+}
+
+struct CompetitionTrendAnalysis: Codable, Sendable {
+    let overallTrend: String
+    let summary: String
+    let improvingDisciplines: [String]
+    let patterns: [String]
+    let actionableInsight: String
+}
+
+struct WeatherImpactAnalysis: Codable, Sendable {
+    let summary: String
+    let bestConditions: String
+    let challengingConditions: String
+    let patterns: [String]
+    let recommendations: [String]
 }
 #endif
 

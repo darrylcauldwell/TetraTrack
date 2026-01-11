@@ -6,10 +6,14 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 /// Inline editable score card for entering and displaying discipline results
 struct DisciplineScoreCardView: View {
     @Bindable var competition: Competition
+
+    // Weather service for auto-fetching weather on completion
+    private let weatherService = WeatherService.shared
 
     // Input state for each discipline
     @State private var shootingScoreText: String = ""
@@ -631,7 +635,34 @@ struct DisciplineScoreCardView: View {
         if showDiscipline(.swimming) && competition.swimmingPoints == nil { hasAll = false }
         if showDiscipline(.running) && competition.runningPoints == nil { hasAll = false }
         if showDiscipline(.riding) && competition.ridingPoints == nil { hasAll = false }
+
+        let wasCompleted = competition.isCompleted
         competition.isCompleted = hasAll && totalPoints > 0
+
+        // Auto-fetch weather when competition becomes completed
+        if !wasCompleted && competition.isCompleted && !competition.hasWeatherData {
+            fetchWeatherForCompletion()
+        }
+    }
+
+    /// Fetch weather conditions for the competition venue
+    private func fetchWeatherForCompletion() {
+        guard let lat = competition.venueLatitude,
+              let lon = competition.venueLongitude else { return }
+
+        let location = CLLocation(latitude: lat, longitude: lon)
+
+        Task {
+            do {
+                let weather = try await weatherService.fetchWeather(for: location)
+                await MainActor.run {
+                    competition.weather = weather
+                }
+            } catch {
+                // Weather fetch failed silently - not critical for completion
+                print("Weather fetch failed: \(error.localizedDescription)")
+            }
+        }
     }
 }
 

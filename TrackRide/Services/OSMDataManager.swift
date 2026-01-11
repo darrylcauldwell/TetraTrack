@@ -18,6 +18,9 @@ final class OSMDataManager {
     /// Currently downloading regions
     private(set) var activeDownloads: [String: DownloadProgress] = [:]
 
+    /// Active download tasks for cancellation
+    private var downloadTasks: [String: Task<Void, Never>] = [:]
+
     /// Last error message
     private(set) var lastError: String?
 
@@ -155,63 +158,83 @@ final class OSMDataManager {
         logger.info("Starting Overpass API download for region: \(region.id)")
         activeDownloads[region.id] = .initial
 
-        do {
-            // Fetch data via Overpass API (no PBF file needed)
-            updateProgress(region.id, phase: .downloading, progress: 0, message: "Fetching bridleway data...")
+        // Store the download task for potential cancellation
+        let downloadTask = Task { @MainActor in
+            do {
+                try await self.performDownload(region: region, context: context, container: container)
+            } catch is CancellationError {
+                self.logger.info("Download cancelled for region: \(region.id)")
+                self.updateProgress(region.id, phase: .failed, progress: 0, message: "Cancelled")
+                self.activeDownloads.removeValue(forKey: region.id)
+            } catch {
+                self.logger.error("Region download failed: \(error.localizedDescription)")
+                self.updateProgress(region.id, phase: .failed, progress: 0, message: error.localizedDescription)
+                self.lastError = error.localizedDescription
 
-            let fetcher = OverpassDataFetcher(regionId: region.id, displayName: region.displayName, modelContainer: container)
-            let bounds = (minLat: region.minLat, maxLat: region.maxLat, minLon: region.minLon, maxLon: region.maxLon)
-
-            let (nodeCount, edgeCount) = try await fetcher.fetch(bounds: bounds) { progress, message in
-                Task { @MainActor in
-                    let phase: DownloadProgress.Phase = progress < 0.4 ? .downloading : (progress < 0.8 ? .parsing : .indexing)
-                    self.updateProgress(region.id, phase: phase, progress: progress, message: message)
+                // Remove failed download from active list after delay
+                _ = Task {
+                    try? await Task.sleep(for: .seconds(5))
+                    await MainActor.run {
+                        self.activeDownloads.removeValue(forKey: region.id)
+                    }
                 }
             }
 
-            // Create region metadata
-            updateProgress(region.id, phase: .indexing, progress: 0.95, message: "Finalizing...")
-            let downloadedRegion = DownloadedRegion(regionId: region.id, displayName: region.displayName)
-            downloadedRegion.nodeCount = nodeCount
-            downloadedRegion.edgeCount = edgeCount
-            downloadedRegion.minLat = region.minLat
-            downloadedRegion.maxLat = region.maxLat
-            downloadedRegion.minLon = region.minLon
-            downloadedRegion.maxLon = region.maxLon
-            downloadedRegion.isComplete = true
+            // Clean up task reference
+            self.downloadTasks.removeValue(forKey: region.id)
+        }
 
-            // Calculate storage size based on node count (avoid expensive fetch)
-            downloadedRegion.fileSizeBytes = Int64(nodeCount * 200)
+        downloadTasks[region.id] = downloadTask
+    }
 
-            context.insert(downloadedRegion)
-            try context.save()
+    /// Internal download implementation that can be cancelled
+    private func performDownload(region: AvailableRegion, context: ModelContext, container: ModelContainer) async throws {
+        // Fetch data via Overpass API (no PBF file needed)
+        updateProgress(region.id, phase: .downloading, progress: 0, message: "Fetching bridleway data...")
 
-            // Complete
-            updateProgress(region.id, phase: .complete, progress: 1.0, message: "Ready")
-            logger.info("Region download complete: \(region.id) - \(nodeCount) nodes, \(edgeCount) edges")
+        // Check for cancellation before starting
+        try Task.checkCancellation()
 
-            // Remove from active downloads after a delay
-            _ = Task {
-                try? await Task.sleep(for: .seconds(2))
-                await MainActor.run {
-                    self.activeDownloads.removeValue(forKey: region.id)
-                }
+        let fetcher = OverpassDataFetcher(regionId: region.id, displayName: region.displayName, modelContainer: container)
+        let bounds = (minLat: region.minLat, maxLat: region.maxLat, minLon: region.minLon, maxLon: region.maxLon)
+
+        let (nodeCount, edgeCount) = try await fetcher.fetch(bounds: bounds) { progress, message in
+            Task { @MainActor in
+                let phase: DownloadProgress.Phase = progress < 0.4 ? .downloading : (progress < 0.8 ? .parsing : .indexing)
+                self.updateProgress(region.id, phase: phase, progress: progress, message: message)
             }
+        }
 
-        } catch {
-            logger.error("Region download failed: \(error.localizedDescription)")
-            updateProgress(region.id, phase: .failed, progress: 0, message: error.localizedDescription)
-            lastError = error.localizedDescription
+        // Check for cancellation before finalizing
+        try Task.checkCancellation()
 
-            // Remove failed download from active list after delay
-            _ = Task {
-                try? await Task.sleep(for: .seconds(5))
-                await MainActor.run {
-                    self.activeDownloads.removeValue(forKey: region.id)
-                }
+        // Create region metadata
+        updateProgress(region.id, phase: .indexing, progress: 0.95, message: "Finalizing...")
+        let downloadedRegion = DownloadedRegion(regionId: region.id, displayName: region.displayName)
+        downloadedRegion.nodeCount = nodeCount
+        downloadedRegion.edgeCount = edgeCount
+        downloadedRegion.minLat = region.minLat
+        downloadedRegion.maxLat = region.maxLat
+        downloadedRegion.minLon = region.minLon
+        downloadedRegion.maxLon = region.maxLon
+        downloadedRegion.isComplete = true
+
+        // Calculate storage size based on node count (avoid expensive fetch)
+        downloadedRegion.fileSizeBytes = Int64(nodeCount * 200)
+
+        context.insert(downloadedRegion)
+        try context.save()
+
+        // Complete
+        updateProgress(region.id, phase: .complete, progress: 1.0, message: "Ready")
+        logger.info("Region download complete: \(region.id) - \(nodeCount) nodes, \(edgeCount) edges")
+
+        // Remove from active downloads after a delay
+        _ = Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                self.activeDownloads.removeValue(forKey: region.id)
             }
-
-            throw error
         }
     }
 
@@ -550,6 +573,13 @@ final class OSMDataManager {
 
     /// Cancel and clean up an in-progress or incomplete download
     func cancelDownload(_ regionId: String) async {
+        // Cancel the running task if any
+        if let task = downloadTasks[regionId] {
+            task.cancel()
+            downloadTasks.removeValue(forKey: regionId)
+            logger.info("Cancelled download task for \(regionId)")
+        }
+
         activeDownloads.removeValue(forKey: regionId)
         await cleanupOrphanedData(for: regionId)
     }

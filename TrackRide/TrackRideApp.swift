@@ -141,7 +141,11 @@ struct TrackRideApp: App {
             // App became active - restore download state from persistence
             // This ensures UI shows correct state if a download completed/failed while in background
             ServiceContainer.shared.routePlanning.restoreDownloadState()
-            Log.app.info("App became active - restored download state")
+
+            // Re-index competitions for Maps and Siri Suggestions
+            indexUpcomingCompetitions()
+
+            Log.app.info("App became active - restored download state and re-indexed competitions")
 
         @unknown default:
             break
@@ -165,7 +169,26 @@ struct TrackRideApp: App {
         // Configure route planning service
         ServiceContainer.shared.routePlanning.configure(with: sharedModelContainer.mainContext, container: sharedModelContainer)
 
+        // Index upcoming competitions for Maps and Siri Suggestions
+        indexUpcomingCompetitions()
+
         isConfigured = true
+    }
+
+    private func indexUpcomingCompetitions() {
+        let context = sharedModelContainer.mainContext
+        let now = Date()
+        let descriptor = FetchDescriptor<Competition>(
+            predicate: #Predicate<Competition> { $0.isEntered && $0.date > now },
+            sortBy: [SortDescriptor(\.date)]
+        )
+
+        do {
+            let competitions = try context.fetch(descriptor)
+            CompetitionUserActivityService.shared.indexUpcomingCompetitions(competitions)
+        } catch {
+            Log.app.error("Failed to fetch competitions for indexing: \(error)")
+        }
     }
 
     private func announceCurrentStatus() {

@@ -293,27 +293,56 @@ struct RideMediaEditorView: View {
 
 struct PhotoThumbnail: View {
     let asset: PHAsset
+    var preserveAspectRatio: Bool = false
+    var maxHeight: CGFloat = 80
 
     @State private var image: UIImage?
     private let photoService = RidePhotoService.shared
 
+    /// Calculate the aspect ratio from the asset's pixel dimensions
+    private var assetAspectRatio: CGFloat {
+        guard asset.pixelHeight > 0 else { return 1 }
+        return CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: geometry.size.width)
-                    .clipped()
+        Group {
+            if preserveAspectRatio {
+                // Preserve original aspect ratio
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color(.secondarySystemBackground))
+                        .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
+                        .overlay {
+                            ProgressView()
+                        }
+                }
             } else {
-                Rectangle()
-                    .fill(Color(.secondarySystemBackground))
-                    .overlay {
-                        ProgressView()
+                // Square thumbnail (original behavior)
+                GeometryReader { geometry in
+                    if let image = image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.width)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Color(.secondarySystemBackground))
+                            .overlay {
+                                ProgressView()
+                            }
                     }
+                }
+                .aspectRatio(1, contentMode: .fit)
             }
         }
-        .aspectRatio(1, contentMode: .fit)
         .task {
             await loadThumbnail()
         }
@@ -436,54 +465,111 @@ struct PhotoDetailView: View {
 
 struct VideoThumbnail: View {
     let asset: PHAsset
+    var preserveAspectRatio: Bool = false
+    var maxHeight: CGFloat = 80
 
     @State private var image: UIImage?
     private let photoService = RidePhotoService.shared
 
+    /// Calculate the aspect ratio from the asset's pixel dimensions
+    private var assetAspectRatio: CGFloat {
+        guard asset.pixelHeight > 0 else { return 16.0 / 9.0 }
+        return CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                if let image = image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.width)
-                        .clipped()
-                } else {
-                    Rectangle()
-                        .fill(Color(.secondarySystemBackground))
-                        .overlay {
-                            ProgressView()
-                        }
-                }
+        Group {
+            if preserveAspectRatio {
+                // Preserve original aspect ratio
+                ZStack {
+                    if let image = image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Color(.secondarySystemBackground))
+                            .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
+                            .overlay {
+                                ProgressView()
+                            }
+                    }
 
-                // Play icon overlay
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.white)
-                    .shadow(radius: 2)
+                    // Play icon overlay
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
 
-                // Duration badge
-                if asset.duration > 0 {
-                    VStack {
-                        Spacer()
-                        HStack {
+                    // Duration badge
+                    if asset.duration > 0 {
+                        VStack {
                             Spacer()
-                            Text(formatDuration(asset.duration))
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 2)
-                                .background(.black.opacity(0.6))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .padding(4)
+                            HStack {
+                                Spacer()
+                                Text(formatDuration(asset.duration))
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(.black.opacity(0.6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .padding(4)
+                            }
+                        }
+                        .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
+                    }
+                }
+            } else {
+                // Square thumbnail (original behavior)
+                GeometryReader { geometry in
+                    ZStack {
+                        if let image = image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: geometry.size.width)
+                                .clipped()
+                        } else {
+                            Rectangle()
+                                .fill(Color(.secondarySystemBackground))
+                                .overlay {
+                                    ProgressView()
+                                }
+                        }
+
+                        // Play icon overlay
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 2)
+
+                        // Duration badge
+                        if asset.duration > 0 {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Text(formatDuration(asset.duration))
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 2)
+                                        .background(.black.opacity(0.6))
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        .padding(4)
+                                }
+                            }
                         }
                     }
                 }
+                .aspectRatio(1, contentMode: .fit)
             }
         }
-        .aspectRatio(1, contentMode: .fit)
         .task {
             await loadThumbnail()
         }

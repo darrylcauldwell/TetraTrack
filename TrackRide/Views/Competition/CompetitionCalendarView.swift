@@ -264,6 +264,11 @@ struct CompetitionCalendarView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 16) {
+                        // Statistics button
+                        NavigationLink(destination: CompetitionStatsView()) {
+                            Image(systemName: "chart.bar.xaxis")
+                        }
+
                         // Filter button
                         Button {
                             showingFilters = true

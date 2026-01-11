@@ -112,11 +112,17 @@ actor OverpassDataFetcher {
         await saveState(state)
 
         do {
+            // Check for cancellation before starting
+            try Task.checkCancellation()
+
             // Phase 1: Download JSON from Overpass API
             progressCallback(0.0, "Connecting to OpenStreetMap...")
             let jsonData = try await downloadData(bounds: bounds, progressCallback: { progress, message in
                 progressCallback(progress * 0.15, message)  // 0-15%
             })
+
+            // Check for cancellation after download
+            try Task.checkCancellation()
 
             // Save JSON to disk for resume capability
             progressCallback(0.15, "Saving data...")
@@ -128,6 +134,9 @@ actor OverpassDataFetcher {
             currentState = state
             await saveState(state)
             logger.info("Saved \(jsonData.count) bytes to \(jsonPath.path)")
+
+            // Check for cancellation before processing
+            try Task.checkCancellation()
 
             // Phase 2: Process the data
             let result = try await processFromFile(
@@ -637,6 +646,9 @@ actor OverpassDataFetcher {
         var lastStateSaveTime = Date()
 
         for batchStart in stride(from: 0, to: totalNodes, by: batchSize) {
+            // Check for cancellation every batch
+            try Task.checkCancellation()
+
             let batchEnd = min(batchStart + batchSize, totalNodes)
 
             autoreleasepool {
@@ -713,6 +725,9 @@ actor OverpassDataFetcher {
         let cacheRefreshInterval = 3  // Refresh cache every 3 save cycles
 
         while let chunk = try inputHandle.read(upToCount: chunkSize), !chunk.isEmpty {
+            // Check for cancellation during chunk processing
+            try Task.checkCancellation()
+
             bytesRead += Int64(chunk.count)
             buffer.append(chunk)
 

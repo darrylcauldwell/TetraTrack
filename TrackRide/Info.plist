@@ -30,5 +30,10 @@
 	<string>TetraTrack uses the camera to scan shooting targets and automatically detect and score shot holes.</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>TetraTrack displays music playback controls so you can manage your music while riding.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.tetratrack.viewCompetition</string>
+		<string>com.tetratrack.upcomingCompetition</string>
+	</array>
 </dict>
 </plist>
