@@ -676,13 +676,13 @@ struct CompetitionDetailView: View {
                                     // Auto-discovered photos
                                     ForEach(discoveredPhotos.prefix(3), id: \.localIdentifier) { asset in
                                         PhotoThumbnail(asset: asset)
-                                            .frame(width: 80, height: 80)
+                                            .frame(width: 60, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                     }
                                     // Auto-discovered videos
                                     ForEach(discoveredVideos.prefix(2), id: \.localIdentifier) { asset in
                                         VideoThumbnail(asset: asset)
-                                            .frame(width: 80, height: 80)
+                                            .frame(width: 60, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                             .onTapGesture {
                                                 selectedVideo = asset
@@ -694,7 +694,7 @@ struct CompetitionDetailView: View {
                                             Image(uiImage: uiImage)
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fill)
-                                                .frame(width: 80, height: 80)
+                                                .frame(width: 60, height: 80)
                                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                         }
                                     }
@@ -709,7 +709,7 @@ struct CompetitionDetailView: View {
                                             ZStack {
                                                 RoundedRectangle(cornerRadius: 8)
                                                     .fill(AppColors.cardBackground)
-                                                    .frame(width: 80, height: 80)
+                                                    .frame(width: 60, height: 80)
                                                 VStack {
                                                     Text("+\(totalCount - 7)")
                                                         .font(.title3)
@@ -744,10 +744,6 @@ struct CompetitionDetailView: View {
                         CompetitionTasksSection(competition: competition)
                             .padding(.horizontal)
                     }
-
-                    // Legacy todo list for follow-up tasks
-                    CompetitionTodoListView(competition: competition)
-                        .padding(.horizontal)
 
                     // Delete button
                     Button(role: .destructive) {

@@ -123,7 +123,7 @@ struct DisciplineScoreCardView: View {
 
                         if index < disciplinesToShow.count - 1 {
                             Divider()
-                                .padding(.leading, 48)
+                                .padding(.leading, 16)
                         }
                     }
                 }
@@ -133,9 +133,9 @@ struct DisciplineScoreCardView: View {
                 Divider()
 
                 VStack(spacing: 0) {
-                    placementRow(label: "Individual", text: $individualPlacementText)
+                    placementRow(label: "Individual Placement", text: $individualPlacementText)
                     Divider().padding(.leading, 16)
-                    placementRow(label: "Team", text: $teamPlacementText)
+                    placementRow(label: "Team Placement", text: $teamPlacementText)
                 }
                 .background(Color(.secondarySystemBackground))
             }
@@ -164,34 +164,50 @@ struct DisciplineScoreCardView: View {
 
     @ViewBuilder
     private func shootingRow() -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: TriathlonDiscipline.shooting.icon)
-                .font(.system(size: 18))
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 28)
+        VStack(alignment: .leading, spacing: 8) {
+            // Title row with points
+            HStack {
+                Image(systemName: TriathlonDiscipline.shooting.icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 24)
 
-            Text("Shoot")
-                .font(.body)
+                Text("Shooting")
+                    .font(.body.weight(.medium))
 
-            Spacer()
+                Spacer()
 
-            HStack(spacing: 4) {
-                TextField("—", text: $shootingScoreText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 44)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 8)
-                    .background(Color(.tertiarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onChange(of: shootingScoreText) { _, _ in saveResults() }
-
-                Text("/100")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let pts = shootingPoints {
+                    Text(String(format: "%.0f pts", pts))
+                        .font(.subheadline.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primary)
+                }
             }
 
-            pointsLabel(for: shootingPoints)
+            // Input row
+            HStack {
+                Text("Score")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    TextField("0", text: $shootingScoreText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 60)
+                        .padding(.vertical, 8)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onChange(of: shootingScoreText) { _, _ in saveResults() }
+
+                    Text("/ 100")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.leading, 32)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -206,16 +222,17 @@ struct DisciplineScoreCardView: View {
 
     @ViewBuilder
     private func swimmingRow() -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            // Title row with distance and points
+            HStack {
                 Image(systemName: TriathlonDiscipline.swimming.icon)
                     .font(.system(size: 18))
                     .foregroundStyle(AppColors.primary)
-                    .frame(width: 28)
+                    .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Swim")
-                        .font(.body)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Swimming")
+                        .font(.body.weight(.medium))
                     Text(competition.level.formattedSwimDuration)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -227,79 +244,106 @@ struct DisciplineScoreCardView: View {
                     Text("\(Int(swimDistance))m")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .padding(.trailing, 8)
                 }
 
-                pointsLabel(for: swimmingPoints)
+                if let pts = swimmingPoints {
+                    Text(String(format: "%.0f pts", pts))
+                        .font(.subheadline.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primary)
+                }
             }
 
-            // Swim inputs
-            HStack(spacing: 16) {
+            // Pool length row
+            HStack {
+                Text("Pool Length")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                 Spacer()
 
-                HStack(spacing: 6) {
-                    Text("Pool")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Menu {
-                        ForEach([20.0, 25.0, 33.0, 50.0], id: \.self) { length in
-                            Button("\(Int(length))m") {
-                                poolLength = length
-                                saveResults()
-                            }
+                Menu {
+                    ForEach([20.0, 25.0, 33.0, 50.0], id: \.self) { length in
+                        Button("\(Int(length))m") {
+                            poolLength = length
+                            saveResults()
                         }
-                    } label: {
+                    }
+                } label: {
+                    HStack(spacing: 4) {
                         Text("\(Int(poolLength))m")
                             .font(.subheadline)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(Color(.tertiarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
                     }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
+            }
+            .padding(.leading, 32)
 
-                HStack(spacing: 6) {
-                    Text("Lengths")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Menu {
-                        ForEach(0..<21, id: \.self) { num in
-                            Button("\(num)") {
-                                swimLengths = num
-                                saveResults()
-                            }
+            // Lengths row
+            HStack {
+                Text("Lengths")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Menu {
+                    ForEach(0..<21, id: \.self) { num in
+                        Button("\(num)") {
+                            swimLengths = num
+                            saveResults()
                         }
-                    } label: {
+                    }
+                } label: {
+                    HStack(spacing: 4) {
                         Text("\(swimLengths)")
                             .font(.subheadline)
                             .frame(minWidth: 24)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(Color(.tertiarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
                     }
-                }
-
-                HStack(spacing: 6) {
-                    Text("+")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Menu {
-                        ForEach(0..<Int(poolLength), id: \.self) { num in
-                            Button("\(num)m") {
-                                swimExtraMeters = num
-                                saveResults()
-                            }
-                        }
-                    } label: {
-                        Text("\(swimExtraMeters)m")
-                            .font(.subheadline)
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(Color(.tertiarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
+            .padding(.leading, 32)
+
+            // Extra meters row
+            HStack {
+                Text("Extra Meters")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Menu {
+                    ForEach(0..<Int(poolLength), id: \.self) { num in
+                        Button("\(num)m") {
+                            swimExtraMeters = num
+                            saveResults()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("\(swimExtraMeters)m")
+                            .font(.subheadline)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            .padding(.leading, 32)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -314,57 +358,79 @@ struct DisciplineScoreCardView: View {
 
     @ViewBuilder
     private func runningRow() -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: TriathlonDiscipline.running.icon)
-                .font(.system(size: 18))
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 28)
+        VStack(alignment: .leading, spacing: 8) {
+            // Title row with points
+            HStack {
+                Image(systemName: TriathlonDiscipline.running.icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 24)
 
-            Text("Run")
-                .font(.body)
+                Text("Running")
+                    .font(.body.weight(.medium))
 
-            Spacer()
+                Spacer()
 
-            HStack(spacing: 4) {
-                Menu {
-                    ForEach(0..<20, id: \.self) { min in
-                        Button("\(min)") {
-                            runMinutes = min
-                            saveResults()
-                        }
-                    }
-                } label: {
-                    Text("\(runMinutes)")
-                        .font(.subheadline.monospacedDigit())
-                        .frame(minWidth: 24)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 8)
-                        .background(Color(.tertiarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-
-                Text(":")
-                    .foregroundStyle(.secondary)
-
-                Menu {
-                    ForEach(0..<60, id: \.self) { sec in
-                        Button(String(format: "%02d", sec)) {
-                            runSeconds = sec
-                            saveResults()
-                        }
-                    }
-                } label: {
-                    Text(String(format: "%02d", runSeconds))
-                        .font(.subheadline.monospacedDigit())
-                        .frame(minWidth: 28)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 8)
-                        .background(Color(.tertiarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                if let pts = runningPoints {
+                    Text(String(format: "%.0f pts", pts))
+                        .font(.subheadline.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primary)
                 }
             }
 
-            pointsLabel(for: runningPoints)
+            // Time input row
+            HStack {
+                Text("Time")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Menu {
+                        ForEach(0..<20, id: \.self) { min in
+                            Button("\(min)") {
+                                runMinutes = min
+                                saveResults()
+                            }
+                        }
+                    } label: {
+                        Text("\(runMinutes)")
+                            .font(.subheadline.monospacedDigit())
+                            .frame(minWidth: 32)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(Color(.tertiarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    Text(":")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+
+                    Menu {
+                        ForEach(0..<60, id: \.self) { sec in
+                            Button(String(format: "%02d", sec)) {
+                                runSeconds = sec
+                                saveResults()
+                            }
+                        }
+                    } label: {
+                        Text(String(format: "%02d", runSeconds))
+                            .font(.subheadline.monospacedDigit())
+                            .frame(minWidth: 32)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(Color(.tertiarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    Text("min:sec")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.leading, 32)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -380,34 +446,50 @@ struct DisciplineScoreCardView: View {
 
     @ViewBuilder
     private func ridingRow() -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: TriathlonDiscipline.riding.icon)
-                .font(.system(size: 18))
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 28)
+        VStack(alignment: .leading, spacing: 8) {
+            // Title row with points
+            HStack {
+                Image(systemName: TriathlonDiscipline.riding.icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 24)
 
-            Text("Ride")
-                .font(.body)
+                Text("Riding")
+                    .font(.body.weight(.medium))
 
-            Spacer()
+                Spacer()
 
-            HStack(spacing: 4) {
-                TextField("—", text: $ridingPenalties)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 44)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 8)
-                    .background(Color(.tertiarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onChange(of: ridingPenalties) { _, _ in saveResults() }
-
-                Text("pen")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let pts = ridingPoints {
+                    Text(String(format: "%.0f pts", pts))
+                        .font(.subheadline.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primary)
+                }
             }
 
-            pointsLabel(for: ridingPoints)
+            // Penalties input row
+            HStack {
+                Text("Penalties")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    TextField("0", text: $ridingPenalties)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 60)
+                        .padding(.vertical, 8)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onChange(of: ridingPenalties) { _, _ in saveResults() }
+
+                    Text("faults")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.leading, 32)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -418,47 +500,31 @@ struct DisciplineScoreCardView: View {
         return PonyClubScoringService.calculateRidingPoints(penalties: penalties)
     }
 
-    // MARK: - Points Label
-
-    @ViewBuilder
-    private func pointsLabel(for points: Double?) -> some View {
-        if let pts = points {
-            Text(String(format: "%.0f", pts))
-                .font(.subheadline.monospacedDigit().bold())
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 50, alignment: .trailing)
-        } else {
-            Text("—")
-                .foregroundStyle(.tertiary)
-                .frame(width: 50, alignment: .trailing)
-        }
-    }
-
     // MARK: - Placement Row
 
     @ViewBuilder
     private func placementRow(label: String, text: Binding<String>) -> some View {
         HStack {
             Text(label)
-                .font(.body)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
-            HStack(spacing: 0) {
+            HStack(spacing: 2) {
                 TextField("—", text: text)
                     .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 44)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 8)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 50)
+                    .padding(.vertical, 8)
                     .background(Color(.tertiarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: text.wrappedValue) { _, _ in saveResults() }
 
                 if let num = Int(text.wrappedValue), num > 0 {
                     Text(ordinalSuffix(for: num))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .padding(.leading, 2)
                 }
             }
         }
