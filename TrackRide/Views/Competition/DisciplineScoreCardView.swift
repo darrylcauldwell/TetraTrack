@@ -130,16 +130,14 @@ struct DisciplineScoreCardView: View {
                 .background(Color(.secondarySystemBackground))
 
                 // Placements
-                if isTriathlon {
-                    Divider()
+                Divider()
 
-                    VStack(spacing: 0) {
-                        placementRow(label: "Individual", text: $individualPlacementText)
-                        Divider().padding(.leading, 16)
-                        placementRow(label: "Team", text: $teamPlacementText)
-                    }
-                    .background(Color(.secondarySystemBackground))
+                VStack(spacing: 0) {
+                    placementRow(label: "Individual", text: $individualPlacementText)
+                    Divider().padding(.leading, 16)
+                    placementRow(label: "Team", text: $teamPlacementText)
                 }
+                .background(Color(.secondarySystemBackground))
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onAppear { loadExistingResults() }
@@ -558,10 +556,8 @@ struct DisciplineScoreCardView: View {
         }
 
         // Placements
-        if isTriathlon {
-            competition.individualPlacement = Int(individualPlacementText)
-            competition.teamPlacement = Int(teamPlacementText)
-        }
+        competition.individualPlacement = Int(individualPlacementText)
+        competition.teamPlacement = Int(teamPlacementText)
 
         // Mark completed if all disciplines have results
         var hasAll = true
