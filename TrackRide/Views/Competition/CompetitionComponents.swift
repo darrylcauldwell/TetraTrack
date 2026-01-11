@@ -562,7 +562,7 @@ struct CompetitionDetailView: View {
 
                     // Triathlon/Tetrathlon Results
                     if competition.competitionType == .triathlon || competition.competitionType == .tetrathlon {
-                        TriathlonResultsView(competition: competition)
+                        DisciplineScoreCardView(competition: competition)
                             .padding(.horizontal)
                     }
 

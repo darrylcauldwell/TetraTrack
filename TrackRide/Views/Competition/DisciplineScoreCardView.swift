@@ -7,9 +7,11 @@
 
 import SwiftUI
 
-/// Score card displaying all discipline results for a competition
+/// Score card displaying all discipline results for a competition with edit capability
 struct DisciplineScoreCardView: View {
-    let competition: Competition
+    @Bindable var competition: Competition
+
+    @State private var showingResultsEditor = false
 
     private var isTetrathlon: Bool {
         competition.competitionType == .tetrathlon
@@ -19,79 +21,116 @@ struct DisciplineScoreCardView: View {
         competition.competitionType == .triathlon
     }
 
+    /// Check if a discipline should be shown (always for tetrathlon, configurable for triathlon)
+    private func showDiscipline(_ discipline: TriathlonDiscipline) -> Bool {
+        if isTetrathlon {
+            return true
+        }
+        return competition.hasTriathlonDiscipline(discipline)
+    }
+
+    private var hasAnyResults: Bool {
+        (showDiscipline(.shooting) && competition.shootingScore != nil) ||
+        (showDiscipline(.swimming) && competition.swimmingTime != nil) ||
+        (showDiscipline(.running) && competition.runningTime != nil) ||
+        (showDiscipline(.riding) && competition.ridingScore != nil)
+    }
+
     var body: some View {
         if isTetrathlon || isTriathlon {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Discipline Scores")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-
-                if isTetrathlon {
-                    // Tetrathlon: Fixed 4 disciplines
-                    disciplineRow(for: .shooting)
-                    disciplineRow(for: .swimming)
-                    disciplineRow(for: .running)
-                    disciplineRow(for: .riding)
-                } else {
-                    // Triathlon: Configurable 3 disciplines in order
-                    ForEach(competition.triathlonDisciplines, id: \.self) { discipline in
-                        disciplineRow(for: discipline)
-                    }
-                }
-
-                Divider()
-
-                // Total
+                // Header with title and edit button
                 HStack {
-                    Text("Total")
+                    Text(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
                         .font(.headline)
                     Spacer()
-                    if let total = competition.storedTotalPoints {
-                        Text(String(format: "%.0f pts", total))
-                            .font(.headline)
-                            .foregroundStyle(AppColors.primary)
-                    } else {
-                        Text("—")
-                            .foregroundStyle(.secondary)
+                    Button {
+                        showingResultsEditor = true
+                    } label: {
+                        Label(hasAnyResults ? "Edit" : "Add Results", systemImage: hasAnyResults ? "pencil" : "plus")
+                            .font(.subheadline)
                     }
                 }
+                .padding(.bottom, 4)
 
-                // Placements (Triathlon)
-                if isTriathlon {
+                if hasAnyResults {
+                    // Show discipline scores
+                    if isTetrathlon {
+                        // Tetrathlon: Fixed 4 disciplines
+                        disciplineRow(for: .shooting)
+                        disciplineRow(for: .swimming)
+                        disciplineRow(for: .running)
+                        disciplineRow(for: .riding)
+                    } else {
+                        // Triathlon: Configurable 3 disciplines in order
+                        ForEach(competition.triathlonDisciplines, id: \.self) { discipline in
+                            disciplineRow(for: discipline)
+                        }
+                    }
+
                     Divider()
 
-                    // Individual placement row
+                    // Total
                     HStack {
-                        Text("Individual")
+                        Text("Total")
+                            .font(.headline)
                         Spacer()
-                        if let individual = competition.individualPlacement {
-                            Text(formatPlacement(individual))
+                        if let total = competition.storedTotalPoints {
+                            Text(String(format: "%.0f pts", total))
                                 .font(.headline)
                                 .foregroundStyle(AppColors.primary)
                         } else {
                             Text("—")
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
-                    // Team placement row
-                    HStack {
-                        Text("Team")
-                        Spacer()
-                        if let team = competition.teamPlacement {
-                            Text(formatPlacement(team))
-                                .font(.headline)
-                                .foregroundStyle(AppColors.primary)
-                        } else {
-                            Text("—")
-                                .foregroundStyle(.tertiary)
+                    // Placements (Triathlon)
+                    if isTriathlon {
+                        Divider()
+
+                        // Individual placement row
+                        HStack {
+                            Text("Individual")
+                            Spacer()
+                            if let individual = competition.individualPlacement {
+                                Text(formatPlacement(individual))
+                                    .font(.headline)
+                                    .foregroundStyle(AppColors.primary)
+                            } else {
+                                Text("—")
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+
+                        // Team placement row
+                        HStack {
+                            Text("Team")
+                            Spacer()
+                            if let team = competition.teamPlacement {
+                                Text(formatPlacement(team))
+                                    .font(.headline)
+                                    .foregroundStyle(AppColors.primary)
+                            } else {
+                                Text("—")
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
+                } else {
+                    // Empty state
+                    Text("No results entered yet")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
             }
             .padding()
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .sheet(isPresented: $showingResultsEditor) {
+                TriathlonResultsEditorView(competition: competition)
+            }
         }
     }
 
@@ -215,63 +254,7 @@ struct DisciplineScoreRow: View {
     }
 }
 
-// MARK: - Triathlon/Tetrathlon Results Entry View
-
-/// View for entering and viewing Triathlon/Tetrathlon results
-struct TriathlonResultsView: View {
-    @Bindable var competition: Competition
-
-    @State private var showingResultsEditor = false
-
-    private var isTetrathlon: Bool {
-        competition.competitionType == .tetrathlon
-    }
-
-    /// Check if a discipline should be shown (always for tetrathlon, configurable for triathlon)
-    private func showDiscipline(_ discipline: TriathlonDiscipline) -> Bool {
-        if isTetrathlon {
-            return true
-        }
-        return competition.hasTriathlonDiscipline(discipline)
-    }
-
-    private var hasAnyResults: Bool {
-        (showDiscipline(.shooting) && competition.shootingScore != nil) ||
-        (showDiscipline(.swimming) && competition.swimmingTime != nil) ||
-        (showDiscipline(.running) && competition.runningTime != nil) ||
-        (showDiscipline(.riding) && competition.ridingScore != nil)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    showingResultsEditor = true
-                } label: {
-                    Label(hasAnyResults ? "Edit" : "Add Results", systemImage: hasAnyResults ? "pencil" : "plus")
-                        .font(.subheadline)
-                }
-            }
-
-            if hasAnyResults {
-                DisciplineScoreCardView(competition: competition)
-            } else {
-                Text("No results entered yet")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-        }
-        .sheet(isPresented: $showingResultsEditor) {
-            TriathlonResultsEditorView(competition: competition)
-        }
-    }
-}
+// MARK: - Triathlon/Tetrathlon Results Editor
 
 /// Editor view for entering Triathlon/Tetrathlon results
 struct TriathlonResultsEditorView: View {
@@ -710,23 +693,24 @@ struct TriathlonResultsEditorView: View {
 }
 
 #Preview {
+    @Previewable @State var competition: Competition = {
+        let comp = Competition()
+        comp.competitionTypeRaw = "triathlon"
+        comp.shootingScore = 920
+        comp.shootingPoints = 920
+        comp.swimmingTime = 95.5
+        comp.swimmingDistance = 100
+        comp.swimmingPoints = 870
+        comp.runningTime = 378
+        comp.runningPoints = 904
+        comp.storedTotalPoints = 2694
+        comp.individualPlacement = 3
+        comp.teamPlacement = 1
+        return comp
+    }()
+
     VStack {
-        // Preview with sample data
-        DisciplineScoreCardView(competition: {
-            let comp = Competition()
-            comp.competitionTypeRaw = "triathlon"
-            comp.shootingScore = 920
-            comp.shootingPoints = 920
-            comp.swimmingTime = 95.5
-            comp.swimmingDistance = 100
-            comp.swimmingPoints = 870
-            comp.runningTime = 378
-            comp.runningPoints = 904
-            comp.storedTotalPoints = 2694
-            comp.individualPlacement = 3
-            comp.teamPlacement = 1
-            return comp
-        }())
+        DisciplineScoreCardView(competition: competition)
     }
     .padding()
 }
