@@ -263,18 +263,21 @@ struct TriathlonResultsEditorView: View {
 
     // Raw result inputs
     @State private var shootingScoreText: String = ""
-    @State private var swimMinutes: Int = 0
-    @State private var swimSeconds: Int = 0
-    @State private var swimHundredths: Int = 0
     @State private var poolLength: Double = 25  // Pool length in meters
     @State private var swimLengths: Int = 4     // Number of lengths swum
+    @State private var swimExtraMeters: Int = 0 // Additional meters beyond complete lengths
     @State private var runMinutes: Int = 0
     @State private var runSeconds: Int = 0
     @State private var ridingPenalties: String = ""
 
-    /// Calculated swim distance from pool length × lengths
+    /// Calculated swim distance from (pool length × lengths) + extra meters
     private var swimDistance: Double {
-        poolLength * Double(swimLengths)
+        poolLength * Double(swimLengths) + Double(swimExtraMeters)
+    }
+
+    /// Fixed swim time based on competition level
+    private var swimTime: TimeInterval {
+        competition.level.swimDuration
     }
 
     // Placements (Triathlon only)
@@ -306,16 +309,28 @@ struct TriathlonResultsEditorView: View {
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 80)
-                    Text("/ 1000")
+                    Text("/ 100")
                         .foregroundStyle(.secondary)
+                }
+
+                // Show calculated score (entry × 10)
+                if let enteredScore = Int(shootingScoreText), enteredScore > 0 {
+                    HStack {
+                        Text("Calculated Score")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(enteredScore * 10) / 1000")
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 HStack {
                     Text("Points")
                         .font(.headline)
                     Spacer()
-                    if let score = Int(shootingScoreText) {
-                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateShootingPoints(rawScore: score)))
+                    if let enteredScore = Int(shootingScoreText) {
+                        // Multiply by 10 to get actual score for points calculation
+                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateShootingPoints(rawScore: enteredScore * 10)))
                             .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
                     } else {
@@ -326,7 +341,7 @@ struct TriathlonResultsEditorView: View {
             }
 
         case .swimming:
-            Section("Swimming") {
+            Section("Swimming (\(competition.level.formattedSwimDuration))") {
                 HStack {
                     Text("Pool Length")
                     Spacer()
@@ -343,7 +358,17 @@ struct TriathlonResultsEditorView: View {
                     Text("Lengths")
                     Spacer()
                     Picker("Lengths", selection: $swimLengths) {
-                        ForEach(1..<21) { Text("\($0)").tag($0) }
+                        ForEach(0..<21) { Text("\($0)").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+
+                HStack {
+                    Text("Extra Meters")
+                    Spacer()
+                    Picker("Extra", selection: $swimExtraMeters) {
+                        ForEach(0..<50) { Text("\($0)m").tag($0) }
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
@@ -359,38 +384,23 @@ struct TriathlonResultsEditorView: View {
 
                 HStack {
                     Text("Time")
+                        .foregroundStyle(.secondary)
                     Spacer()
-                    Picker("Min", selection: $swimMinutes) {
-                        ForEach(0..<10) { Text("\($0)").tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    Text(":")
-                    Picker("Sec", selection: $swimSeconds) {
-                        ForEach(0..<60) { Text(String(format: "%02d", $0)).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    Text(".")
-                    Picker("Hun", selection: $swimHundredths) {
-                        ForEach(0..<100) { Text(String(format: "%02d", $0)).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
+                    Text(competition.level.formattedSwimDuration)
+                        .foregroundStyle(.secondary)
                 }
 
-                // Always show points calculation
-                let swimTime = Double(swimMinutes * 60 + swimSeconds) + Double(swimHundredths) / 100.0
+                // Always show points calculation using fixed time
                 HStack {
                     Text("Points")
                         .font(.headline)
                     Spacer()
-                    if swimTime > 0 {
+                    if swimDistance > 0 {
                         Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)))
                             .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
                     } else {
-                        Text("Enter time")
+                        Text("Enter distance")
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -525,32 +535,36 @@ struct TriathlonResultsEditorView: View {
     }
 
     private func loadExistingResults() {
+        // Shooting score is stored as /1000, display as /100
         if let score = competition.shootingScore {
-            shootingScoreText = "\(score)"
+            shootingScoreText = "\(score / 10)"
         }
 
-        if let time = competition.swimmingTime {
-            swimMinutes = Int(time) / 60
-            swimSeconds = Int(time) % 60
-            swimHundredths = Int((time.truncatingRemainder(dividingBy: 1)) * 100)
-        }
-
-        // Load swimming distance - try to infer pool length and lengths
+        // Load swimming distance - extract pool length, lengths, and extra meters
         if let distance = competition.swimmingDistance {
             // Try common pool lengths to find a match
             let poolLengths: [Double] = [25, 20, 33, 50]
+            var matched = false
             for pool in poolLengths {
-                let lengths = distance / pool
-                if lengths == lengths.rounded() && lengths >= 1 && lengths <= 20 {
+                let totalLengths = distance / pool
+                let wholeLengths = Int(totalLengths)
+                let extra = distance - (pool * Double(wholeLengths))
+
+                // Check if this pool length gives a reasonable result
+                if wholeLengths >= 0 && wholeLengths <= 20 && extra >= 0 && extra < pool {
                     poolLength = pool
-                    swimLengths = Int(lengths)
+                    swimLengths = wholeLengths
+                    swimExtraMeters = Int(extra.rounded())
+                    matched = true
                     break
                 }
             }
-            // If no exact match found, default to 25m pool and calculate lengths
-            if swimDistance != distance {
+            // If no exact match found, default to 25m pool
+            if !matched {
                 poolLength = 25
-                swimLengths = max(1, Int((distance / 25).rounded()))
+                let wholeLengths = Int(distance / 25)
+                swimLengths = min(wholeLengths, 20)
+                swimExtraMeters = Int(distance - (25 * Double(swimLengths)))
             }
         }
 
@@ -576,13 +590,14 @@ struct TriathlonResultsEditorView: View {
         var total: Double = 0
         var hasAny = false
 
-        if showDiscipline(.shooting), let score = Int(shootingScoreText) {
-            total += PonyClubScoringService.calculateShootingPoints(rawScore: score)
+        // Shooting: multiply entered score by 10
+        if showDiscipline(.shooting), let enteredScore = Int(shootingScoreText) {
+            total += PonyClubScoringService.calculateShootingPoints(rawScore: enteredScore * 10)
             hasAny = true
         }
 
-        let swimTime = Double(swimMinutes * 60 + swimSeconds) + Double(swimHundredths) / 100.0
-        if showDiscipline(.swimming), swimTime > 0 {
+        // Swimming: use fixed time from competition level
+        if showDiscipline(.swimming), swimDistance > 0 {
             total += PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
             hasAny = true
         }
@@ -603,14 +618,15 @@ struct TriathlonResultsEditorView: View {
 
     private func saveResults() {
         // Save raw results based on which disciplines are included
-        if showDiscipline(.shooting) {
-            competition.shootingScore = Int(shootingScoreText)
+        // Shooting: multiply entered score by 10 to get /1000 scale
+        if showDiscipline(.shooting), let enteredScore = Int(shootingScoreText) {
+            competition.shootingScore = enteredScore * 10
         }
 
+        // Swimming: save distance and fixed time from level
         if showDiscipline(.swimming) {
             competition.swimmingDistance = swimDistance
-            let swimTime = Double(swimMinutes * 60 + swimSeconds) + Double(swimHundredths) / 100.0
-            competition.swimmingTime = swimTime > 0 ? swimTime : nil
+            competition.swimmingTime = swimTime  // Fixed time based on level
         }
 
         if showDiscipline(.running) {
