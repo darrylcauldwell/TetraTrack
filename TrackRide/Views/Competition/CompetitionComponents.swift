@@ -44,7 +44,7 @@ struct NextCompetitionCard: View {
             CountdownView(targetDate: competition.date, now: now)
 
             HStack {
-                Label(competition.location, systemImage: "mappin")
+                Label(competition.venue.isEmpty ? "No venue" : competition.venue, systemImage: "mappin")
                 Spacer()
                 Text(competition.formattedDate)
             }
@@ -182,7 +182,7 @@ struct CompetitionRowView: View {
 
                 HStack {
                     Image(systemName: "mappin")
-                    Text(competition.location)
+                    Text(competition.venue.isEmpty ? "No venue" : competition.venue)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -262,7 +262,7 @@ struct EntryDeadlineRowView: View {
 
                 HStack {
                     Image(systemName: "mappin")
-                    Text(competition.location)
+                    Text(competition.venue.isEmpty ? "No venue" : competition.venue)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -370,7 +370,7 @@ struct StableDeadlineRowView: View {
 
                 HStack {
                     Image(systemName: "mappin")
-                    Text(competition.location)
+                    Text(competition.venue.isEmpty ? "No venue" : competition.venue)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -483,11 +483,7 @@ struct CompetitionDetailView: View {
                     // Details
                     VStack(spacing: 16) {
                         DetailRow(icon: "calendar", title: "Date", value: competition.formattedDateRange)
-                        DetailRow(icon: "mappin", title: "Location", value: competition.location)
-
-                        if !competition.venue.isEmpty {
-                            DetailRow(icon: "building.2", title: "Venue", value: competition.venue)
-                        }
+                        DetailRow(icon: "mappin", title: "Venue", value: competition.venue.isEmpty ? "Not set" : competition.venue)
 
                         if let deadline = competition.entryDeadline {
                             DetailRow(
@@ -948,7 +944,6 @@ struct CompetitionEditView: View {
     @State private var date = Date()
     @State private var endDate: Date?
     @State private var hasEndDate = false
-    @State private var location = ""
     @State private var venue = ""
     @State private var venueLatitude: Double?
     @State private var venueLongitude: Double?
@@ -1075,8 +1070,6 @@ struct CompetitionEditView: View {
                             set: { endDate = $0 }
                         ), displayedComponents: .date)
                     }
-
-                    TextField("Location", text: $location)
 
                     Button {
                         showingAddressSearch = true
@@ -1409,7 +1402,6 @@ struct CompetitionEditView: View {
                     date = comp.date
                     endDate = comp.endDate
                     hasEndDate = comp.endDate != nil
-                    location = comp.location
                     venue = comp.venue
                     venueLatitude = comp.venueLatitude
                     venueLongitude = comp.venueLongitude
@@ -1473,7 +1465,6 @@ struct CompetitionEditView: View {
         comp.name = name
         comp.date = date
         comp.endDate = hasEndDate ? endDate : nil
-        comp.location = location
         comp.venue = venue
         comp.venueLatitude = venueLatitude
         comp.venueLongitude = venueLongitude
