@@ -277,6 +277,8 @@ final class Competition {
     var endDate: Date?
     var location: String = ""
     var venue: String = ""
+    var venueLatitude: Double?
+    var venueLongitude: Double?
     var competitionTypeRaw: String = "tetrathlon"
     var levelRaw: String = "open"
     var notes: String = ""
@@ -296,25 +298,49 @@ final class Competition {
     var estimatedArrivalAtVenue: Date?
     var estimatedTravelMinutes: Int?
     var travelRouteNotes: String = ""
+    // Outbound yard stop (for horse competitions)
+    var arriveAtYard: Date?
     var departureFromYard: Date?
+    // Return yard stop (for horse competitions)
     var departureFromVenue: Date?
     var arrivalBackAtYard: Date?
+    var departFromYardReturn: Date?
     var isTravelPlanned: Bool = false
+
+    // Triathlon discipline configuration (stored as raw strings for SwiftData)
+    var triathlonDiscipline1Raw: String = "Shooting"
+    var triathlonDiscipline2Raw: String = "Running"
+    var triathlonDiscipline3Raw: String = "Swimming"
 
     // Tetrathlon-specific start times
     var shootingStartTime: Date?
+    var shootingDetail: String?
+    var shootingLane: Int?
     var runningStartTime: Date?
     var swimWarmupTime: Date?
     var swimStartTime: Date?
+    var prizeGivingTime: Date?
 
     // Results (if completed)
     var isCompleted: Bool = false
     var overallPlacing: Int?
-    var ridingScore: Double?
-    var shootingScore: Int?
-    var swimmingDistance: Double?
-    var runningTime: TimeInterval?
+    var individualPlacement: Int?  // Triathlon individual placing
+    var teamPlacement: Int?        // Triathlon team placing
+
+    // Raw discipline results
+    var shootingScore: Int?        // Raw score (e.g., out of 1000)
+    var swimmingTime: TimeInterval? // Swim time in seconds
+    var swimmingDistance: Double?  // Swim distance in meters (50m or 100m)
+    var runningTime: TimeInterval? // Run time in seconds
+    var ridingScore: Double?       // Riding penalties/score
+
+    // Calculated points per Pony Club handbook
+    var shootingPoints: Double?
+    var swimmingPoints: Double?
+    var runningPoints: Double?
+    var ridingPoints: Double?
     var storedTotalPoints: Double?
+
     var placement: String?
     var resultNotes: String?
 
@@ -496,6 +522,32 @@ final class Competition {
         set { levelRaw = newValue.rawValue }
     }
 
+    // Triathlon discipline computed properties
+    var triathlonDiscipline1: TriathlonDiscipline {
+        get { TriathlonDiscipline(rawValue: triathlonDiscipline1Raw) ?? .shooting }
+        set { triathlonDiscipline1Raw = newValue.rawValue }
+    }
+
+    var triathlonDiscipline2: TriathlonDiscipline {
+        get { TriathlonDiscipline(rawValue: triathlonDiscipline2Raw) ?? .running }
+        set { triathlonDiscipline2Raw = newValue.rawValue }
+    }
+
+    var triathlonDiscipline3: TriathlonDiscipline {
+        get { TriathlonDiscipline(rawValue: triathlonDiscipline3Raw) ?? .swimming }
+        set { triathlonDiscipline3Raw = newValue.rawValue }
+    }
+
+    /// Returns the three disciplines for this triathlon in order
+    var triathlonDisciplines: [TriathlonDiscipline] {
+        [triathlonDiscipline1, triathlonDiscipline2, triathlonDiscipline3]
+    }
+
+    /// Check if this triathlon includes a specific discipline
+    func hasTriathlonDiscipline(_ discipline: TriathlonDiscipline) -> Bool {
+        triathlonDisciplines.contains(discipline)
+    }
+
     init(
         name: String = "",
         date: Date = Date(),
@@ -597,6 +649,28 @@ final class Competition {
 }
 
 // MARK: - Competition Type
+
+/// Disciplines available for Triathlon competitions
+enum TriathlonDiscipline: String, Codable, CaseIterable {
+    case shooting = "Shooting"
+    case swimming = "Swimming"
+    case running = "Running"
+    case riding = "Riding"
+
+    var icon: String {
+        switch self {
+        case .shooting: return "target"
+        case .swimming: return "figure.pool.swim"
+        case .running: return "figure.run"
+        case .riding: return "figure.equestrian.sports"
+        }
+    }
+
+    /// Default disciplines for standard triathlon (in order)
+    static var defaultTriathlonDisciplines: [TriathlonDiscipline] {
+        [.shooting, .running, .swimming]
+    }
+}
 
 enum CompetitionType: String, Codable, CaseIterable {
     case tetrathlon = "Tetrathlon"

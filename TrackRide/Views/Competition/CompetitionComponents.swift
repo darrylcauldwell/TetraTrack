@@ -10,6 +10,7 @@ import SwiftData
 import Combine
 import WidgetKit
 import Photos
+import MapKit
 
 // MARK: - Next Competition Card
 
@@ -563,6 +564,12 @@ struct CompetitionDetailView: View {
                             .padding(.horizontal)
                     }
 
+                    // Triathlon/Tetrathlon Results
+                    if competition.competitionType == .triathlon || competition.competitionType == .tetrathlon {
+                        TriathlonResultsView(competition: competition)
+                            .padding(.horizontal)
+                    }
+
                     // Status toggles
                     VStack(spacing: 12) {
                         Toggle(isOn: $competition.isEntered) {
@@ -943,8 +950,15 @@ struct CompetitionEditView: View {
     @State private var hasEndDate = false
     @State private var location = ""
     @State private var venue = ""
+    @State private var venueLatitude: Double?
+    @State private var venueLongitude: Double?
+    @State private var showingAddressSearch = false
     @State private var competitionType: CompetitionType = .tetrathlon
     @State private var level: CompetitionLevel = .junior
+    // Triathlon discipline configuration
+    @State private var triathlonDiscipline1: TriathlonDiscipline = .shooting
+    @State private var triathlonDiscipline2: TriathlonDiscipline = .running
+    @State private var triathlonDiscipline3: TriathlonDiscipline = .swimming
     @State private var notes = ""
     @State private var hasEntryDeadline = false
     @State private var entryDeadline = Date()
@@ -961,10 +975,18 @@ struct CompetitionEditView: View {
     @State private var courseWalkTime: Date?
     @State private var estimatedArrivalAtVenue: Date?
     @State private var estimatedTravelMinutes: Int?
+    @State private var travelHours: Int = 0
+    @State private var travelMins: Int = 0
+    @State private var appleMapsEstimateMinutes: Int?
+    @State private var isCalculatingRoute = false
     @State private var travelRouteNotes = ""
+    // Outbound yard stop
+    @State private var arriveAtYard: Date?
     @State private var departureFromYard: Date?
+    // Return yard stop
     @State private var departureFromVenue: Date?
     @State private var arrivalBackAtYard: Date?
+    @State private var departFromYardReturn: Date?
 
     // Showjumping classes
     @State private var showjumpingClasses: [ShowjumpingClass] = []
@@ -975,11 +997,14 @@ struct CompetitionEditView: View {
     @State private var dressageClasses: [DressageClass] = []
     @State private var newDressageTest = ""
 
-    // Tetrathlon start times
+    // Tetrathlon start times and allocations
     @State private var shootingStartTime: Date?
+    @State private var shootingDetail: String = ""
+    @State private var shootingLane: Int?
     @State private var runningStartTime: Date?
     @State private var swimWarmupTime: Date?
     @State private var swimStartTime: Date?
+    @State private var prizeGivingTime: Date?
 
     var isEditing: Bool { competition != nil }
 
@@ -998,6 +1023,27 @@ struct CompetitionEditView: View {
                     Picker("Level", selection: $level) {
                         ForEach(CompetitionLevel.allCases, id: \.self) { level in
                             Text(level.rawValue).tag(level)
+                        }
+                    }
+
+                    // Triathlon discipline selection (only for triathlon)
+                    if competitionType == .triathlon {
+                        Picker("Discipline 1", selection: $triathlonDiscipline1) {
+                            ForEach(TriathlonDiscipline.allCases, id: \.self) { discipline in
+                                Label(discipline.rawValue, systemImage: discipline.icon).tag(discipline)
+                            }
+                        }
+
+                        Picker("Discipline 2", selection: $triathlonDiscipline2) {
+                            ForEach(TriathlonDiscipline.allCases, id: \.self) { discipline in
+                                Label(discipline.rawValue, systemImage: discipline.icon).tag(discipline)
+                            }
+                        }
+
+                        Picker("Discipline 3", selection: $triathlonDiscipline3) {
+                            ForEach(TriathlonDiscipline.allCases, id: \.self) { discipline in
+                                Label(discipline.rawValue, systemImage: discipline.icon).tag(discipline)
+                            }
                         }
                     }
                 }
@@ -1031,7 +1077,45 @@ struct CompetitionEditView: View {
                     }
 
                     TextField("Location", text: $location)
-                    TextField("Venue (optional)", text: $venue)
+
+                    Button {
+                        showingAddressSearch = true
+                    } label: {
+                        HStack {
+                            Text("Venue")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(venue.isEmpty ? "Search..." : venue)
+                                .foregroundStyle(venue.isEmpty ? .secondary : .primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showingAddressSearch) {
+                        AddressSearchView { result in
+                            venue = result.address
+                            venueLatitude = result.latitude
+                            venueLongitude = result.longitude
+                        }
+                    }
+
+                    // Map preview when venue has coordinates
+                    if let lat = venueLatitude, let lon = venueLongitude {
+                        Map(initialPosition: .region(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                        ))) {
+                            Marker(venue.isEmpty ? "Venue" : venue, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                                .tint(.red)
+                        }
+                        .frame(height: 150)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    }
                 }
 
                 Section("Entry & Booking") {
@@ -1171,6 +1255,12 @@ struct CompetitionEditView: View {
                             set: { shootingStartTime = $0 }
                         ), displayedComponents: [.date, .hourAndMinute])
 
+                        TextField("Shooting Detail", text: $shootingDetail)
+                            .textInputAutocapitalization(.words)
+
+                        TextField("Shooting Lane", value: $shootingLane, format: .number)
+                            .keyboardType(.numberPad)
+
                         DatePicker("Running Start", selection: Binding(
                             get: { runningStartTime ?? date },
                             set: { runningStartTime = $0 }
@@ -1185,13 +1275,84 @@ struct CompetitionEditView: View {
                             get: { swimStartTime ?? date },
                             set: { swimStartTime = $0 }
                         ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Prize Giving", selection: Binding(
+                            get: { prizeGivingTime ?? date },
+                            set: { prizeGivingTime = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
                     }
                 }
 
-                Section("Travel Plan") {
-                    DatePicker("Start Time", selection: Binding(
+                Section("Travel Plan - Outbound") {
+                    DatePicker("Leave Home", selection: Binding(
                         get: { startTime ?? date },
                         set: { startTime = $0 }
+                    ), displayedComponents: [.date, .hourAndMinute])
+
+                    // Yard stop for horse competitions (not triathlon)
+                    if competitionType != .triathlon {
+                        DatePicker("Arrive at Yard", selection: Binding(
+                            get: { arriveAtYard ?? date },
+                            set: { arriveAtYard = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Depart from Yard", selection: Binding(
+                            get: { departureFromYard ?? date },
+                            set: { departureFromYard = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+                    }
+
+                    // Travel time in hours and minutes
+                    HStack {
+                        Text("Journey Time")
+                        Spacer()
+                        Picker("Hours", selection: $travelHours) {
+                            ForEach(0..<13) { hour in
+                                Text("\(hour)h").tag(hour)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .onChange(of: travelHours) {
+                            estimatedTravelMinutes = (travelHours * 60) + travelMins
+                        }
+
+                        Picker("Minutes", selection: $travelMins) {
+                            ForEach(0..<60) { min in
+                                Text("\(min)m").tag(min)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .onChange(of: travelMins) {
+                            estimatedTravelMinutes = (travelHours * 60) + travelMins
+                        }
+                    }
+
+                    // Apple Maps route estimate (only shown when venue has coordinates)
+                    if venueLatitude != nil && venueLongitude != nil {
+                        HStack {
+                            Text("Maps Estimate")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            if isCalculatingRoute {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else if let estimate = appleMapsEstimateMinutes {
+                                Text(formatTravelTime(estimate))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button("Calculate") {
+                                    calculateRouteTime()
+                                }
+                                .font(.subheadline)
+                            }
+                        }
+                    }
+
+                    DatePicker("Arrive at Venue", selection: Binding(
+                        get: { estimatedArrivalAtVenue ?? date },
+                        set: { estimatedArrivalAtVenue = $0 }
                     ), displayedComponents: [.date, .hourAndMinute])
 
                     // Course walk not applicable for tetrathlon/triathlon/dressage
@@ -1201,29 +1362,26 @@ struct CompetitionEditView: View {
                             set: { courseWalkTime = $0 }
                         ), displayedComponents: [.date, .hourAndMinute])
                     }
+                }
 
-                    DatePicker("Arrival at Venue", selection: Binding(
-                        get: { estimatedArrivalAtVenue ?? date },
-                        set: { estimatedArrivalAtVenue = $0 }
-                    ), displayedComponents: [.date, .hourAndMinute])
-
-                    TextField("Travel Time (minutes)", value: $estimatedTravelMinutes, format: .number)
-                        .keyboardType(.numberPad)
-
-                    DatePicker("Depart from Yard", selection: Binding(
-                        get: { departureFromYard ?? date },
-                        set: { departureFromYard = $0 }
-                    ), displayedComponents: [.date, .hourAndMinute])
-
+                Section("Travel Plan - Return") {
                     DatePicker("Depart from Venue", selection: Binding(
                         get: { departureFromVenue ?? date },
                         set: { departureFromVenue = $0 }
                     ), displayedComponents: [.date, .hourAndMinute])
 
-                    DatePicker("Arrive Back Home", selection: Binding(
-                        get: { arrivalBackAtYard ?? date },
-                        set: { arrivalBackAtYard = $0 }
-                    ), displayedComponents: [.date, .hourAndMinute])
+                    // Yard stop for horse competitions (not triathlon)
+                    if competitionType != .triathlon {
+                        DatePicker("Arrive at Yard", selection: Binding(
+                            get: { arrivalBackAtYard ?? date },
+                            set: { arrivalBackAtYard = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+
+                        DatePicker("Depart from Yard", selection: Binding(
+                            get: { departFromYardReturn ?? date },
+                            set: { departFromYardReturn = $0 }
+                        ), displayedComponents: [.date, .hourAndMinute])
+                    }
 
                     TextField("Route Notes", text: $travelRouteNotes, axis: .vertical)
                         .lineLimit(3...6)
@@ -1253,8 +1411,14 @@ struct CompetitionEditView: View {
                     hasEndDate = comp.endDate != nil
                     location = comp.location
                     venue = comp.venue
+                    venueLatitude = comp.venueLatitude
+                    venueLongitude = comp.venueLongitude
                     competitionType = comp.competitionType
                     level = comp.level
+                    // Triathlon disciplines
+                    triathlonDiscipline1 = comp.triathlonDiscipline1
+                    triathlonDiscipline2 = comp.triathlonDiscipline2
+                    triathlonDiscipline3 = comp.triathlonDiscipline3
                     notes = comp.notes
                     hasEntryDeadline = comp.entryDeadline != nil
                     entryDeadline = comp.entryDeadline ?? Date()
@@ -1271,10 +1435,18 @@ struct CompetitionEditView: View {
                     courseWalkTime = comp.courseWalkTime
                     estimatedArrivalAtVenue = comp.estimatedArrivalAtVenue
                     estimatedTravelMinutes = comp.estimatedTravelMinutes
+                    if let minutes = comp.estimatedTravelMinutes {
+                        travelHours = minutes / 60
+                        travelMins = minutes % 60
+                    }
                     travelRouteNotes = comp.travelRouteNotes
+                    // Outbound yard stop
+                    arriveAtYard = comp.arriveAtYard
                     departureFromYard = comp.departureFromYard
+                    // Return yard stop
                     departureFromVenue = comp.departureFromVenue
                     arrivalBackAtYard = comp.arrivalBackAtYard
+                    departFromYardReturn = comp.departFromYardReturn
 
                     // Showjumping classes
                     showjumpingClasses = comp.showjumpingClasses
@@ -1282,11 +1454,14 @@ struct CompetitionEditView: View {
                     // Dressage classes
                     dressageClasses = comp.dressageClasses
 
-                    // Tetrathlon start times
+                    // Tetrathlon start times and allocations
                     shootingStartTime = comp.shootingStartTime
+                    shootingDetail = comp.shootingDetail ?? ""
+                    shootingLane = comp.shootingLane
                     runningStartTime = comp.runningStartTime
                     swimWarmupTime = comp.swimWarmupTime
                     swimStartTime = comp.swimStartTime
+                    prizeGivingTime = comp.prizeGivingTime
                 }
             }
         }
@@ -1300,8 +1475,14 @@ struct CompetitionEditView: View {
         comp.endDate = hasEndDate ? endDate : nil
         comp.location = location
         comp.venue = venue
+        comp.venueLatitude = venueLatitude
+        comp.venueLongitude = venueLongitude
         comp.competitionType = competitionType
         comp.level = level
+        // Triathlon disciplines
+        comp.triathlonDiscipline1 = triathlonDiscipline1
+        comp.triathlonDiscipline2 = triathlonDiscipline2
+        comp.triathlonDiscipline3 = triathlonDiscipline3
         comp.notes = notes
         comp.entryDeadline = hasEntryDeadline ? entryDeadline : nil
         comp.entryFee = entryFee
@@ -1317,9 +1498,13 @@ struct CompetitionEditView: View {
         comp.estimatedArrivalAtVenue = estimatedArrivalAtVenue
         comp.estimatedTravelMinutes = estimatedTravelMinutes
         comp.travelRouteNotes = travelRouteNotes
+        // Outbound yard stop
+        comp.arriveAtYard = arriveAtYard
         comp.departureFromYard = departureFromYard
+        // Return yard stop
         comp.departureFromVenue = departureFromVenue
         comp.arrivalBackAtYard = arrivalBackAtYard
+        comp.departFromYardReturn = departFromYardReturn
 
         // Showjumping classes (only save if showjumping)
         if competitionType == .showJumping {
@@ -1331,12 +1516,15 @@ struct CompetitionEditView: View {
             comp.dressageClasses = dressageClasses
         }
 
-        // Tetrathlon start times (only save if tetrathlon/triathlon)
+        // Tetrathlon start times and allocations (only save if tetrathlon/triathlon)
         if competitionType == .tetrathlon || competitionType == .triathlon {
             comp.shootingStartTime = shootingStartTime
+            comp.shootingDetail = shootingDetail.isEmpty ? nil : shootingDetail
+            comp.shootingLane = shootingLane
             comp.runningStartTime = runningStartTime
             comp.swimWarmupTime = swimWarmupTime
             comp.swimStartTime = swimStartTime
+            comp.prizeGivingTime = prizeGivingTime
         }
 
         if competition == nil {
@@ -1359,6 +1547,60 @@ struct CompetitionEditView: View {
         // Sync competitions to widgets
         WidgetDataSyncService.shared.syncCompetitions(context: modelContext)
         dismiss()
+    }
+
+    private func formatTravelTime(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0 && mins > 0 {
+            return "\(hours)h \(mins)m"
+        } else if hours > 0 {
+            return "\(hours)h"
+        } else {
+            return "\(mins)m"
+        }
+    }
+
+    private func calculateRouteTime() {
+        guard let destLat = venueLatitude,
+              let destLon = venueLongitude else { return }
+
+        isCalculatingRoute = true
+
+        Task {
+            let request = MKDirections.Request()
+
+            // Use current location as origin
+            request.source = MKMapItem.forCurrentLocation()
+
+            // Destination is the venue
+            let destCoord = CLLocationCoordinate2D(latitude: destLat, longitude: destLon)
+            let destPlacemark = MKPlacemark(coordinate: destCoord)
+            request.destination = MKMapItem(placemark: destPlacemark)
+
+            request.transportType = .automobile
+
+            // Set departure time if we have arrival time (to account for traffic)
+            if let arrivalTime = estimatedArrivalAtVenue {
+                request.arrivalDate = arrivalTime
+            }
+
+            let directions = MKDirections(request: request)
+
+            do {
+                let response = try await directions.calculate()
+                if let route = response.routes.first {
+                    await MainActor.run {
+                        appleMapsEstimateMinutes = Int(route.expectedTravelTime / 60)
+                        isCalculatingRoute = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isCalculatingRoute = false
+                }
+            }
+        }
     }
 
     private func createOrUpdateEntryTask(for comp: Competition) {
