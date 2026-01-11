@@ -566,35 +566,37 @@ struct CompetitionDetailView: View {
                             .padding(.horizontal)
                     }
 
-                    // Status toggles
-                    VStack(spacing: 12) {
-                        Toggle(isOn: $competition.isEntered) {
-                            Label("Entered", systemImage: competition.isEntered ? "checkmark.circle.fill" : "circle")
-                        }
-                        .onChange(of: competition.isEntered) { _, isEntered in
-                            syncEntryTaskCompletion(isEntered: isEntered)
-                        }
-
-                        if competition.stableDeadline != nil {
-                            Toggle(isOn: $competition.isStableBooked) {
-                                Label("Stable Booked", systemImage: competition.isStableBooked ? "bed.double.fill" : "bed.double")
+                    // Status toggles (only show for upcoming competitions)
+                    if !competition.isPast {
+                        VStack(spacing: 12) {
+                            Toggle(isOn: $competition.isEntered) {
+                                Label("Entered", systemImage: competition.isEntered ? "checkmark.circle.fill" : "circle")
                             }
-                            .onChange(of: competition.isStableBooked) { _, isBooked in
-                                syncStableTaskCompletion(isBooked: isBooked)
+                            .onChange(of: competition.isEntered) { _, isEntered in
+                                syncEntryTaskCompletion(isEntered: isEntered)
+                            }
+
+                            if competition.stableDeadline != nil {
+                                Toggle(isOn: $competition.isStableBooked) {
+                                    Label("Stable Booked", systemImage: competition.isStableBooked ? "bed.double.fill" : "bed.double")
+                                }
+                                .onChange(of: competition.isStableBooked) { _, isBooked in
+                                    syncStableTaskCompletion(isBooked: isBooked)
+                                }
+                            }
+
+                            Toggle(isOn: $competition.isTravelPlanned) {
+                                Label("Travel Planned", systemImage: competition.isTravelPlanned ? "car.fill" : "car")
+                            }
+                            .onChange(of: competition.isTravelPlanned) { _, isPlanned in
+                                syncTravelTaskCompletion(isPlanned: isPlanned)
                             }
                         }
-
-                        Toggle(isOn: $competition.isTravelPlanned) {
-                            Label("Travel Planned", systemImage: competition.isTravelPlanned ? "car.fill" : "car")
-                        }
-                        .onChange(of: competition.isTravelPlanned) { _, isPlanned in
-                            syncTravelTaskCompletion(isPlanned: isPlanned)
-                        }
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
 
                     // Notes
                     if !competition.notes.isEmpty {
@@ -726,9 +728,11 @@ struct CompetitionDetailView: View {
                     }
                     .padding(.horizontal)
 
-                    // Preparation tasks (SwiftData-backed)
-                    CompetitionTasksSection(competition: competition)
-                        .padding(.horizontal)
+                    // Preparation tasks (SwiftData-backed) - only show for upcoming competitions
+                    if !competition.isPast {
+                        CompetitionTasksSection(competition: competition)
+                            .padding(.horizontal)
+                    }
 
                     // Legacy todo list for follow-up tasks
                     CompetitionTodoListView(competition: competition)
@@ -1933,23 +1937,6 @@ struct CompetitionTodoListView: View {
                     }
                 }
 
-                // Common task suggestions
-                if competition.todos.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Suggestions:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 8) {
-                            SuggestionChip(text: "Collect rosette", action: { addSuggestion("Collect rosette") })
-                            SuggestionChip(text: "Request certificate", action: { addSuggestion("Request qualification certificate") })
-                        }
-                        HStack(spacing: 8) {
-                            SuggestionChip(text: "Pay entry fee", action: { addSuggestion("Pay entry fee") })
-                            SuggestionChip(text: "Book travel", action: { addSuggestion("Book travel/accommodation") })
-                        }
-                    }
-                }
             }
         }
         .padding()
@@ -1963,9 +1950,6 @@ struct CompetitionTodoListView: View {
         newTodoText = ""
     }
 
-    private func addSuggestion(_ text: String) {
-        competition.addTodo(text)
-    }
 }
 
 struct TodoItemRow: View {
@@ -1993,23 +1977,6 @@ struct TodoItemRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-struct SuggestionChip: View {
-    let text: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(AppColors.primary.opacity(0.1))
-                .foregroundStyle(AppColors.primary)
-                .clipShape(Capsule())
-        }
     }
 }
 

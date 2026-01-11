@@ -335,7 +335,7 @@ struct CompetitionCalendarView: View {
 // - DetailRow, CompletedBadge
 // - CompetitionEditView
 // - CompetitionScorecardView
-// - CompetitionTodoListView, TodoItemRow, SuggestionChip
+// - CompetitionTodoListView, TodoItemRow
 // - CompetitionFilterChip, CompetitionFilterSheet
 
 #Preview {
