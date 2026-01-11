@@ -546,6 +546,22 @@ struct RoutePlannerView: View {
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.8))
                 }
+
+                // Cancel button
+                Button {
+                    Task {
+                        await routePlanning.cancelDownload(region.id)
+                        isDownloadingRegion = false
+                    }
+                } label: {
+                    Text("Cancel")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(.top, 8)
             }
             .padding(24)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
