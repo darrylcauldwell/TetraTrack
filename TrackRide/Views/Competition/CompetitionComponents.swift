@@ -485,6 +485,18 @@ struct CompetitionDetailView: View {
                         DetailRow(icon: "calendar", title: "Date", value: competition.formattedDateRange)
                         DetailRow(icon: "mappin", title: "Venue", value: competition.venue.isEmpty ? "Not set" : competition.venue)
 
+                        // Map view for venue (if coordinates available)
+                        if let lat = competition.venueLatitude, let lon = competition.venueLongitude {
+                            Map(initialPosition: .region(MKCoordinateRegion(
+                                center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            ))) {
+                                Marker(competition.venue.isEmpty ? "Venue" : competition.venue, coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                            }
+                            .frame(height: 150)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+
                         if let deadline = competition.entryDeadline {
                             DetailRow(
                                 icon: "clock",
@@ -503,8 +515,13 @@ struct CompetitionDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
-                    // Disciplines & Scorecard
-                    if !competition.competitionType.disciplines.isEmpty {
+                    // Disciplines section - different views based on competition type
+                    if competition.competitionType == .triathlon || competition.competitionType == .tetrathlon {
+                        // Triathlon/Tetrathlon: Inline editable scorecard
+                        DisciplineScoreCardView(competition: competition)
+                            .padding(.horizontal)
+                    } else if !competition.competitionType.disciplines.isEmpty {
+                        // Other competition types: Generic disciplines list
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Disciplines")
@@ -557,12 +574,6 @@ struct CompetitionDetailView: View {
                     // Dressage Classes & Results (only for dressage competitions)
                     if competition.competitionType == .dressage {
                         DressageResultsView(competition: competition)
-                            .padding(.horizontal)
-                    }
-
-                    // Triathlon/Tetrathlon Results
-                    if competition.competitionType == .triathlon || competition.competitionType == .tetrathlon {
-                        DisciplineScoreCardView(competition: competition)
                             .padding(.horizontal)
                     }
 

@@ -85,7 +85,7 @@ struct DisciplineScoreCardView: View {
         if isTetrathlon || isTriathlon {
             VStack(alignment: .leading, spacing: 16) {
                 // Header
-                Text(isTetrathlon ? "Tetrathlon Results" : "Triathlon Results")
+                Text("Disciplines")
                     .font(.headline)
 
                 // Discipline rows
