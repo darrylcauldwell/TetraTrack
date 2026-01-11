@@ -41,7 +41,7 @@ jobs:
           xcodebuild build \
             -project TetraTrack.xcodeproj \
             -scheme TetraTrack \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
@@ -51,7 +51,7 @@ jobs:
           xcodebuild test \
             -project TetraTrack.xcodeproj \
             -scheme TetraTrack \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath TestResults.xcresult
@@ -89,7 +89,7 @@ jobs:
           xcodebuild test \
             -project TetraTrack.xcodeproj \
             -scheme TetraTrackUITests \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath UITestResults.xcresult

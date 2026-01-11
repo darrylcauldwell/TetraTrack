@@ -54,7 +54,7 @@ struct RoutingPreferences: Codable, Equatable, Sendable {
 }
 
 /// Result of a route calculation
-struct CalculatedRoute {
+struct CalculatedRoute: Sendable {
     let coordinates: [CLLocationCoordinate2D]
     let totalDistance: Double  // meters
     let estimatedDuration: Double  // seconds at walk (~6 km/h)
@@ -62,7 +62,7 @@ struct CalculatedRoute {
     let wayTypeBreakdown: [String: Double]  // way type -> meters
     let surfaceBreakdown: [String: Double]  // surface -> meters
 
-    struct RouteSegmentInfo {
+    struct RouteSegmentInfo: Sendable {
         let startIndex: Int
         let endIndex: Int
         let wayType: OSMWayType
@@ -71,9 +71,22 @@ struct CalculatedRoute {
     }
 }
 
+/// Lightweight node data for background thread A* computation
+/// This is Sendable and can be safely passed to background threads
+private struct CachedNodeData: Sendable {
+    let osmId: Int64
+    let latitude: Double
+    let longitude: Double
+    let edges: [OSMEdge]
+
+    nonisolated var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
 /// On-device A* routing engine optimized for horse riding
-/// Note: Uses @MainActor instead of actor to ensure ModelContext access stays on the main thread.
-/// ModelContext is not Sendable and must only be accessed from the thread that created it.
+/// Note: Uses @MainActor for ModelContext access, but performs heavy A* computation on background thread.
+/// The node cache is built on main thread, then copied to Sendable structs for background processing.
 @MainActor
 final class HorseRoutingEngine {
 
@@ -86,40 +99,30 @@ final class HorseRoutingEngine {
     /// Search radius for finding nearest node (in degrees, ~500m)
     private let nearestNodeSearchRadius = 0.005
 
-    /// Node cache - built once at start of routing to avoid repeated database fetches
-    /// Key: osmId, Value: OSMNode
-    private var nodeCache: [Int64: OSMNode] = [:]
-
-    /// Coordinate cache for fast lookups during A*
-    private var coordCache: [Int64: CLLocationCoordinate2D] = [:]
-
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 
-    /// Build node cache for routing - call once at start of route calculation
-    private func buildNodeCache() throws {
-        // Only rebuild if cache is empty
-        guard nodeCache.isEmpty else { return }
-
+    /// Build a Sendable node cache for background A* computation
+    /// This is called on main thread to access ModelContext, then the data is copied
+    private func buildSendableNodeCache() throws -> [Int64: CachedNodeData] {
         let descriptor = FetchDescriptor<OSMNode>()
         let allNodes = try modelContext.fetch(descriptor)
 
-        nodeCache.reserveCapacity(allNodes.count)
-        coordCache.reserveCapacity(allNodes.count)
+        var cache: [Int64: CachedNodeData] = [:]
+        cache.reserveCapacity(allNodes.count)
 
         for node in allNodes {
-            nodeCache[node.osmId] = node
-            coordCache[node.osmId] = node.coordinate
+            cache[node.osmId] = CachedNodeData(
+                osmId: node.osmId,
+                latitude: node.latitude,
+                longitude: node.longitude,
+                edges: node.edges
+            )
         }
 
-        logger.info("Built node cache with \(allNodes.count) nodes")
-    }
-
-    /// Clear cache after routing is complete to free memory
-    private func clearCache() {
-        nodeCache.removeAll()
-        coordCache.removeAll()
+        logger.info("Built sendable node cache with \(allNodes.count) nodes")
+        return cache
     }
 
     // MARK: - Public API
@@ -132,9 +135,107 @@ final class HorseRoutingEngine {
         preferences: RoutingPreferences = RoutingPreferences()
     ) async throws -> CalculatedRoute {
 
-        // Build node cache once at start - critical for performance
-        try buildNodeCache()
-        defer { clearCache() }
+        // Build sendable node cache on main thread (ModelContext access)
+        let nodeCache = try buildSendableNodeCache()
+        let maxIter = maxIterations
+        let searchRadius = nearestNodeSearchRadius
+
+        // Run heavy A* computation on background thread
+        return try await Task.detached(priority: .userInitiated) {
+            try await BackgroundRouter.performRouteCalculation(
+                from: start,
+                to: end,
+                via: waypoints,
+                preferences: preferences,
+                nodeCache: nodeCache,
+                maxIterations: maxIter,
+                nearestNodeSearchRadius: searchRadius
+            )
+        }.value
+    }
+
+    /// Calculate a loop route from a starting point
+    func calculateLoopRoute(
+        from start: CLLocationCoordinate2D,
+        targetDistance: Double,
+        preferences: RoutingPreferences = RoutingPreferences()
+    ) async throws -> CalculatedRoute {
+
+        // Build sendable node cache on main thread
+        let nodeCache = try buildSendableNodeCache()
+        let maxIter = maxIterations
+        let searchRadius = nearestNodeSearchRadius
+
+        // Run on background thread
+        return try await Task.detached(priority: .userInitiated) {
+            // Generate candidate turnaround points at approximately half the target distance
+            let turnaroundDistance = targetDistance / 2
+            let candidates = BackgroundRouter.findReachablePoints(
+                from: start,
+                atDistance: turnaroundDistance,
+                count: 8,
+                nodeCache: nodeCache,
+                nearestNodeSearchRadius: searchRadius
+            )
+
+            // Try each candidate and find best loop
+            var bestRoute: CalculatedRoute?
+            var bestDistanceError = Double.infinity
+
+            for candidate in candidates {
+                do {
+                    let route = try await BackgroundRouter.performRouteCalculation(
+                        from: start,
+                        to: start,
+                        via: [candidate],
+                        preferences: preferences,
+                        nodeCache: nodeCache,
+                        maxIterations: maxIter,
+                        nearestNodeSearchRadius: searchRadius
+                    )
+
+                    let error = abs(route.totalDistance - targetDistance)
+                    if error < bestDistanceError {
+                        bestDistanceError = error
+                        bestRoute = route
+                    }
+                } catch {
+                    // Try next candidate
+                    continue
+                }
+            }
+
+            guard let route = bestRoute else {
+                throw RoutingError.noRouteFound
+            }
+
+            return route
+        }.value
+    }
+}
+
+// MARK: - Background Router (runs off main thread)
+
+/// Static methods for A* routing that can run on any thread
+/// Uses nonisolated to ensure this code runs on background thread, not main actor
+private enum BackgroundRouter: Sendable {
+
+    struct SegmentResult: Sendable {
+        let coordinates: [CLLocationCoordinate2D]
+        let distance: Double
+        let segments: [CalculatedRoute.RouteSegmentInfo]
+    }
+
+    /// Perform the actual route calculation on background thread
+    nonisolated static func performRouteCalculation(
+        from start: CLLocationCoordinate2D,
+        to end: CLLocationCoordinate2D,
+        via waypoints: [CLLocationCoordinate2D],
+        preferences: RoutingPreferences,
+        nodeCache: [Int64: CachedNodeData],
+        maxIterations: Int,
+        nearestNodeSearchRadius: Double
+    ) async throws -> CalculatedRoute {
 
         // Build full waypoint list
         let allPoints = [start] + waypoints + [end]
@@ -147,10 +248,13 @@ final class HorseRoutingEngine {
         var surfaceDistances: [String: Double] = [:]
 
         for i in 0..<(allPoints.count - 1) {
-            let segmentResult = try await routeSegment(
+            let segmentResult = try routeSegment(
                 from: allPoints[i],
                 to: allPoints[i + 1],
-                preferences: preferences
+                preferences: preferences,
+                nodeCache: nodeCache,
+                maxIterations: maxIterations,
+                nearestNodeSearchRadius: nearestNodeSearchRadius
             )
 
             // Avoid duplicating junction coordinates
@@ -174,6 +278,9 @@ final class HorseRoutingEngine {
                 wayTypeDistances[segment.wayType.rawValue, default: 0] += segment.distance
                 surfaceDistances[segment.surface.rawValue, default: 0] += segment.distance
             }
+
+            // Yield periodically to allow cancellation
+            await Task.yield()
         }
 
         // Estimate duration at walking pace (~6 km/h = 1.67 m/s)
@@ -189,71 +296,20 @@ final class HorseRoutingEngine {
         )
     }
 
-    /// Calculate a loop route from a starting point
-    func calculateLoopRoute(
-        from start: CLLocationCoordinate2D,
-        targetDistance: Double,
-        preferences: RoutingPreferences = RoutingPreferences()
-    ) async throws -> CalculatedRoute {
-
-        // Generate candidate turnaround points at approximately half the target distance
-        let turnaroundDistance = targetDistance / 2
-        let candidates = try await findReachablePoints(
-            from: start,
-            atDistance: turnaroundDistance,
-            count: 8
-        )
-
-        // Try each candidate and find best loop
-        var bestRoute: CalculatedRoute?
-        var bestDistanceError = Double.infinity
-
-        for candidate in candidates {
-            do {
-                let route = try await calculateRoute(
-                    from: start,
-                    to: start,
-                    via: [candidate],
-                    preferences: preferences
-                )
-
-                let error = abs(route.totalDistance - targetDistance)
-                if error < bestDistanceError {
-                    bestDistanceError = error
-                    bestRoute = route
-                }
-            } catch {
-                // Try next candidate
-                continue
-            }
-        }
-
-        guard let route = bestRoute else {
-            throw RoutingError.noRouteFound
-        }
-
-        return route
-    }
-
     // MARK: - Core A* Implementation
 
-    private struct SegmentResult {
-        let coordinates: [CLLocationCoordinate2D]
-        let distance: Double
-        let segments: [CalculatedRoute.RouteSegmentInfo]
-    }
-
-    private func routeSegment(
+    private nonisolated static func routeSegment(
         from start: CLLocationCoordinate2D,
         to end: CLLocationCoordinate2D,
-        preferences: RoutingPreferences
-    ) async throws -> SegmentResult {
+        preferences: RoutingPreferences,
+        nodeCache: [Int64: CachedNodeData],
+        maxIterations: Int,
+        nearestNodeSearchRadius: Double
+    ) throws -> SegmentResult {
 
         // Find nearest graph nodes to start/end (using cache)
-        let startNode = try findNearestNode(to: start)
-        let endNode = try findNearestNode(to: end)
-
-        logger.debug("Routing from node \(startNode.osmId) to \(endNode.osmId)")
+        let startNode = try findNearestNode(to: start, nodeCache: nodeCache, searchRadius: nearestNodeSearchRadius)
+        let endNode = try findNearestNode(to: end, nodeCache: nodeCache, searchRadius: nearestNodeSearchRadius)
 
         // A* data structures
         var openSet = PriorityQueue<AStarNode>()
@@ -272,25 +328,22 @@ final class HorseRoutingEngine {
             iterations += 1
 
             if iterations > maxIterations {
-                logger.warning("Route calculation timed out after \(iterations) iterations")
                 throw RoutingError.routingTimeout
             }
 
             // Found the goal
             if current.nodeId == endNode.osmId {
-                logger.debug("Route found after \(iterations) iterations")
-                return try reconstructPath(
+                return reconstructPath(
                     cameFrom: cameFrom,
                     endNodeId: current.nodeId,
-                    startCoord: start,
-                    endCoord: end
+                    nodeCache: nodeCache
                 )
             }
 
             closedSet.insert(current.nodeId)
 
             // Get current node and its edges (O(1) cache lookup)
-            guard let currentNode = getNode(by: current.nodeId) else {
+            guard let currentNode = nodeCache[current.nodeId] else {
                 continue
             }
 
@@ -314,8 +367,8 @@ final class HorseRoutingEngine {
                     cameFrom[edge.toNodeId] = (current.nodeId, edge)
                     gScore[edge.toNodeId] = tentativeG
 
-                    if let toCoord = getNodeCoordinate(edge.toNodeId) {
-                        let h = heuristic(from: toCoord, to: endNode.coordinate)
+                    if let toNode = nodeCache[edge.toNodeId] {
+                        let h = heuristic(from: toNode.coordinate, to: endNode.coordinate)
                         let f = tentativeG + h
                         openSet.insert(AStarNode(nodeId: edge.toNodeId, fScore: f))
                     }
@@ -323,12 +376,11 @@ final class HorseRoutingEngine {
             }
         }
 
-        logger.warning("No route found after \(iterations) iterations")
         throw RoutingError.noRouteFound
     }
 
     /// Haversine heuristic - admissible for A*
-    private func heuristic(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
+    private nonisolated static func heuristic(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
         let distance = haversineDistance(from: from, to: to)
         // Multiply by minimum possible cost factor to ensure admissibility
         return distance * 0.5
@@ -336,12 +388,11 @@ final class HorseRoutingEngine {
 
     // MARK: - Path Reconstruction
 
-    private func reconstructPath(
+    private nonisolated static func reconstructPath(
         cameFrom: [Int64: (nodeId: Int64, edge: OSMEdge)],
         endNodeId: Int64,
-        startCoord: CLLocationCoordinate2D,
-        endCoord: CLLocationCoordinate2D
-    ) throws -> SegmentResult {
+        nodeCache: [Int64: CachedNodeData]
+    ) -> SegmentResult {
 
         var coordinates: [CLLocationCoordinate2D] = []
         var segments: [CalculatedRoute.RouteSegmentInfo] = []
@@ -350,18 +401,18 @@ final class HorseRoutingEngine {
         var nodeId = endNodeId
         var pathEdges: [(coord: CLLocationCoordinate2D, edge: OSMEdge?)] = []
 
-        // Walk back through the path (using cache)
+        // Walk back through the path
         while let (prevId, edge) = cameFrom[nodeId] {
-            if let coord = getNodeCoordinate(nodeId) {
-                pathEdges.append((coord, edge))
+            if let node = nodeCache[nodeId] {
+                pathEdges.append((node.coordinate, edge))
                 totalDistance += edge.distance
             }
             nodeId = prevId
         }
 
         // Add start node
-        if let startNodeCoord = getNodeCoordinate(nodeId) {
-            pathEdges.append((startNodeCoord, nil))
+        if let startNode = nodeCache[nodeId] {
+            pathEdges.append((startNode.coordinate, nil))
         }
 
         // Reverse to get start-to-end order
@@ -419,14 +470,18 @@ final class HorseRoutingEngine {
         )
     }
 
-    // MARK: - Database Queries (using cache for performance)
+    // MARK: - Node Lookup
 
-    private func findNearestNode(to coordinate: CLLocationCoordinate2D) throws -> OSMNode {
+    private nonisolated static func findNearestNode(
+        to coordinate: CLLocationCoordinate2D,
+        nodeCache: [Int64: CachedNodeData],
+        searchRadius: Double
+    ) throws -> CachedNodeData {
         let lat = coordinate.latitude
         let lon = coordinate.longitude
-        let delta = nearestNodeSearchRadius
+        let delta = searchRadius
 
-        // Use cache instead of database query
+        // Filter nodes within search radius
         let candidates = nodeCache.values.filter { node in
             node.latitude >= lat - delta &&
             node.latitude <= lat + delta &&
@@ -444,22 +499,14 @@ final class HorseRoutingEngine {
         return nearest
     }
 
-    private func getNode(by osmId: Int64) -> OSMNode? {
-        // O(1) lookup from cache
-        return nodeCache[osmId]
-    }
-
-    private func getNodeCoordinate(_ osmId: Int64) -> CLLocationCoordinate2D? {
-        // O(1) lookup from coordinate cache
-        return coordCache[osmId]
-    }
-
     /// Find reachable points at approximately a given distance (for loop routing)
-    private func findReachablePoints(
+    nonisolated static func findReachablePoints(
         from start: CLLocationCoordinate2D,
         atDistance targetDistance: Double,
-        count: Int
-    ) async throws -> [CLLocationCoordinate2D] {
+        count: Int,
+        nodeCache: [Int64: CachedNodeData],
+        nearestNodeSearchRadius: Double
+    ) -> [CLLocationCoordinate2D] {
 
         // Generate candidate points in 8 directions
         let bearings: [Double] = [0, 45, 90, 135, 180, 225, 270, 315]
@@ -474,7 +521,7 @@ final class HorseRoutingEngine {
             )
 
             // Find nearest routable node to that point (using cache)
-            if let node = try? findNearestNode(to: targetCoord) {
+            if let node = try? findNearestNode(to: targetCoord, nodeCache: nodeCache, searchRadius: nearestNodeSearchRadius) {
                 candidates.append(node.coordinate)
             }
         }
@@ -484,7 +531,7 @@ final class HorseRoutingEngine {
 
     // MARK: - Utilities
 
-    private func haversineDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
+    private nonisolated static func haversineDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
         let R = 6371000.0 // Earth radius in meters
         let lat1 = from.latitude * .pi / 180
         let lat2 = to.latitude * .pi / 180
@@ -498,7 +545,7 @@ final class HorseRoutingEngine {
         return R * c
     }
 
-    private func destinationPoint(
+    private nonisolated static func destinationPoint(
         from: CLLocationCoordinate2D,
         distance: Double,
         bearing: Double
@@ -520,13 +567,9 @@ final class HorseRoutingEngine {
     }
 }
 
-// MARK: - Supporting Types
+// MARK: - Supporting Types (nonisolated for background thread use)
 
 private struct AStarNode: Comparable, Sendable {
-    nonisolated init(nodeId: Int64, fScore: Double) {
-        self.nodeId = nodeId
-        self.fScore = fScore
-    }
     let nodeId: Int64
     let fScore: Double
 
@@ -541,11 +584,7 @@ private struct AStarNode: Comparable, Sendable {
 
 /// Min-heap priority queue for A*
 private struct PriorityQueue<T: Comparable & Sendable>: Sendable {
-    private var heap: [T] = []
-
-    nonisolated init() {
-        self.heap = []
-    }
+    nonisolated(unsafe) private var heap: [T] = []
 
     nonisolated var isEmpty: Bool { heap.isEmpty }
 

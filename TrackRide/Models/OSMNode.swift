@@ -212,7 +212,7 @@ enum OSMHorseAccess: String, Codable {
 }
 
 /// A single edge in the routing graph
-struct OSMEdge: Codable {
+struct OSMEdge: Codable, Sendable {
     var toNodeId: Int64
     var distance: Double          // meters
     var wayType: OSMWayType
