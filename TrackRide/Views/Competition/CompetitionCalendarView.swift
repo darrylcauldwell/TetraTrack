@@ -262,36 +262,35 @@ struct CompetitionCalendarView: View {
             }
             .navigationTitle("Competitions")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 16) {
-                        // Statistics button
-                        NavigationLink(destination: CompetitionStatsView()) {
-                            Image(systemName: "chart.bar.xaxis")
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: CompetitionStatsView()) {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                }
 
-                        // Filter button
-                        Button {
-                            showingFilters = true
-                        } label: {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: "line.3.horizontal.decrease.circle")
-                                if activeFilterCount > 0 {
-                                    Text("\(activeFilterCount)")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(.white)
-                                        .padding(4)
-                                        .background(AppColors.primary)
-                                        .clipShape(Circle())
-                                        .offset(x: 8, y: -8)
-                                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingFilters = true
+                    } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                            if activeFilterCount > 0 {
+                                Text("\(activeFilterCount)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.white)
+                                    .padding(4)
+                                    .background(AppColors.primary)
+                                    .clipShape(Circle())
+                                    .offset(x: 8, y: -8)
                             }
                         }
+                    }
+                }
 
-                        // Add button
-                        Button(action: { showingAddCompetition = true }) {
-                            Image(systemName: "plus")
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showingAddCompetition = true }) {
+                        Image(systemName: "plus")
                     }
                 }
             }

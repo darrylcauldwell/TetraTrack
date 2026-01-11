@@ -33,7 +33,7 @@ struct RegionDownloadView: View {
                     } header: {
                         Text("Incomplete Downloads")
                     } footer: {
-                        Text("These downloads were interrupted. Resume to continue or cancel to start fresh.")
+                        Text("Resume to continue downloading, or clear to remove and start fresh.")
                     }
                 }
 
@@ -156,7 +156,9 @@ struct RegionDownloadView: View {
     }
 
     private func loadIncompleteDownloads() {
-        incompleteDownloads = DownloadState.getResumableDownloads()
+        // Show ALL incomplete downloads, not just resumable ones
+        // This includes stuck downloads that can be cleared
+        incompleteDownloads = DownloadState.getIncompleteDownloads()
     }
 
     private func resumeDownload(_ state: DownloadState) {
@@ -335,15 +337,17 @@ private struct IncompleteDownloadRow: View {
 
             // Action buttons
             HStack(spacing: 12) {
-                Button(action: onResume) {
-                    Label("Resume", systemImage: "play.fill")
-                        .font(.subheadline)
+                if state.isResumable {
+                    Button(action: onResume) {
+                        Label("Resume", systemImage: "play.fill")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
 
                 Button(role: .destructive, action: onCancel) {
-                    Label("Cancel", systemImage: "xmark")
+                    Label(state.isResumable ? "Cancel" : "Clear", systemImage: "xmark")
                         .font(.subheadline)
                 }
                 .buttonStyle(.bordered)
