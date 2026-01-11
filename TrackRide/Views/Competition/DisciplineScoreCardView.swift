@@ -58,46 +58,33 @@ struct DisciplineScoreCardView: View {
 
                 // Placements (Triathlon)
                 if isTriathlon {
-                    if competition.individualPlacement != nil || competition.teamPlacement != nil {
-                        Divider()
+                    Divider()
 
-                        HStack(spacing: 0) {
-                            // Individual placement
-                            VStack(alignment: .center, spacing: 4) {
-                                Text("Individual")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if let individual = competition.individualPlacement {
-                                    Text(formatPlacement(individual))
-                                        .font(.title2.bold())
-                                        .foregroundStyle(AppColors.primary)
-                                } else {
-                                    Text("—")
-                                        .font(.title2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
+                    // Individual placement row
+                    HStack {
+                        Text("Individual")
+                        Spacer()
+                        if let individual = competition.individualPlacement {
+                            Text(formatPlacement(individual))
+                                .font(.headline)
+                                .foregroundStyle(AppColors.primary)
+                        } else {
+                            Text("—")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
 
-                            Divider()
-                                .frame(height: 40)
-
-                            // Team placement
-                            VStack(alignment: .center, spacing: 4) {
-                                Text("Team")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if let team = competition.teamPlacement {
-                                    Text(formatPlacement(team))
-                                        .font(.title2.bold())
-                                        .foregroundStyle(AppColors.primary)
-                                } else {
-                                    Text("—")
-                                        .font(.title2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
+                    // Team placement row
+                    HStack {
+                        Text("Team")
+                        Spacer()
+                        if let team = competition.teamPlacement {
+                            Text(formatPlacement(team))
+                                .font(.headline)
+                                .foregroundStyle(AppColors.primary)
+                        } else {
+                            Text("—")
+                                .foregroundStyle(.tertiary)
                         }
                     }
                 }
