@@ -21,6 +21,7 @@ struct CompetitionStatsView: View {
     @State private var weatherAnalysis: WeatherImpactAnalysis?
     @State private var isLoadingInsights = false
     @State private var insightsError: String?
+    @State private var isAppleIntelligenceAvailable = false
 
     private func refreshStatistics() {
         statistics = CompetitionStatisticsManager.calculateStatistics(
@@ -67,8 +68,8 @@ struct CompetitionStatsView: View {
                         .glassCard(material: .ultraThin, cornerRadius: 20, padding: 40)
                         .padding()
                     } else {
-                        // Apple Intelligence Insights Section
-                        if #available(iOS 26.0, *) {
+                        // Apple Intelligence Insights Section - only show if available
+                        if #available(iOS 26.0, *), isAppleIntelligenceAvailable {
                             CompetitionInsightsSection(
                                 performanceSummary: performanceSummary,
                                 trendAnalysis: trendAnalysis,
@@ -104,7 +105,11 @@ struct CompetitionStatsView: View {
         }
         .task {
             if #available(iOS 26.0, *) {
-                await loadInsights()
+                // Check if Apple Intelligence is available on this device
+                isAppleIntelligenceAvailable = IntelligenceService.shared.isAvailable
+                if isAppleIntelligenceAvailable {
+                    await loadInsights()
+                }
             }
         }
         .onChange(of: selectedPeriod) { _, _ in

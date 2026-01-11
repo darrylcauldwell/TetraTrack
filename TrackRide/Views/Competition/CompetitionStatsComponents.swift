@@ -14,24 +14,33 @@ struct CompetitionTypeFilterView: View {
     @Binding var selectedType: CompetitionTypeFilter
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(CompetitionTypeFilter.allCases, id: \.self) { type in
-                Button {
-                    selectedType = type
-                } label: {
-                    Text(type.displayName)
-                        .font(.subheadline)
-                        .fontWeight(selectedType == type ? .semibold : .regular)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(selectedType == type ? AppColors.primary : Color.clear)
-                        .foregroundStyle(selectedType == type ? .white : .primary)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(selectedType == type ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
-                        )
+        HStack {
+            Text("Competition Type")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Menu {
+                ForEach(CompetitionTypeFilter.allCases, id: \.self) { type in
+                    Button {
+                        selectedType = type
+                    } label: {
+                        if selectedType == type {
+                            Label(type.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(type.displayName)
+                        }
+                    }
                 }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(selectedType.displayName)
+                        .font(.subheadline.weight(.medium))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                }
+                .foregroundStyle(AppColors.primary)
             }
         }
         .padding(.horizontal)
@@ -87,10 +96,10 @@ struct CompetitionPersonalBestsView: View {
     let statistics: CompetitionStatistics
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             GlassSectionHeader("Personal Bests", icon: "trophy.fill")
 
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 if let bestShooting = statistics.bestShooting {
                     CompetitionPBRow(
                         pb: bestShooting,
@@ -125,7 +134,7 @@ struct CompetitionPersonalBestsView: View {
 
                 if let bestTotal = statistics.bestTotal {
                     Divider()
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
 
                     CompetitionPBRow(
                         pb: bestTotal,
@@ -135,7 +144,7 @@ struct CompetitionPersonalBestsView: View {
                 }
             }
         }
-        .glassCard(material: .thin, cornerRadius: 20, padding: 20)
+        .glassCard(material: .thin, cornerRadius: 20, padding: 24)
         .padding(.horizontal)
     }
 }
