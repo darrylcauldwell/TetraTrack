@@ -1001,8 +1001,10 @@ struct CompetitionEditView: View {
     @State private var shootingDetail: String = ""
     @State private var shootingLane: Int?
     @State private var runningStartTime: Date?
+    @State private var runningCompetitorNumber: Int?
     @State private var swimWarmupTime: Date?
     @State private var swimStartTime: Date?
+    @State private var swimmingLane: Int?
     @State private var prizeGivingTime: Date?
 
     var isEditing: Bool { competition != nil }
@@ -1263,6 +1265,9 @@ struct CompetitionEditView: View {
                             set: { runningStartTime = $0 }
                         ), displayedComponents: [.date, .hourAndMinute])
 
+                        TextField("Competitor Number", value: $runningCompetitorNumber, format: .number)
+                            .keyboardType(.numberPad)
+
                         DatePicker("Swim Warmup", selection: Binding(
                             get: { swimWarmupTime ?? date },
                             set: { swimWarmupTime = $0 }
@@ -1272,6 +1277,9 @@ struct CompetitionEditView: View {
                             get: { swimStartTime ?? date },
                             set: { swimStartTime = $0 }
                         ), displayedComponents: [.date, .hourAndMinute])
+
+                        TextField("Swimming Lane", value: $swimmingLane, format: .number)
+                            .keyboardType(.numberPad)
 
                         DatePicker("Prize Giving", selection: Binding(
                             get: { prizeGivingTime ?? date },
@@ -1455,8 +1463,10 @@ struct CompetitionEditView: View {
                     shootingDetail = comp.shootingDetail ?? ""
                     shootingLane = comp.shootingLane
                     runningStartTime = comp.runningStartTime
+                    runningCompetitorNumber = comp.runningCompetitorNumber
                     swimWarmupTime = comp.swimWarmupTime
                     swimStartTime = comp.swimStartTime
+                    swimmingLane = comp.swimmingLane
                     prizeGivingTime = comp.prizeGivingTime
                 }
             }
@@ -1517,8 +1527,10 @@ struct CompetitionEditView: View {
             comp.shootingDetail = shootingDetail.isEmpty ? nil : shootingDetail
             comp.shootingLane = shootingLane
             comp.runningStartTime = runningStartTime
+            comp.runningCompetitorNumber = runningCompetitorNumber
             comp.swimWarmupTime = swimWarmupTime
             comp.swimStartTime = swimStartTime
+            comp.swimmingLane = swimmingLane
             comp.prizeGivingTime = prizeGivingTime
         }
 

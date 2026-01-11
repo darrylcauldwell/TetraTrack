@@ -312,13 +312,15 @@ final class Competition {
     var triathlonDiscipline2Raw: String = "Running"
     var triathlonDiscipline3Raw: String = "Swimming"
 
-    // Tetrathlon-specific start times
+    // Tetrathlon-specific start times and assignments
     var shootingStartTime: Date?
     var shootingDetail: String?
     var shootingLane: Int?
     var runningStartTime: Date?
+    var runningCompetitorNumber: Int?  // Bib/competitor number for running
     var swimWarmupTime: Date?
     var swimStartTime: Date?
+    var swimmingLane: Int?             // Lane assignment for swimming
     var prizeGivingTime: Date?
 
     // Results (if completed)
