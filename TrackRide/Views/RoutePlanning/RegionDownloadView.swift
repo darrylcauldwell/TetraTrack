@@ -313,22 +313,31 @@ private struct AvailableRegionRow: View {
             if let progress = downloadProgress {
                 // Show progress bar only during active download phases
                 if progress.phase != .complete && progress.phase != .failed {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             ProgressView(value: progress.progress)
                             Text("\(Int(progress.progress * 100))%")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
+                        }
+
+                        HStack {
+                            Text(progress.message)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+
+                            Spacer()
+
                             Button(action: onCancel) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.red)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "xmark.circle.fill")
+                                    Text("Cancel")
+                                }
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.red)
                             }
                         }
-                        Text(progress.message)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
