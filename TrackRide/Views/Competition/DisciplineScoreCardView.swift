@@ -279,10 +279,16 @@ struct TriathlonResultsEditorView: View {
     @State private var swimMinutes: Int = 0
     @State private var swimSeconds: Int = 0
     @State private var swimHundredths: Int = 0
-    @State private var swimDistance: Double = 100
+    @State private var poolLength: Double = 25  // Pool length in meters
+    @State private var swimLengths: Int = 4     // Number of lengths swum
     @State private var runMinutes: Int = 0
     @State private var runSeconds: Int = 0
     @State private var ridingPenalties: String = ""
+
+    /// Calculated swim distance from pool length × lengths
+    private var swimDistance: Double {
+        poolLength * Double(swimLengths)
+    }
 
     // Placements (Triathlon only)
     @State private var individualPlacementText: String = ""
@@ -317,25 +323,52 @@ struct TriathlonResultsEditorView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let score = Int(shootingScoreText) {
-                    HStack {
-                        Text("Points")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateShootingPoints(rawScore: score)))")
+                HStack {
+                    Text("Points")
+                        .font(.headline)
+                    Spacer()
+                    if let score = Int(shootingScoreText) {
+                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateShootingPoints(rawScore: score)))
+                            .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
+                    } else {
+                        Text("Enter score")
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
 
         case .swimming:
             Section("Swimming") {
-                Picker("Distance", selection: $swimDistance) {
-                    Text("50m").tag(50.0)
-                    Text("100m").tag(100.0)
-                    Text("200m").tag(200.0)
+                HStack {
+                    Text("Pool Length")
+                    Spacer()
+                    Picker("Pool", selection: $poolLength) {
+                        Text("20m").tag(20.0)
+                        Text("25m").tag(25.0)
+                        Text("33m").tag(33.0)
+                        Text("50m").tag(50.0)
+                    }
+                    .pickerStyle(.menu)
                 }
-                .pickerStyle(.segmented)
+
+                HStack {
+                    Text("Lengths")
+                    Spacer()
+                    Picker("Lengths", selection: $swimLengths) {
+                        ForEach(1..<21) { Text("\($0)").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+
+                HStack {
+                    Text("Total Distance")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(swimDistance))m")
+                        .foregroundStyle(.secondary)
+                }
 
                 HStack {
                     Text("Time")
@@ -359,14 +392,19 @@ struct TriathlonResultsEditorView: View {
                     .labelsHidden()
                 }
 
+                // Always show points calculation
                 let swimTime = Double(swimMinutes * 60 + swimSeconds) + Double(swimHundredths) / 100.0
-                if swimTime > 0 {
-                    HStack {
-                        Text("Points")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)))")
+                HStack {
+                    Text("Points")
+                        .font(.headline)
+                    Spacer()
+                    if swimTime > 0 {
+                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)))
+                            .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
+                    } else {
+                        Text("Enter time")
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -390,13 +428,17 @@ struct TriathlonResultsEditorView: View {
                 }
 
                 let runTime = Double(runMinutes * 60 + runSeconds)
-                if runTime > 0 {
-                    HStack {
-                        Text("Points")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)))")
+                HStack {
+                    Text("Points")
+                        .font(.headline)
+                    Spacer()
+                    if runTime > 0 {
+                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)))
+                            .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
+                    } else {
+                        Text("Enter time")
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -412,13 +454,17 @@ struct TriathlonResultsEditorView: View {
                         .frame(width: 80)
                 }
 
-                if let penalties = Double(ridingPenalties) {
-                    HStack {
-                        Text("Points")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRidingPoints(penalties: penalties)))")
+                HStack {
+                    Text("Points")
+                        .font(.headline)
+                    Spacer()
+                    if let penalties = Double(ridingPenalties) {
+                        Text(PonyClubScoringService.formatPoints(PonyClubScoringService.calculateRidingPoints(penalties: penalties)))
+                            .font(.title2.bold())
                             .foregroundStyle(AppColors.primary)
+                    } else {
+                        Text("Enter penalties")
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -502,8 +548,23 @@ struct TriathlonResultsEditorView: View {
             swimHundredths = Int((time.truncatingRemainder(dividingBy: 1)) * 100)
         }
 
+        // Load swimming distance - try to infer pool length and lengths
         if let distance = competition.swimmingDistance {
-            swimDistance = distance
+            // Try common pool lengths to find a match
+            let poolLengths: [Double] = [25, 20, 33, 50]
+            for pool in poolLengths {
+                let lengths = distance / pool
+                if lengths == lengths.rounded() && lengths >= 1 && lengths <= 20 {
+                    poolLength = pool
+                    swimLengths = Int(lengths)
+                    break
+                }
+            }
+            // If no exact match found, default to 25m pool and calculate lengths
+            if swimDistance != distance {
+                poolLength = 25
+                swimLengths = max(1, Int((distance / 25).rounded()))
+            }
         }
 
         if let time = competition.runningTime {
