@@ -248,6 +248,7 @@ private class FreePracticeImageHolder {
 
 struct FreePracticeView: View {
     let onEnd: () -> Void
+    var onAnalysisComplete: (() -> Void)? = nil  // Called when analysis is saved
 
     @State private var showingCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -447,6 +448,8 @@ struct FreePracticeView: View {
                         imageHolder.croppedImage = nil
                         imageHolder.rawImage = nil
                         selectedPhotoItem = nil
+                        // Notify that analysis was completed and saved
+                        onAnalysisComplete?()
                     },
                     onCancel: {
                         showingAnalysis = false

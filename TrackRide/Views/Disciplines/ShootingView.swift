@@ -21,31 +21,31 @@ struct ShootingView: View {
 
     @State private var showingCompetition = false
     @State private var showingFreePractice = false
-    @State private var showingTraining = false
+    @State private var showingHistory = false
     @State private var showingSettings = false
 
     private var menuItems: [DisciplineMenuItem] {
         [
             DisciplineMenuItem(
-                title: "Competition",
-                subtitle: "2x 5-shot cards",
+                title: "Tetrathlon Practice",
+                subtitle: "2x 5-shot competition cards",
                 icon: "trophy.fill",
                 color: .orange,
                 action: { showingCompetition = true }
             ),
             DisciplineMenuItem(
-                title: "Target Practice",
-                subtitle: "Scan & analyse",
+                title: "Free Practice",
+                subtitle: "Analyse single target",
                 icon: "target",
                 color: .blue,
                 action: { showingFreePractice = true }
             ),
             DisciplineMenuItem(
-                title: "Training",
-                subtitle: "Drills & balance",
-                icon: "figure.stand",
-                color: AppColors.primary,
-                action: { showingTraining = true }
+                title: "Shooting History",
+                subtitle: "View patterns over time",
+                icon: "chart.line.uptrend.xyaxis",
+                color: .purple,
+                action: { showingHistory = true }
             )
         ]
     }
@@ -67,15 +67,23 @@ struct ShootingView: View {
                 })
             }
             .fullScreenCover(isPresented: $showingFreePractice) {
-                FreePracticeView(onEnd: {
-                    showingFreePractice = false
-                })
+                FreePracticeView(
+                    onEnd: {
+                        showingFreePractice = false
+                    },
+                    onAnalysisComplete: {
+                        // Navigate to history after completing analysis
+                        showingFreePractice = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showingHistory = true
+                        }
+                    }
+                )
             }
-            .sheet(isPresented: $showingTraining) {
-                ShootingTrainingView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.hidden)
-                    .interactiveDismissDisabled()
+            .fullScreenCover(isPresented: $showingHistory) {
+                ShootingHistoryAggregateView(onDismiss: {
+                    showingHistory = false
+                })
             }
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()

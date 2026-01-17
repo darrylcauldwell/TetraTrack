@@ -848,9 +848,21 @@ final class ShotPatternAnalyzer {
 /// Date filter options for history queries
 enum DateFilterOption: String, CaseIterable {
     case lastSession = "Last Session"
+    case today = "Today"
     case thisWeek = "This Week"
     case thisMonth = "This Month"
     case allTime = "All Time"
+
+    /// Short display name for compact UI
+    var shortName: String {
+        switch self {
+        case .lastSession: return "Last"
+        case .today: return "Today"
+        case .thisWeek: return "Week"
+        case .thisMonth: return "Month"
+        case .allTime: return "All"
+        }
+    }
 
     /// Returns the date range for this filter option
     func dateRange(from patterns: [StoredTargetPattern]) -> ClosedRange<Date>? {
@@ -866,6 +878,10 @@ enum DateFilterOption: String, CaseIterable {
             let startOfDay = calendar.startOfDay(for: lastPattern.timestamp)
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now
             return startOfDay...endOfDay
+
+        case .today:
+            let startOfDay = calendar.startOfDay(for: now)
+            return startOfDay...now
 
         case .thisWeek:
             guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) else {

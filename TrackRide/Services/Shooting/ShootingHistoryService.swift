@@ -12,15 +12,48 @@ import SwiftUI
 
 /// Aggregated metrics computed from multiple shooting patterns
 struct AggregatedShootingMetrics {
-    let mpi: CGPoint                    // Weighted mean point of impact
+    let averageImpactPoint: CGPoint     // Weighted average impact point (formerly MPI)
     let groupRadius: Double             // Weighted average group radius
-    let offset: Double                  // Distance from center to MPI
+    let offset: Double                  // Distance from center to average impact point
     let outliersCount: Int              // Total outliers across all patterns
     let totalShots: Int                 // Total shots across all patterns
     let clusterShots: Int               // Total shots in clusters
     let sessionCount: Int               // Number of sessions/patterns
     let shotsByDay: [Date: Int]         // Shot counts by day
     let radiusTrend: [(date: Date, radius: Double)]  // Group radius over time
+
+    /// Analysis confidence level based on data quality
+    var confidence: AnalysisConfidence {
+        // High confidence: 15+ shots with consistent spread
+        if totalShots >= 15 && sessionCount >= 2 {
+            return .high
+        }
+        // Medium confidence: 8-14 shots or single session with good count
+        else if totalShots >= 8 {
+            return .medium
+        }
+        // Low confidence: less than 8 shots
+        else {
+            return .low
+        }
+    }
+
+    /// Confidence explanation for display
+    var confidenceExplanation: String {
+        switch confidence {
+        case .high:
+            return "Based on \(totalShots) shots across \(sessionCount) session\(sessionCount == 1 ? "" : "s")"
+        case .medium:
+            return "Based on \(totalShots) shots - more practice will improve accuracy"
+        case .low:
+            return "Limited data (\(totalShots) shots) - keep practicing for better insights"
+        }
+    }
+
+    /// Whether bias is significant enough to report (above 5-7% of target)
+    var hasMeaningfulBias: Bool {
+        offset > 0.07  // 7% of normalized target radius
+    }
 
     /// Percentage of shots that are outliers
     var outlierPercentage: Double {
@@ -37,6 +70,11 @@ struct AggregatedShootingMetrics {
     var formattedOffset: String {
         String(format: "%.2f", offset)
     }
+
+    // MARK: - Backward Compatibility
+
+    /// Alias for averageImpactPoint (backward compatibility)
+    var mpi: CGPoint { averageImpactPoint }
 }
 
 // MARK: - Shooting Insights
@@ -110,7 +148,7 @@ final class ShootingHistoryService {
     func computeMetrics(patterns: [StoredTargetPattern]) -> AggregatedShootingMetrics {
         guard !patterns.isEmpty else {
             return AggregatedShootingMetrics(
-                mpi: .zero,
+                averageImpactPoint: .zero,
                 groupRadius: 0,
                 offset: 0,
                 outliersCount: 0,
@@ -122,7 +160,7 @@ final class ShootingHistoryService {
             )
         }
 
-        // Calculate weighted MPI
+        // Calculate weighted average impact point
         var totalMpiX = 0.0
         var totalMpiY = 0.0
         var totalGroupRadius = 0.0
@@ -162,7 +200,7 @@ final class ShootingHistoryService {
         radiusByDate.sort { $0.date < $1.date }
 
         return AggregatedShootingMetrics(
-            mpi: CGPoint(x: mpiX, y: mpiY),
+            averageImpactPoint: CGPoint(x: mpiX, y: mpiY),
             groupRadius: avgRadius,
             offset: offset,
             outliersCount: totalOutliers,
@@ -296,26 +334,28 @@ final class ShootingHistoryService {
 
         let tightness = classifyTightness(metrics.groupRadius)
 
+        // Observational descriptions - state facts, not judgments
         switch tightness {
         case .tight:
-            return "Great job! Your shots are tightly grouped across \(metrics.sessionCount) practice session\(metrics.sessionCount == 1 ? "" : "s")."
+            return "Your shots form a tight cluster across \(metrics.sessionCount) target\(metrics.sessionCount == 1 ? "" : "s")."
         case .moderate:
-            return "You're building good consistency with \(metrics.totalShots) shots across \(metrics.sessionCount) session\(metrics.sessionCount == 1 ? "" : "s")."
+            return "\(metrics.totalShots) shots across \(metrics.sessionCount) target\(metrics.sessionCount == 1 ? "" : "s") show a moderate spread."
         case .wide:
-            return "You've practiced \(metrics.totalShots) shots across \(metrics.sessionCount) session\(metrics.sessionCount == 1 ? "" : "s"). Keep working on your stability!"
+            return "\(metrics.totalShots) shots across \(metrics.sessionCount) target\(metrics.sessionCount == 1 ? "" : "s") are widely distributed."
         }
     }
 
     private func generateTrendDescription(metrics: AggregatedShootingMetrics) -> String {
         let trend = calculateTrend(metrics: metrics)
 
+        // Observational trend descriptions
         switch trend {
         case .improving:
-            return "Your grouping has been getting tighter recently - nice progress!"
+            return "Recent sessions show tighter groupings than earlier ones."
         case .declining:
-            return "Your recent groups have been a bit wider. Try slowing down and focusing on your routine."
+            return "Recent sessions show wider groupings than earlier ones."
         case .stable:
-            return "Your consistency has been steady - keep up the good work!"
+            return "Grouping spread has been consistent across sessions."
         }
     }
 
@@ -324,26 +364,28 @@ final class ShootingHistoryService {
 
         let percentage = metrics.outlierPercentage
 
+        // Observational descriptions without judgment
         if percentage < 10 {
-            return "Only \(metrics.outliersCount) shot\(metrics.outliersCount == 1 ? "" : "s") strayed from your main groups - that's excellent control!"
+            return "\(metrics.outliersCount) shot\(metrics.outliersCount == 1 ? "" : "s") landed outside the main cluster."
         } else if percentage < 20 {
-            return "\(metrics.outliersCount) shots landed outside your main clusters. Smooth trigger control can help reduce these."
+            return "\(metrics.outliersCount) shots (\(Int(percentage))%) fell outside your main groups."
         } else {
-            return "About \(Int(percentage))% of your shots are outliers. Focus on a consistent routine between shots."
+            return "About \(Int(percentage))% of shots landed away from the main cluster."
         }
     }
 
     private func generateBiasDescription(metrics: AggregatedShootingMetrics) -> String? {
+        // Only report bias if it's meaningful (above 7% of target radius)
+        guard metrics.hasMeaningfulBias else { return nil }
+
+        let direction = determineBiasDirection(mpi: metrics.averageImpactPoint)
         let offset = metrics.offset
 
-        guard offset > 0.05 else { return nil }  // Only mention if noticeable bias
-
-        let direction = determineBiasDirection(mpi: metrics.mpi)
-
+        // Observational descriptions without judgment
         if offset > 0.15 {
-            return "Your shots tend to land \(direction) of center. Checking your natural point of aim might help."
+            return "Your average impact point is \(direction) of center."
         } else {
-            return "There's a slight tendency toward \(direction) - this is common and easy to adjust."
+            return "Shots tend toward the \(direction) side of the target."
         }
     }
 
