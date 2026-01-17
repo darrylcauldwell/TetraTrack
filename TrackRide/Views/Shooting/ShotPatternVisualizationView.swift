@@ -27,6 +27,7 @@ enum ShotDisplayMode: String, CaseIterable {
 struct ShotPatternVisualizationView: View {
     let visualData: VisualPatternData?
     let showAggregate: Bool
+    var showValidationOverlay: Bool = false  // Developer validation mode
 
     @State private var displayMode: ShotDisplayMode = .points
     @State private var scale: CGFloat = 1.0
@@ -125,6 +126,13 @@ struct ShotPatternVisualizationView: View {
                 if scale > 1.0 {
                     zoomIndicator
                 }
+
+                // Developer validation overlay
+                if showValidationOverlay {
+                    validationOverlay(size: size)
+                        .scaleEffect(scale)
+                        .offset(offset)
+                }
             }
             .background(Color(.systemBackground))
             .gesture(
@@ -171,7 +179,7 @@ struct ShotPatternVisualizationView: View {
         }
     }
 
-    // MARK: - Target Background
+    // MARK: - Target Background (Stadium-shaped rings)
 
     private func targetBackground(size: CGSize) -> some View {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -181,25 +189,24 @@ struct ShotPatternVisualizationView: View {
         let scoringRings = TetrathlonTargetGeometry.normalizedScoringRadii
 
         return ZStack {
-            // Draw scoring rings from outer to inner
+            // Draw scoring rings from outer to inner using STADIUM shape
             ForEach(scoringRings.reversed(), id: \.score) { ring in
-                let ringRadius = maxRadius * ring.normalizedRadius
-
-                // Ring circle - use ellipse for Tetrathlon target
-                Ellipse()
-                    .stroke(ringColor(for: ring.score).opacity(0.4), lineWidth: ring.score == 10 ? 2 : 1)
-                    .frame(
-                        width: ringRadius * 2,
-                        height: ringRadius * 2 / TetrathlonTargetGeometry.aspectRatio
+                // Draw stadium-shaped ring
+                StadiumRingShape(normalizedRadius: ring.normalizedRadius, maxRadius: maxRadius)
+                    .stroke(
+                        ringColor(for: ring.score).opacity(0.4),
+                        lineWidth: ring.score == 10 ? 2 : 1
                     )
-                    .position(center)
+                    .frame(width: size.width, height: size.height)
 
                 // Ring label (small, positioned to the right)
                 if ring.score > 0 {
+                    let stadium = TetrathlonTargetGeometry.stadiumGeometry(forNormalizedRadius: ring.normalizedRadius)
+                    let labelX = center.x + CGFloat(stadium.semicircleRadius) * maxRadius - 8
                     Text("\(ring.score)")
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(ringColor(for: ring.score).opacity(0.6))
-                        .position(x: center.x + (maxRadius * ring.normalizedRadius) - 8, y: center.y)
+                        .position(x: labelX, y: center.y)
                 }
             }
 
@@ -284,6 +291,9 @@ struct ShotPatternVisualizationView: View {
             }
         }
 
+        // Get outer stadium for clipping
+        let outerStadium = TetrathlonTargetGeometry.outerStadium
+
         return Canvas { context, canvasSize in
             // Create density grid
             let gridSize = 20
@@ -317,21 +327,34 @@ struct ShotPatternVisualizationView: View {
             // Find max density for normalization
             let maxDensity = densityGrid.flatMap { $0 }.max() ?? 1.0
 
-            // Draw heat map cells
+            // Draw heat map cells (only within stadium boundary)
             for row in 0..<gridSize {
                 for col in 0..<gridSize {
                     let normalizedDensity = densityGrid[row][col] / maxDensity
 
                     if normalizedDensity > 0.01 {
-                        let rect = CGRect(
-                            x: CGFloat(col) * cellWidth,
-                            y: CGFloat(row) * cellHeight,
-                            width: cellWidth + 1,
-                            height: cellHeight + 1
+                        // Check if cell center is within stadium boundary
+                        let cellCenterX = (CGFloat(col) + 0.5) * cellWidth
+                        let cellCenterY = (CGFloat(row) + 0.5) * cellHeight
+                        let normalizedPoint = screenToNormalized(
+                            CGPoint(x: cellCenterX, y: cellCenterY),
+                            center: center,
+                            maxRadius: maxRadius
                         )
 
-                        let color = heatMapColor(for: normalizedDensity)
-                        context.fill(Path(rect), with: .color(color))
+                        // Only draw if within stadium boundary (with small margin)
+                        let stadiumDist = outerStadium.normalizedDistance(from: normalizedPoint)
+                        if stadiumDist <= 1.05 {
+                            let rect = CGRect(
+                                x: CGFloat(col) * cellWidth,
+                                y: CGFloat(row) * cellHeight,
+                                width: cellWidth + 1,
+                                height: cellHeight + 1
+                            )
+
+                            let color = heatMapColor(for: normalizedDensity)
+                            context.fill(Path(rect), with: .color(color))
+                        }
                     }
                 }
             }
@@ -417,6 +440,90 @@ struct ShotPatternVisualizationView: View {
                     .frame(width: radiusScreen * 2, height: radiusScreen * 2)
                     .position(mpiScreen)
             }
+        }
+    }
+
+    // MARK: - Developer Validation Overlay
+
+    /// Shows ring classification for each shot (developer mode)
+    private func validationOverlay(size: CGSize) -> some View {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let maxRadius = min(size.width, size.height) / 2
+
+        return ZStack {
+            // Show ring classification label for each shot
+            if let data = visualData {
+                ForEach(data.currentTargetShots) { shot in
+                    let screenPos = normalizedToScreen(shot.position, center: center, maxRadius: maxRadius)
+                    let position = NormalizedTargetPosition(x: shot.position.x, y: shot.position.y)
+                    let score = TetrathlonTargetGeometry.score(from: position)
+
+                    // Ring score label
+                    Text("\(score)")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(2)
+                        .background(ringLabelColor(for: score))
+                        .clipShape(Circle())
+                        .position(x: screenPos.x + 8, y: screenPos.y - 8)
+                }
+
+                // If aggregate mode, show historical shots too
+                if showAggregate {
+                    ForEach(data.historicalShots) { shot in
+                        let screenPos = normalizedToScreen(shot.position, center: center, maxRadius: maxRadius)
+                        let position = NormalizedTargetPosition(x: shot.position.x, y: shot.position.y)
+                        let score = TetrathlonTargetGeometry.score(from: position)
+
+                        // Ring score label (smaller for historical)
+                        Text("\(score)")
+                            .font(.system(size: 6, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(1)
+                            .background(ringLabelColor(for: score).opacity(0.7))
+                            .clipShape(Circle())
+                            .position(x: screenPos.x + 6, y: screenPos.y - 6)
+                    }
+                }
+            }
+
+            // Validation info panel
+            VStack {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Validation Mode")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+
+                        if let data = visualData {
+                            let allShots = data.currentTargetShots.map { $0.position } +
+                                (showAggregate ? data.historicalShots.map { $0.position } : [])
+                            let isValid = TetrathlonTargetGeometry.validateBullClassification(shots: allShots)
+                            Text(isValid ? "✓ Classification OK" : "⚠ Check 10 ring")
+                                .font(.caption2)
+                                .foregroundStyle(isValid ? .green : .yellow)
+                        }
+                    }
+                    .padding(6)
+                    .background(.black.opacity(0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    Spacer()
+                }
+                Spacer()
+            }
+            .padding(8)
+        }
+    }
+
+    private func ringLabelColor(for score: Int) -> Color {
+        switch score {
+        case 10: return .yellow
+        case 8: return .red
+        case 6: return .blue
+        case 4: return .gray
+        case 2: return .secondary
+        default: return .black
         }
     }
 
@@ -870,6 +977,57 @@ private struct PatternStatItem: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+// MARK: - Stadium Ring Shape
+
+/// SwiftUI Shape that draws a stadium (running track) shape for Tetrathlon target rings
+struct StadiumRingShape: Shape {
+    let normalizedRadius: Double
+    let maxRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.width / 2, y: rect.height / 2)
+        let stadium = TetrathlonTargetGeometry.stadiumGeometry(forNormalizedRadius: normalizedRadius)
+
+        // Calculate screen dimensions
+        let screenSemicircleRadius = CGFloat(stadium.semicircleRadius) * maxRadius
+        let screenHalfStraight = CGFloat(stadium.straightHeight) / 2 * maxRadius
+
+        var path = Path()
+
+        // Start at top-left of straight section
+        let topLeftX = center.x - screenSemicircleRadius
+        let topLeftY = center.y - screenHalfStraight
+
+        path.move(to: CGPoint(x: topLeftX, y: topLeftY))
+
+        // Top semicircle (going clockwise from left to right)
+        path.addArc(
+            center: CGPoint(x: center.x, y: center.y - screenHalfStraight),
+            radius: screenSemicircleRadius,
+            startAngle: .degrees(180),
+            endAngle: .degrees(0),
+            clockwise: false
+        )
+
+        // Right straight section (going down)
+        path.addLine(to: CGPoint(x: center.x + screenSemicircleRadius, y: center.y + screenHalfStraight))
+
+        // Bottom semicircle (going clockwise from right to left)
+        path.addArc(
+            center: CGPoint(x: center.x, y: center.y + screenHalfStraight),
+            radius: screenSemicircleRadius,
+            startAngle: .degrees(0),
+            endAngle: .degrees(180),
+            clockwise: false
+        )
+
+        // Close path (left straight section going up)
+        path.closeSubpath()
+
+        return path
     }
 }
 

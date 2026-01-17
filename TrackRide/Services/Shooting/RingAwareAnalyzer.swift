@@ -328,29 +328,32 @@ final class RingAwareAnalyzer {
         )
     }
 
-    // MARK: - Step 1: Shot Classification
+    // MARK: - Step 1: Shot Classification (Stadium-based)
 
     private static func classifyShots(_ normalizedShots: [CGPoint]) -> [ClassifiedShot] {
         return normalizedShots.map { shot in
             let ring = classifyPosition(x: shot.x, y: shot.y)
-            let ellipticalDistance = calculateEllipticalDistance(x: shot.x, y: shot.y)
+            let stadiumDistance = calculateStadiumDistance(x: shot.x, y: shot.y)
             return ClassifiedShot(
                 position: shot,
                 ring: ring,
-                ellipticalDistance: ellipticalDistance
+                ellipticalDistance: stadiumDistance  // Now uses stadium distance
             )
         }
     }
 
+    /// Classify a position into a ring using STADIUM geometry
+    /// Uses distance to nearest boundary point, not center distance
     private static func classifyPosition(x: Double, y: Double) -> TetrathlonRing {
         let position = NormalizedTargetPosition(x: x, y: y)
         let score = TetrathlonTargetGeometry.score(from: position)
         return TetrathlonRing(rawValue: score) ?? .miss
     }
 
-    private static func calculateEllipticalDistance(x: Double, y: Double) -> Double {
+    /// Calculate the stadium-based normalized distance (0 = center, 1 = outer boundary)
+    private static func calculateStadiumDistance(x: Double, y: Double) -> Double {
         let position = NormalizedTargetPosition(x: x, y: y)
-        return position.ellipticalDistance(aspectRatio: TetrathlonTargetGeometry.aspectRatio)
+        return TetrathlonTargetGeometry.normalizedStadiumDistance(from: position)
     }
 
     // MARK: - Step 2: Ring Distribution

@@ -164,12 +164,13 @@ struct TargetMarkingView: View {
                     .frame(maxHeight: .infinity)
                     .zIndex(1)
 
-                // Bottom controls
+                // Bottom controls with proper safe area handling
                 bottomControls
+                    .padding(.bottom, geometry.safeAreaInsets.bottom)
                     .zIndex(10)
             }
             .background(Color(.systemBackground))
-            .ignoresSafeArea(edges: .top)
+            .ignoresSafeArea()
         }
         .onAppear {
             imageSize = image.size
@@ -509,9 +510,8 @@ struct TargetMarkingView: View {
             }
             .disabled(!canSubmit)
             .padding(.horizontal)
-            .padding(.bottom, 8)
         }
-        .padding(.top, 8)
+        .padding(.vertical, 8)
         .background(Color(.systemBackground))
     }
 
