@@ -847,7 +847,7 @@ final class ShotPatternAnalyzer {
 
 /// Date filter options for history queries
 enum DateFilterOption: String, CaseIterable {
-    case lastSession = "Last Session"
+    case lastTarget = "Last Target"
     case today = "Today"
     case thisWeek = "This Week"
     case thisMonth = "This Month"
@@ -856,7 +856,7 @@ enum DateFilterOption: String, CaseIterable {
     /// Short display name for compact UI
     var shortName: String {
         switch self {
-        case .lastSession: return "Last"
+        case .lastTarget: return "Last"
         case .today: return "Today"
         case .thisWeek: return "Week"
         case .thisMonth: return "Month"
@@ -870,14 +870,10 @@ enum DateFilterOption: String, CaseIterable {
         let now = Date()
 
         switch self {
-        case .lastSession:
-            // Get the most recent session's date
-            guard let lastPattern = patterns.max(by: { $0.timestamp < $1.timestamp }) else {
-                return nil
-            }
-            let startOfDay = calendar.startOfDay(for: lastPattern.timestamp)
-            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now
-            return startOfDay...endOfDay
+        case .lastTarget:
+            // Last Target is handled specially in getHistory() to return only the most recent pattern
+            // This date range is not used for lastTarget, but we need to handle the case
+            return nil
 
         case .today:
             let startOfDay = calendar.startOfDay(for: now)
@@ -954,6 +950,23 @@ final class ShotPatternHistoryManager {
         sessionTypes: Set<ShootingSessionType>? = nil,
         limit: Int = 200
     ) -> [StoredTargetPattern] {
+        // Special case: "Last Target" means the single most recent target only
+        if dateFilter == .lastTarget {
+            var filtered = history
+
+            // Apply session type filter if specified
+            if let types = sessionTypes, !types.isEmpty {
+                filtered = filtered.filter { types.contains($0.sessionType) }
+            }
+
+            // Return only the most recent pattern
+            filtered.sort { $0.timestamp > $1.timestamp }
+            if let mostRecent = filtered.first {
+                return [mostRecent]
+            }
+            return []
+        }
+
         let dateRange = dateFilter.dateRange(from: history)
         return getHistory(dateRange: dateRange, sessionTypes: sessionTypes, limit: limit)
     }
