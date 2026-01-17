@@ -1,0 +1,416 @@
+//
+//  ShootingHistoryService.swift
+//  TrackRide
+//
+//  Aggregation service for historical shooting patterns with trend analysis and insights generation.
+//
+
+import Foundation
+import SwiftUI
+
+// MARK: - Aggregated Metrics
+
+/// Aggregated metrics computed from multiple shooting patterns
+struct AggregatedShootingMetrics {
+    let mpi: CGPoint                    // Weighted mean point of impact
+    let groupRadius: Double             // Weighted average group radius
+    let offset: Double                  // Distance from center to MPI
+    let outliersCount: Int              // Total outliers across all patterns
+    let totalShots: Int                 // Total shots across all patterns
+    let clusterShots: Int               // Total shots in clusters
+    let sessionCount: Int               // Number of sessions/patterns
+    let shotsByDay: [Date: Int]         // Shot counts by day
+    let radiusTrend: [(date: Date, radius: Double)]  // Group radius over time
+
+    /// Percentage of shots that are outliers
+    var outlierPercentage: Double {
+        guard totalShots > 0 else { return 0 }
+        return Double(outliersCount) / Double(totalShots) * 100
+    }
+
+    /// Formatted group radius for display
+    var formattedGroupRadius: String {
+        String(format: "%.2f", groupRadius)
+    }
+
+    /// Formatted offset for display
+    var formattedOffset: String {
+        String(format: "%.2f", offset)
+    }
+}
+
+// MARK: - Shooting Insights
+
+/// Generated insights from shooting history analysis
+struct ShootingInsights {
+    let clusterDescription: String      // Description of shot cluster quality
+    let trendDescription: String        // Trend over time
+    let outlierDescription: String?     // Outlier explanation if relevant
+    let biasDescription: String?        // Bias direction explanation
+    let suggestedDrills: [String]       // Recommended drills
+
+    /// Combined insight text for display
+    var combinedText: String {
+        var parts = [clusterDescription, trendDescription]
+        if let outlier = outlierDescription {
+            parts.append(outlier)
+        }
+        if let bias = biasDescription {
+            parts.append(bias)
+        }
+        return parts.joined(separator: " ")
+    }
+}
+
+// MARK: - Trend Direction
+
+enum ShootingTrendDirection {
+    case improving
+    case declining
+    case stable
+
+    var description: String {
+        switch self {
+        case .improving: return "improving"
+        case .declining: return "getting wider"
+        case .stable: return "staying consistent"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .improving: return "arrow.down.right"
+        case .declining: return "arrow.up.right"
+        case .stable: return "arrow.right"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .improving: return .green
+        case .declining: return .orange
+        case .stable: return .blue
+        }
+    }
+}
+
+// MARK: - Shooting History Service
+
+@Observable
+final class ShootingHistoryService {
+    private let historyManager: ShotPatternHistoryManager
+
+    init(historyManager: ShotPatternHistoryManager = ShotPatternHistoryManager()) {
+        self.historyManager = historyManager
+    }
+
+    // MARK: - Metric Computation
+
+    /// Compute aggregated metrics from a collection of patterns
+    func computeMetrics(patterns: [StoredTargetPattern]) -> AggregatedShootingMetrics {
+        guard !patterns.isEmpty else {
+            return AggregatedShootingMetrics(
+                mpi: .zero,
+                groupRadius: 0,
+                offset: 0,
+                outliersCount: 0,
+                totalShots: 0,
+                clusterShots: 0,
+                sessionCount: 0,
+                shotsByDay: [:],
+                radiusTrend: []
+            )
+        }
+
+        // Calculate weighted MPI
+        var totalMpiX = 0.0
+        var totalMpiY = 0.0
+        var totalGroupRadius = 0.0
+        var totalWeight = 0.0
+        var totalOutliers = 0
+        var totalShots = 0
+        var totalClusterShots = 0
+
+        let calendar = Calendar.current
+        var shotsByDay: [Date: Int] = [:]
+        var radiusByDate: [(date: Date, radius: Double)] = []
+
+        for pattern in patterns {
+            let weight = Double(pattern.shotCount)
+            totalMpiX += pattern.clusterMpiX * weight
+            totalMpiY += pattern.clusterMpiY * weight
+            totalGroupRadius += pattern.clusterRadius * weight
+            totalWeight += weight
+            totalOutliers += pattern.outlierCount
+            totalShots += pattern.shotCount
+            totalClusterShots += pattern.clusterShotCount
+
+            // Aggregate by day
+            let day = calendar.startOfDay(for: pattern.timestamp)
+            shotsByDay[day, default: 0] += pattern.shotCount
+
+            // Track radius trend
+            radiusByDate.append((date: pattern.timestamp, radius: pattern.clusterRadius))
+        }
+
+        let mpiX = totalWeight > 0 ? totalMpiX / totalWeight : 0
+        let mpiY = totalWeight > 0 ? totalMpiY / totalWeight : 0
+        let avgRadius = totalWeight > 0 ? totalGroupRadius / totalWeight : 0
+        let offset = sqrt(mpiX * mpiX + mpiY * mpiY)
+
+        // Sort trend data by date
+        radiusByDate.sort { $0.date < $1.date }
+
+        return AggregatedShootingMetrics(
+            mpi: CGPoint(x: mpiX, y: mpiY),
+            groupRadius: avgRadius,
+            offset: offset,
+            outliersCount: totalOutliers,
+            totalShots: totalShots,
+            clusterShots: totalClusterShots,
+            sessionCount: patterns.count,
+            shotsByDay: shotsByDay,
+            radiusTrend: radiusByDate
+        )
+    }
+
+    // MARK: - Insight Generation
+
+    /// Generate youth-friendly insights from metrics and patterns
+    /// Uses ring-aware analysis for human-aligned descriptions
+    func generateInsights(
+        metrics: AggregatedShootingMetrics,
+        patterns: [StoredTargetPattern]
+    ) -> ShootingInsights {
+        // Collect all shots for ring-aware analysis
+        var allShots: [CGPoint] = []
+        for pattern in patterns {
+            allShots.append(contentsOf: pattern.normalizedShots)
+        }
+
+        // Try ring-aware analysis first for better insights
+        if let ringAnalysis = RingAwareAnalyzer.analyze(normalizedShots: allShots) {
+            let ringInsights = RingAwareAnalyzer.generateInsights(from: ringAnalysis)
+
+            // Build cluster description from ring analysis
+            let clusterDescription = ringInsights.overallSummary
+
+            // Build trend description
+            let trendDescription = generateTrendDescription(metrics: metrics)
+
+            // Ring-aware outlier description
+            let outlierDescription = ringInsights.notableExceptions
+
+            // Ring-aware bias description
+            let biasDescription = ringInsights.positionTendency
+
+            // Ring-aware drill suggestions
+            let suggestedDrills = ringInsights.trainingHints
+
+            return ShootingInsights(
+                clusterDescription: clusterDescription,
+                trendDescription: trendDescription,
+                outlierDescription: outlierDescription,
+                biasDescription: biasDescription,
+                suggestedDrills: suggestedDrills
+            )
+        }
+
+        // Fallback to traditional analysis
+        let clusterDescription = generateClusterDescription(metrics: metrics)
+        let trendDescription = generateTrendDescription(metrics: metrics)
+        let outlierDescription = generateOutlierDescription(metrics: metrics)
+        let biasDescription = generateBiasDescription(metrics: metrics)
+        let suggestedDrills = generateDrillSuggestions(metrics: metrics)
+
+        return ShootingInsights(
+            clusterDescription: clusterDescription,
+            trendDescription: trendDescription,
+            outlierDescription: outlierDescription,
+            biasDescription: biasDescription,
+            suggestedDrills: suggestedDrills
+        )
+    }
+
+    // MARK: - Trend Analysis
+
+    /// Calculate the trend direction based on group radius over time
+    func calculateTrend(metrics: AggregatedShootingMetrics) -> ShootingTrendDirection {
+        let trend = metrics.radiusTrend
+        guard trend.count >= 3 else { return .stable }
+
+        // Compare first half average to second half average
+        let midpoint = trend.count / 2
+        let firstHalf = Array(trend.prefix(midpoint))
+        let secondHalf = Array(trend.suffix(midpoint))
+
+        let firstAvg = firstHalf.isEmpty ? 0 : firstHalf.reduce(0) { $0 + $1.radius } / Double(firstHalf.count)
+        let secondAvg = secondHalf.isEmpty ? 0 : secondHalf.reduce(0) { $0 + $1.radius } / Double(secondHalf.count)
+
+        let difference = secondAvg - firstAvg
+        let threshold = 0.02  // 2% change threshold
+
+        if difference < -threshold {
+            return .improving  // Smaller radius = tighter group = improvement
+        } else if difference > threshold {
+            return .declining  // Larger radius = wider group = declining
+        }
+        return .stable
+    }
+
+    // MARK: - Visual Data Generation
+
+    /// Generate visual pattern data for the aggregate view
+    func generateVisualData(patterns: [StoredTargetPattern]) -> VisualPatternData {
+        var allShots: [VisualPatternData.NormalizedShotPoint] = []
+
+        for pattern in patterns {
+            for shot in pattern.normalizedShots {
+                allShots.append(VisualPatternData.NormalizedShotPoint(
+                    position: shot,
+                    isCurrentTarget: false,
+                    isOutlier: false,  // Individual outlier status not tracked in aggregate
+                    timestamp: pattern.timestamp
+                ))
+            }
+        }
+
+        let metrics = computeMetrics(patterns: patterns)
+
+        return VisualPatternData(
+            currentTargetShots: [],
+            historicalShots: allShots,
+            mpiCurrent: nil,
+            mpiAggregate: metrics.mpi,
+            groupRadiusCurrent: nil,
+            groupRadiusAggregate: metrics.groupRadius
+        )
+    }
+
+    // MARK: - Private Helpers
+
+    private func generateClusterDescription(metrics: AggregatedShootingMetrics) -> String {
+        guard metrics.sessionCount > 0 else {
+            return "Start practicing to see your shot patterns!"
+        }
+
+        let tightness = classifyTightness(metrics.groupRadius)
+
+        switch tightness {
+        case .tight:
+            return "Great job! Your shots are tightly grouped across \(metrics.sessionCount) practice session\(metrics.sessionCount == 1 ? "" : "s")."
+        case .moderate:
+            return "You're building good consistency with \(metrics.totalShots) shots across \(metrics.sessionCount) session\(metrics.sessionCount == 1 ? "" : "s")."
+        case .wide:
+            return "You've practiced \(metrics.totalShots) shots across \(metrics.sessionCount) session\(metrics.sessionCount == 1 ? "" : "s"). Keep working on your stability!"
+        }
+    }
+
+    private func generateTrendDescription(metrics: AggregatedShootingMetrics) -> String {
+        let trend = calculateTrend(metrics: metrics)
+
+        switch trend {
+        case .improving:
+            return "Your grouping has been getting tighter recently - nice progress!"
+        case .declining:
+            return "Your recent groups have been a bit wider. Try slowing down and focusing on your routine."
+        case .stable:
+            return "Your consistency has been steady - keep up the good work!"
+        }
+    }
+
+    private func generateOutlierDescription(metrics: AggregatedShootingMetrics) -> String? {
+        guard metrics.outliersCount > 0 else { return nil }
+
+        let percentage = metrics.outlierPercentage
+
+        if percentage < 10 {
+            return "Only \(metrics.outliersCount) shot\(metrics.outliersCount == 1 ? "" : "s") strayed from your main groups - that's excellent control!"
+        } else if percentage < 20 {
+            return "\(metrics.outliersCount) shots landed outside your main clusters. Smooth trigger control can help reduce these."
+        } else {
+            return "About \(Int(percentage))% of your shots are outliers. Focus on a consistent routine between shots."
+        }
+    }
+
+    private func generateBiasDescription(metrics: AggregatedShootingMetrics) -> String? {
+        let offset = metrics.offset
+
+        guard offset > 0.05 else { return nil }  // Only mention if noticeable bias
+
+        let direction = determineBiasDirection(mpi: metrics.mpi)
+
+        if offset > 0.15 {
+            return "Your shots tend to land \(direction) of center. Checking your natural point of aim might help."
+        } else {
+            return "There's a slight tendency toward \(direction) - this is common and easy to adjust."
+        }
+    }
+
+    private func generateDrillSuggestions(metrics: AggregatedShootingMetrics) -> [String] {
+        var drills: [String] = []
+
+        let tightness = classifyTightness(metrics.groupRadius)
+        let offset = metrics.offset
+
+        // Based on tightness
+        switch tightness {
+        case .tight:
+            drills.append("Maintain your current routine")
+            if offset > 0.1 {
+                drills.append("Natural point of aim adjustment")
+            }
+        case .moderate:
+            drills.append("Develop a shot routine checklist")
+            drills.append("Breathing and settle drill")
+        case .wide:
+            drills.append("Stability hold drill")
+            drills.append("Balance and stance check")
+        }
+
+        // Based on outliers
+        if metrics.outlierPercentage > 15 {
+            drills.append("Smooth trigger control practice")
+        }
+
+        // Based on bias
+        if offset > 0.15 {
+            drills.append("Natural point of aim check")
+        }
+
+        return Array(drills.prefix(3))  // Return top 3 suggestions
+    }
+
+    private func classifyTightness(_ radius: Double) -> GroupTightness {
+        if radius <= 0.12 {
+            return .tight
+        } else if radius <= 0.22 {
+            return .moderate
+        } else {
+            return .wide
+        }
+    }
+
+    private func determineBiasDirection(mpi: CGPoint) -> String {
+        let threshold = 0.03
+
+        let horizontal: String? = {
+            if mpi.x < -threshold { return "left" }
+            if mpi.x > threshold { return "right" }
+            return nil
+        }()
+
+        let vertical: String? = {
+            if mpi.y < -threshold { return "high" }
+            if mpi.y > threshold { return "low" }
+            return nil
+        }()
+
+        switch (vertical, horizontal) {
+        case (let v?, let h?): return "\(v) and \(h)"
+        case (let v?, nil): return v
+        case (nil, let h?): return h
+        default: return "center"
+        }
+    }
+}

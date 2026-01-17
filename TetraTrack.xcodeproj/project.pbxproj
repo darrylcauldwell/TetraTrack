@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0193DE5457365929DD41FC9E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B791F1562E1DA15BE4F8A7C1 /* WidgetKit.framework */; };
+		0ED4F12A8C5C6787228BEAD0 /* SimulatorTargets in Resources */ = {isa = PBXBuildFile; fileRef = 256A3089C3959FB985D801FB /* SimulatorTargets */; };
 		12872E13C363106A38FB2A52 /* TrackRideWidgetExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33395BD8D2B84C06627A6456 /* TrackRideWidgetExtension.swift */; };
 		2A437D650EC55243DFAD5673 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20EA86492389BBC03207D4CA /* SwiftUI.framework */; };
 		3E9A84362F086966008F00C4 /* TetraTrack Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -90,6 +91,7 @@
 
 /* Begin PBXFileReference section */
 		20EA86492389BBC03207D4CA /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		256A3089C3959FB985D801FB /* SimulatorTargets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = SimulatorTargets; path = TrackRide/Resources/SimulatorTargets; sourceTree = "<group>"; };
 		33395BD8D2B84C06627A6456 /* TrackRideWidgetExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackRideWidgetExtension.swift; sourceTree = "<group>"; };
 		3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TetraTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TetraTrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -221,6 +223,7 @@
 				3E9A80F72F06CDCC008F00C4 /* Products */,
 				58333DBF6855CC7F61716017 /* Frameworks */,
 				BE98E8B6D26F1AF3DCC2270E /* TrackRideWidgetExtension */,
+				256A3089C3959FB985D801FB /* SimulatorTargets */,
 			);
 			sourceTree = "<group>";
 		};
@@ -514,6 +517,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0ED4F12A8C5C6787228BEAD0 /* SimulatorTargets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -658,7 +662,7 @@
 				CODE_SIGN_ENTITLEMENTS = TrackRide/TrackRide.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -679,7 +683,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -705,7 +709,7 @@
 				CODE_SIGN_ENTITLEMENTS = TrackRide/TrackRide.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -726,7 +730,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -863,12 +867,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -889,12 +893,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -914,12 +918,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -939,12 +943,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRideUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -967,7 +971,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "TrackRide Watch App Watch App/TrackRide Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -980,7 +984,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1003,7 +1007,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "TrackRide Watch App Watch App/TrackRide Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1016,7 +1020,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1038,10 +1042,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1061,10 +1065,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1084,10 +1088,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1106,10 +1110,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = "MyHorse.TrackRide-Watch-App-Watch-AppUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1133,7 +1137,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TrackRideWidgetExtension/TrackRideWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TrackRideWidgetExtension/Info.plist;
@@ -1143,7 +1147,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.WidgetExtension;
 				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1164,7 +1168,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TrackRideWidgetExtension/TrackRideWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 65;
 				DEVELOPMENT_TEAM = N6BK2WX94Z;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TrackRideWidgetExtension/Info.plist;
@@ -1174,7 +1178,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.17;
+				MARKETING_VERSION = 0.0.65;
 				PRODUCT_BUNDLE_IDENTIFIER = MyHorse.TrackRide.WidgetExtension;
 				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -107,6 +107,7 @@ struct TargetMarkingView: View {
 
     // Zoom and pan
     @State private var scale: CGFloat = 1.0
+    @State private var baseScale: CGFloat = 1.0  // Track scale at gesture start
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
 
@@ -353,10 +354,12 @@ struct TargetMarkingView: View {
                         // Pinch to zoom
                         MagnificationGesture()
                             .onChanged { value in
-                                scale = max(1.0, min(value, 5.0))
+                                // Multiply by baseScale to zoom relative to current level
+                                scale = max(1.0, min(baseScale * value, 15.0))
                             }
                             .onEnded { value in
-                                scale = max(1.0, min(value, 5.0))
+                                scale = max(1.0, min(baseScale * value, 15.0))
+                                baseScale = scale  // Save new base for next gesture
                                 if scale <= 1.0 {
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         offset = .zero
@@ -375,6 +378,7 @@ struct TargetMarkingView: View {
                             Button {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     scale = 1.0
+                                    baseScale = 1.0
                                     offset = .zero
                                     lastOffset = .zero
                                 }
@@ -680,8 +684,9 @@ struct TargetMarkingView: View {
     }
 
     private func findHoleNear(screenPoint: CGPoint, canvasSize: CGSize, imageFrame: CGRect) -> MarkedHole? {
-        // Hit test radius in screen points (minimum 44pt for accessibility, scales with zoom)
-        let hitRadius: CGFloat = max(44, 30 * scale)
+        // Hit test radius decreases with zoom for more precision when zoomed in
+        // At 1x: 25pt, at 5x: 10pt, at 10x+: 10pt minimum
+        let hitRadius: CGFloat = max(10, 25 / scale)
 
         for hole in holes {
             let holeScreenPos = imageToScreen(hole.position.cgPoint, canvasSize: canvasSize, imageFrame: imageFrame)
