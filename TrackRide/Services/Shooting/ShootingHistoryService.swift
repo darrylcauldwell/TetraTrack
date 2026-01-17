@@ -382,9 +382,10 @@ final class ShootingHistoryService {
     }
 
     private func classifyTightness(_ radius: Double) -> GroupTightness {
-        if radius <= 0.12 {
+        // Use canonical thresholds from ShotPatternAnalyzer
+        if radius <= ShotPatternAnalyzer.Thresholds.tightGroup {
             return .tight
-        } else if radius <= 0.22 {
+        } else if radius <= ShotPatternAnalyzer.Thresholds.moderateGroup {
             return .moderate
         } else {
             return .wide
@@ -392,7 +393,8 @@ final class ShootingHistoryService {
     }
 
     private func determineBiasDirection(mpi: CGPoint) -> String {
-        let threshold = 0.03
+        // Use canonical threshold from ShotPatternAnalyzer
+        let threshold = ShotPatternAnalyzer.Thresholds.directionDeadZone
 
         let horizontal: String? = {
             if mpi.x < -threshold { return "left" }

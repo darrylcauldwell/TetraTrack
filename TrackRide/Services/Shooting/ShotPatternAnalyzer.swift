@@ -268,7 +268,8 @@ final class ShotPatternAnalyzer {
 
     // MARK: - Thresholds (Normalized to target radius)
 
-    private struct Thresholds {
+    /// Analysis thresholds - shared across shooting analysis services
+    struct Thresholds {
         // Minimum requirements
         static let minimumShots = 5
         static let minimumSpread = 0.03
