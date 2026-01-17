@@ -6,6 +6,28 @@
 //
 
 import SwiftUI
+import PhotosUI
+import AVFoundation
+import UniformTypeIdentifiers
+
+// MARK: - Transferable Image Helper
+
+struct TransferableImage: Transferable {
+    let image: UIImage
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(importedContentType: .image) { data in
+            guard let image = UIImage(data: data) else {
+                throw TransferError.importFailed
+            }
+            return TransferableImage(image: image)
+        }
+    }
+
+    enum TransferError: Error {
+        case importFailed
+    }
+}
 
 // MARK: - Competition View
 
@@ -217,158 +239,254 @@ struct ShootingCompetitionView: View {
 
 // MARK: - Free Practice View
 
+// Helper class to hold image state that survives view rebuilds
+@Observable
+private class FreePracticeImageHolder {
+    var rawImage: UIImage?
+    var croppedImage: UIImage?
+}
+
 struct FreePracticeView: View {
     let onEnd: () -> Void
 
-    @State private var scannedTargets: [ScannedTarget] = []
-    @State private var showingScanner = false
-    @State private var selectedTarget: ScannedTarget?
+    @State private var showingCamera = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var imageHolder = FreePracticeImageHolder()
+    @State private var showingCropView = false
+    @State private var showingAnalysis = false
+    @State private var isLoadingImage = false
+
+    private var isCameraAvailable: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return AVCaptureDevice.default(for: .video) != nil
+        #endif
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                LinearGradient(
-                    colors: [Color(.systemBackground), Color.blue.opacity(0.05)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        ZStack {
+            LinearGradient(
+                colors: [Color(.systemBackground), Color.blue.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                VStack(spacing: 24) {
-                    // Header
-                    HStack {
-                        Text("Free Practice")
-                            .font(.title2.bold())
-                        Spacer()
-                        Button(action: onEnd) {
-                            Image(systemName: "xmark")
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(.primary)
-                                .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Scan button
-                    Button(action: { showingScanner = true }) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "camera.viewfinder")
-                                .font(.system(size: 48))
-                            Text("Scan Target")
-                                .font(.headline)
-                            Text("Take photo to analyze shot placement")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 32)
-                        .background(Color.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.horizontal)
-
-                    // Session summary
-                    if !scannedTargets.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Session Summary")
-                                .font(.headline)
-
-                            HStack(spacing: 20) {
-                                VStack {
-                                    Text("\(scannedTargets.count)")
-                                        .font(.title.bold())
-                                    Text("Targets")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                VStack {
-                                    Text("\(totalShots)")
-                                        .font(.title.bold())
-                                    Text("Shots")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                VStack {
-                                    Text(String(format: "%.1f", averageScore))
-                                        .font(.title.bold())
-                                    Text("Avg Score")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Scanned targets list
-                    if scannedTargets.isEmpty {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "target")
-                                .font(.system(size: 48))
-                                .foregroundStyle(.secondary)
-                            Text("No targets scanned yet")
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(scannedTargets) { target in
-                                    ScannedTargetRow(target: target)
-                                        .onTapGesture {
-                                            selectedTarget = target
-                                        }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-
+            VStack(spacing: 32) {
+                // Header
+                HStack {
+                    Text("Free Practice")
+                        .font(.title2.bold())
                     Spacer()
+                    Button(action: onEnd) {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
                 }
-                .padding(.top, geometry.safeAreaInsets.top + 8)
                 .padding(.horizontal)
+                .padding(.top)
+
+                Spacer()
+
+                // Icon
+                Image(systemName: "target")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.blue.opacity(0.6))
+
+                // Instructions
+                VStack(spacing: 8) {
+                    Text("Analyse Your Target")
+                        .font(.title3.bold())
+                    Text("Mark holes and center to see grouping analysis")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 32)
+
+                Spacer()
+
+                // Primary actions
+                VStack(spacing: 16) {
+                    // Take Photo button (primary when camera available)
+                    if isCameraAvailable {
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "camera.fill")
+                                    .font(.title2)
+                                Text("Take Photo of Target")
+                                    .font(.headline)
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+
+                    // Select from Photos button - use PhotosPicker directly
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.title2)
+                            Text("Select Target Photo")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(isCameraAvailable ? .blue : .white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(isCameraAvailable ? Color.blue.opacity(0.1) : Color.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(isCameraAvailable ? Color.blue.opacity(0.3) : .clear, lineWidth: 2)
+                        )
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                #if targetEnvironment(simulator)
+                // Simulator hint
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.blue)
+                    Text("Camera unavailable in Simulator")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 8)
+                #endif
+
+                Spacer()
             }
         }
-        .fullScreenCover(isPresented: $showingScanner) {
-            TargetScannerView(
-                expectedShots: 0, // Unlimited for free practice
-                onScanned: { scores in
-                    let target = ScannedTarget(
-                        scores: scores,
-                        timestamp: Date()
-                    )
-                    scannedTargets.append(target)
-                    showingScanner = false
-                },
-                onCancel: {
-                    showingScanner = false
+        .onChange(of: selectedPhotoItem) { _, newValue in
+            guard let item = newValue else { return }
+            isLoadingImage = true
+
+            Task {
+                do {
+                    if let data = try await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        await MainActor.run {
+                            isLoadingImage = false
+                            imageHolder.rawImage = image
+                            showingCropView = true
+                        }
+                    } else {
+                        await MainActor.run { isLoadingImage = false }
+                    }
+                } catch {
+                    print("[FreePractice] Error loading image: \(error)")
+                    await MainActor.run { isLoadingImage = false }
                 }
-            )
+            }
         }
-        .sheet(item: $selectedTarget) { target in
-            TargetAnalysisView(target: target)
+        .overlay {
+            if isLoadingImage {
+                ZStack {
+                    Color.black.opacity(0.5)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(.white)
+                        Text("Loading image...")
+                            .foregroundStyle(.white)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraOnlyView(onCapture: { image in
+                showingCamera = false
+                imageHolder.rawImage = image
+                showingCropView = true
+            }, onCancel: {
+                showingCamera = false
+            })
+        }
+        .fullScreenCover(isPresented: $showingCropView) {
+            if let image = imageHolder.rawImage {
+                ManualCropView(
+                    image: image,
+                    onCropped: { croppedResult in
+                        print("[FreePractice] Crop completed, setting croppedImage")
+                        imageHolder.croppedImage = croppedResult
+                        showingCropView = false
+                        // Delay presentation to allow dismiss animation to complete
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            print("[FreePractice] Presenting analysis view, croppedImage is \(imageHolder.croppedImage == nil ? "nil" : "valid")")
+                            showingAnalysis = true
+                        }
+                    },
+                    onCancel: {
+                        showingCropView = false
+                        imageHolder.rawImage = nil
+                        selectedPhotoItem = nil
+                    }
+                )
+            }
+        }
+        .fullScreenCover(isPresented: $showingAnalysis) {
+            let _ = print("[FreePractice] fullScreenCover body - croppedImage is \(imageHolder.croppedImage == nil ? "nil" : "valid")")
+            if let image = imageHolder.croppedImage {
+                let _ = print("[FreePractice] Rendering TargetMarkingView")
+                TargetMarkingView(
+                    image: image,
+                    onComplete: {
+                        showingAnalysis = false
+                        imageHolder.croppedImage = nil
+                        imageHolder.rawImage = nil
+                        selectedPhotoItem = nil
+                    },
+                    onCancel: {
+                        showingAnalysis = false
+                        imageHolder.croppedImage = nil
+                        imageHolder.rawImage = nil
+                        selectedPhotoItem = nil
+                    }
+                )
+            }
         }
     }
+}
 
-    private var totalShots: Int {
-        scannedTargets.reduce(0) { $0 + $1.scores.count }
-    }
+// MARK: - Camera Only View (moved from ImageSourceSelectorView)
 
-    private var averageScore: Double {
-        let allScores = scannedTargets.flatMap { $0.scores }
-        guard !allScores.isEmpty else { return 0 }
-        return Double(allScores.reduce(0, +)) / Double(allScores.count)
+struct CameraOnlyView: View {
+    let onCapture: (UIImage) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            CameraPreviewView(onCapture: onCapture, onAlignmentUpdate: nil)
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                }
+                .padding()
+
+                Spacer()
+            }
+        }
     }
 }
 

@@ -20,7 +20,8 @@ struct TargetScannerView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    // Flow states: camera -> crop -> analysis
+    // Flow states: sourceSelect -> camera -> crop -> analysis
+    @State private var showingSourceSelector = false
     @State private var rawCapturedImage: UIImage?  // Original image before cropping
     @State private var capturedImage: UIImage?      // Cropped image for analysis
     @State private var showingCropView = false
@@ -33,6 +34,21 @@ struct TargetScannerView: View {
     @State private var isLoadingAICoaching = false
     @State private var saveAnalysis = true  // Option to save for historical tracking
 
+    // ML Training Data Collection
+    @State private var markingEvents: [HoleMarkingEvent] = []
+    @State private var sessionStartTime: Date = Date()
+    @State private var lastActionTime: Date = Date()
+    @State private var retakeCount: Int = 0
+    @State private var currentZoomLevel: Double = 1.0
+
+    private var isCameraAvailable: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return AVCaptureDevice.default(for: .video) != nil
+        #endif
+    }
+
     var body: some View {
         ZStack {
             if showingCropView, let rawImage = rawCapturedImage {
@@ -42,11 +58,10 @@ struct TargetScannerView: View {
                     onCropped: { croppedImage in
                         capturedImage = croppedImage
                         showingCropView = false
-                        // No auto-detection - user will manually mark holes
-                        detectedHoles = []
-                        // Set default target center and size for scoring calculation
+                        // Skip auto-detection - go straight to manual marking
                         detectedTargetCenter = CGPoint(x: 0.5, y: 0.5)
                         detectedTargetSize = CGSize(width: 0.7, height: 0.9)
+                        detectedHoles = []
                     },
                     onCancel: {
                         rawCapturedImage = nil
@@ -55,6 +70,16 @@ struct TargetScannerView: View {
                 )
             } else if let image = capturedImage {
                 analysisView(image: image)
+            } else if showingSourceSelector || !isCameraAvailable {
+                // Show source selector on Simulator or when requested
+                ImageSourceSelectorView(
+                    onImageSelected: { image in
+                        rawCapturedImage = image
+                        showingCropView = true
+                        showingSourceSelector = false
+                    },
+                    onCancel: onCancel
+                )
             } else {
                 cameraView
             }
@@ -200,152 +225,288 @@ struct TargetScannerView: View {
         }
     }
 
+    // State to track whether we're in marking mode or review mode
+    @State private var showingReview = false
+
     private func analysisView(image: UIImage) -> some View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                // Header
-                HStack {
-                    Button("Retake") {
-                        // Reset all states and go back to camera
-                        capturedImage = nil
-                        rawCapturedImage = nil
-                        showingCropView = false
-                        detectedHoles = []
-                        detectedTargetCenter = nil
-                        detectedTargetSize = nil
-                        aiCoachingInsights = nil
-                    }
-                    Spacer()
-                    Text("Mark Holes")
-                        .font(.headline)
-                    Spacer()
-                    Button("Cancel") { onCancel() }
-                }
-                .padding()
-
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // Interactive annotated image with zoom
-                        InteractiveAnnotatedTargetImage(
-                            image: image,
-                            holes: $detectedHoles,
-                            targetCenter: detectedTargetCenter,
-                            targetSize: detectedTargetSize,
-                            onHoleAdded: { position in
-                                addHole(at: position)
-                            },
-                            onHoleMoved: { id, newPosition in
-                                moveHole(id: id, to: newPosition)
-                            },
-                            onHoleDeleted: { id in
-                                deleteHole(id: id)
-                            }
-                        )
-                        .frame(height: 350)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                        // Correction instructions
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label("How to Mark Holes", systemImage: "hand.tap")
-                                .font(.caption.bold())
-                                .foregroundStyle(.blue)
-                            HStack(spacing: 16) {
-                                Label("Tap to add hole", systemImage: "plus.circle")
-                                Label("Hold & drag to move", systemImage: "arrow.up.and.down.and.arrow.left.and.right")
-                            }
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            HStack(spacing: 16) {
-                                Label("Tap marker then X", systemImage: "xmark.circle")
-                                Label("Pinch to zoom", systemImage: "magnifyingglass")
-                            }
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.blue.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                        // Pattern Analysis
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Pattern Analysis")
-                                    .font(.headline)
-                                Spacer()
-                                Text("\(detectedHoles.count) shots")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if detectedHoles.isEmpty {
-                                Text("Tap on the target image to mark each hole")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                // Pattern feedback
-                                patternFeedbackView
-                            }
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                        // Visual pattern indicator
-                        if !detectedHoles.isEmpty {
-                            patternVisualization
-                        }
-
-                        // Apple Intelligence Coaching
-                        if !detectedHoles.isEmpty {
-                            aiCoachingSection
-                        }
-
-                        // Save for history toggle
-                        if !detectedHoles.isEmpty {
-                            Toggle(isOn: $saveAnalysis) {
-                                HStack {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .foregroundStyle(.blue)
-                                    VStack(alignment: .leading) {
-                                        Text("Save to History")
-                                            .font(.subheadline)
-                                        Text("Track patterns over time")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                    }
-                    .padding()
-                }
-
-                // Done button
-                Button {
-                    if saveAnalysis && !detectedHoles.isEmpty {
-                        saveTargetAnalysis()
-                    }
-                    onScanned(detectedHoles.map { $0.score })
-                } label: {
-                    Label("Done", systemImage: "checkmark.circle.fill")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding()
+            if showingReview {
+                reviewView(image: image)
+            } else {
+                markingView(image: image)
             }
         }
     }
 
-    // MARK: - Hole Correction Functions
+    // MARK: - Step 1: Marking View (Full screen for marking)
+
+    private func markingView(image: UIImage) -> some View {
+        VStack(spacing: 0) {
+            // Compact header
+            HStack {
+                Button("Retake") {
+                    retakeCount += 1
+                    capturedImage = nil
+                    rawCapturedImage = nil
+                    showingCropView = false
+                    detectedHoles = []
+                    detectedTargetCenter = nil
+                    detectedTargetSize = nil
+                    aiCoachingInsights = nil
+                    markingEvents = []
+                    lastActionTime = Date()
+                    showingReview = false
+                }
+                .font(.subheadline)
+
+                Spacer()
+
+                Text("Mark Holes")
+                    .font(.headline)
+
+                Spacer()
+
+                Button("Cancel") { onCancel() }
+                    .font(.subheadline)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+
+            // Large target image area - takes most of the screen
+            InteractiveAnnotatedTargetImage(
+                image: image,
+                holes: $detectedHoles,
+                targetCenter: detectedTargetCenter,
+                targetSize: detectedTargetSize,
+                onHoleAdded: { position in
+                    addHole(at: position)
+                },
+                onHoleMoved: { id, newPosition in
+                    moveHole(id: id, to: newPosition)
+                },
+                onHoleDeleted: { id in
+                    deleteHole(id: id)
+                }
+            )
+            .frame(maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 8)
+
+            // Bottom controls - compact
+            VStack(spacing: 12) {
+                // Instructions and hole count
+                HStack {
+                    // Instructions
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hand.tap")
+                                .font(.caption2)
+                            Text("Tap to add hole")
+                                .font(.caption2)
+                        }
+                        HStack(spacing: 4) {
+                            Image(systemName: "hand.tap")
+                                .font(.caption2)
+                            Text("Tap hole, then X to delete")
+                                .font(.caption2)
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    // Hole count badge
+                    HStack(spacing: 6) {
+                        Image(systemName: "target")
+                            .foregroundStyle(.orange)
+                        Text("\(detectedHoles.count) holes")
+                            .font(.subheadline.bold())
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(detectedHoles.isEmpty ? Color(.tertiarySystemBackground) : Color.orange.opacity(0.15))
+                    .clipShape(Capsule())
+
+                    // Clear All button
+                    if !detectedHoles.isEmpty {
+                        Button {
+                            detectedHoles.removeAll()
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.subheadline)
+                                .foregroundStyle(.red)
+                                .padding(8)
+                                .background(Color.red.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                // Review button - only enabled when holes are marked
+                Button {
+                    if detectedHoles.isEmpty {
+                        // Allow finishing with no holes (user might want to skip)
+                        onScanned([])
+                    } else {
+                        showingReview = true
+                    }
+                } label: {
+                    HStack {
+                        Text(detectedHoles.isEmpty ? "Skip" : "Review Analysis")
+                            .font(.headline)
+                        if !detectedHoles.isEmpty {
+                            Image(systemName: "arrow.right")
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(detectedHoles.isEmpty ? .gray : .blue)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            .padding(.top, 8)
+            .background(Color(.systemBackground))
+        }
+    }
+
+    // MARK: - Step 2: Review View (Shows analysis after marking)
+
+    private func reviewView(image: UIImage) -> some View {
+        VStack(spacing: 0) {
+            // Header with back button
+            HStack {
+                Button {
+                    showingReview = false
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Edit")
+                    }
+                    .font(.subheadline)
+                }
+
+                Spacer()
+
+                Text("Analysis")
+                    .font(.headline)
+
+                Spacer()
+
+                Button("Cancel") { onCancel() }
+                    .font(.subheadline)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Small thumbnail of marked target
+                    HStack(spacing: 16) {
+                        // Mini target preview
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+
+                        // Summary stats
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(detectedHoles.count) Shots Marked")
+                                .font(.title3.bold())
+
+                            let totalScore = detectedHoles.reduce(0) { $0 + $1.score }
+                            HStack {
+                                Text("Total Score:")
+                                Text("\(totalScore)")
+                                    .font(.headline)
+                                    .foregroundStyle(.orange)
+                            }
+
+                            if !detectedHoles.isEmpty {
+                                let avgScore = Double(totalScore) / Double(detectedHoles.count)
+                                HStack {
+                                    Text("Average:")
+                                    Text(String(format: "%.1f", avgScore))
+                                        .font(.headline)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    // Pattern Analysis
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Pattern Analysis")
+                            .font(.headline)
+
+                        patternFeedbackView
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    // Visual pattern indicator
+                    patternVisualization
+
+                    // Apple Intelligence Coaching
+                    aiCoachingSection
+
+                    // Save for history toggle
+                    Toggle(isOn: $saveAnalysis) {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading) {
+                                Text("Save to History")
+                                    .font(.subheadline)
+                                Text("Track patterns over time")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
+            }
+
+            // Done button
+            Button {
+                if saveAnalysis && !detectedHoles.isEmpty {
+                    saveTargetAnalysis()
+                }
+                onScanned(detectedHoles.map { $0.score })
+            } label: {
+                Label("Done", systemImage: "checkmark.circle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.green)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - Hole Correction Functions (with ML Training Data Capture)
 
     private func addHole(at position: CGPoint) {
         let targetCenter = detectedTargetCenter ?? CGPoint(x: 0.5, y: 0.5)
@@ -362,6 +523,20 @@ struct TargetScannerView: View {
         )
         detectedHoles.append(newHole)
 
+        // Record ML training event
+        let now = Date()
+        let event = HoleMarkingEvent(
+            action: .add,
+            holeId: newHole.id,
+            position: CodablePoint(position),
+            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
+            zoomLevel: currentZoomLevel,
+            sequenceNumber: markingEvents.count + 1,
+            totalHolesAtTime: detectedHoles.count
+        )
+        markingEvents.append(event)
+        lastActionTime = now
+
         // Sort by score
         detectedHoles.sort { $0.score > $1.score }
     }
@@ -369,11 +544,31 @@ struct TargetScannerView: View {
     private func moveHole(id: UUID, to newPosition: CGPoint) {
         guard let index = detectedHoles.firstIndex(where: { $0.id == id }) else { return }
 
+        let oldPosition = detectedHoles[index].position
         let targetCenter = detectedTargetCenter ?? CGPoint(x: 0.5, y: 0.5)
         let targetSize = detectedTargetSize ?? CGSize(width: 0.4, height: 0.6)
 
         // Recalculate score based on new position
         let newScore = calculateScore(for: newPosition, center: targetCenter, size: targetSize)
+
+        // Calculate drag distance for ML training
+        let dragDistance = hypot(newPosition.x - oldPosition.x, newPosition.y - oldPosition.y)
+
+        // Record ML training event
+        let now = Date()
+        let event = HoleMarkingEvent(
+            action: .move,
+            holeId: id,
+            position: CodablePoint(newPosition),
+            previousPosition: CodablePoint(oldPosition),
+            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
+            dragDistance: dragDistance,
+            zoomLevel: currentZoomLevel,
+            sequenceNumber: markingEvents.count + 1,
+            totalHolesAtTime: detectedHoles.count
+        )
+        markingEvents.append(event)
+        lastActionTime = now
 
         detectedHoles[index].position = newPosition
         detectedHoles[index].score = newScore
@@ -383,6 +578,22 @@ struct TargetScannerView: View {
     }
 
     private func deleteHole(id: UUID) {
+        guard let hole = detectedHoles.first(where: { $0.id == id }) else { return }
+
+        // Record ML training event
+        let now = Date()
+        let event = HoleMarkingEvent(
+            action: .delete,
+            holeId: id,
+            position: CodablePoint(hole.position),
+            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
+            zoomLevel: currentZoomLevel,
+            sequenceNumber: markingEvents.count + 1,
+            totalHolesAtTime: detectedHoles.count - 1
+        )
+        markingEvents.append(event)
+        lastActionTime = now
+
         detectedHoles.removeAll { $0.id == id }
     }
 
@@ -407,6 +618,61 @@ struct TargetScannerView: View {
         // Save to SwiftData
         modelContext.insert(analysis)
         try? modelContext.save()
+
+        // Save ML training data
+        saveMLTrainingData()
+    }
+
+    /// Save comprehensive ML training data for future model development
+    private func saveMLTrainingData() {
+        guard let image = capturedImage else { return }
+
+        Task {
+            // Determine target region for each hole
+            let isLeftBlack = true // Default assumption, could be computed from image
+
+            // Convert to HoleAnnotations with full metadata
+            let annotations = detectedHoles.map { hole -> HoleAnnotation in
+                let region = MLTrainingDataService.shared.determineTargetRegion(
+                    position: hole.position,
+                    isLeftBlack: isLeftBlack
+                )
+
+                return HoleAnnotation(
+                    id: hole.id,
+                    position: hole.position,
+                    estimatedDiameter: hole.radius * 2,
+                    targetRegion: region,
+                    score: hole.score,
+                    confidence: hole.confidence,
+                    source: .manualAdd,
+                    wasAutoDetected: false,
+                    wasUserCorrected: false
+                )
+            }
+
+            // Create capture metadata
+            let originalSize = rawCapturedImage?.size ?? image.size
+            let metadata = CaptureMetadata.capture(
+                originalSize: originalSize,
+                croppedSize: image.size,
+                sessionDuration: Date().timeIntervalSince(sessionStartTime),
+                retakeCount: retakeCount
+            )
+
+            // Save training capture
+            do {
+                _ = try await MLTrainingDataService.shared.saveTrainingCapture(
+                    image: image,
+                    annotations: annotations,
+                    markingEvents: markingEvents,
+                    metadata: metadata,
+                    targetType: .tetrathlon
+                )
+            } catch {
+                print("Failed to save ML training data: \(error)")
+            }
+        }
     }
 
     private func calculateScore(for position: CGPoint, center: CGPoint, size: CGSize) -> Int {
@@ -808,62 +1074,46 @@ struct CornerGuide: View {
     }
 }
 
-// MARK: - Manual Crop View
+// MARK: - Manual Crop View (with Perspective Correction)
 
 struct ManualCropView: View {
     let image: UIImage
     let onCropped: (UIImage) -> Void
     let onCancel: () -> Void
 
-    // Crop rectangle state (normalized 0-1 coordinates)
-    @State private var cropRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+    // Four corner points for perspective crop (normalized 0-1 coordinates)
+    @State private var topLeft = CGPoint(x: 0.1, y: 0.1)
+    @State private var topRight = CGPoint(x: 0.9, y: 0.1)
+    @State private var bottomLeft = CGPoint(x: 0.1, y: 0.9)
+    @State private var bottomRight = CGPoint(x: 0.9, y: 0.9)
 
-    // Which handle is being dragged
-    @State private var activeHandle: CropHandle?
+    // Track which corner is being dragged
+    @State private var activeCorner: Corner?
 
-    // For panning the entire crop area
-    @State private var isPanningCrop = false
-    @State private var panStartRect = CGRect.zero
+    // Mode: rectangle or perspective
+    @State private var usePerspective = true
 
-    enum CropHandle {
+    enum Corner {
         case topLeft, topRight, bottomLeft, bottomRight
-        case top, bottom, left, right
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button("Cancel") { onCancel() }
-                        .foregroundStyle(.white)
-                        .padding(8)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
+                VStack(spacing: 0) {
 
-                    Spacer()
-
-                    Text("Crop Target")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-
-                    Spacer()
-
-                    Button("Done") { applyCrop() }
-                        .foregroundStyle(.white)
-                        .fontWeight(.semibold)
-                        .padding(8)
-                        .background(.green)
-                        .clipShape(Capsule())
-                }
-                .padding()
-
-                // Image with crop overlay
+                // Image with perspective crop overlay
                 GeometryReader { geo in
                     let imageSize = calculateImageSize(in: geo.size)
                     let imageOffset = calculateImageOffset(in: geo.size, imageSize: imageSize)
+                    let imageFrame = CGRect(
+                        x: imageOffset.x,
+                        y: imageOffset.y,
+                        width: imageSize.width,
+                        height: imageSize.height
+                    )
 
                     ZStack {
                         // The image
@@ -873,46 +1123,213 @@ struct ManualCropView: View {
                             .frame(width: imageSize.width, height: imageSize.height)
                             .position(x: geo.size.width / 2, y: geo.size.height / 2)
 
-                        // Darkened overlay outside crop area
-                        CropOverlay(
-                            cropRect: cropRect,
-                            imageFrame: CGRect(
-                                x: imageOffset.x,
-                                y: imageOffset.y,
-                                width: imageSize.width,
-                                height: imageSize.height
-                            ),
+                        // Darkened overlay with quadrilateral cutout
+                        PerspectiveCropOverlay(
+                            corners: cornerPositions(in: imageFrame),
                             geoSize: geo.size
                         )
 
-                        // Crop handles
-                        CropHandles(
-                            cropRect: cropRect,
-                            imageFrame: CGRect(
-                                x: imageOffset.x,
-                                y: imageOffset.y,
-                                width: imageSize.width,
-                                height: imageSize.height
-                            ),
-                            onHandleDrag: { handle, translation in
-                                updateCropRect(handle: handle, translation: translation, imageSize: imageSize)
-                            },
-                            onPanCrop: { translation in
-                                panCropRect(translation: translation, imageSize: imageSize)
-                            },
-                            onPanStart: {
-                                panStartRect = cropRect
-                            }
-                        )
+                        // Draggable corner handles
+                        perspectiveHandles(imageFrame: imageFrame)
                     }
                 }
 
-                // Instructions
-                Text("Drag corners or edges to adjust crop area")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 20)
+                // Controls
+                VStack(spacing: 12) {
+                    // Reset button
+                    HStack {
+                        Button {
+                            resetCorners()
+                        } label: {
+                            Label("Reset", systemImage: "arrow.counterclockwise")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                        }
+
+                        Spacer()
+
+                        // Toggle perspective mode
+                        Toggle(isOn: $usePerspective) {
+                            Text("Perspective")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                        }
+                        .toggleStyle(.button)
+                        .tint(.orange)
+                    }
+                    .padding(.horizontal)
+
+                    // Instructions
+                    Text("Drag corners to match the target edges.\nPerspective mode corrects for angled photos.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.bottom, 16)
             }
+            } // Close ZStack
+            .navigationTitle("Crop Target")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { applyCrop() }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    // MARK: - Corner Positions
+
+    private func cornerPositions(in imageFrame: CGRect) -> [CGPoint] {
+        [
+            CGPoint(
+                x: imageFrame.origin.x + topLeft.x * imageFrame.width,
+                y: imageFrame.origin.y + topLeft.y * imageFrame.height
+            ),
+            CGPoint(
+                x: imageFrame.origin.x + topRight.x * imageFrame.width,
+                y: imageFrame.origin.y + topRight.y * imageFrame.height
+            ),
+            CGPoint(
+                x: imageFrame.origin.x + bottomRight.x * imageFrame.width,
+                y: imageFrame.origin.y + bottomRight.y * imageFrame.height
+            ),
+            CGPoint(
+                x: imageFrame.origin.x + bottomLeft.x * imageFrame.width,
+                y: imageFrame.origin.y + bottomLeft.y * imageFrame.height
+            )
+        ]
+    }
+
+    // MARK: - Perspective Handles
+
+    private func perspectiveHandles(imageFrame: CGRect) -> some View {
+        ZStack {
+            // Border connecting corners
+            Path { path in
+                let corners = cornerPositions(in: imageFrame)
+                guard corners.count == 4 else { return }
+                path.move(to: corners[0])
+                path.addLine(to: corners[1])
+                path.addLine(to: corners[2])
+                path.addLine(to: corners[3])
+                path.closeSubpath()
+            }
+            .stroke(.white, lineWidth: 2)
+
+            // Grid lines
+            Path { path in
+                let corners = cornerPositions(in: imageFrame)
+                guard corners.count == 4 else { return }
+
+                // Horizontal thirds
+                for i in 1...2 {
+                    let t = CGFloat(i) / 3.0
+                    let left = interpolate(corners[0], corners[3], t: t)
+                    let right = interpolate(corners[1], corners[2], t: t)
+                    path.move(to: left)
+                    path.addLine(to: right)
+                }
+
+                // Vertical thirds
+                for i in 1...2 {
+                    let t = CGFloat(i) / 3.0
+                    let top = interpolate(corners[0], corners[1], t: t)
+                    let bottom = interpolate(corners[3], corners[2], t: t)
+                    path.move(to: top)
+                    path.addLine(to: bottom)
+                }
+            }
+            .stroke(.white.opacity(0.4), lineWidth: 1)
+
+            // Corner handles
+            cornerHandle(for: .topLeft, in: imageFrame, position: topLeft)
+            cornerHandle(for: .topRight, in: imageFrame, position: topRight)
+            cornerHandle(for: .bottomLeft, in: imageFrame, position: bottomLeft)
+            cornerHandle(for: .bottomRight, in: imageFrame, position: bottomRight)
+        }
+    }
+
+    private func interpolate(_ p1: CGPoint, _ p2: CGPoint, t: CGFloat) -> CGPoint {
+        CGPoint(
+            x: p1.x + (p2.x - p1.x) * t,
+            y: p1.y + (p2.y - p1.y) * t
+        )
+    }
+
+    private func cornerHandle(for corner: Corner, in imageFrame: CGRect, position: CGPoint) -> some View {
+        let screenPos = CGPoint(
+            x: imageFrame.origin.x + position.x * imageFrame.width,
+            y: imageFrame.origin.y + position.y * imageFrame.height
+        )
+
+        return Circle()
+            .fill(.orange)
+            .frame(width: 30, height: 30)
+            .overlay(Circle().stroke(.white, lineWidth: 2))
+            .position(screenPos)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        let newX = (value.location.x - imageFrame.origin.x) / imageFrame.width
+                        let newY = (value.location.y - imageFrame.origin.y) / imageFrame.height
+
+                        // Clamp to valid range
+                        let clampedX = max(0, min(1, newX))
+                        let clampedY = max(0, min(1, newY))
+
+                        switch corner {
+                        case .topLeft:
+                            if usePerspective {
+                                topLeft = CGPoint(x: clampedX, y: clampedY)
+                            } else {
+                                // Rectangle mode: move opposite corners proportionally
+                                topLeft = CGPoint(x: clampedX, y: clampedY)
+                                topRight.y = clampedY
+                                bottomLeft.x = clampedX
+                            }
+                        case .topRight:
+                            if usePerspective {
+                                topRight = CGPoint(x: clampedX, y: clampedY)
+                            } else {
+                                topRight = CGPoint(x: clampedX, y: clampedY)
+                                topLeft.y = clampedY
+                                bottomRight.x = clampedX
+                            }
+                        case .bottomLeft:
+                            if usePerspective {
+                                bottomLeft = CGPoint(x: clampedX, y: clampedY)
+                            } else {
+                                bottomLeft = CGPoint(x: clampedX, y: clampedY)
+                                bottomRight.y = clampedY
+                                topLeft.x = clampedX
+                            }
+                        case .bottomRight:
+                            if usePerspective {
+                                bottomRight = CGPoint(x: clampedX, y: clampedY)
+                            } else {
+                                bottomRight = CGPoint(x: clampedX, y: clampedY)
+                                bottomLeft.y = clampedY
+                                topRight.x = clampedX
+                            }
+                        }
+                    }
+            )
+    }
+
+    private func resetCorners() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            topLeft = CGPoint(x: 0.1, y: 0.1)
+            topRight = CGPoint(x: 0.9, y: 0.1)
+            bottomLeft = CGPoint(x: 0.1, y: 0.9)
+            bottomRight = CGPoint(x: 0.9, y: 0.9)
         }
     }
 
@@ -921,12 +1338,10 @@ struct ManualCropView: View {
         let containerAspect = containerSize.width / containerSize.height
 
         if imageAspect > containerAspect {
-            // Image is wider than container
             let width = containerSize.width
             let height = width / imageAspect
             return CGSize(width: width, height: height)
         } else {
-            // Image is taller than container
             let height = containerSize.height
             let width = height * imageAspect
             return CGSize(width: width, height: height)
@@ -934,102 +1349,214 @@ struct ManualCropView: View {
     }
 
     private func calculateImageOffset(in containerSize: CGSize, imageSize: CGSize) -> CGPoint {
-        return CGPoint(
+        CGPoint(
             x: (containerSize.width - imageSize.width) / 2,
             y: (containerSize.height - imageSize.height) / 2
         )
     }
 
-    private func updateCropRect(handle: CropHandle, translation: CGSize, imageSize: CGSize) {
-        let dx = translation.width / imageSize.width
-        let dy = translation.height / imageSize.height
-
-        var newRect = cropRect
-
-        switch handle {
-        case .topLeft:
-            newRect.origin.x += dx
-            newRect.origin.y += dy
-            newRect.size.width -= dx
-            newRect.size.height -= dy
-        case .topRight:
-            newRect.origin.y += dy
-            newRect.size.width += dx
-            newRect.size.height -= dy
-        case .bottomLeft:
-            newRect.origin.x += dx
-            newRect.size.width -= dx
-            newRect.size.height += dy
-        case .bottomRight:
-            newRect.size.width += dx
-            newRect.size.height += dy
-        case .top:
-            newRect.origin.y += dy
-            newRect.size.height -= dy
-        case .bottom:
-            newRect.size.height += dy
-        case .left:
-            newRect.origin.x += dx
-            newRect.size.width -= dx
-        case .right:
-            newRect.size.width += dx
-        }
-
-        // Clamp to valid bounds
-        newRect.origin.x = max(0, min(1 - 0.1, newRect.origin.x))
-        newRect.origin.y = max(0, min(1 - 0.1, newRect.origin.y))
-        newRect.size.width = max(0.1, min(1 - newRect.origin.x, newRect.size.width))
-        newRect.size.height = max(0.1, min(1 - newRect.origin.y, newRect.size.height))
-
-        cropRect = newRect
-    }
-
-    private func panCropRect(translation: CGSize, imageSize: CGSize) {
-        let dx = translation.width / imageSize.width
-        let dy = translation.height / imageSize.height
-
-        var newRect = panStartRect
-        newRect.origin.x += dx
-        newRect.origin.y += dy
-
-        // Clamp to valid bounds
-        newRect.origin.x = max(0, min(1 - newRect.size.width, newRect.origin.x))
-        newRect.origin.y = max(0, min(1 - newRect.size.height, newRect.origin.y))
-
-        cropRect = newRect
-    }
+    @State private var isProcessing = false
 
     private func applyCrop() {
-        guard let cgImage = image.cgImage else {
-            onCropped(image)
-            return
+        guard !isProcessing else { return }
+        isProcessing = true
+
+        // Capture values for background processing
+        let capturedImage = image
+        let capturedTopLeft = topLeft
+        let capturedTopRight = topRight
+        let capturedBottomLeft = bottomLeft
+        let capturedBottomRight = bottomRight
+        let capturedUsePerspective = usePerspective
+        let isRect = isRectangle()
+        let capturedOnCropped = onCropped
+
+        // Use DispatchQueue to ensure Core Image runs off the main thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Normalize image orientation before cropping to avoid rotation issues
+            let normalizedImage = Self.normalizeImageOrientation(capturedImage)
+
+            guard let cgImage = normalizedImage.cgImage else {
+                DispatchQueue.main.async {
+                    capturedOnCropped(capturedImage)
+                }
+                return
+            }
+
+            let imageWidth = CGFloat(cgImage.width)
+            let imageHeight = CGFloat(cgImage.height)
+
+            // Convert normalized corners to pixel coordinates
+            // Note: Core Image uses bottom-left origin, so we flip Y
+            let pixelTopLeft = CGPoint(
+                x: capturedTopLeft.x * imageWidth,
+                y: (1 - capturedTopLeft.y) * imageHeight
+            )
+            let pixelTopRight = CGPoint(
+                x: capturedTopRight.x * imageWidth,
+                y: (1 - capturedTopRight.y) * imageHeight
+            )
+            let pixelBottomLeft = CGPoint(
+                x: capturedBottomLeft.x * imageWidth,
+                y: (1 - capturedBottomLeft.y) * imageHeight
+            )
+            let pixelBottomRight = CGPoint(
+                x: capturedBottomRight.x * imageWidth,
+                y: (1 - capturedBottomRight.y) * imageHeight
+            )
+
+            // Check if we need perspective correction (corners form non-rectangle)
+            let needsPerspective = capturedUsePerspective && !isRect
+
+            var resultImage: UIImage = normalizedImage
+
+            if needsPerspective {
+                // Use Core Image perspective correction
+                if let corrected = Self.applyPerspectiveCorrectionStatic(
+                    cgImage: cgImage,
+                    topLeft: pixelTopLeft,
+                    topRight: pixelTopRight,
+                    bottomLeft: pixelBottomLeft,
+                    bottomRight: pixelBottomRight,
+                    originalImage: normalizedImage
+                ) {
+                    resultImage = corrected
+                } else {
+                    // Fallback to simple crop
+                    resultImage = Self.applySimpleCropStatic(
+                        cgImage: cgImage,
+                        imageWidth: imageWidth,
+                        imageHeight: imageHeight,
+                        topLeft: capturedTopLeft,
+                        topRight: capturedTopRight,
+                        bottomLeft: capturedBottomLeft,
+                        bottomRight: capturedBottomRight,
+                        originalImage: normalizedImage
+                    )
+                }
+            } else {
+                // Simple rectangular crop
+                resultImage = Self.applySimpleCropStatic(
+                    cgImage: cgImage,
+                    imageWidth: imageWidth,
+                    imageHeight: imageHeight,
+                    topLeft: capturedTopLeft,
+                    topRight: capturedTopRight,
+                    bottomLeft: capturedBottomLeft,
+                    bottomRight: capturedBottomRight,
+                    originalImage: normalizedImage
+                )
+            }
+
+            DispatchQueue.main.async {
+                capturedOnCropped(resultImage)
+            }
+        }
+    }
+
+    private func isRectangle() -> Bool {
+        // Check if corners form a rectangle (within tolerance)
+        let tolerance: CGFloat = 0.02
+        let topSame = abs(topLeft.y - topRight.y) < tolerance
+        let bottomSame = abs(bottomLeft.y - bottomRight.y) < tolerance
+        let leftSame = abs(topLeft.x - bottomLeft.x) < tolerance
+        let rightSame = abs(topRight.x - bottomRight.x) < tolerance
+        return topSame && bottomSame && leftSame && rightSame
+    }
+
+    private static func applySimpleCropStatic(
+        cgImage: CGImage,
+        imageWidth: CGFloat,
+        imageHeight: CGFloat,
+        topLeft: CGPoint,
+        topRight: CGPoint,
+        bottomLeft: CGPoint,
+        bottomRight: CGPoint,
+        originalImage: UIImage
+    ) -> UIImage {
+        // Calculate bounding rectangle from corners
+        let minX = min(topLeft.x, bottomLeft.x)
+        let maxX = max(topRight.x, bottomRight.x)
+        let minY = min(topLeft.y, topRight.y)
+        let maxY = max(bottomLeft.y, bottomRight.y)
+
+        let cropRect = CGRect(
+            x: minX * imageWidth,
+            y: minY * imageHeight,
+            width: (maxX - minX) * imageWidth,
+            height: (maxY - minY) * imageHeight
+        )
+
+        guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
+            return originalImage
         }
 
-        let imageWidth = CGFloat(cgImage.width)
-        let imageHeight = CGFloat(cgImage.height)
+        return UIImage(cgImage: croppedCGImage, scale: originalImage.scale, orientation: originalImage.imageOrientation)
+    }
 
-        let cropX = cropRect.origin.x * imageWidth
-        let cropY = cropRect.origin.y * imageHeight
-        let cropWidth = cropRect.size.width * imageWidth
-        let cropHeight = cropRect.size.height * imageHeight
+    private static func applyPerspectiveCorrectionStatic(
+        cgImage: CGImage,
+        topLeft: CGPoint,
+        topRight: CGPoint,
+        bottomLeft: CGPoint,
+        bottomRight: CGPoint,
+        originalImage: UIImage
+    ) -> UIImage? {
+        let ciImage = CIImage(cgImage: cgImage)
 
-        let cropCGRect = CGRect(x: cropX, y: cropY, width: cropWidth, height: cropHeight)
-
-        guard let croppedCGImage = cgImage.cropping(to: cropCGRect) else {
-            onCropped(image)
-            return
+        // Use CIPerspectiveCorrection filter
+        guard let filter = CIFilter(name: "CIPerspectiveCorrection") else {
+            return nil
         }
 
-        let croppedImage = UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: image.imageOrientation)
-        onCropped(croppedImage)
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        filter.setValue(CIVector(cgPoint: topLeft), forKey: "inputTopLeft")
+        filter.setValue(CIVector(cgPoint: topRight), forKey: "inputTopRight")
+        filter.setValue(CIVector(cgPoint: bottomLeft), forKey: "inputBottomLeft")
+        filter.setValue(CIVector(cgPoint: bottomRight), forKey: "inputBottomRight")
+
+        guard let outputImage = filter.outputImage else {
+            return nil
+        }
+
+        // Render to UIImage
+        let context = CIContext()
+
+        // The output extent might be different, so we use the corrected image's extent
+        let extent = outputImage.extent
+        guard let outputCGImage = context.createCGImage(outputImage, from: extent) else {
+            return nil
+        }
+
+        return UIImage(cgImage: outputCGImage, scale: originalImage.scale, orientation: .up)
+    }
+
+    /// Normalize image orientation by rendering to a new context with correct orientation applied.
+    /// This ensures the cgImage pixel data matches the displayed orientation.
+    private static func normalizeImageOrientation(_ image: UIImage) -> UIImage {
+        // If orientation is already up, no need to normalize
+        guard image.imageOrientation != .up else { return image }
+
+        // Create a graphics context with the correct size
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        defer { UIGraphicsEndImageContext() }
+
+        // Draw the image at origin - this applies the orientation transform
+        image.draw(at: .zero)
+
+        // Get the normalized image
+        guard let normalizedImage = UIGraphicsGetImageFromCurrentImageContext() else {
+            return image
+        }
+
+        return normalizedImage
     }
 }
 
-// MARK: - Crop Overlay (darkens area outside crop)
+// MARK: - Perspective Crop Overlay
 
-struct CropOverlay: View {
-    let cropRect: CGRect
-    let imageFrame: CGRect
+struct PerspectiveCropOverlay: View {
+    let corners: [CGPoint]  // [topLeft, topRight, bottomRight, bottomLeft]
     let geoSize: CGSize
 
     var body: some View {
@@ -1038,132 +1565,33 @@ struct CropOverlay: View {
             let fullRect = CGRect(origin: .zero, size: size)
             context.fill(Path(fullRect), with: .color(.black.opacity(0.6)))
 
-            // Cut out the crop area (make it transparent)
-            let cropPath = Path(CGRect(
-                x: imageFrame.origin.x + cropRect.origin.x * imageFrame.width,
-                y: imageFrame.origin.y + cropRect.origin.y * imageFrame.height,
-                width: cropRect.width * imageFrame.width,
-                height: cropRect.height * imageFrame.height
-            ))
+            // Cut out the quadrilateral area
+            guard corners.count == 4 else { return }
+
+            var quadPath = Path()
+            quadPath.move(to: corners[0])
+            quadPath.addLine(to: corners[1])
+            quadPath.addLine(to: corners[2])
+            quadPath.addLine(to: corners[3])
+            quadPath.closeSubpath()
+
             context.blendMode = .destinationOut
-            context.fill(cropPath, with: .color(.white))
+            context.fill(quadPath, with: .color(.white))
         }
         .allowsHitTesting(false)
-    }
-}
-
-// MARK: - Crop Handles
-
-struct CropHandles: View {
-    let cropRect: CGRect
-    let imageFrame: CGRect
-    let onHandleDrag: (ManualCropView.CropHandle, CGSize) -> Void
-    let onPanCrop: (CGSize) -> Void
-    let onPanStart: () -> Void
-
-    private let handleSize: CGFloat = 30
-    private let edgeHandleLength: CGFloat = 44
-
-    var body: some View {
-        let cropFrame = CGRect(
-            x: imageFrame.origin.x + cropRect.origin.x * imageFrame.width,
-            y: imageFrame.origin.y + cropRect.origin.y * imageFrame.height,
-            width: cropRect.width * imageFrame.width,
-            height: cropRect.height * imageFrame.height
-        )
-
-        ZStack {
-            // Border
-            Rectangle()
-                .stroke(.white, lineWidth: 2)
-                .frame(width: cropFrame.width, height: cropFrame.height)
-                .position(x: cropFrame.midX, y: cropFrame.midY)
-
-            // Grid lines (rule of thirds)
-            Path { path in
-                // Vertical lines
-                path.move(to: CGPoint(x: cropFrame.minX + cropFrame.width / 3, y: cropFrame.minY))
-                path.addLine(to: CGPoint(x: cropFrame.minX + cropFrame.width / 3, y: cropFrame.maxY))
-                path.move(to: CGPoint(x: cropFrame.minX + cropFrame.width * 2 / 3, y: cropFrame.minY))
-                path.addLine(to: CGPoint(x: cropFrame.minX + cropFrame.width * 2 / 3, y: cropFrame.maxY))
-                // Horizontal lines
-                path.move(to: CGPoint(x: cropFrame.minX, y: cropFrame.minY + cropFrame.height / 3))
-                path.addLine(to: CGPoint(x: cropFrame.maxX, y: cropFrame.minY + cropFrame.height / 3))
-                path.move(to: CGPoint(x: cropFrame.minX, y: cropFrame.minY + cropFrame.height * 2 / 3))
-                path.addLine(to: CGPoint(x: cropFrame.maxX, y: cropFrame.minY + cropFrame.height * 2 / 3))
-            }
-            .stroke(.white.opacity(0.5), lineWidth: 1)
-
-            // Corner handles
-            cornerHandle(at: CGPoint(x: cropFrame.minX, y: cropFrame.minY), handle: .topLeft)
-            cornerHandle(at: CGPoint(x: cropFrame.maxX, y: cropFrame.minY), handle: .topRight)
-            cornerHandle(at: CGPoint(x: cropFrame.minX, y: cropFrame.maxY), handle: .bottomLeft)
-            cornerHandle(at: CGPoint(x: cropFrame.maxX, y: cropFrame.maxY), handle: .bottomRight)
-
-            // Edge handles
-            edgeHandle(at: CGPoint(x: cropFrame.midX, y: cropFrame.minY), handle: .top, isHorizontal: true)
-            edgeHandle(at: CGPoint(x: cropFrame.midX, y: cropFrame.maxY), handle: .bottom, isHorizontal: true)
-            edgeHandle(at: CGPoint(x: cropFrame.minX, y: cropFrame.midY), handle: .left, isHorizontal: false)
-            edgeHandle(at: CGPoint(x: cropFrame.maxX, y: cropFrame.midY), handle: .right, isHorizontal: false)
-
-            // Center drag area (to move entire crop)
-            Rectangle()
-                .fill(.clear)
-                .frame(width: cropFrame.width - handleSize * 2, height: cropFrame.height - handleSize * 2)
-                .position(x: cropFrame.midX, y: cropFrame.midY)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if value.translation == .zero {
-                                onPanStart()
-                            }
-                            onPanCrop(value.translation)
-                        }
-                )
-                .contentShape(Rectangle())
-        }
-    }
-
-    private func cornerHandle(at position: CGPoint, handle: ManualCropView.CropHandle) -> some View {
-        Circle()
-            .fill(.white)
-            .frame(width: handleSize, height: handleSize)
-            .shadow(color: .black.opacity(0.3), radius: 2)
-            .position(position)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        onHandleDrag(handle, value.translation)
-                    }
-            )
-    }
-
-    private func edgeHandle(at position: CGPoint, handle: ManualCropView.CropHandle, isHorizontal: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(.white)
-            .frame(
-                width: isHorizontal ? edgeHandleLength : 8,
-                height: isHorizontal ? 8 : edgeHandleLength
-            )
-            .shadow(color: .black.opacity(0.3), radius: 2)
-            .position(position)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        onHandleDrag(handle, value.translation)
-                    }
-            )
     }
 }
 
 // MARK: - Detected Hole Model
 
 struct DetectedHole: Identifiable {
-    let id = UUID()
+    var id = UUID()
     var position: CGPoint // Normalized 0-1
     var score: Int
     var confidence: Double
     var radius: CGFloat = 0.02 // Normalized radius
+    var needsReview: Bool = false
+    var reviewReason: String? = nil
 }
 
 // MARK: - Score Edit Button
@@ -1273,18 +1701,11 @@ struct InteractiveAnnotatedTargetImage: View {
     let onHoleDeleted: ((UUID) -> Void)?
 
     @State private var selectedHoleID: UUID?
-    @State private var showingDeleteConfirmation = false
-    @State private var holeToDelete: UUID?
 
     // Zoom and pan state
     @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    @GestureState private var magnifyBy: CGFloat = 1.0
-
-    // Track the geo size for tap handling
-    @State private var currentGeoSize: CGSize = .zero
 
     init(
         image: UIImage,
@@ -1307,82 +1728,65 @@ struct InteractiveAnnotatedTargetImage: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
+                // Background tap catcher - this handles adding new holes
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleTap(at: location, geoSize: geo.size)
+                    }
+
                 // Zoomable/pannable content
                 ZStack {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
 
-                    // Draw editable holes
+                    // Draw editable holes - positioned in normalized coordinates
                     ForEach(holes) { hole in
-                        DraggableHoleMarker(
+                        SimpleHoleMarker(
                             hole: hole,
                             isSelected: selectedHoleID == hole.id,
                             geoSize: geo.size,
                             scale: scale,
-                            onSelect: {
-                                if selectedHoleID == hole.id {
-                                    // Already selected - show delete confirmation
-                                    holeToDelete = hole.id
-                                    showingDeleteConfirmation = true
-                                } else {
-                                    selectedHoleID = hole.id
+                            onTap: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    if selectedHoleID == hole.id {
+                                        selectedHoleID = nil
+                                    } else {
+                                        selectedHoleID = hole.id
+                                    }
                                 }
                             },
-                            onMove: { newPosition in
-                                onHoleMoved?(hole.id, newPosition)
-                            },
                             onDelete: {
-                                holeToDelete = hole.id
-                                showingDeleteConfirmation = true
+                                onHoleDeleted?(hole.id)
+                                selectedHoleID = nil
                             }
                         )
                     }
                 }
-                .scaleEffect(scale * magnifyBy)
+                .scaleEffect(scale)
                 .offset(offset)
-                .contentShape(Rectangle())
                 .gesture(
-                    // Single tap to add holes (uses SpatialTapGesture for location)
-                    SpatialTapGesture()
-                        .onEnded { value in
-                            handleTap(at: value.location, geoSize: geo.size)
-                        }
-                )
-                .simultaneousGesture(
-                    // Double tap to reset zoom
-                    TapGesture(count: 2)
-                        .onEnded {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                scale = 1.0
-                                lastScale = 1.0
-                                offset = .zero
-                                lastOffset = .zero
-                                selectedHoleID = nil
-                            }
-                        }
-                )
-                .simultaneousGesture(
+                    // Pinch to zoom
                     MagnificationGesture()
-                        .updating($magnifyBy) { value, state, _ in
-                            state = value
+                        .onChanged { value in
+                            scale = max(1.0, min(value, 5.0))
                         }
                         .onEnded { value in
-                            let newScale = lastScale * value
-                            scale = min(max(newScale, 1.0), 5.0) // Limit zoom 1x-5x
-                            lastScale = scale
-
-                            // Reset offset if zoomed out
-                            if scale == 1.0 {
-                                offset = .zero
-                                lastOffset = .zero
+                            scale = max(1.0, min(value, 5.0))
+                            if scale <= 1.0 {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    offset = .zero
+                                    lastOffset = .zero
+                                }
                             }
                         }
                 )
                 .simultaneousGesture(
-                    DragGesture()
+                    // Drag for panning - only when zoomed
+                    DragGesture(minimumDistance: 10)
                         .onChanged { value in
-                            if scale > 1.0 && selectedHoleID == nil {
+                            if scale > 1.0 {
                                 offset = CGSize(
                                     width: lastOffset.width + value.translation.width,
                                     height: lastOffset.height + value.translation.height
@@ -1393,150 +1797,143 @@ struct InteractiveAnnotatedTargetImage: View {
                             lastOffset = offset
                         }
                 )
+                .onTapGesture(count: 2) {
+                    // Double tap to reset zoom or zoom in
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 2.5
+                        }
+                        selectedHoleID = nil
+                    }
+                }
 
-                // Zoom controls overlay
+                // Minimal zoom controls - bottom right only
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
-                        VStack(spacing: 8) {
-                            // Zoom indicator
-                            if scale > 1.0 {
-                                Text(String(format: "%.1fx", scale))
-                                    .font(.caption2.bold())
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.black.opacity(0.6))
-                                    .clipShape(Capsule())
-                            }
 
-                            // Reset zoom button
-                            if scale > 1.0 {
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        scale = 1.0
-                                        lastScale = 1.0
-                                        offset = .zero
-                                        lastOffset = .zero
-                                    }
-                                } label: {
-                                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(8)
-                                        .background(.black.opacity(0.6))
-                                        .clipShape(Circle())
+                        if scale > 1.0 {
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    scale = 1.0
+                                    offset = .zero
+                                    lastOffset = .zero
                                 }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                                    Text(String(format: "%.1fx", scale))
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.black.opacity(0.7))
+                                .clipShape(Capsule())
                             }
+                            .padding(8)
                         }
-                        .padding(8)
                     }
                 }
             }
             .clipped()
-            .onAppear { currentGeoSize = geo.size }
-            .onChange(of: geo.size) { _, newSize in currentGeoSize = newSize }
-        }
-        .confirmationDialog("Delete this hole?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                if let id = holeToDelete {
-                    onHoleDeleted?(id)
-                    selectedHoleID = nil
-                }
-            }
-            Button("Cancel", role: .cancel) {}
         }
     }
 
     private func handleTap(at location: CGPoint, geoSize: CGSize) {
+        // The tap location is in the GeometryReader's coordinate space
+        // We need to convert it to normalized image coordinates (0-1)
+
+        // Account for zoom and pan: reverse the transformations
+        let centerX = geoSize.width / 2
+        let centerY = geoSize.height / 2
+
+        // The content is scaled around center and then offset
+        // To get the original position: (tapped - center - offset) / scale + center
+        let imageX = (location.x - centerX - offset.width) / scale + centerX
+        let imageY = (location.y - centerY - offset.height) / scale + centerY
+
+        // Convert to normalized coordinates (0-1)
+        let normalizedX = imageX / geoSize.width
+        let normalizedY = imageY / geoSize.height
+
         // First check if tapping on or near an existing hole
-        let tapThreshold: CGFloat = 30 / scale  // Adjust for zoom
+        let tapThreshold: CGFloat = 0.05  // 5% of image size
 
         for hole in holes {
-            let holeX = hole.position.x * geoSize.width
-            let holeY = hole.position.y * geoSize.height
-            let distance = sqrt(pow(location.x - holeX, 2) + pow(location.y - holeY, 2))
+            let dx = normalizedX - hole.position.x
+            let dy = normalizedY - hole.position.y
+            let distance = sqrt(dx * dx + dy * dy)
 
             if distance < tapThreshold {
-                // Tapped on an existing hole - select or delete it
-                if selectedHoleID == hole.id {
-                    holeToDelete = hole.id
-                    showingDeleteConfirmation = true
-                } else {
-                    selectedHoleID = hole.id
+                // Tapped on an existing hole - toggle selection
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    if selectedHoleID == hole.id {
+                        selectedHoleID = nil
+                    } else {
+                        selectedHoleID = hole.id
+                    }
                 }
                 return
             }
         }
 
-        // Deselect if a hole was selected
+        // If a hole was selected, deselect it (tap elsewhere to deselect)
         if selectedHoleID != nil {
-            selectedHoleID = nil
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedHoleID = nil
+            }
             return
         }
 
-        // Convert tap location accounting for zoom and pan
-        let adjustedX = (location.x - geoSize.width / 2) / scale + geoSize.width / 2 - offset.width / scale
-        let adjustedY = (location.y - geoSize.height / 2) / scale + geoSize.height / 2 - offset.height / scale
-
-        let normalizedPosition = CGPoint(
-            x: adjustedX / geoSize.width,
-            y: adjustedY / geoSize.height
-        )
-
-        // Clamp to valid range
+        // Clamp to valid range (0-1)
         let clampedPosition = CGPoint(
-            x: max(0, min(1, normalizedPosition.x)),
-            y: max(0, min(1, normalizedPosition.y))
+            x: max(0, min(1, normalizedX)),
+            y: max(0, min(1, normalizedY))
         )
 
-        // Add hole directly with calculated score (no picker for free practice)
+        // Add new hole at tapped position
         onHoleAdded?(clampedPosition)
     }
 }
 
-// MARK: - Draggable Hole Marker
+// MARK: - Simple Hole Marker (Lightweight for performance)
 
-struct DraggableHoleMarker: View {
+private struct SimpleHoleMarker: View {
     let hole: DetectedHole
     let isSelected: Bool
     let geoSize: CGSize
-    var scale: CGFloat = 1.0
-    let onSelect: () -> Void
-    let onMove: (CGPoint) -> Void
+    let scale: CGFloat
+    let onTap: () -> Void
     let onDelete: () -> Void
 
-    @State private var dragOffset: CGSize = .zero
-    @GestureState private var isDragging = false
-
-    // Adjust marker size based on zoom level (smaller when zoomed in)
-    private var markerSize: CGFloat { 24 / scale }
-    private var selectionSize: CGFloat { 32 / scale }
-    private var deleteButtonSize: CGFloat { 18 / scale }
-    private var deleteOffset: CGFloat { 14 / scale }
+    // Marker size scales inversely with zoom for consistent visual size
+    private var markerSize: CGFloat { 14 / scale }
+    private var deleteButtonSize: CGFloat { 28 / scale }
 
     var body: some View {
         ZStack {
             // Selection ring
             if isSelected {
                 Circle()
-                    .stroke(.yellow, lineWidth: 3 / scale)
-                    .frame(width: selectionSize, height: selectionSize)
+                    .stroke(Color.yellow, lineWidth: 3 / scale)
+                    .frame(width: markerSize + 12 / scale, height: markerSize + 12 / scale)
             }
 
-            // Hole marker
+            // Hole marker - red dot
             Circle()
-                .fill(holeColor.opacity(0.6))
+                .fill(Color.red.opacity(0.8))
                 .frame(width: markerSize, height: markerSize)
             Circle()
-                .stroke(holeColor, lineWidth: 2 / scale)
+                .stroke(Color.white, lineWidth: 2 / scale)
                 .frame(width: markerSize, height: markerSize)
-            Text("\(hole.score)")
-                .font(.system(size: 12 / scale, weight: .bold))
-                .foregroundStyle(.white)
 
-            // Delete button when selected
+            // Delete button when selected - large and obvious
             if isSelected {
                 Button {
                     onDelete()
@@ -1544,8 +1941,89 @@ struct DraggableHoleMarker: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: deleteButtonSize))
                         .foregroundStyle(.white, .red)
+                        .shadow(color: .black.opacity(0.3), radius: 2)
                 }
-                .offset(x: deleteOffset, y: -deleteOffset)
+                .offset(x: 18 / scale, y: -18 / scale)
+            }
+        }
+        .position(
+            x: hole.position.x * geoSize.width,
+            y: hole.position.y * geoSize.height
+        )
+        .contentShape(Circle().scale(3)) // Larger tap target
+        .onTapGesture {
+            onTap()
+        }
+    }
+}
+
+// MARK: - Simple Hole Marker View
+
+struct HoleMarkerView: View {
+    let hole: DetectedHole
+    let isSelected: Bool
+    let geoSize: CGSize
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    let onMove: ((CGPoint) -> Void)?
+
+    @State private var isDragging = false
+    @State private var dragOffset: CGSize = .zero
+
+    private let markerSize: CGFloat = 10
+    private let deleteButtonSize: CGFloat = 22
+
+    init(
+        hole: DetectedHole,
+        isSelected: Bool,
+        geoSize: CGSize,
+        onTap: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        onMove: ((CGPoint) -> Void)? = nil
+    ) {
+        self.hole = hole
+        self.isSelected = isSelected
+        self.geoSize = geoSize
+        self.onTap = onTap
+        self.onDelete = onDelete
+        self.onMove = onMove
+    }
+
+    var body: some View {
+        ZStack {
+            // Selection ring
+            if isSelected {
+                Circle()
+                    .stroke(.yellow, lineWidth: 3)
+                    .frame(width: markerSize + 8, height: markerSize + 8)
+            }
+
+            // Dragging indicator
+            if isDragging {
+                Circle()
+                    .stroke(.green, lineWidth: 2)
+                    .frame(width: markerSize + 12, height: markerSize + 12)
+            }
+
+            // Hole marker - simple red dot for pattern analysis
+            Circle()
+                .fill(.red.opacity(0.7))
+                .frame(width: markerSize, height: markerSize)
+            Circle()
+                .stroke(.red, lineWidth: 2)
+                .frame(width: markerSize, height: markerSize)
+
+            // Delete button when selected - larger and easier to tap
+            if isSelected && !isDragging {
+                Button {
+                    onDelete()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: deleteButtonSize))
+                        .foregroundStyle(.white, .red)
+                }
+                .frame(width: 44, height: 44) // Large tap target
+                .offset(x: 14, y: -14)
             }
         }
         .position(
@@ -1553,63 +2031,47 @@ struct DraggableHoleMarker: View {
             y: hole.position.y * geoSize.height + dragOffset.height
         )
         .gesture(
-            LongPressGesture(minimumDuration: 0.2)
+            LongPressGesture(minimumDuration: 0.3)
                 .sequenced(before: DragGesture())
-                .updating($isDragging) { value, state, _ in
-                    switch value {
-                    case .second(true, _):
-                        state = true
-                    default:
-                        break
-                    }
-                }
                 .onChanged { value in
                     switch value {
+                    case .first(true):
+                        // Long press recognized, ready to drag
+                        isDragging = true
                     case .second(true, let drag):
+                        // Dragging
                         if let drag = drag {
-                            // Adjust drag for zoom level
-                            dragOffset = CGSize(
-                                width: drag.translation.width / scale,
-                                height: drag.translation.height / scale
-                            )
+                            dragOffset = drag.translation
                         }
                     default:
                         break
                     }
                 }
                 .onEnded { value in
-                    switch value {
-                    case .second(true, let drag):
-                        if let drag = drag {
-                            let newPosition = CGPoint(
-                                x: hole.position.x + drag.translation.width / (geoSize.width * scale),
-                                y: hole.position.y + drag.translation.height / (geoSize.height * scale)
-                            )
-                            onMove(newPosition)
-                        }
-                    default:
-                        break
+                    if case .second(true, let drag) = value, let drag = drag {
+                        // Calculate new normalized position
+                        let newX = hole.position.x + drag.translation.width / geoSize.width
+                        let newY = hole.position.y + drag.translation.height / geoSize.height
+                        let clampedPosition = CGPoint(
+                            x: max(0, min(1, newX)),
+                            y: max(0, min(1, newY))
+                        )
+                        onMove?(clampedPosition)
                     }
+                    isDragging = false
                     dragOffset = .zero
                 }
         )
-        .onTapGesture {
-            onSelect()
-        }
-        .scaleEffect(isDragging ? 1.2 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isDragging)
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded {
+                    if !isDragging {
+                        onTap()
+                    }
+                }
+        )
     }
 
-    private var holeColor: Color {
-        switch hole.score {
-        case 10: return .yellow
-        case 8: return .orange
-        case 6: return .red
-        case 4: return .blue
-        case 2: return .purple
-        default: return .gray
-        }
-    }
 }
 
 // MARK: - Camera Preview View
@@ -1888,221 +2350,41 @@ extension CameraViewController: AVCapturePhotoCaptureDelegate {
     }
 }
 
-// MARK: - Target Analyzer (Vision-based)
+// MARK: - Target Analyzer (Multi-Signal Pipeline)
 
 actor TargetAnalyzer {
     struct AnalysisResult {
         var holes: [DetectedHole]
         var targetCenter: CGPoint?
-        var targetSize: CGSize?  // For oval targets (width, height)
-        var scoringRings: [ScoringRing]  // Detected ring lines
+        var targetSize: CGSize?
+        var scoringRings: [ScoringRing]
+        var qualityWarnings: [String]
+        var processingTimeMs: Int
     }
 
     struct ScoringRing {
-        var normalizedHeight: CGFloat  // Height in normalized coords (0-1)
-        var score: Int  // Tetrathlon score for this ring (2, 4, 6, 8, 10)
+        var normalizedHeight: CGFloat
+        var score: Int
     }
 
+    /// Analyze target image using multi-signal detection pipeline
     static func analyze(image: UIImage) async throws -> AnalysisResult {
-        guard let cgImage = image.cgImage else {
-            throw AnalysisError.invalidImage
-        }
+        // Use the new multi-signal detection pipeline
+        let pipeline = HoleDetectionPipeline()
+        let detectionResult = try await pipeline.detect(image: image)
 
-        var result = AnalysisResult(holes: [], targetCenter: nil, targetSize: nil, scoringRings: [])
+        // Combine accepted and flagged holes
+        var allHoles = detectionResult.acceptedHoles
+        allHoles.append(contentsOf: detectionResult.flaggedCandidates)
 
-        // Detect contours for hole and target detection
-        let contourRequest = VNDetectContoursRequest()
-        contourRequest.maximumImageDimension = 1024
-        contourRequest.contrastAdjustment = 2.0
-
-        // Also detect lines for scoring rings
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        try handler.perform([contourRequest])
-
-        // Process contour results
-        if let contours = contourRequest.results?.first {
-            // Find the target (largest oval/elliptical contour - vertical oval for tetrathlon)
-            let targetInfo = detectOvalTarget(from: contours)
-            result.targetCenter = targetInfo.center
-            result.targetSize = targetInfo.size
-
-            // Detect scoring ring lines (horizontal lines in the target)
-            result.scoringRings = detectScoringRings(
-                from: contours,
-                targetCenter: result.targetCenter ?? CGPoint(x: 0.5, y: 0.5),
-                targetSize: result.targetSize ?? CGSize(width: 0.3, height: 0.5)
-            )
-
-            // Find holes (small circular contours)
-            let holes = detectHolesFromContours(
-                contours: contours,
-                targetCenter: result.targetCenter ?? CGPoint(x: 0.5, y: 0.5),
-                targetSize: result.targetSize ?? CGSize(width: 0.3, height: 0.5),
-                scoringRings: result.scoringRings
-            )
-            result.holes = holes
-        }
-
-        // Sort holes by score (highest first)
-        result.holes.sort { $0.score > $1.score }
-
-        return result
-    }
-
-    private static func detectOvalTarget(from contours: VNContoursObservation) -> (center: CGPoint?, size: CGSize?) {
-        var largestOval: (center: CGPoint, size: CGSize)? = nil
-        var largestArea: Float = 0
-
-        for i in 0..<contours.contourCount {
-            guard let contour = try? contours.contour(at: i) else { continue }
-
-            let points = contour.normalizedPoints
-            guard points.count >= 20 else { continue }
-
-            // Calculate bounding box
-            let xs = points.map { $0.x }
-            let ys = points.map { $0.y }
-            guard let minX = xs.min(), let maxX = xs.max(),
-                  let minY = ys.min(), let maxY = ys.max() else { continue }
-
-            let width = maxX - minX
-            let height = maxY - minY
-            let area = width * height
-
-            // Must be reasonably large
-            guard width > 0.1 && height > 0.1 else { continue }
-
-            // Tetrathlon targets are vertical ovals (height > width)
-            // Accept aspect ratios from 0.5 to 1.2 (allowing for viewing angle variations)
-            let aspectRatio = width / height
-            guard aspectRatio > 0.4 && aspectRatio < 1.3 else { continue }
-
-            // Check ellipse-like shape
-            let perimeter = calculatePerimeter(points: points)
-            let expectedPerimeter = Float.pi * (1.5 * (width + height) - sqrt(width * height))
-            let shapeRatio = perimeter / expectedPerimeter
-            guard shapeRatio > 0.7 && shapeRatio < 1.5 else { continue }
-
-            if area > largestArea {
-                largestArea = area
-                let centerX = (minX + maxX) / 2
-                let centerY = 1 - ((minY + maxY) / 2)
-                largestOval = (
-                    CGPoint(x: CGFloat(centerX), y: CGFloat(centerY)),
-                    CGSize(width: CGFloat(width), height: CGFloat(height))
-                )
-            }
-        }
-
-        return (largestOval?.center, largestOval?.size)
-    }
-
-    private static func detectScoringRings(from contours: VNContoursObservation, targetCenter: CGPoint, targetSize: CGSize) -> [ScoringRing] {
-        // Tetrathlon targets have 5 scoring zones: 2, 4, 6, 8, 10
-        // These are divided by horizontal lines or elliptical rings
-        // We'll estimate 5 equal zones within the target
-        var rings: [ScoringRing] = []
-
-        let zoneHeight = targetSize.height / 5
-
-        // Create 5 zones from center outward (innermost = 10, outermost = 2)
-        for i in 0..<5 {
-            let score = 10 - (i * 2)  // 10, 8, 6, 4, 2
-            let normalizedHeight = CGFloat(i) * zoneHeight / targetSize.height
-            rings.append(ScoringRing(normalizedHeight: normalizedHeight, score: score))
-        }
-
-        return rings
-    }
-
-    private static func calculateTetrathlonScore(holePosition: CGPoint, targetCenter: CGPoint, targetSize: CGSize) -> Int {
-        // For tetrathlon oval targets, score based on position within the oval
-        // The center vertical zone is 10, moving outward: 8, 6, 4, 2
-
-        // Calculate normalized position within the target
-        let dx = abs(holePosition.x - targetCenter.x) / (targetSize.width / 2)
-        let dy = abs(holePosition.y - targetCenter.y) / (targetSize.height / 2)
-
-        // Use elliptical distance (normalized to target shape)
-        let ellipticalDistance = sqrt(dx * dx + dy * dy)
-
-        // Tetrathlon uses only even scores: 2, 4, 6, 8, 10
-        // Divide target into 5 zones
-        if ellipticalDistance < 0.2 { return 10 }
-        if ellipticalDistance < 0.4 { return 8 }
-        if ellipticalDistance < 0.6 { return 6 }
-        if ellipticalDistance < 0.8 { return 4 }
-        if ellipticalDistance < 1.0 { return 2 }
-        return 0 // Miss - outside target
-    }
-
-    private static func detectHolesFromContours(contours: VNContoursObservation, targetCenter: CGPoint, targetSize: CGSize, scoringRings: [ScoringRing]) -> [DetectedHole] {
-        var holes: [DetectedHole] = []
-
-        for i in 0..<contours.contourCount {
-            guard let contour = try? contours.contour(at: i) else { continue }
-
-            let points = contour.normalizedPoints
-            guard points.count >= 8 else { continue }
-
-            // Calculate bounding box
-            let xs = points.map { $0.x }
-            let ys = points.map { $0.y }
-            guard let minX = xs.min(), let maxX = xs.max(),
-                  let minY = ys.min(), let maxY = ys.max() else { continue }
-
-            let width = maxX - minX
-            let height = maxY - minY
-
-            // Check if roughly circular (bullet holes are round)
-            guard width > 0.005 && height > 0.005 else { continue }
-            let aspectRatio = width / height
-            guard aspectRatio > 0.6 && aspectRatio < 1.6 else { continue }
-
-            // Check if small enough to be a hole
-            guard width < 0.08 && height < 0.08 else { continue }
-
-            let centerX = (minX + maxX) / 2
-            let centerY = 1 - ((minY + maxY) / 2)
-
-            let position = CGPoint(x: CGFloat(centerX), y: CGFloat(centerY))
-
-            // Calculate tetrathlon score
-            let score = calculateTetrathlonScore(
-                holePosition: position,
-                targetCenter: targetCenter,
-                targetSize: targetSize
-            )
-
-            // Calculate circularity as confidence
-            let perimeter = calculatePerimeter(points: points)
-            let area = width * height
-            let circularity = (4 * .pi * area) / (perimeter * perimeter)
-            let confidence = min(1.0, Double(circularity))
-
-            if confidence > 0.4 && score > 0 {
-                holes.append(DetectedHole(
-                    position: position,
-                    score: score,
-                    confidence: confidence,
-                    radius: CGFloat((width + height) / 4)
-                ))
-            }
-        }
-
-        return holes
-    }
-
-    private static func calculatePerimeter(points: [SIMD2<Float>]) -> Float {
-        var perimeter: Float = 0
-        for i in 0..<points.count {
-            let p1 = points[i]
-            let p2 = points[(i + 1) % points.count]
-            let dx = p2.x - p1.x
-            let dy = p2.y - p1.y
-            perimeter += sqrt(dx * dx + dy * dy)
-        }
-        return perimeter
+        return AnalysisResult(
+            holes: allHoles,
+            targetCenter: CGPoint(x: 0.5, y: 0.5),
+            targetSize: CGSize(width: 0.8, height: 0.9),
+            scoringRings: [],
+            qualityWarnings: detectionResult.qualityWarnings,
+            processingTimeMs: detectionResult.processingTimeMs
+        )
     }
 
     enum AnalysisError: Error {
