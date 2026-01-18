@@ -2,7 +2,8 @@
 //  GaitAnalyzer.swift
 //  TrackRide
 //
-//  Enhanced gait detection using GPS speed + accelerometer motion patterns
+//  Physics-based gait detection using FFT spectral analysis, Hidden Markov Model,
+//  and horse profile biomechanical priors
 
 import CoreMotion
 import Observation
@@ -10,41 +11,107 @@ import SwiftData
 
 @Observable
 final class GaitAnalyzer: Resettable {
+
+    // MARK: - Public State (Backwards Compatible)
+
     var currentGait: GaitType = .stationary
     var isAnalyzing: Bool = false
 
-    /// Current detected bounce frequency (Hz) - useful for debugging
+    /// Current detected stride frequency (Hz) - primary spectral output
     var detectedBounceFrequency: Double = 0
 
-    /// Current vertical acceleration amplitude
+    /// Current vertical acceleration amplitude (g)
     var bounceAmplitude: Double = 0
 
     /// Callback when gait changes (from, to)
     var onGaitChange: ((GaitType, GaitType) -> Void)?
 
-    private var currentSegment: GaitSegment?
-    private var segmentDistance: Double = 0
+    // MARK: - New Physics-Based Outputs
 
-    // GPS speed tracking
+    /// Stride frequency from FFT (Hz) - more accurate than zero-crossing
+    var strideFrequency: Double = 0
+
+    /// Harmonic ratios for gait discrimination
+    var harmonicRatios: (h2: Double, h3: Double) = (0, 0)
+
+    /// Spectral entropy (signal complexity, 0-1)
+    var spectralEntropy: Double = 0
+
+    /// Confidence in current gait state (0-1)
+    var gaitConfidence: Double = 0
+
+    /// Left-right symmetry from coherence (0-1)
+    var leftRightSymmetry: Double = 0
+
+    /// Vertical-rotational coupling (0-1)
+    var verticalYawCoherence: Double = 0
+
+    // MARK: - DSP Components
+
+    private let fftProcessor = FFTProcessor(windowSize: 256, sampleRate: 100)
+    private let coherenceAnalyzer = CoherenceAnalyzer(segmentLength: 128, overlap: 64, sampleRate: 100)
+    private let frameTransformer = FrameTransformer()
+    private let hmm = GaitHMM()
+
+    // MARK: - Sensor Buffers (256 samples = 2.56s at 100Hz)
+
+    private var verticalBuffer: [Double] = []
+    private var lateralBuffer: [Double] = []
+    private var forwardBuffer: [Double] = []
+    private var yawRateBuffer: [Double] = []
+    private var timestampBuffer: [Date] = []
+    private let bufferSize = 256
+
+    // Buffer for FFT window processing (with overlap)
+    private var lastFFTTime: Date = .distantPast
+    private let fftUpdateInterval: TimeInterval = 0.25  // 4 Hz update rate
+
+    // MARK: - GPS and Legacy Support
+
     private var speedSamples: [Double] = []
     private let speedSampleWindow = 5
+    private var lastGPSSpeed: Double = 0
 
-    // Motion-based gait detection
+    // MARK: - Apple Watch Data
+
+    /// Watch arm symmetry from WatchConnectivity (0-1, 0 if unavailable)
+    var watchArmSymmetry: Double = 0
+
+    /// Watch yaw energy from WatchConnectivity (rad/s RMS, 0 if unavailable)
+    var watchYawEnergy: Double = 0
+
+    // Legacy buffers for backwards compatibility
     private var verticalAccelSamples: [Double] = []
     private var sampleTimestamps: [Date] = []
-    private let motionSampleWindow = 100  // ~2 seconds at 50Hz
+    private let motionSampleWindow = 100
 
-    // Gait confirmation - require consistent detection before changing
-    private var pendingGait: GaitType?
-    private var pendingGaitCount: Int = 0
-    private let confirmationThreshold = 3  // Require 3 consistent detections
+    // MARK: - Horse Profile
 
+    private var horseProfile: Horse?
+
+    // MARK: - Segment Management
+
+    private var currentSegment: GaitSegment?
+    private var segmentDistance: Double = 0
     private var modelContext: ModelContext?
     private var currentRide: Ride?
+
+    // MARK: - Configuration
 
     func configure(with modelContext: ModelContext) {
         self.modelContext = modelContext
     }
+
+    /// Configure analyzer with horse profile for breed-specific priors
+    func configure(for horse: Horse?) {
+        self.horseProfile = horse
+        if let horse = horse {
+            // Pass breed and age adjustment to HMM
+            hmm.configure(for: horse.typedBreed, ageAdjustment: horse.ageAdjustmentFactor)
+        }
+    }
+
+    // MARK: - Lifecycle
 
     func startAnalyzing(for ride: Ride) {
         guard !isAnalyzing else { return }
@@ -52,29 +119,32 @@ final class GaitAnalyzer: Resettable {
         currentRide = ride
         isAnalyzing = true
         currentGait = .stationary
-        speedSamples = []
-        verticalAccelSamples = []
-        sampleTimestamps = []
-        segmentDistance = 0
-        pendingGait = nil
-        pendingGaitCount = 0
 
-        // Start a new segment
+        // Reset all buffers
+        clearBuffers()
+
+        // Reset HMM
+        hmm.reset()
+
+        // Start initial segment
         startNewSegment(gait: .stationary)
+
+        // Configure for horse if available
+        if let horse = ride.horse {
+            configure(for: horse)
+        }
     }
 
     func stopAnalyzing() {
         guard isAnalyzing else { return }
 
-        // Close current segment
         finalizeCurrentSegment()
 
         isAnalyzing = false
         currentRide = nil
         currentSegment = nil
-        speedSamples = []
-        verticalAccelSamples = []
-        sampleTimestamps = []
+
+        clearBuffers()
     }
 
     func reset() {
@@ -83,6 +153,28 @@ final class GaitAnalyzer: Resettable {
         segmentDistance = 0
         detectedBounceFrequency = 0
         bounceAmplitude = 0
+        strideFrequency = 0
+        harmonicRatios = (0, 0)
+        spectralEntropy = 0
+        gaitConfidence = 0
+        leftRightSymmetry = 0
+        verticalYawCoherence = 0
+        watchArmSymmetry = 0
+        watchYawEnergy = 0
+        hmm.reset()
+    }
+
+    private func clearBuffers() {
+        speedSamples = []
+        verticalBuffer = []
+        lateralBuffer = []
+        forwardBuffer = []
+        yawRateBuffer = []
+        timestampBuffer = []
+        verticalAccelSamples = []
+        sampleTimestamps = []
+        segmentDistance = 0
+        lastFFTTime = .distantPast
     }
 
     // MARK: - Process Location (GPS Speed)
@@ -91,198 +183,154 @@ final class GaitAnalyzer: Resettable {
     func processLocation(speed: Double, distance: Double) {
         guard isAnalyzing else { return }
 
-        // Add to rolling average
         speedSamples.append(speed)
         if speedSamples.count > speedSampleWindow {
             speedSamples.removeFirst()
         }
 
-        // Accumulate distance for current segment
+        lastGPSSpeed = speedSamples.isEmpty ? 0 : speedSamples.reduce(0, +) / Double(speedSamples.count)
         segmentDistance += distance
-
-        // Detect gait using combined approach
-        detectGait()
     }
 
-    // MARK: - Process Motion (Accelerometer)
+    // MARK: - Process Motion (Accelerometer + Gyroscope)
 
-    /// Called with each motion update (~50Hz)
+    /// Called with each motion update (~50-100Hz)
     func processMotion(_ sample: MotionSample) {
         guard isAnalyzing else { return }
 
-        // Store vertical acceleration (Z-axis represents up/down bounce)
+        // Transform to horse-relative frame
+        let transformed = frameTransformer.transform(sample)
+
+        // Add to physics buffers
+        verticalBuffer.append(transformed.accel.vertical)
+        lateralBuffer.append(transformed.accel.lateral)
+        forwardBuffer.append(transformed.accel.forward)
+        yawRateBuffer.append(sample.yawRate)
+        timestampBuffer.append(sample.timestamp)
+
+        // Maintain buffer size
+        if verticalBuffer.count > bufferSize {
+            verticalBuffer.removeFirst()
+            lateralBuffer.removeFirst()
+            forwardBuffer.removeFirst()
+            yawRateBuffer.removeFirst()
+            timestampBuffer.removeFirst()
+        }
+
+        // Legacy buffer for backwards compatibility
         verticalAccelSamples.append(sample.verticalAcceleration)
         sampleTimestamps.append(sample.timestamp)
-
-        // Keep window size manageable
         if verticalAccelSamples.count > motionSampleWindow {
             verticalAccelSamples.removeFirst()
             sampleTimestamps.removeFirst()
         }
 
-        // Update bounce amplitude (RMS of vertical acceleration)
-        if verticalAccelSamples.count >= 20 {
-            let rms = sqrt(verticalAccelSamples.suffix(20).map { $0 * $0 }.reduce(0, +) / 20.0)
-            bounceAmplitude = rms
+        // Update bounce amplitude (RMS)
+        if verticalBuffer.count >= 20 {
+            let recentSamples = Array(verticalBuffer.suffix(20))
+            bounceAmplitude = sqrt(recentSamples.map { $0 * $0 }.reduce(0, +) / 20.0)
+        }
+
+        // Perform FFT analysis at fixed rate
+        let now = sample.timestamp
+        if now.timeIntervalSince(lastFFTTime) >= fftUpdateInterval && verticalBuffer.count >= 128 {
+            performSpectralAnalysis()
+            lastFFTTime = now
         }
     }
 
-    // MARK: - Combined Gait Detection
+    // MARK: - Spectral Analysis
 
-    private func detectGait() {
-        // Calculate smoothed GPS speed
-        let averageSpeed = speedSamples.isEmpty ? 0 : speedSamples.reduce(0, +) / Double(speedSamples.count)
+    private func performSpectralAnalysis() {
+        guard verticalBuffer.count >= 128 else { return }
 
-        // Get motion-based gait estimate
-        let motionGait = detectGaitFromMotion()
+        // FFT on vertical channel
+        let fftResult = fftProcessor.processWindow(verticalBuffer)
 
-        // Get speed-based gait estimate
-        let speedGait = GaitType.fromSpeed(averageSpeed)
+        strideFrequency = fftResult.dominantFrequency
+        harmonicRatios = (fftResult.h2Ratio, fftResult.h3Ratio)
+        spectralEntropy = fftResult.spectralEntropy
 
-        // Combine estimates - motion takes priority if we have enough data and rider is moving
-        let detectedGait: GaitType
-        if verticalAccelSamples.count >= 50 && averageSpeed > 0.5 {
-            // Use motion-based detection with speed as sanity check
-            detectedGait = combineGaitEstimates(motion: motionGait, speed: speedGait, averageSpeed: averageSpeed)
-        } else {
-            // Fall back to speed-only detection
-            detectedGait = speedGait
+        // Legacy compatibility
+        detectedBounceFrequency = strideFrequency
+
+        // Coherence calculations (if we have enough data)
+        if lateralBuffer.count >= 128 && forwardBuffer.count >= 128 && yawRateBuffer.count >= 128 {
+            // X-Y coherence: forward (X) vs lateral (Y) for left-right symmetry
+            leftRightSymmetry = coherenceAnalyzer.coherence(
+                signal1: forwardBuffer,
+                signal2: lateralBuffer,
+                atFrequency: strideFrequency
+            )
+
+            // Z-yaw coherence: vertical vs yaw rate for rotational coupling
+            verticalYawCoherence = coherenceAnalyzer.coherence(
+                signal1: verticalBuffer,
+                signal2: yawRateBuffer,
+                atFrequency: strideFrequency
+            )
         }
 
-        // Require confirmation before changing gait (reduces flicker)
-        if detectedGait != currentGait {
-            if detectedGait == pendingGait {
-                pendingGaitCount += 1
-                if pendingGaitCount >= confirmationThreshold {
-                    // Confirmed gait change
-                    let previousGait = currentGait
-                    finalizeCurrentSegment()
-                    currentGait = detectedGait
-                    startNewSegment(gait: detectedGait)
-                    onGaitChange?(previousGait, detectedGait)
-                    pendingGait = nil
-                    pendingGaitCount = 0
-                }
-            } else {
-                // New pending gait
-                pendingGait = detectedGait
-                pendingGaitCount = 1
-            }
-        } else {
-            // Current gait confirmed, reset pending
-            pendingGait = nil
-            pendingGaitCount = 0
-        }
-    }
+        // Build feature vector
+        let normalizedRMS = horseProfile?.normalizedVerticalRMS(bounceAmplitude) ?? bounceAmplitude
+        let yawRMS = sqrt(yawRateBuffer.suffix(50).map { $0 * $0 }.reduce(0, +) / 50.0)
 
-    /// Detect gait from accelerometer bounce pattern
-    private func detectGaitFromMotion() -> GaitType {
-        guard verticalAccelSamples.count >= 50 else { return .stationary }
+        let features = GaitFeatureVector(
+            strideFrequency: strideFrequency,
+            h2Ratio: harmonicRatios.h2,
+            h3Ratio: harmonicRatios.h3,
+            spectralEntropy: spectralEntropy,
+            xyCoherence: leftRightSymmetry,
+            zYawCoherence: verticalYawCoherence,
+            normalizedVerticalRMS: normalizedRMS,
+            yawRateRMS: yawRMS,
+            gpsSpeed: lastGPSSpeed,
+            watchArmSymmetry: watchArmSymmetry,
+            watchYawEnergy: watchYawEnergy
+        )
 
-        // Calculate bounce frequency using zero-crossing detection
-        let frequency = calculateBounceFrequency()
-        detectedBounceFrequency = frequency
+        // Update HMM
+        hmm.update(with: features)
 
-        // Calculate bounce amplitude (intensity of vertical motion)
-        let amplitude = bounceAmplitude
+        // Get new state
+        let hmmState = hmm.currentState
+        gaitConfidence = hmm.stateConfidence
 
-        // Very low amplitude = stationary or walking slowly
-        if amplitude < 0.05 {
-            return .stationary
-        }
+        let newGait = gaitTypeFromHMMState(hmmState)
 
-        // Classify based on frequency and amplitude
-        // Walk: low frequency (1.4-1.8 Hz), low-medium amplitude
-        // Trot: higher frequency (2.0-3.0 Hz), high amplitude (pronounced bounce)
-        // Canter: medium frequency (1.5-2.2 Hz), medium-high amplitude, distinctive 3-beat
-        // Gallop: high frequency (>2.5 Hz), very high amplitude
-
-        switch (frequency, amplitude) {
-        case (0..<1.3, _):
-            return amplitude < 0.1 ? .stationary : .walk
-        case (1.3..<1.9, ..<0.25):
-            return .walk
-        case (1.3..<1.9, 0.25...):
-            // Higher amplitude at walk frequency suggests canter (3-beat feels slower)
-            return .canter
-        case (1.9..<2.8, 0.15...):
-            // Trot has distinctive high-frequency bounce
-            return .trot
-        case (1.9..<2.8, ..<0.15):
-            return .walk
-        case (2.8..., 0.3...):
-            return .gallop
-        case (2.8..., ..<0.3):
-            return .canter
-        default:
-            return .walk
+        // Only change gait if confidence is high enough
+        if newGait != currentGait && gaitConfidence > 0.7 {
+            let previousGait = currentGait
+            finalizeCurrentSegment()
+            currentGait = newGait
+            startNewSegment(gait: newGait)
+            onGaitChange?(previousGait, newGait)
         }
     }
 
-    /// Calculate dominant bounce frequency using zero-crossing detection
-    private func calculateBounceFrequency() -> Double {
-        guard verticalAccelSamples.count >= 50,
-              let firstTime = sampleTimestamps.first,
-              let lastTime = sampleTimestamps.last else {
-            return 0
+    /// Convert HMM state to GaitType
+    private func gaitTypeFromHMMState(_ state: HMMGaitState) -> GaitType {
+        switch state {
+        case .stationary: return .stationary
+        case .walk: return .walk
+        case .trot: return .trot
+        case .canter: return .canter
+        case .gallop: return .gallop
         }
-
-        let duration = lastTime.timeIntervalSince(firstTime)
-        guard duration > 0.5 else { return 0 }
-
-        // Count zero crossings (transitions from positive to negative or vice versa)
-        var crossings = 0
-        let samples = Array(verticalAccelSamples.suffix(50))
-
-        for i in 1..<samples.count {
-            if (samples[i-1] >= 0 && samples[i] < 0) || (samples[i-1] < 0 && samples[i] >= 0) {
-                crossings += 1
-            }
-        }
-
-        // Frequency = crossings / 2 / duration (each full cycle has 2 crossings)
-        let sampleDuration = duration * Double(samples.count) / Double(verticalAccelSamples.count)
-        let frequency = Double(crossings) / 2.0 / sampleDuration
-
-        return frequency
     }
 
-    /// Combine motion and speed estimates with sanity checks
-    private func combineGaitEstimates(motion: GaitType, speed: GaitType, averageSpeed: Double) -> GaitType {
-        // If both agree, use that
-        if motion == speed {
-            return motion
-        }
-
-        // Sanity checks - speed provides bounds
-        // Can't be cantering if going slower than 2 m/s
-        if motion == .canter && averageSpeed < 2.0 {
-            return speed
-        }
-
-        // Can't be galloping if going slower than 4 m/s
-        if motion == .gallop && averageSpeed < 4.0 {
-            return motion == .gallop ? .canter : motion
-        }
-
-        // Can't be walking if going faster than 2.5 m/s
-        if motion == .walk && averageSpeed > 2.5 {
-            return speed
-        }
-
-        // Trust motion detection for distinguishing trot vs canter
-        // (they can have similar speeds but different motion patterns)
-        if (motion == .trot || motion == .canter) && (speed == .trot || speed == .canter) {
-            return motion
-        }
-
-        // Default: prefer motion-based if amplitude is significant
-        return bounceAmplitude > 0.1 ? motion : speed
-    }
+    // MARK: - Segment Management
 
     private func startNewSegment(gait: GaitType) {
         let segment = GaitSegment(gaitType: gait, startTime: Date())
         segment.ride = currentRide
+
+        // Store spectral features
+        segment.strideFrequency = strideFrequency
+        segment.harmonicRatioH2 = harmonicRatios.h2
+        segment.harmonicRatioH3 = harmonicRatios.h3
+        segment.spectralEntropy = spectralEntropy
+
         modelContext?.insert(segment)
         currentSegment = segment
         segmentDistance = 0
@@ -296,6 +344,21 @@ final class GaitAnalyzer: Resettable {
 
         if segment.duration > 0 {
             segment.averageSpeed = segmentDistance / segment.duration
+        }
+
+        // Update with final spectral features
+        segment.strideFrequency = strideFrequency
+        segment.harmonicRatioH2 = harmonicRatios.h2
+        segment.harmonicRatioH3 = harmonicRatios.h3
+        segment.spectralEntropy = spectralEntropy
+        segment.verticalYawCoherence = verticalYawCoherence
+
+        // Compute stride length if we have horse profile
+        if let horse = horseProfile {
+            segment.strideLength = horse.computeStrideLength(
+                for: segment.gait,
+                verticalRMS: bounceAmplitude
+            )
         }
 
         try? modelContext?.save()
@@ -315,5 +378,29 @@ final class GaitAnalyzer: Resettable {
     /// Update rhythm score for current gait segment
     func updateRhythm(_ score: Double) {
         currentSegment?.rhythmScore = score
+    }
+
+    /// Update stride length for current segment
+    func updateStrideLength(_ length: Double) {
+        currentSegment?.strideLength = length
+    }
+
+    /// Update impulsion for current segment
+    func updateImpulsion(_ value: Double) {
+        currentSegment?.impulsion = value
+    }
+
+    /// Update engagement for current segment
+    func updateEngagement(_ value: Double) {
+        currentSegment?.engagement = value
+    }
+
+    /// Update Apple Watch motion data for gait classification
+    /// - Parameters:
+    ///   - armSymmetry: Left-right arm swing symmetry (0-1)
+    ///   - yawEnergy: Watch yaw energy (rad/s RMS)
+    func updateWatchData(armSymmetry: Double, yawEnergy: Double) {
+        watchArmSymmetry = armSymmetry
+        watchYawEnergy = yawEnergy
     }
 }

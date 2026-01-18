@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import SwiftData
 
 // MARK: - Dry Fire Drill View
 
 struct DryFireDrillView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var isRunning = false
     @State private var shotCount = 0
@@ -114,6 +116,9 @@ struct DryFireDrillView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+
+            PhonePlacementGuidanceView(placement: .twoHandedGrip)
+                .padding(.horizontal, 32)
 
             Stepper("Shots: \(totalShots)", value: $totalShots, in: 5...20, step: 5)
                 .padding()
@@ -437,6 +442,28 @@ struct DryFireDrillView: View {
         if shotCount >= totalShots {
             isRunning = false
             stopMotionTracking()
+
+            // Calculate score based on average reaction time (faster = better, max ~0.5s)
+            let avgReaction = reactionTimes.isEmpty ? 1.0 : reactionTimes.reduce(0, +) / Double(reactionTimes.count)
+            let score = max(0, min(100, (1.0 - avgReaction) * 100))
+
+            // Save drill session to history
+            let session = ShootingDrillSession(
+                drillType: .dryFire,
+                duration: TimeInterval(totalShots * 3),  // ~3s per shot
+                score: score
+            )
+            modelContext.insert(session)
+            try? modelContext.save()
+
+            // Compute and save skill domain scores
+            let skillService = SkillDomainService()
+            let skillScores = skillService.computeScores(from: session)
+            for skillScore in skillScores {
+                modelContext.insert(skillScore)
+            }
+            try? modelContext.save()
+
             let successGenerator = UINotificationFeedbackGenerator()
             successGenerator.notificationOccurred(.success)
         } else {

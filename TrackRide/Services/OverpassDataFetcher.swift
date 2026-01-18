@@ -982,7 +982,6 @@ actor OverpassDataFetcher {
         progressCallback(0.0, "Building route graph...")
 
         // OPTIMIZATION: Use parallel processing to build edges
-        let totalWays = ways.count
         let validNodeIds = Set(nodeModels.keys)
 
         // Phase 1: Build edges in parallel using all CPU cores

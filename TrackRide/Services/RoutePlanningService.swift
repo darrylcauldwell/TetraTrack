@@ -25,8 +25,13 @@ final class RoutePlanningService: RoutePlanning {
 
     // MARK: - RoutePlanning Protocol
 
-    var activeDownloads: [String: OSMDataManager.DownloadProgress] {
-        dataManager.activeDownloads
+    /// Active downloads - this needs to be a stored property for SwiftUI observation to work
+    /// We sync it from the dataManager when it changes
+    private(set) var activeDownloads: [String: OSMDataManager.DownloadProgress] = [:]
+
+    /// Sync activeDownloads from dataManager
+    func syncActiveDownloads() {
+        activeDownloads = dataManager.activeDownloads
     }
 
     // MARK: - Initialization
@@ -49,7 +54,9 @@ final class RoutePlanningService: RoutePlanning {
     // MARK: - Region Management
 
     func downloadRegion(_ region: AvailableRegion) async throws {
+        syncActiveDownloads()  // Sync before to show initial state
         try await dataManager.downloadRegion(region)
+        syncActiveDownloads()  // Sync after to show final state
     }
 
     func deleteRegion(_ regionId: String) async throws {
@@ -78,16 +85,20 @@ final class RoutePlanningService: RoutePlanning {
     /// Restore download state from persistence (call when app returns to foreground)
     func restoreDownloadState() {
         dataManager.restoreDownloadState()
+        syncActiveDownloads()
     }
 
     /// Resume an incomplete download
     func resumeDownload(_ state: DownloadState) async throws {
+        syncActiveDownloads()  // Sync before
         try await dataManager.resumeDownload(state)
+        syncActiveDownloads()  // Sync after
     }
 
     /// Cancel and clean up an incomplete download
     func cancelDownload(_ regionId: String) async {
         await dataManager.cancelDownload(regionId)
+        syncActiveDownloads()
     }
 
     /// Find available regions that contain a coordinate

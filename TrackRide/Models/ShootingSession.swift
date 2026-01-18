@@ -418,9 +418,39 @@ final class TargetScanAnalysis {
     // Grouping quality (computed during save)
     var groupingQualityRaw: String = "fair"
 
+    // Enhanced fields (v2)
+    // Crop geometry stored as JSON
+    var cropGeometryJSON: Data?
+
+    // Target alignment stored as JSON
+    var targetAlignmentJSON: Data?
+
+    // Acquisition quality stored as JSON
+    var acquisitionQualityJSON: Data?
+
+    // Pattern analysis stored as JSON
+    var patternAnalysisJSON: Data?
+
+    // Target type
+    var targetTypeGeometryRaw: String?
+
+    // Algorithm and coordinate system versioning
+    var algorithmVersion: Int = 1
+    var coordinateSystemVersion: Int = 1
+
+    // Detection statistics
+    var autoDetectedCount: Int = 0
+    var userConfirmedCount: Int = 0
+    var userAddedCount: Int = 0
+
+    // Validation flags
+    var hasValidationWarnings: Bool = false
+    var validationWarningsJSON: Data?
+
     init() {}
 
-    // Computed properties
+    // MARK: - Computed Properties
+
     var groupingQuality: GroupingQuality {
         get { GroupingQuality(rawValue: groupingQualityRaw) ?? .fair }
         set { groupingQualityRaw = newValue.rawValue }
@@ -436,6 +466,69 @@ final class TargetScanAnalysis {
         }
     }
 
+    var cropGeometry: TargetCropGeometry? {
+        get {
+            guard let data = cropGeometryJSON else { return nil }
+            return try? JSONDecoder().decode(TargetCropGeometry.self, from: data)
+        }
+        set {
+            cropGeometryJSON = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var targetAlignment: TargetAlignment? {
+        get {
+            guard let data = targetAlignmentJSON else { return nil }
+            return try? JSONDecoder().decode(TargetAlignment.self, from: data)
+        }
+        set {
+            targetAlignmentJSON = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var acquisitionQuality: AcquisitionQuality? {
+        get {
+            guard let data = acquisitionQualityJSON else { return nil }
+            return try? JSONDecoder().decode(AcquisitionQuality.self, from: data)
+        }
+        set {
+            acquisitionQualityJSON = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var patternAnalysis: PatternAnalysis? {
+        get {
+            guard let data = patternAnalysisJSON else { return nil }
+            return try? JSONDecoder().decode(PatternAnalysis.self, from: data)
+        }
+        set {
+            patternAnalysisJSON = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var targetGeometryType: ShootingTargetGeometryType? {
+        get {
+            guard let raw = targetTypeGeometryRaw else { return nil }
+            return ShootingTargetGeometryType(rawValue: raw)
+        }
+        set {
+            targetTypeGeometryRaw = newValue?.rawValue
+        }
+    }
+
+    var validationWarnings: [ValidationWarning] {
+        get {
+            guard let data = validationWarningsJSON else { return [] }
+            return (try? JSONDecoder().decode([CodableValidationWarning].self, from: data))?
+                .map { $0.toWarning() } ?? []
+        }
+        set {
+            let codable = newValue.map { CodableValidationWarning(from: $0) }
+            validationWarningsJSON = try? JSONEncoder().encode(codable)
+            hasValidationWarnings = !newValue.isEmpty
+        }
+    }
+
     var averageScore: Double {
         guard shotCount > 0 else { return 0 }
         return Double(totalScore) / Double(shotCount)
@@ -446,6 +539,12 @@ final class TargetScanAnalysis {
     }
 
     var biasDescription: String {
+        // Use pattern analysis if available
+        if let analysis = patternAnalysis, analysis.directionalBias.isSignificant {
+            return analysis.directionalBias.description ?? "Centered"
+        }
+
+        // Fall back to legacy calculation
         var parts: [String] = []
 
         if abs(horizontalBias) > 0.08 {
@@ -458,7 +557,38 @@ final class TargetScanAnalysis {
         return parts.isEmpty ? "Centered" : parts.joined(separator: " & ")
     }
 
-    // Calculate metrics from shots
+    /// Whether this scan needs re-analysis due to algorithm updates
+    var needsReanalysis: Bool {
+        algorithmVersion < PatternAnalysis.currentAlgorithmVersion
+    }
+
+    /// Whether this scan uses the new coordinate system
+    var usesNewCoordinateSystem: Bool {
+        coordinateSystemVersion >= CoordinateSystemVersion.current.major &&
+        cropGeometry != nil
+    }
+
+    /// Detection method breakdown for display
+    var detectionBreakdown: String {
+        if shotCount == 0 { return "No shots" }
+
+        var parts: [String] = []
+        if autoDetectedCount > 0 {
+            parts.append("\(autoDetectedCount) auto")
+        }
+        if userAddedCount > 0 {
+            parts.append("\(userAddedCount) manual")
+        }
+        if userConfirmedCount > 0 && userConfirmedCount < shotCount {
+            parts.append("\(userConfirmedCount) confirmed")
+        }
+
+        return parts.isEmpty ? "\(shotCount) shots" : parts.joined(separator: ", ")
+    }
+
+    // MARK: - Methods
+
+    /// Calculate metrics from shots (legacy method, still supported)
     func calculateMetrics(from shots: [ScanShot], targetCenter: CGPoint) {
         shotCount = shots.count
         totalScore = shots.reduce(0) { $0 + $1.score }
@@ -488,10 +618,99 @@ final class TargetScanAnalysis {
         } else {
             groupingQuality = .poor
         }
+
+        // Update detection counts
+        updateDetectionCounts(from: shots)
+    }
+
+    /// Enhanced metrics calculation using new coordinate system
+    func calculateEnhancedMetrics(
+        from shots: [ScanShot],
+        cropGeometry: TargetCropGeometry,
+        targetType: ShootingTargetGeometryType
+    ) {
+        self.shotPositions = shots
+        self.cropGeometry = cropGeometry
+        self.targetGeometryType = targetType
+        self.coordinateSystemVersion = CoordinateSystemVersion.current.major
+        self.algorithmVersion = PatternAnalysis.currentAlgorithmVersion
+
+        shotCount = shots.count
+        totalScore = shots.reduce(0) { $0 + $1.score }
+
+        guard !shots.isEmpty else { return }
+
+        // Use PatternAnalyzer for comprehensive analysis
+        if let analysis = PatternAnalyzer.analyze(shots: shots) {
+            self.patternAnalysis = analysis
+
+            // Update legacy fields from pattern analysis for backward compatibility
+            averageX = (analysis.mpi.x + 1.0) / 2.0
+            averageY = (1.0 - analysis.mpi.y) / 2.0
+            totalSpread = analysis.standardDeviation
+            spreadX = analysis.standardDeviation * 0.7  // Approximate
+            spreadY = analysis.standardDeviation * 0.7
+            horizontalBias = analysis.directionalBias.horizontalBias
+            verticalBias = -analysis.directionalBias.verticalBias  // Flip for legacy
+
+            // Map consistency rating to grouping quality
+            switch analysis.consistencyRating {
+            case .excellent: groupingQuality = .excellent
+            case .good: groupingQuality = .good
+            case .fair: groupingQuality = .fair
+            case .needsWork: groupingQuality = .poor
+            }
+        }
+
+        updateDetectionCounts(from: shots)
+    }
+
+    /// Update detection statistics from shots
+    private func updateDetectionCounts(from shots: [ScanShot]) {
+        autoDetectedCount = shots.filter { $0.detectionMethod == .autoDetected }.count
+        userAddedCount = shots.filter { $0.detectionMethod == .userPlaced }.count
+        userConfirmedCount = shots.filter { $0.wasUserConfirmed }.count
+    }
+
+    /// Re-analyze with current algorithm version
+    func reanalyze() {
+        let shots = shotPositions
+        guard !shots.isEmpty else { return }
+
+        if let geometry = cropGeometry, let targetType = targetGeometryType {
+            calculateEnhancedMetrics(from: shots, cropGeometry: geometry, targetType: targetType)
+        } else {
+            // Legacy re-analysis
+            calculateMetrics(from: shots, targetCenter: CGPoint(x: 0.5, y: 0.5))
+        }
+
+        algorithmVersion = PatternAnalysis.currentAlgorithmVersion
     }
 }
 
-// MARK: - Scan Shot (for JSON storage)
+// MARK: - Codable Validation Warning (for JSON storage)
+
+private struct CodableValidationWarning: Codable {
+    let code: String
+    let message: String
+    let field: String?
+
+    init(from warning: ValidationWarning) {
+        self.code = warning.code.rawValue
+        self.message = warning.message
+        self.field = warning.field
+    }
+
+    func toWarning() -> ValidationWarning {
+        ValidationWarning(
+            code: ValidationWarning.WarningCode(rawValue: code) ?? .manualOverrideUsed,
+            message: message,
+            field: field
+        )
+    }
+}
+
+// MARK: - Enhanced Scan Shot (for JSON storage)
 
 struct ScanShot: Codable, Identifiable {
     var id: UUID = UUID()
@@ -500,13 +719,108 @@ struct ScanShot: Codable, Identifiable {
     var score: Int
     var confidence: Double
 
+    // Enhanced fields for new coordinate system
+    var normalizedX: Double?
+    var normalizedY: Double?
+    var coordinateSystemVersion: Int?
+
+    // Detection metadata
+    var detectionMethodRaw: String?
+    var wasUserConfirmed: Bool = false
+    var userConfirmedAt: Date?
+
+    // Hole characteristics
+    var radiusPixels: Double?
+    var radiusNormalized: Double?
+
+    // Algorithm tracking
+    var algorithmVersion: Int?
+
     init(positionX: Double, positionY: Double, score: Int, confidence: Double = 1.0) {
         self.positionX = positionX
         self.positionY = positionY
         self.score = score
         self.confidence = confidence
     }
+
+    /// Enhanced initializer with normalized position
+    init(
+        normalizedPosition: NormalizedTargetPosition,
+        score: Int,
+        confidence: Double,
+        detectionMethod: DetectionMethod = .autoDetected,
+        radiusNormalized: Double? = nil
+    ) {
+        self.id = UUID()
+        // Store both legacy and normalized positions
+        self.positionX = (normalizedPosition.x + 1.0) / 2.0  // Convert to 0-1 range for legacy
+        self.positionY = (1.0 - normalizedPosition.y) / 2.0  // Convert and flip Y
+        self.normalizedX = normalizedPosition.x
+        self.normalizedY = normalizedPosition.y
+        self.coordinateSystemVersion = CoordinateSystemVersion.current.major
+        self.score = score
+        self.confidence = confidence
+        self.detectionMethodRaw = detectionMethod.rawValue
+        self.radiusNormalized = radiusNormalized
+        self.algorithmVersion = PatternAnalysis.currentAlgorithmVersion
+    }
+
+    /// Get normalized position (returns new format or converts legacy)
+    var normalizedPosition: NormalizedTargetPosition {
+        if let x = normalizedX, let y = normalizedY {
+            return NormalizedTargetPosition(x: x, y: y)
+        }
+        // Convert legacy position to normalized
+        return NormalizedTargetPosition(
+            x: positionX * 2.0 - 1.0,
+            y: 1.0 - positionY * 2.0
+        )
+    }
+
+    var detectionMethod: DetectionMethod {
+        get {
+            guard let raw = detectionMethodRaw else { return .userPlaced }
+            return DetectionMethod(rawValue: raw) ?? .userPlaced
+        }
+        set {
+            detectionMethodRaw = newValue.rawValue
+        }
+    }
+
+    /// Whether this shot uses the new coordinate system
+    var usesNormalizedCoordinates: Bool {
+        normalizedX != nil && normalizedY != nil
+    }
+
+    /// Mark as user confirmed
+    mutating func markUserConfirmed() {
+        wasUserConfirmed = true
+        userConfirmedAt = Date()
+    }
+
+    /// Detection method for shot
+    enum DetectionMethod: String, Codable {
+        case autoDetected = "auto"
+        case userPlaced = "manual"
+        case userAdjusted = "adjusted"
+        case imported = "imported"
+
+        var displayName: String {
+            switch self {
+            case .autoDetected: return "Auto-detected"
+            case .userPlaced: return "Manual"
+            case .userAdjusted: return "Adjusted"
+            case .imported: return "Imported"
+            }
+        }
+    }
 }
+
+// MARK: - Protocol Conformances for Analysis
+
+extension ScanShot: ShotForAnalysis {}
+
+extension ScanShot: ValidatableShot {}
 
 // MARK: - Grouping Quality
 

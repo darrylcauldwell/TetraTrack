@@ -7,13 +7,16 @@
 
 import SwiftUI
 import CoreMotion
+import SwiftData
 import Combine
 
 // MARK: - Balance Drill View (Motion Sensors)
 
 struct BalanceDrillView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var motionManager = BalanceMotionManager()
+    @State private var cueSystem = RealTimeCueSystem()
 
     @State private var isRunning = false
     @State private var countdown = 3
@@ -63,11 +66,13 @@ struct BalanceDrillView: View {
                     }
                 }
             }
+            .withRealTimeCues(cueSystem)
         }
         .onDisappear {
             timer?.invalidate()
             timer = nil
             motionManager.stopUpdates()
+            cueSystem.reset()
         }
     }
 
@@ -90,6 +95,9 @@ struct BalanceDrillView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+
+            PhonePlacementGuidanceView(placement: .chestHeld)
+                .padding(.horizontal, 32)
 
             Picker("Duration", selection: $targetDuration) {
                 Text("15s").tag(TimeInterval(15))
@@ -316,6 +324,9 @@ struct BalanceDrillView: View {
                 stability: motionManager.stabilityScore
             ))
 
+            // Process real-time cues
+            cueSystem.processDrillState(score: motionManager.stabilityScore * 100, stability: motionManager.stabilityScore * 100, elapsed: elapsedTime, duration: targetDuration)
+
             if elapsedTime >= targetDuration {
                 endDrill()
             }
@@ -327,6 +338,28 @@ struct BalanceDrillView: View {
         timer = nil
         isRunning = false
         motionManager.stopUpdates()
+        cueSystem.reset()
+
+        // Calculate average stability score
+        let avgStability = results.isEmpty ? 0.0 : results.map { $0.stability }.reduce(0, +) / Double(results.count)
+
+        // Save drill session to history
+        let session = ShootingDrillSession(
+            drillType: .balance,
+            duration: targetDuration,
+            score: avgStability * 100
+        )
+        session.stabilityScore = avgStability * 100
+        modelContext.insert(session)
+        try? modelContext.save()
+
+        // Compute and save skill domain scores
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+        try? modelContext.save()
 
         // Haptic feedback
         let generator = UINotificationFeedbackGenerator()

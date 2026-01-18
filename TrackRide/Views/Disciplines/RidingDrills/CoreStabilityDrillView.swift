@@ -3,6 +3,8 @@
 //  TrackRide
 //
 //  Core stability drill for developing independent seat
+//  Uses unified DrillMotionAnalyzer for physics-based metrics
+//  and RealTimeCueSystem for directional coaching feedback.
 //
 
 import SwiftUI
@@ -14,7 +16,12 @@ struct CoreStabilityDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var streaks: [TrainingStreak]
-    @StateObject private var motionManager = CoreMotionManager()
+
+    // Use unified motion analyzer for physics-based metrics
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
+
+    // Real-time cue system for coaching feedback
+    @State private var cueSystem = RealTimeCueSystem()
 
     @State private var isRunning = false
     @State private var countdown = 3
@@ -39,7 +46,7 @@ struct CoreStabilityDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -68,11 +75,14 @@ struct CoreStabilityDrillView: View {
                     }
                 }
             }
+            // Apply real-time coaching cue overlay
+            .withRealTimeCues(cueSystem)
         }
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
+            cueSystem.reset()
         }
     }
 
@@ -95,6 +105,9 @@ struct CoreStabilityDrillView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+
+            PhonePlacementGuidanceView(placement: .chestHeld)
+                .padding(.horizontal, 32)
 
             Picker("Duration", selection: $targetDuration) {
                 Text("15s").tag(TimeInterval(15))
@@ -169,10 +182,10 @@ struct CoreStabilityDrillView: View {
                     .fill(stabilityColor)
                     .frame(width: 30, height: 30)
                     .offset(
-                        x: CGFloat(motionManager.roll * 80),
-                        y: CGFloat(motionManager.yaw * 80)
+                        x: CGFloat(motionAnalyzer.roll * 80),
+                        y: CGFloat(motionAnalyzer.yaw * 80)
                     )
-                    .animation(.easeOut(duration: 0.1), value: motionManager.roll)
+                    .animation(.easeOut(duration: 0.1), value: motionAnalyzer.roll)
 
                 // Center target
                 Circle()
@@ -181,7 +194,7 @@ struct CoreStabilityDrillView: View {
 
                 // Stability score
                 VStack {
-                    Text("\(Int(motionManager.stabilityScore * 100))")
+                    Text("\(Int(motionAnalyzer.stabilityScore * 100))")
                         .font(.system(size: 24, weight: .bold))
                     Text("Core")
                         .font(.caption2)
@@ -194,29 +207,63 @@ struct CoreStabilityDrillView: View {
                 .font(.headline)
                 .foregroundStyle(stabilityColor)
 
-            // Real-time stats
-            HStack(spacing: 30) {
+            // Real-time stats with physics metrics
+            HStack(spacing: 20) {
                 VStack {
-                    Text(String(format: "%.2f", abs(motionManager.roll * 57.3)))
+                    Text(String(format: "%.1f°", abs(motionAnalyzer.leftRightAsymmetry)))
                         .font(.headline.monospacedDigit())
-                    Text("Roll")
+                    Text("L/R Lean")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.2f", abs(motionManager.yaw * 57.3)))
+                    Text(String(format: "%.1f°", abs(motionAnalyzer.anteriorPosterior)))
                         .font(.headline.monospacedDigit())
-                    Text("Rotation")
+                    Text("F/B Lean")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.3f", motionManager.totalMovement))
+                    Text(String(format: "%.0f%%", motionAnalyzer.stabilityRetention))
                         .font(.headline.monospacedDigit())
-                    Text("Movement")
+                    Text("Endurance")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            // Frequency domain indicators (tremor vs drift)
+            if elapsedTime > 4 {
+                HStack(spacing: 20) {
+                    FrequencyIndicator(label: "Tremor", value: motionAnalyzer.tremorPower, threshold: DrillPhysicsConstants.CueThresholds.tremorCueThreshold)
+                    FrequencyIndicator(label: "Drift", value: motionAnalyzer.driftPower, threshold: DrillPhysicsConstants.CueThresholds.driftCueThreshold)
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
+    /// Compact indicator for frequency domain metrics
+    private struct FrequencyIndicator: View {
+        let label: String
+        let value: Double
+        let threshold: Double
+
+        var body: some View {
+            VStack(spacing: 4) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.gray.opacity(0.2))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(value > threshold ? Color.orange : Color.green)
+                            .frame(width: geo.size.width * min(value, 1))
+                    }
+                }
+                .frame(width: 60, height: 6)
             }
         }
     }
@@ -282,15 +329,17 @@ struct CoreStabilityDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if motionManager.stabilityScore > 0.8 { return .green }
-        if motionManager.stabilityScore > 0.5 { return .yellow }
+        let score = motionAnalyzer.stabilityScore
+        if score > 0.8 { return .green }
+        if score > 0.5 { return .yellow }
         return .red
     }
 
     private var stabilityMessage: String {
-        if motionManager.stabilityScore > 0.9 { return "Excellent core control!" }
-        if motionManager.stabilityScore > 0.7 { return "Good stability" }
-        if motionManager.stabilityScore > 0.5 { return "Some movement detected" }
+        let score = motionAnalyzer.stabilityScore
+        if score > 0.9 { return "Excellent core control!" }
+        if score > 0.7 { return "Good stability" }
+        if score > 0.5 { return "Some movement detected" }
         return "Engage your core!"
     }
 
@@ -322,14 +371,25 @@ struct CoreStabilityDrillView: View {
     private func startDrill() {
         isRunning = true
         elapsedTime = 0
-        motionManager.startUpdates()
+        cueSystem.reset()
+        motionAnalyzer.reset()
+        motionAnalyzer.startUpdates()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             elapsedTime += 0.1
+
+            // Record stability for scoring
             results.append(StabilityResult(
                 timestamp: elapsedTime,
-                stability: motionManager.stabilityScore
+                stability: motionAnalyzer.stabilityScore
             ))
+
+            // Process motion analysis for physics-based coaching cues
+            cueSystem.processMotionAnalysis(
+                motionAnalyzer,
+                elapsed: elapsedTime,
+                duration: targetDuration
+            )
 
             if elapsedTime >= targetDuration {
                 endDrill()
@@ -341,79 +401,56 @@ struct CoreStabilityDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
+        cueSystem.reset()
+
+        // Calculate average stability score using unified scorer
+        let avgStability = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
+
+        // Get subscores from motion analyzer's integrated scorer
+        let scorer = motionAnalyzer.scorer
+
+        // Save unified drill session with all subscores
+        let session = UnifiedDrillSession(
+            drillType: .coreStability,
+            duration: targetDuration,
+            score: avgStability * 100
+        )
+        session.stabilityScore = scorer.stability
+        session.symmetryScore = scorer.symmetry
+        session.enduranceScore = scorer.endurance
+        session.coordinationScore = scorer.coordination
+        session.averageRMS = motionAnalyzer.rmsMotion
+        session.peakDeviation = abs(motionAnalyzer.leftRightAsymmetry)
+
+        modelContext.insert(session)
+
+        // Compute and save skill domain scores for profile integration
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
 
         // Update streak
         if let streak = streak {
             streak.recordActivity()
-            try? modelContext.save()
         } else {
             let newStreak = TrainingStreak()
             newStreak.recordActivity()
             modelContext.insert(newStreak)
-            try? modelContext.save()
         }
+
+        try? modelContext.save()
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
 }
 
-// MARK: - Core Motion Manager
-
-@MainActor
-class CoreMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var yaw: Double = 0
-    @Published var totalMovement: Double = 0
-    @Published var stabilityScore: Double = 1.0
-
-    private var previousRoll: Double = 0
-    private var previousYaw: Double = 0
-    private var referenceYaw: Double?
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referenceYaw = nil
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            self.pitch = motion.attitude.pitch
-            self.roll = motion.attitude.roll
-
-            // Set reference yaw on first reading
-            if self.referenceYaw == nil {
-                self.referenceYaw = motion.attitude.yaw
-            }
-            self.yaw = motion.attitude.yaw - (self.referenceYaw ?? 0)
-
-            // Calculate movement from roll and yaw
-            let rollDelta = abs(self.roll - self.previousRoll)
-            let yawDelta = abs(self.yaw - self.previousYaw)
-            self.totalMovement = rollDelta + yawDelta
-
-            // Calculate stability
-            let movement = sqrt(rollDelta * rollDelta + yawDelta * yawDelta)
-            let rawStability = max(0, 1 - (movement * 20))
-            self.stabilityScore = self.stabilityScore * 0.9 + rawStability * 0.1
-
-            self.previousRoll = self.roll
-            self.previousYaw = self.yaw
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
+// MARK: - Preview
 
 #Preview {
     CoreStabilityDrillView()
-        .modelContainer(for: TrainingStreak.self, inMemory: true)
+        .modelContainer(for: [TrainingStreak.self, UnifiedDrillSession.self], inMemory: true)
 }

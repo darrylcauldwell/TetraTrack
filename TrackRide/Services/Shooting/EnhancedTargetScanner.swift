@@ -12,7 +12,12 @@ import SwiftUI
 
 // MARK: - Enhanced Scanner Configuration
 
-/// Configuration for the enhanced target scanner
+/// Configuration for the enhanced target scanner.
+///
+/// **Auto-Center Design**: The `requireCenterConfirmation` option is deprecated and defaults
+/// to `false`. With perspective-corrected crops, the target center is automatically calculated
+/// as the geometric center of the crop (0.5, 0.5), eliminating the need for manual center
+/// placement. This simplifies the workflow and reduces user errors.
 struct EnhancedScannerConfig {
     /// Target geometry type
     var targetType: ShootingTargetGeometryType = .tetrathlon
@@ -23,8 +28,11 @@ struct EnhancedScannerConfig {
     /// Minimum confidence for auto-detected holes
     var minimumConfidence: Double = 0.6
 
-    /// Whether to require center confirmation
-    var requireCenterConfirmation: Bool = true
+    /// Whether to require center confirmation.
+    /// **Deprecated**: With auto-center calculation, this is no longer needed.
+    /// Center is automatically calculated as (0.5, 0.5) in the cropped image.
+    @available(*, deprecated, message: "Center is now auto-calculated. Manual confirmation is no longer required.")
+    var requireCenterConfirmation: Bool = false
 
     /// Whether to show quality assessment
     var showQualityAssessment: Bool = true
@@ -68,9 +76,13 @@ final class EnhancedScannerState {
     var processingMessage: String = ""
     var error: ScannerError?
 
+    /// Scanning workflow phases.
+    /// **Note**: The `.centerConfirmation` phase is deprecated and skipped in the auto-center workflow.
+    /// With perspective-corrected crops, center is automatically calculated as (0.5, 0.5).
     enum ScanPhase {
         case camera
         case crop
+        /// Deprecated: Center is now auto-calculated. This phase is skipped.
         case centerConfirmation
         case holeDetection
         case manualCorrection
@@ -142,7 +154,11 @@ actor EnhancedTargetScanner {
 
     // MARK: - Crop Processing
 
-    /// Process the cropped image and estimate geometry
+    /// Process the cropped image and estimate geometry.
+    ///
+    /// **Auto-Center Design**: With perspective-corrected crops, the target center is automatically
+    /// calculated as the geometric center of the crop (0.5, 0.5). The center confirmation step
+    /// is skipped entirely, streamlining the workflow for athletes.
     func processCroppedImage(
         _ croppedImage: UIImage,
         cropRect: CGRect,
@@ -169,41 +185,62 @@ actor EnhancedTargetScanner {
             return
         }
 
-        // Create initial crop geometry
+        // Create crop geometry with auto-calculated center.
+        // Center is automatically (0.5, 0.5) - the geometric center of the perspective-corrected crop.
         let geometry = TargetCropGeometry(
             cropRect: cropRect,
-            targetCenterInCrop: CGPoint(x: 0.5, y: 0.5),
             targetSemiAxes: CGSize(width: 0.4, height: 0.45),
             physicalAspectRatio: config.targetType.aspectRatio
         )
 
+        // Auto-generate alignment with center at (0.5, 0.5).
+        // No manual center placement required - this simplifies the athlete workflow.
+        let autoAlignment = TargetAlignment.autoCalculated(semiAxes: geometry.targetSemiAxes)
+
         await MainActor.run {
             state.croppedImage = croppedImage
             state.cropGeometry = geometry
+            state.targetAlignment = autoAlignment  // Auto-generated alignment
             state.processingMessage = ""
             state.isProcessing = false
 
-            if config.requireCenterConfirmation {
-                state.phase = .centerConfirmation
-            } else {
-                state.phase = .holeDetection
+            // Skip center confirmation - proceed directly to hole detection.
+            // Center is auto-calculated as (0.5, 0.5) from the perspective-corrected crop.
+            state.phase = .holeDetection
+        }
+
+        // Run auto-detection if enabled (center is already set)
+        if config.enableAutoDetection {
+            await runAutoDetection(state: state)
+        } else {
+            await MainActor.run {
+                state.phase = .manualCorrection
             }
         }
     }
 
-    // MARK: - Center Confirmation
+    // MARK: - Center Confirmation (Deprecated)
 
-    /// Process confirmed target alignment
+    /// Process confirmed target alignment.
+    ///
+    /// **Deprecated**: With auto-center calculation, manual alignment confirmation is no longer
+    /// needed. The center is automatically calculated as (0.5, 0.5) in the perspective-corrected
+    /// crop. This method is kept for backward compatibility but the center position in the
+    /// alignment is ignored - only semi-axes and rotation adjustments are applied.
+    @available(*, deprecated, message: "Center is now auto-calculated. Use processCroppedImage which handles alignment automatically.")
     func processTargetAlignment(
         _ alignment: TargetAlignment,
         state: EnhancedScannerState
     ) async {
         await MainActor.run {
-            state.targetAlignment = alignment
+            // Create auto-calculated alignment, preserving only semi-axes and rotation
+            // Center is always (0.5, 0.5) - the confirmed center in alignment is ignored
+            var autoAlignment = TargetAlignment.autoCalculated(semiAxes: alignment.confirmedSemiAxes)
+            autoAlignment.rotationAdjustment = alignment.rotationAdjustment
+            state.targetAlignment = autoAlignment
 
-            // Update crop geometry with confirmed values
+            // Update crop geometry with semi-axes only (center is computed)
             if var geometry = state.cropGeometry {
-                geometry.targetCenterInCrop = alignment.confirmedCenter
                 geometry.targetSemiAxes = alignment.confirmedSemiAxes
                 state.cropGeometry = geometry
             }
@@ -483,7 +520,8 @@ extension EnhancedScannerState {
         case .crop:
             return "Crop to target area"
         case .centerConfirmation:
-            return "Confirm target center alignment"
+            // Deprecated phase - should not normally be reached with auto-center
+            return "Center auto-calculated"
         case .holeDetection:
             return isProcessing ? processingMessage : "Detecting holes..."
         case .manualCorrection:

@@ -15,7 +15,7 @@ struct DisciplinesView: View {
                     NavigationLink(destination: RidingView()) {
                         DisciplineCard(
                             title: "Riding",
-                            subtitle: "Track rides & training drills",
+                            subtitle: "Record a riding session",
                             icon: "figure.equestrian.sports",
                             color: .green
                         )
@@ -25,7 +25,7 @@ struct DisciplinesView: View {
                     NavigationLink(destination: RunningView()) {
                         DisciplineCard(
                             title: "Running",
-                            subtitle: "Time trials & intervals",
+                            subtitle: "Record a running session",
                             icon: "figure.run",
                             color: .orange
                         )
@@ -35,7 +35,7 @@ struct DisciplinesView: View {
                     NavigationLink(destination: SwimmingView()) {
                         DisciplineCard(
                             title: "Swimming",
-                            subtitle: "Timed tests & training",
+                            subtitle: "Record a swimming session",
                             icon: "figure.pool.swim",
                             color: .blue
                         )
@@ -45,19 +45,29 @@ struct DisciplinesView: View {
                     NavigationLink(destination: ShootingView()) {
                         DisciplineCard(
                             title: "Shooting",
-                            subtitle: "Competition & practice",
+                            subtitle: "Record a shooting session",
                             icon: "target",
                             color: .red
                         )
                     }
                     .buttonStyle(.plain)
 
-                    NavigationLink(destination: TrainingHistoryView()) {
+                    NavigationLink(destination: SessionHistoryView()) {
                         DisciplineCard(
-                            title: "Training History",
-                            subtitle: "View past sessions",
+                            title: "Session History",
+                            subtitle: "Review sessions and cross-session insights",
                             icon: "clock.arrow.circlepath",
                             color: .gray
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink(destination: UnifiedTrainingView()) {
+                        DisciplineCard(
+                            title: "Skills",
+                            subtitle: "Perform off-discipline training drills",
+                            icon: "figure.run.circle",
+                            color: .mint
                         )
                     }
                     .buttonStyle(.plain)
@@ -65,7 +75,7 @@ struct DisciplinesView: View {
                     NavigationLink(destination: CompetitionCalendarView()) {
                         DisciplineCard(
                             title: "Competitions",
-                            subtitle: "Calendar & preparation",
+                            subtitle: "View competition calendar and results",
                             icon: "calendar",
                             color: .purple
                         )
@@ -75,7 +85,7 @@ struct DisciplinesView: View {
                     NavigationLink(destination: TaskListView()) {
                         DisciplineCard(
                             title: "Tasks",
-                            subtitle: "Preparation checklist",
+                            subtitle: "Manage training and competition tasks",
                             icon: "checklist",
                             color: .teal
                         )

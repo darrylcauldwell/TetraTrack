@@ -29,6 +29,12 @@ struct MotionSample {
     let roll: Double
     let yaw: Double
 
+    // Quaternion for frame transformation (more accurate than Euler angles)
+    let quaternionW: Double
+    let quaternionX: Double
+    let quaternionY: Double
+    let quaternionZ: Double
+
     /// Acceleration magnitude (total g-force)
     var accelerationMagnitude: Double {
         sqrt(accelerationX * accelerationX +
@@ -75,8 +81,8 @@ final class MotionManager {
     // Callback for motion updates
     var onMotionUpdate: ((MotionSample) -> Void)?
 
-    // Sample rate: 50Hz for detailed motion analysis
-    private let sampleRate: TimeInterval = 1.0 / 50.0
+    // Sample rate: 100Hz for FFT analysis (requires 256 samples for 2.56s window)
+    private let sampleRate: TimeInterval = 1.0 / 100.0
 
     private let motionManager = CMMotionManager()
     private let operationQueue: OperationQueue
@@ -121,6 +127,7 @@ final class MotionManager {
                 z: motion.rotationRate.z
             )
 
+            let quaternion = motion.attitude.quaternion
             let sample = MotionSample(
                 timestamp: Date(),
                 accelerationX: filteredAccel.x,
@@ -131,7 +138,11 @@ final class MotionManager {
                 rotationZ: filteredRotation.z,
                 pitch: motion.attitude.pitch,
                 roll: motion.attitude.roll,
-                yaw: motion.attitude.yaw
+                yaw: motion.attitude.yaw,
+                quaternionW: quaternion.w,
+                quaternionX: quaternion.x,
+                quaternionY: quaternion.y,
+                quaternionZ: quaternion.z
             )
 
             DispatchQueue.main.async {

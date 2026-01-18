@@ -9,12 +9,17 @@ import SwiftUI
 
 struct PoleworkExerciseDetailView: View {
     let exercise: PoleworkExercise
+    var horse: Horse?
     var onEdit: ((PoleworkExercise) -> Void)?
 
-    @State private var selectedHorseSize: HorseSize = .average
     @State private var showDistanceAdjustment: Bool = false
     @State private var distanceAdjustment: Double = 0
     @Environment(\.dismiss) private var dismiss
+
+    /// Horse size derived from horse profile, or .average if no horse provided
+    private var selectedHorseSize: HorseSize {
+        horse?.horseSize ?? .average
+    }
 
     var body: some View {
         ScrollView {
@@ -150,19 +155,67 @@ struct PoleworkExerciseDetailView: View {
         }
     }
 
-    // MARK: - Horse Size Selector
+    // MARK: - Horse Info Card
 
     private var horseSizeSelector: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Horse Size")
-                .font(.headline)
+            HStack {
+                Image(systemName: "figure.equestrian.sports")
+                    .foregroundStyle(.orange)
+                Text("Horse Profile")
+                    .font(.headline)
+            }
 
-            Picker("Horse Size", selection: $selectedHorseSize) {
-                ForEach(HorseSize.allCases) { size in
-                    Text(size.shortName).tag(size)
+            if let horse = horse {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(horse.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        if horse.hasHeightSet {
+                            Text("\(horse.formattedHeight) • \(selectedHorseSize.shortName)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Height not set • Using average distances")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+
+                    Spacer()
+
+                    Text("×\(String(format: "%.0f%%", selectedHorseSize.strideMultiplier * 100))")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No horse selected")
+                            .font(.subheadline)
+
+                        Text("Using average distances (15.2-16.2hh)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Text("×100%")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(Capsule())
                 }
             }
-            .pickerStyle(.segmented)
         }
         .padding()
         .background(Color(.systemBackground))

@@ -11,7 +11,7 @@ import CoreLocation
 import Observation
 
 /// Weather conditions captured during an outdoor session
-struct WeatherConditions: Codable, Equatable {
+struct WeatherConditions: Codable, Equatable, Sendable {
     let timestamp: Date
     let temperature: Double  // Celsius
     let feelsLike: Double  // Celsius

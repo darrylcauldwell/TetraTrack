@@ -210,7 +210,7 @@ struct HoleCharacteristics: Codable {
     var isPartial: Bool = false         // Partially visible (edge of target)
     var isDoubleHole: Bool = false      // Two holes very close together
 
-    static let normal = HoleCharacteristics()
+    nonisolated static let normal = HoleCharacteristics()
 }
 
 // MARK: - Image Metadata

@@ -66,6 +66,33 @@ final class GaitSegment {
     // Rhythm tracking
     var rhythmScore: Double = 0.0  // 0-100%
 
+    // MARK: - Biomechanical Metrics (Physics-Based)
+
+    /// Stride length in meters (physics-based calculation)
+    var strideLength: Double = 0.0
+
+    /// Stride frequency from FFT analysis (Hz)
+    var strideFrequency: Double = 0.0
+
+    /// Impulsion: forward/vertical energy ratio (0-100)
+    var impulsion: Double = 0.0
+
+    /// Engagement: hindquarter energy proxy (0-100)
+    var engagement: Double = 0.0
+
+    /// Spectral entropy: signal complexity (0-1)
+    var spectralEntropy: Double = 0.0
+
+    /// Harmonic ratio H2 (2nd harmonic / fundamental)
+    var harmonicRatioH2: Double = 0.0
+
+    /// Harmonic ratio H3 (3rd harmonic / fundamental)
+    var harmonicRatioH3: Double = 0.0
+
+    /// Vertical-yaw coherence: phase coupling strength (0-1)
+    /// Measures how well vertical bounce correlates with rotational movement
+    var verticalYawCoherence: Double = 0.0
+
     // Relationship to ride - optional for CloudKit
     var ride: Ride?
 
@@ -97,6 +124,32 @@ final class GaitSegment {
         isLeadApplicable && lead != .unknown && leadConfidence >= 0.7
     }
 
+    /// Whether the lead is correct for the current rein direction
+    /// Correct lead: left lead on left rein, right lead on right rein
+    /// Cross-canter: opposite lead to rein direction
+    var isCorrectLead: Bool {
+        guard isLeadApplicable, lead != .unknown else { return true }
+        guard let ride = self.ride else { return true }
+
+        // Find the rein segment that overlaps with this gait segment
+        let overlappingRein = ride.sortedReinSegments.first { rein in
+            let reinEnd = rein.endTime ?? Date.distantFuture
+            return rein.startTime <= self.startTime && reinEnd >= self.startTime
+        }
+
+        guard let rein = overlappingRein else { return true }
+
+        // Match lead to rein direction
+        switch (rein.reinDirection, self.lead) {
+        case (.left, .left), (.right, .right), (.straight, _):
+            return true
+        case (.left, .right), (.right, .left):
+            return false  // Cross-canter
+        default:
+            return true
+        }
+    }
+
     var duration: TimeInterval {
         guard let end = endTime else { return 0 }
         return end.timeIntervalSince(startTime)
@@ -112,5 +165,32 @@ final class GaitSegment {
 
     var formattedLeadConfidence: String {
         String(format: "%.0f%%", leadConfidence * 100)
+    }
+
+    // MARK: - Biomechanics Formatted Strings
+
+    var formattedStrideLength: String {
+        String(format: "%.2f m", strideLength)
+    }
+
+    var formattedStrideFrequency: String {
+        String(format: "%.1f Hz", strideFrequency)
+    }
+
+    var formattedImpulsion: String {
+        String(format: "%.0f%%", impulsion)
+    }
+
+    var formattedEngagement: String {
+        String(format: "%.0f%%", engagement)
+    }
+
+    /// Computed stride speed from length × frequency
+    var strideSpeed: Double {
+        strideLength * strideFrequency
+    }
+
+    var formattedStrideSpeed: String {
+        String(format: "%.1f m/s", strideSpeed)
     }
 }

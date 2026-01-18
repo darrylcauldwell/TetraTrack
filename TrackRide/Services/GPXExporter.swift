@@ -7,8 +7,9 @@ import Foundation
 import CoreLocation
 import os
 
-/// Actor-based GPX exporter to avoid main thread blocking
-actor GPXExporter {
+/// MainActor GPX exporter for SwiftData model access
+@MainActor
+final class GPXExporter {
 
     /// Shared instance for convenience
     static let shared = GPXExporter()

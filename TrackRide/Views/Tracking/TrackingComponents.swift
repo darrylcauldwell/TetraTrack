@@ -15,7 +15,6 @@ struct IdleSetupView: View {
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @State private var showingDisciplineSetup: RideType?
     @State private var showingSettings = false
-    @State private var showingTraining = false
 
     var body: some View {
         let _ = Log.ui.debug("IdleSetupView body rendering")
@@ -35,18 +34,6 @@ struct IdleSetupView: View {
                             }
                         )
                     }
-
-                    // Training Drills option
-                    DisciplineRow(
-                        title: "Training",
-                        subtitle: "Off-horse balance & fitness drills",
-                        icon: "figure.stand",
-                        color: AppColors.primary,
-                        action: {
-                            Log.ui.info("Training button tapped")
-                            showingTraining = true
-                        }
-                    )
 
                     // Permission warning
                     if let manager = locationManager, manager.permissionDenied {
@@ -93,11 +80,6 @@ struct IdleSetupView: View {
                 .onAppear {
                     Log.ui.info("Sheet presenting for rideType: \(rideType.rawValue)")
                 }
-        }
-        .sheet(isPresented: $showingTraining) {
-            RidingTrainingView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
         }
         .onChange(of: showingDisciplineSetup) { oldValue, newValue in
             Log.ui.info("showingDisciplineSetup changed: \(oldValue?.rawValue ?? "nil") -> \(newValue?.rawValue ?? "nil")")

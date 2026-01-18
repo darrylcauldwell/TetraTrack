@@ -1,0 +1,27 @@
+{
+  "displayName": "Test Targets",
+  "description": "Real target images for testing detection pipeline",
+  "defaultTargetType": "tetrathlon",
+  "defaultLighting": "normal",
+  "captureConditions": {
+    "date": "2026-01-16",
+    "location": "Range",
+    "camera": "iPhone",
+    "flash": false,
+    "notes": "User-provided test images"
+  },
+  "images": {
+    "IMG_9888.jpeg": {
+      "displayName": "Target 1",
+      "description": "First test target",
+      "difficulty": 3,
+      "lightingCondition": "normal"
+    },
+    "IMG_9889.jpeg": {
+      "displayName": "Target 2",
+      "description": "Second test target",
+      "difficulty": 3,
+      "lightingCondition": "normal"
+    }
+  }
+}

@@ -22,9 +22,13 @@ struct ContentView: View {
                     RunningControlView()
                 case .riding:
                     RideControlView()
+                case .shooting:
+                    ShootingControlView()
+                case .training:
+                    WatchTrainingView()
                 case .idle:
-                    // Show idle/ready state with ride controls
-                    RideControlView()
+                    // Show discipline selector when idle
+                    WatchHomeView()
                 }
             }
             .id(connectivityService.activeDiscipline)  // Force view refresh on discipline change

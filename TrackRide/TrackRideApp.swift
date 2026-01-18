@@ -32,6 +32,13 @@ struct TrackRideApp: App {
             PoleworkExercise.self,
             TrainingStreak.self,
             ScheduledWorkout.self,
+            TrainingWeekFocus.self,
+            RidingDrillSession.self,
+            ShootingDrillSession.self,
+            UnifiedDrillSession.self,
+            RunningSession.self,
+            SwimmingSession.self,
+            ShootingSession.self,
             RunningLocationPoint.self,
             // Route planning models
             PlannedRoute.self,
@@ -40,6 +47,12 @@ struct TrackRideApp: App {
             DownloadedRegion.self,
             // Shooting analysis
             TargetScanAnalysis.self,
+            // Skill domain tracking
+            SkillDomainScore.self,
+            AthleteProfile.self,
+            // Family sharing models
+            TrainingArtifact.self,
+            SharedCompetition.self,
         ])
         // TODO: RE-ENABLE CLOUDKIT FOR PRODUCTION
         // When you have a paid Apple Developer account:

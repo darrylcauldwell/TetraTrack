@@ -11,15 +11,21 @@ import SwiftData
 struct PoleworkLibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PoleworkExercise.name) private var exercises: [PoleworkExercise]
+    @Query(filter: #Predicate<Horse> { !$0.isArchived }, sort: \Horse.name) private var horses: [Horse]
 
     @State private var searchText = ""
     @State private var selectedCategory: PoleworkCategory?
     @State private var selectedDifficulty: PoleworkDifficulty?
-    @State private var selectedHorseSize: HorseSize = .average
-    @State private var showHorseSizePicker = false
+    @State private var selectedHorse: Horse?
+    @State private var showHorsePicker = false
     @State private var hasInitialized = false
     @State private var showingAddExercise = false
     @State private var exerciseToEdit: PoleworkExercise?
+
+    /// Derived horse size from selected horse, or .average if no horse selected
+    private var currentHorseSize: HorseSize {
+        selectedHorse?.horseSize ?? .average
+    }
 
     var filteredExercises: [PoleworkExercise] {
         var result = exercises
@@ -74,14 +80,14 @@ struct PoleworkLibraryView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showHorseSizePicker = true
+                        showHorsePicker = true
                     } label: {
-                        Label("Horse Size", systemImage: "ruler")
+                        Label("Horse", systemImage: "figure.equestrian.sports")
                     }
                 }
             }
-            .sheet(isPresented: $showHorseSizePicker) {
-                horseSizePickerSheet
+            .sheet(isPresented: $showHorsePicker) {
+                horsePickerSheet
             }
             .sheet(isPresented: $showingAddExercise) {
                 PoleworkExerciseEditorView()
@@ -95,29 +101,45 @@ struct PoleworkLibraryView: View {
         }
     }
 
-    // MARK: - Horse Size Bar
+    // MARK: - Horse Selection Bar
 
     private var horseSizeBar: some View {
         HStack {
-            Image(systemName: "ruler")
+            Image(systemName: "figure.equestrian.sports")
                 .foregroundStyle(.orange)
 
-            Text("Distances for:")
-                .font(.subheadline)
+            if let horse = selectedHorse {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(horse.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
 
-            Picker("Horse Size", selection: $selectedHorseSize) {
-                ForEach(HorseSize.allCases) { size in
-                    Text(size.shortName).tag(size)
+                    if horse.hasHeightSet {
+                        Text("\(horse.formattedHeight) • \(currentHorseSize.shortName)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Height not set • Using average")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("No horse selected")
+                        .font(.subheadline)
+
+                    Text("Using average distances")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .pickerStyle(.menu)
-            .tint(.orange)
 
             Spacer()
 
             // Quick reference button
             NavigationLink {
-                QuickReferenceView(horseSize: selectedHorseSize)
+                QuickReferenceView(horse: selectedHorse, horseSize: currentHorseSize)
             } label: {
                 Label("Reference", systemImage: "list.bullet.rectangle")
                     .font(.caption)
@@ -126,6 +148,9 @@ struct PoleworkLibraryView: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color.orange.opacity(0.1))
+        .onTapGesture {
+            showHorsePicker = true
+        }
     }
 
     // MARK: - Filter Bar
@@ -194,9 +219,10 @@ struct PoleworkLibraryView: View {
                     ForEach(userExercises) { exercise in
                         NavigationLink(destination: PoleworkExerciseDetailView(
                             exercise: exercise,
+                            horse: selectedHorse,
                             onEdit: { exerciseToEdit = $0 }
                         )) {
-                            PoleworkExerciseRow(exercise: exercise, horseSize: selectedHorseSize, isUserCreated: true)
+                            PoleworkExerciseRow(exercise: exercise, horseSize: currentHorseSize, isUserCreated: true)
                         }
                     }
                     .onDelete { indexSet in
@@ -219,9 +245,10 @@ struct PoleworkLibraryView: View {
                         ForEach(categoryExercises) { exercise in
                             NavigationLink(destination: PoleworkExerciseDetailView(
                                 exercise: exercise,
+                                horse: selectedHorse,
                                 onEdit: { exerciseToEdit = $0 }
                             )) {
-                                PoleworkExerciseRow(exercise: exercise, horseSize: selectedHorseSize, isUserCreated: false)
+                                PoleworkExerciseRow(exercise: exercise, horseSize: currentHorseSize, isUserCreated: false)
                             }
                         }
                     } header: {
@@ -266,49 +293,114 @@ struct PoleworkLibraryView: View {
         .listRowBackground(Color.clear)
     }
 
-    // MARK: - Horse Size Picker Sheet
+    // MARK: - Horse Picker Sheet
 
-    private var horseSizePickerSheet: some View {
+    private var horsePickerSheet: some View {
         NavigationStack {
             List {
+                // No horse option
                 Section {
-                    ForEach(HorseSize.allCases) { size in
-                        Button {
-                            selectedHorseSize = size
-                            showHorseSizePicker = false
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(size.displayName)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
+                    Button {
+                        selectedHorse = nil
+                        showHorsePicker = false
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("No Horse Selected")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
 
-                                    Text("Stride multiplier: \(String(format: "%.0f%%", size.strideMultiplier * 100))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text("Uses average distances (15.2-16.2hh)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
 
-                                Spacer()
+                            Spacer()
 
-                                if selectedHorseSize == size {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
-                                }
+                            if selectedHorse == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
                             }
                         }
                     }
-                } header: {
-                    Text("Select your horse's size")
-                } footer: {
-                    Text("Pole distances will be automatically adjusted based on your horse's stride length.")
+                }
+
+                // Horses with height set
+                let horsesWithHeight = horses.filter { $0.hasHeightSet }
+                if !horsesWithHeight.isEmpty {
+                    Section {
+                        ForEach(horsesWithHeight) { horse in
+                            Button {
+                                selectedHorse = horse
+                                showHorsePicker = false
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(horse.name)
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+
+                                        Text("\(horse.formattedHeight) • \(horse.horseSize.shortName)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    if selectedHorse?.id == horse.id {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Your Horses")
+                    }
+                }
+
+                // Horses without height (encourage setting it)
+                let horsesWithoutHeight = horses.filter { !$0.hasHeightSet }
+                if !horsesWithoutHeight.isEmpty {
+                    Section {
+                        ForEach(horsesWithoutHeight) { horse in
+                            Button {
+                                selectedHorse = horse
+                                showHorsePicker = false
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(horse.name)
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+
+                                        Text("Height not set • Uses average")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
+
+                                    Spacer()
+
+                                    if selectedHorse?.id == horse.id {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Set Height for Accurate Distances")
+                    } footer: {
+                        Text("Add height to your horse's profile for personalized pole distances.")
+                    }
                 }
             }
-            .navigationTitle("Horse Size")
+            .navigationTitle("Select Horse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
-                        showHorseSizePicker = false
+                        showHorsePicker = false
                     }
                 }
             }
@@ -453,15 +545,54 @@ struct PoleworkFilterChip: View {
 // MARK: - Quick Reference View
 
 struct QuickReferenceView: View {
+    var horse: Horse?
     let horseSize: HorseSize
 
     var body: some View {
         List {
+            // Horse info section
             Section {
-                Text(horseSize.displayName)
-                    .font(.headline)
+                if let horse = horse {
+                    HStack(spacing: 12) {
+                        Image(systemName: "figure.equestrian.sports")
+                            .font(.title2)
+                            .foregroundStyle(.orange)
+                            .frame(width: 40)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(horse.name)
+                                .font(.headline)
+
+                            if horse.hasHeightSet {
+                                Text("\(horse.formattedHeight) • \(horseSize.displayName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("Height not set • Using \(horseSize.displayName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("No horse selected")
+                                .font(.headline)
+
+                            Text("Using average distances (\(horseSize.displayName))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             } header: {
-                Text("Horse Size")
+                Text("Distances Calculated For")
             }
 
             Section {

@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import AVFoundation
 import UniformTypeIdentifiers
+import WidgetKit
 
 // MARK: - Transferable Image Helper
 
@@ -33,6 +35,8 @@ struct TransferableImage: Transferable {
 
 struct ShootingCompetitionView: View {
     let onEnd: (Int) -> Void
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
@@ -223,7 +227,7 @@ struct ShootingCompetitionView: View {
             Spacer()
 
             // Save button
-            Button(action: { onEnd(totalRawScore) }) {
+            Button(action: { saveCompetitionSession() }) {
                 Label("Save & Finish", systemImage: "checkmark.circle.fill")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
@@ -234,6 +238,51 @@ struct ShootingCompetitionView: View {
             }
             .padding(.horizontal, 40)
         }
+    }
+
+    private func saveCompetitionSession() {
+        // Create a ShootingSession to persist the competition
+        let session = ShootingSession(
+            name: "Tetrathlon Practice",
+            targetType: .olympic,
+            distance: 10.0,
+            numberOfEnds: 2,
+            arrowsPerEnd: 5
+        )
+        session.endDate = Date()
+
+        // Create End 1 with shots
+        let end1 = ShootingEnd(orderIndex: 0)
+        for (index, score) in card1Scores.enumerated() {
+            let shot = Shot(orderIndex: index, score: score, isX: score == 10)
+            end1.shots.append(shot)
+        }
+        session.ends.append(end1)
+
+        // Create End 2 with shots
+        let end2 = ShootingEnd(orderIndex: 1)
+        for (index, score) in card2Scores.enumerated() {
+            let shot = Shot(orderIndex: index, score: score, isX: score == 10)
+            end2.shots.append(shot)
+        }
+        session.ends.append(end2)
+
+        // Insert into model context
+        modelContext.insert(session)
+        try? modelContext.save()
+
+        // Convert to TrainingArtifact and sync to CloudKit for family sharing
+        Task {
+            await ArtifactConversionService.shared.convertAndSyncShootingSession(session)
+        }
+
+        // Sync to widgets
+        WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
+
+        // Update personal best
+        ShootingPersonalBests.shared.updatePersonalBest(rawScore: totalRawScore)
+
+        onEnd(totalRawScore)
     }
 }
 

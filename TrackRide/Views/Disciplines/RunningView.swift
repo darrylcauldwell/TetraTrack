@@ -110,6 +110,17 @@ struct RunningView: View {
                             let healthKit = HealthKitManager.shared
                             let _ = await healthKit.saveRunningSessionAsWorkout(session)
                         }
+                        // Compute and save skill domain scores (basic without subjective score)
+                        let skillService = SkillDomainService()
+                        let skillScores = skillService.computeScores(from: session, score: nil)
+                        for skillScore in skillScores {
+                            modelContext.insert(skillScore)
+                        }
+                        try? modelContext.save()
+                        // Convert to TrainingArtifact and sync to CloudKit for family sharing
+                        Task {
+                            await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
+                        }
                         // Sync sessions to widgets
                         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
                         activeSession = nil
@@ -209,6 +220,11 @@ struct RunningView: View {
         Task {
             let healthKit = HealthKitManager.shared
             let _ = await healthKit.saveRunningSessionAsWorkout(session)
+        }
+
+        // Convert to TrainingArtifact and sync to CloudKit for family sharing
+        Task {
+            await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
         }
 
         // Sync sessions to widgets

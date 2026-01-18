@@ -314,15 +314,18 @@ struct HeelPositionDrillView: View {
         elapsedTime = 0
         motionManager.startUpdates()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            elapsedTime += 0.1
-            results.append(StabilityResult(
-                timestamp: elapsedTime,
-                stability: motionManager.stabilityScore
-            ))
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak motionManager] _ in
+            Task { @MainActor in
+                guard let motionManager = motionManager else { return }
+                self.elapsedTime += 0.1
+                self.results.append(StabilityResult(
+                    timestamp: self.elapsedTime,
+                    stability: motionManager.stabilityScore
+                ))
 
-            if elapsedTime >= targetDuration {
-                endDrill()
+                if self.elapsedTime >= self.targetDuration {
+                    self.endDrill()
+                }
             }
         }
     }
@@ -333,17 +336,34 @@ struct HeelPositionDrillView: View {
         isRunning = false
         motionManager.stopUpdates()
 
+        // Calculate average stability score
+        let avgStability = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
+
+        // Save unified drill session
+        let session = UnifiedDrillSession(
+            drillType: .heelPosition,
+            duration: targetDuration,
+            score: avgStability * 100
+        )
+        modelContext.insert(session)
+
+        // Compute and save skill domain scores for profile integration
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+
         // Update streak
         if let streak = streak {
             streak.recordActivity()
-            try? modelContext.save()
         } else {
-            // Create new streak if none exists
             let newStreak = TrainingStreak()
             newStreak.recordActivity()
             modelContext.insert(newStreak)
-            try? modelContext.save()
         }
+
+        try? modelContext.save()
 
         // Haptic feedback
         let generator = UINotificationFeedbackGenerator()

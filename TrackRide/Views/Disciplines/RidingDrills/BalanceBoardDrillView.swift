@@ -96,6 +96,9 @@ struct BalanceBoardDrillView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
 
+            PhonePlacementGuidanceView(placement: .chestHeld)
+                .padding(.horizontal, 32)
+
             Picker("Duration", selection: $targetDuration) {
                 Text("15s").tag(TimeInterval(15))
                 Text("30s").tag(TimeInterval(30))
@@ -370,16 +373,34 @@ struct BalanceBoardDrillView: View {
         isRunning = false
         motionManager.stopUpdates()
 
+        // Calculate average absorption score
+        let avgAbsorption = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
+
+        // Save unified drill session
+        let session = UnifiedDrillSession(
+            drillType: .balanceBoard,
+            duration: targetDuration,
+            score: avgAbsorption * 100
+        )
+        modelContext.insert(session)
+
+        // Compute and save skill domain scores for profile integration
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+
         // Update streak
         if let streak = streak {
             streak.recordActivity()
-            try? modelContext.save()
         } else {
             let newStreak = TrainingStreak()
             newStreak.recordActivity()
             modelContext.insert(newStreak)
-            try? modelContext.save()
         }
+
+        try? modelContext.save()
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)

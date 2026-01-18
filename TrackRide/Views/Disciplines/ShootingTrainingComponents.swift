@@ -20,6 +20,10 @@ struct ShootingTrainingView: View {
     @State private var showingDryFireDrill = false
     @State private var showingReactionDrill = false
     @State private var showingFocusDrill = false
+    @State private var showingRecoilControlDrill = false
+    @State private var showingSplitTimeDrill = false
+    @State private var showingPosturalDriftDrill = false
+    @State private var showingStressInoculationDrill = false
 
     private var streak: TrainingStreak? {
         streaks.first
@@ -88,6 +92,57 @@ struct ShootingTrainingView: View {
                             )
                         }
                         .buttonStyle(.plain)
+
+                        // Advanced Drills Section
+                        Text("Advanced Training")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+
+                        // Recoil Control Drill
+                        Button { showingRecoilControlDrill = true } label: {
+                            DisciplineCard(
+                                title: "Recoil Control",
+                                subtitle: "Recovery speed",
+                                icon: "arrow.uturn.backward",
+                                color: .red
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Split Time Drill
+                        Button { showingSplitTimeDrill = true } label: {
+                            DisciplineCard(
+                                title: "Split Time",
+                                subtitle: "Target transitions",
+                                icon: "timer",
+                                color: .yellow
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Postural Drift Drill
+                        Button { showingPosturalDriftDrill = true } label: {
+                            DisciplineCard(
+                                title: "Postural Drift",
+                                subtitle: "Endurance hold",
+                                icon: "figure.walk.motion",
+                                color: .indigo
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Stress Inoculation Drill
+                        Button { showingStressInoculationDrill = true } label: {
+                            DisciplineCard(
+                                title: "Stress Inoculation",
+                                subtitle: "Elevated HR",
+                                icon: "heart.text.square",
+                                color: .pink
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)
@@ -120,6 +175,18 @@ struct ShootingTrainingView: View {
             }
             .fullScreenCover(isPresented: $showingFocusDrill) {
                 SteadyHoldDrillView()
+            }
+            .fullScreenCover(isPresented: $showingRecoilControlDrill) {
+                RecoilControlDrillView()
+            }
+            .fullScreenCover(isPresented: $showingSplitTimeDrill) {
+                SplitTimeDrillView()
+            }
+            .fullScreenCover(isPresented: $showingPosturalDriftDrill) {
+                PosturalDriftDrillView()
+            }
+            .fullScreenCover(isPresented: $showingStressInoculationDrill) {
+                StressInoculationDrillView()
             }
         }
     }

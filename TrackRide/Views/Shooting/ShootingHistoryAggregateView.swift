@@ -57,6 +57,11 @@ struct ShootingHistoryAggregateView: View {
         )
     }
 
+    private var patternLabel: PatternLabel? {
+        guard let service = historyService, metrics.totalShots > 0 else { return nil }
+        return service.computePatternLabel(metrics: metrics)
+    }
+
     private var visualData: VisualPatternData? {
         guard !filteredPatterns.isEmpty else { return nil }
         return historyService?.generateVisualData(patterns: filteredPatterns)
@@ -157,24 +162,64 @@ struct ShootingHistoryAggregateView: View {
     // MARK: - Scope Header Section
 
     private var scopeHeaderSection: some View {
-        HStack {
-            // Scope indicator
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Showing: \(selectedDateFilter.rawValue)")
-                    .font(.subheadline.weight(.medium))
-                Text("\(metrics.totalShots) shot\(metrics.totalShots == 1 ? "" : "s") from \(metrics.sessionCount) target\(metrics.sessionCount == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 12) {
+            // Top row: scope and confidence
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Showing: \(selectedDateFilter.rawValue)")
+                        .font(.subheadline.weight(.medium))
+                    Text("\(metrics.totalShots) shot\(metrics.totalShots == 1 ? "" : "s") from \(metrics.sessionCount) target\(metrics.sessionCount == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                ConfidenceBadge(confidence: metrics.confidence)
             }
 
-            Spacer()
+            // Bottom row: grouping quality and position badges (like initial insights view)
+            if let label = patternLabel {
+                HStack(spacing: 16) {
+                    // Grouping quality badge
+                    VStack(spacing: 4) {
+                        Text(label.tightness.description.capitalized)
+                            .font(.title3.bold())
+                            .foregroundStyle(tightnessColor(label.tightness))
+                        Text("Grouping")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
 
-            // Confidence indicator
-            ConfidenceBadge(confidence: metrics.confidence)
+                    Divider()
+                        .frame(height: 40)
+
+                    // Position bias badge
+                    VStack(spacing: 4) {
+                        Text(label.bias.description.capitalized)
+                            .font(.title3.bold())
+                            .foregroundStyle(label.bias == .centered ? .green : .orange)
+                        Text("Position")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.top, 8)
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func tightnessColor(_ tightness: GroupTightness) -> Color {
+        switch tightness {
+        case .tight: return .green
+        case .moderate: return .blue
+        case .wide: return .orange
+        }
     }
 
     // MARK: - Display Mode Toggle
@@ -336,57 +381,60 @@ struct ShootingHistoryAggregateView: View {
 
     private var insightsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Section header
             HStack {
                 Text("Practice Insights")
                     .font(.headline)
                 Spacer()
-                Image(systemName: "lightbulb.fill")
-                    .foregroundStyle(.yellow)
+                ConfidenceBadge(confidence: metrics.confidence)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                // Cluster description
-                Label {
-                    Text(insights.clusterDescription)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: "target")
-                        .foregroundStyle(.blue)
-                }
+            // 1. Observation (what the pattern shows)
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Observation", systemImage: "eye")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
 
-                // Trend description
+                Text(insights.clusterDescription)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+
+                // Include trend if available
                 if !insights.trendDescription.isEmpty {
-                    Label {
-                        Text(insights.trendDescription)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                    } icon: {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(.green)
-                    }
+                    Text(insights.trendDescription)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
 
-                // Outlier description
+                // Include outlier info if available
                 if let outlierDesc = insights.outlierDescription {
-                    Label {
-                        Text(outlierDesc)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                    } icon: {
-                        Image(systemName: "exclamationmark.circle")
-                            .foregroundStyle(.orange)
-                    }
+                    Text(outlierDesc)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            // Suggested drills
-            if !insights.suggestedDrills.isEmpty {
-                Divider()
+            Divider()
 
+            // 2. Practice Focus (what to work on)
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Practice Focus", systemImage: "target")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                Text(insights.practiceFocusText)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            // 3. Suggested Drills
+            if !insights.suggestedDrills.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Suggested Drills")
+                    Label("Try These Drills", systemImage: "list.bullet.clipboard")
                         .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
 
                     ForEach(insights.suggestedDrills, id: \.self) { drill in
                         HStack(spacing: 8) {

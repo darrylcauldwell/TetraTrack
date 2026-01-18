@@ -183,6 +183,98 @@ extension IntelligenceService {
     }
 }
 
+// MARK: - Multi-Discipline Training Analysis
+
+@available(iOS 26.0, *)
+extension IntelligenceService {
+    /// Analyze running training sessions
+    func analyzeRunningTraining(sessions: [RunningSession]) async throws -> RunningTrainingInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildRunningAnalysisPrompt(sessions)
+        let response = try await session.respond(to: prompt, generating: RunningTrainingInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze swimming training sessions
+    func analyzeSwimmingTraining(sessions: [SwimmingSession]) async throws -> SwimmingTrainingInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildSwimmingAnalysisPrompt(sessions)
+        let response = try await session.respond(to: prompt, generating: SwimmingTrainingInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze shooting training sessions
+    func analyzeShootingTraining(sessions: [ShootingSession]) async throws -> ShootingTrainingInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildShootingTrainingPrompt(sessions)
+        let response = try await session.respond(to: prompt, generating: ShootingTrainingInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze drill sessions for biomechanics and skill development
+    func analyzeDrillSessions(sessions: [UnifiedDrillSession]) async throws -> DrillTrainingInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildDrillAnalysisPrompt(sessions)
+        let response = try await session.respond(to: prompt, generating: DrillTrainingInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Comprehensive multi-discipline tetrathlon training analysis
+    func analyzeMultiDisciplineTraining(
+        rides: [Ride],
+        runningSessions: [RunningSession],
+        swimmingSessions: [SwimmingSession],
+        shootingSessions: [ShootingSession],
+        drillSessions: [UnifiedDrillSession]
+    ) async throws -> MultiDisciplineInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildMultiDisciplinePrompt(
+            rides: rides,
+            running: runningSessions,
+            swimming: swimmingSessions,
+            shooting: shootingSessions,
+            drills: drillSessions
+        )
+        let response = try await session.respond(to: prompt, generating: MultiDisciplineInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+}
+
 // MARK: - Competition Insights (Apple Intelligence)
 
 @available(iOS 26.0, *)
@@ -434,6 +526,182 @@ private extension IntelligenceService {
         5. Provides 2-3 specific drills or focus points for improvement
 
         Use shooting terminology appropriate for tetrathlon pistol shooting. Be encouraging but honest.
+        """
+    }
+
+    // MARK: - Multi-Discipline Prompt Builders
+
+    func buildRunningAnalysisPrompt(_ sessions: [RunningSession]) -> String {
+        let recentSessions = sessions.prefix(10)
+        let totalDistance = recentSessions.reduce(0) { $0 + $1.totalDistance }
+        let totalDuration = recentSessions.reduce(0) { $0 + $1.totalDuration }
+        let avgPace = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averagePace } / Double(recentSessions.count)
+        let avgCadence = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averageCadence } / recentSessions.count
+
+        let sessionTypes = Dictionary(grouping: recentSessions, by: { $0.sessionType })
+            .mapValues { $0.count }
+            .map { "\($0.key.rawValue): \($0.value)" }
+            .joined(separator: ", ")
+
+        return """
+        Analyze these recent running training sessions for a tetrathlon athlete:
+
+        Total sessions: \(recentSessions.count)
+        Total distance: \(String(format: "%.1f", totalDistance / 1000)) km
+        Total running time: \(totalDuration.formattedDuration)
+        Average pace: \(avgPace.formattedPace) /km
+        Average cadence: \(avgCadence) spm
+
+        Session types: \(sessionTypes.isEmpty ? "None" : sessionTypes)
+
+        For tetrathlon, the running discipline is typically 1500m or cross-country.
+        Provide insights about:
+        1. Training consistency and volume
+        2. Pace development and efficiency
+        3. Cadence optimization (ideal: 170-180 spm)
+        4. Recommendations for tetrathlon race day
+        """
+    }
+
+    func buildSwimmingAnalysisPrompt(_ sessions: [SwimmingSession]) -> String {
+        let recentSessions = sessions.prefix(10)
+        let totalDistance = recentSessions.reduce(0) { $0 + $1.totalDistance }
+        let totalDuration = recentSessions.reduce(0) { $0 + $1.totalDuration }
+        let avgPace = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averagePace } / Double(recentSessions.count)
+        let avgSwolf = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averageSwolf } / Double(recentSessions.count)
+
+        let strokes = Dictionary(grouping: recentSessions, by: { $0.dominantStroke })
+            .mapValues { $0.count }
+            .map { "\($0.key.rawValue): \($0.value)" }
+            .joined(separator: ", ")
+
+        return """
+        Analyze these recent swimming training sessions for a tetrathlon athlete:
+
+        Total sessions: \(recentSessions.count)
+        Total distance: \(String(format: "%.0f", totalDistance)) meters
+        Total swim time: \(totalDuration.formattedDuration)
+        Average pace: \(avgPace.formattedSwimPace) /100m
+        Average SWOLF: \(String(format: "%.1f", avgSwolf))
+
+        Dominant strokes: \(strokes.isEmpty ? "None" : strokes)
+
+        For tetrathlon, swimming is typically 100-200m freestyle.
+        Provide insights about:
+        1. Stroke efficiency (SWOLF improvement)
+        2. Pace consistency
+        3. Technique observations from SWOLF data
+        4. Sprint vs endurance balance for tetrathlon swimming
+        """
+    }
+
+    func buildShootingTrainingPrompt(_ sessions: [ShootingSession]) -> String {
+        let recentSessions = sessions.prefix(10)
+        let avgScore = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.scorePercentage } / Double(recentSessions.count)
+        let avgPerArrow = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averageScorePerArrow } / Double(recentSessions.count)
+        let totalXCount = recentSessions.reduce(0) { $0 + $1.xCount }
+
+        return """
+        Analyze these recent shooting training sessions for a tetrathlon athlete:
+
+        Total sessions: \(recentSessions.count)
+        Average score: \(String(format: "%.1f", avgScore))%
+        Average per arrow: \(String(format: "%.2f", avgPerArrow))
+        Total X-ring hits: \(totalXCount)
+
+        For tetrathlon, shooting uses air pistols at 10m with time pressure.
+        Provide insights about:
+        1. Accuracy consistency across sessions
+        2. Mental focus indicators (X-ring concentration)
+        3. Score progression trends
+        4. Recommendations for competition shooting under pressure
+        """
+    }
+
+    func buildDrillAnalysisPrompt(_ sessions: [UnifiedDrillSession]) -> String {
+        let recentSessions = sessions.prefix(20)
+
+        // Group by category/movement type
+        let byCategory = Dictionary(grouping: recentSessions, by: { $0.drillType.primaryCategory.displayName })
+        let categoryStats = byCategory.map { category, sessions in
+            let avgScore = sessions.reduce(0) { $0 + $1.score } / Double(sessions.count)
+            return "\(category): \(sessions.count) sessions, avg \(String(format: "%.0f", avgScore))%"
+        }.joined(separator: "\n")
+
+        // Overall stats
+        let avgScore = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.score } / Double(recentSessions.count)
+        let avgCoordination = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.coordinationScore } / Double(recentSessions.count)
+
+        return """
+        Analyze these biomechanics and skill drill sessions for a tetrathlon athlete:
+
+        Total drill sessions: \(recentSessions.count)
+        Average score: \(String(format: "%.0f", avgScore))%
+        Average coordination: \(String(format: "%.0f", avgCoordination))%
+
+        Breakdown by movement category:
+        \(categoryStats.isEmpty ? "No data" : categoryStats)
+
+        These drills develop foundational movement skills that transfer across all four tetrathlon disciplines.
+        Provide insights about:
+        1. Stability and balance development
+        2. Coordination and rhythm patterns
+        3. Cross-discipline skill transfer
+        4. Areas needing focused drill work
+        """
+    }
+
+    func buildMultiDisciplinePrompt(
+        rides: [Ride],
+        running: [RunningSession],
+        swimming: [SwimmingSession],
+        shooting: [ShootingSession],
+        drills: [UnifiedDrillSession]
+    ) -> String {
+        // Calculate discipline-specific stats
+        let rideStats = rides.isEmpty ? "No data" :
+            "\(rides.count) rides, \(String(format: "%.1f", rides.reduce(0) { $0 + $1.totalDistance } / 1000)) km total"
+
+        let runStats = running.isEmpty ? "No data" :
+            "\(running.count) runs, avg pace \((running.reduce(0) { $0 + $1.averagePace } / Double(running.count)).formattedPace) /km"
+
+        let swimStats = swimming.isEmpty ? "No data" :
+            "\(swimming.count) swims, avg SWOLF \(String(format: "%.1f", swimming.reduce(0) { $0 + $1.averageSwolf } / Double(swimming.count)))"
+
+        let shootStats = shooting.isEmpty ? "No data" :
+            "\(shooting.count) sessions, avg \(String(format: "%.1f", shooting.reduce(0) { $0 + $1.scorePercentage } / Double(shooting.count)))%"
+
+        let drillStats = drills.isEmpty ? "No data" :
+            "\(drills.count) drills, avg score \(String(format: "%.0f", drills.reduce(0) { $0 + $1.score } / Double(drills.count)))%"
+
+        // Identify training balance
+        let totalSessions = rides.count + running.count + swimming.count + shooting.count
+        let ridePercent = totalSessions > 0 ? Double(rides.count) / Double(totalSessions) * 100 : 0
+        let runPercent = totalSessions > 0 ? Double(running.count) / Double(totalSessions) * 100 : 0
+        let swimPercent = totalSessions > 0 ? Double(swimming.count) / Double(totalSessions) * 100 : 0
+        let shootPercent = totalSessions > 0 ? Double(shooting.count) / Double(totalSessions) * 100 : 0
+
+        return """
+        Provide a comprehensive tetrathlon training analysis:
+
+        DISCIPLINE BREAKDOWN:
+        - Riding: \(rideStats) (\(String(format: "%.0f", ridePercent))% of training)
+        - Running: \(runStats) (\(String(format: "%.0f", runPercent))% of training)
+        - Swimming: \(swimStats) (\(String(format: "%.0f", swimPercent))% of training)
+        - Shooting: \(shootStats) (\(String(format: "%.0f", shootPercent))% of training)
+
+        SKILL DRILLS: \(drillStats)
+
+        Total training sessions: \(totalSessions)
+
+        Analyze:
+        1. Overall training balance across disciplines
+        2. Strongest and weakest disciplines based on data
+        3. Cross-training opportunities (how skills transfer between disciplines)
+        4. Specific recommendations for tetrathlon competition readiness
+        5. One key insight about the athlete's training pattern
+
+        Be encouraging but honest. Focus on actionable advice.
         """
     }
 
@@ -751,6 +1019,130 @@ struct ShootingCoachingInsights: Codable, Sendable {
     let confidenceLevel: Int
 }
 
+// MARK: - Multi-Discipline Training Insight Types
+
+@available(iOS 26.0, *)
+@Generable
+struct RunningTrainingInsights: Codable, Sendable {
+    /// Overall running trend (improving, maintaining, declining)
+    let trend: String
+
+    /// Summary of running performance
+    let summary: String
+
+    /// Pace assessment and recommendations
+    let paceAnalysis: String
+
+    /// Cadence optimization feedback
+    let cadenceFeedback: String
+
+    /// Tetrathlon-specific running tips
+    let tetrathlonTips: [String]
+
+    /// Encouraging message
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct SwimmingTrainingInsights: Codable, Sendable {
+    /// Overall swimming trend (improving, maintaining, declining)
+    let trend: String
+
+    /// Summary of swimming performance
+    let summary: String
+
+    /// SWOLF/efficiency analysis
+    let efficiencyAnalysis: String
+
+    /// Stroke technique observations
+    let techniqueObservations: String
+
+    /// Tetrathlon-specific swimming tips
+    let tetrathlonTips: [String]
+
+    /// Encouraging message
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct ShootingTrainingInsights: Codable, Sendable {
+    /// Overall shooting trend (improving, maintaining, declining)
+    let trend: String
+
+    /// Summary of shooting performance
+    let summary: String
+
+    /// Accuracy and consistency analysis
+    let accuracyAnalysis: String
+
+    /// Mental focus observations
+    let mentalFocusObservations: String
+
+    /// Tetrathlon-specific shooting tips
+    let tetrathlonTips: [String]
+
+    /// Encouraging message
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct DrillTrainingInsights: Codable, Sendable {
+    /// Overall biomechanics trend
+    let trend: String
+
+    /// Summary of drill performance
+    let summary: String
+
+    /// Stability and balance assessment
+    let stabilityAssessment: String
+
+    /// Coordination and rhythm analysis
+    let coordinationAnalysis: String
+
+    /// Cross-discipline transfer benefits
+    let crossDisciplineBenefits: [String]
+
+    /// Areas needing focused work
+    let focusAreas: [String]
+
+    /// Encouraging message
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct MultiDisciplineInsights: Codable, Sendable {
+    /// Overall tetrathlon readiness trend
+    let trend: String
+
+    /// Comprehensive training summary
+    let summary: String
+
+    /// Strongest discipline identified
+    let strongestDiscipline: String
+
+    /// Discipline needing most work
+    let weakestDiscipline: String
+
+    /// Training balance assessment
+    let balanceAssessment: String
+
+    /// Cross-training opportunities
+    let crossTrainingOpportunities: [String]
+
+    /// Specific recommendations
+    let recommendations: [String]
+
+    /// Key insight about training pattern
+    let keyInsight: String
+
+    /// Encouraging message
+    let encouragement: String
+}
+
 // MARK: - Competition Insight Types (Apple Intelligence)
 
 @available(iOS 26.0, *)
@@ -887,6 +1279,56 @@ struct ShootingCoachingInsights: Codable, Sendable {
     let recommendedDrills: [String]
     let encouragement: String
     let confidenceLevel: Int
+}
+
+// Multi-discipline insight fallback types
+struct RunningTrainingInsights: Codable, Sendable {
+    let trend: String
+    let summary: String
+    let paceAnalysis: String
+    let cadenceFeedback: String
+    let tetrathlonTips: [String]
+    let encouragement: String
+}
+
+struct SwimmingTrainingInsights: Codable, Sendable {
+    let trend: String
+    let summary: String
+    let efficiencyAnalysis: String
+    let techniqueObservations: String
+    let tetrathlonTips: [String]
+    let encouragement: String
+}
+
+struct ShootingTrainingInsights: Codable, Sendable {
+    let trend: String
+    let summary: String
+    let accuracyAnalysis: String
+    let mentalFocusObservations: String
+    let tetrathlonTips: [String]
+    let encouragement: String
+}
+
+struct DrillTrainingInsights: Codable, Sendable {
+    let trend: String
+    let summary: String
+    let stabilityAssessment: String
+    let coordinationAnalysis: String
+    let crossDisciplineBenefits: [String]
+    let focusAreas: [String]
+    let encouragement: String
+}
+
+struct MultiDisciplineInsights: Codable, Sendable {
+    let trend: String
+    let summary: String
+    let strongestDiscipline: String
+    let weakestDiscipline: String
+    let balanceAssessment: String
+    let crossTrainingOpportunities: [String]
+    let recommendations: [String]
+    let keyInsight: String
+    let encouragement: String
 }
 
 // Competition insight fallback types

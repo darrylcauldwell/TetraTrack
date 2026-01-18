@@ -267,11 +267,11 @@ struct HoleDetectionConfiguration {
     var enableOverlapDetection: Bool = true
     var enableDiagnostics: Bool = true
 
-    static var `default`: HoleDetectionConfiguration {
+    nonisolated static var `default`: HoleDetectionConfiguration {
         HoleDetectionConfiguration()
     }
 
-    static var highRecall: HoleDetectionConfiguration {
+    nonisolated static var highRecall: HoleDetectionConfiguration {
         var config = HoleDetectionConfiguration()
         config.signalAContrastThreshold = 8
         config.signalBContrastThreshold = 6
@@ -279,7 +279,7 @@ struct HoleDetectionConfiguration {
         return config
     }
 
-    static var highPrecision: HoleDetectionConfiguration {
+    nonisolated static var highPrecision: HoleDetectionConfiguration {
         var config = HoleDetectionConfiguration()
         config.signalAContrastThreshold = 15
         config.signalBContrastThreshold = 12

@@ -267,18 +267,16 @@ struct AIInsightsView: View {
         isLoading = true
         errorMessage = nil
 
-        Task {
+        Task { @MainActor in
             do {
                 if #available(iOS 26.0, *) {
                     let service = IntelligenceService.shared
 
                     guard service.isAvailable else {
                         // Fallback to sample insights when AI unavailable
-                        await MainActor.run {
-                            self.insights = generateSampleInsights()
-                            self.recommendations = generateSampleRecommendations()
-                            self.isLoading = false
-                        }
+                        self.insights = generateSampleInsights()
+                        self.recommendations = generateSampleRecommendations()
+                        self.isLoading = false
                         return
                     }
 
@@ -287,26 +285,20 @@ struct AIInsightsView: View {
 
                     let (fetchedInsights, fetchedRecs) = try await (insightsTask, recsTask)
 
-                    await MainActor.run {
-                        self.insights = fetchedInsights
-                        self.recommendations = fetchedRecs
-                        self.isLoading = false
-                    }
+                    self.insights = fetchedInsights
+                    self.recommendations = fetchedRecs
+                    self.isLoading = false
                 } else {
                     // Fallback for iOS versions before 26
-                    await MainActor.run {
-                        self.insights = generateSampleInsights()
-                        self.recommendations = generateSampleRecommendations()
-                        self.isLoading = false
-                    }
-                }
-            } catch {
-                // Fallback on error - show sample data rather than error
-                await MainActor.run {
                     self.insights = generateSampleInsights()
                     self.recommendations = generateSampleRecommendations()
                     self.isLoading = false
                 }
+            } catch {
+                // Fallback on error - show sample data rather than error
+                self.insights = generateSampleInsights()
+                self.recommendations = generateSampleRecommendations()
+                self.isLoading = false
             }
         }
     }

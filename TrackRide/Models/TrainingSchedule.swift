@@ -114,13 +114,221 @@ final class TrainingStreak {
 
 // MARK: - Scheduled Workout
 
-/// Placeholder model for scheduled workouts (reserved for future use)
+/// A scheduled training drill with recommendations
 @Model
 final class ScheduledWorkout {
     var id: UUID = UUID()
     var name: String = ""
     var scheduledDate: Date = Date()
     var isCompleted: Bool = false
+    var completedDate: Date?
+
+    /// Drill type to perform (stored as raw string for SwiftData)
+    var drillTypeRaw: String = UnifiedDrillType.coreStability.rawValue
+
+    /// Recommended intensity level (1-5)
+    var recommendedIntensity: Int = 3
+
+    /// Recommended duration in seconds
+    var recommendedDuration: TimeInterval = 30
+
+    /// AI-generated rationale for why this drill was scheduled
+    var rationale: String = ""
+
+    /// Priority level (1 = highest, 3 = lowest)
+    var priority: Int = 2
+
+    /// The skill domain this workout targets
+    var targetDomainRaw: String = SkillDomain.stability.rawValue
+
+    /// Order index for drag-and-drop within a day (lower = earlier)
+    var orderIndex: Int = 0
+
+    /// Whether this workout was manually added by user (vs auto-generated)
+    var isManuallyAdded: Bool = false
+
+    /// Whether this workout was skipped by the user
+    var isSkipped: Bool = false
 
     init() {}
+
+    /// Full initializer
+    init(
+        drillType: UnifiedDrillType,
+        scheduledDate: Date,
+        intensity: Int = 3,
+        duration: TimeInterval = 30,
+        rationale: String = "",
+        priority: Int = 2,
+        targetDomain: SkillDomain = .stability,
+        orderIndex: Int = 0,
+        isManuallyAdded: Bool = false
+    ) {
+        self.name = drillType.displayName
+        self.drillTypeRaw = drillType.rawValue
+        self.scheduledDate = scheduledDate
+        self.recommendedIntensity = intensity
+        self.recommendedDuration = duration
+        self.rationale = rationale
+        self.priority = priority
+        self.targetDomainRaw = targetDomain.rawValue
+        self.orderIndex = orderIndex
+        self.isManuallyAdded = isManuallyAdded
+    }
+
+    // MARK: - Computed Properties
+
+    var drillType: UnifiedDrillType {
+        get { UnifiedDrillType(rawValue: drillTypeRaw) ?? .coreStability }
+        set { drillTypeRaw = newValue.rawValue }
+    }
+
+    var targetDomain: SkillDomain {
+        get { SkillDomain(rawValue: targetDomainRaw) ?? .stability }
+        set { targetDomainRaw = newValue.rawValue }
+    }
+
+    var intensityDescription: String {
+        switch recommendedIntensity {
+        case 1: return "Recovery"
+        case 2: return "Light"
+        case 3: return "Moderate"
+        case 4: return "Hard"
+        case 5: return "Intense"
+        default: return "Moderate"
+        }
+    }
+
+    var formattedDuration: String {
+        let minutes = Int(recommendedDuration) / 60
+        let seconds = Int(recommendedDuration) % 60
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        }
+        return "\(seconds)s"
+    }
+
+    var isToday: Bool {
+        Calendar.current.isDateInToday(scheduledDate)
+    }
+
+    var isOverdue: Bool {
+        !isCompleted && scheduledDate < Calendar.current.startOfDay(for: Date())
+    }
+
+    var isPending: Bool {
+        !isCompleted && !isOverdue
+    }
+
+    /// Mark workout as completed
+    func markCompleted() {
+        isCompleted = true
+        completedDate = Date()
+    }
+
+    /// Mark workout as skipped
+    func markSkipped() {
+        isSkipped = true
+    }
+
+    /// Move workout to a new date
+    func moveToDate(_ newDate: Date) {
+        scheduledDate = newDate
+    }
 }
+
+// MARK: - Training Week Focus
+
+/// Tracks the weekly focus area and rationale for training plans
+@Model
+final class TrainingWeekFocus {
+    var id: UUID = UUID()
+
+    /// Start date of the week (always a Monday)
+    var weekStartDate: Date = Date()
+
+    /// Primary focus domain for this week
+    var focusDomainRaw: String = SkillDomain.stability.rawValue
+
+    /// Secondary focus domain (optional)
+    var secondaryFocusDomainRaw: String?
+
+    /// Explanation of why this focus was selected
+    var focusRationale: String = ""
+
+    /// Key coaching insight driving this focus
+    var coachingInsight: String = ""
+
+    /// Target improvement areas (stored as comma-separated skill domain raw values)
+    var targetAreasRaw: String = ""
+
+    /// Whether this focus was set manually vs auto-generated
+    var isManuallySet: Bool = false
+
+    init() {}
+
+    init(
+        weekStartDate: Date,
+        focusDomain: SkillDomain,
+        secondaryFocusDomain: SkillDomain? = nil,
+        focusRationale: String,
+        coachingInsight: String = "",
+        targetAreas: [SkillDomain] = [],
+        isManuallySet: Bool = false
+    ) {
+        self.weekStartDate = weekStartDate
+        self.focusDomainRaw = focusDomain.rawValue
+        self.secondaryFocusDomainRaw = secondaryFocusDomain?.rawValue
+        self.focusRationale = focusRationale
+        self.coachingInsight = coachingInsight
+        self.targetAreasRaw = targetAreas.map { $0.rawValue }.joined(separator: ",")
+        self.isManuallySet = isManuallySet
+    }
+
+    // MARK: - Computed Properties
+
+    var focusDomain: SkillDomain {
+        get { SkillDomain(rawValue: focusDomainRaw) ?? .stability }
+        set { focusDomainRaw = newValue.rawValue }
+    }
+
+    var secondaryFocusDomain: SkillDomain? {
+        get {
+            guard let raw = secondaryFocusDomainRaw else { return nil }
+            return SkillDomain(rawValue: raw)
+        }
+        set { secondaryFocusDomainRaw = newValue?.rawValue }
+    }
+
+    var targetAreas: [SkillDomain] {
+        get {
+            guard !targetAreasRaw.isEmpty else { return [] }
+            return targetAreasRaw.split(separator: ",").compactMap {
+                SkillDomain(rawValue: String($0))
+            }
+        }
+        set {
+            targetAreasRaw = newValue.map { $0.rawValue }.joined(separator: ",")
+        }
+    }
+
+    /// Week end date (Sunday of the same week)
+    var weekEndDate: Date {
+        Calendar.current.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
+    }
+
+    /// Check if a date falls within this week
+    func contains(date: Date) -> Bool {
+        date >= weekStartDate && date <= weekEndDate
+    }
+
+    /// Formatted week range string
+    var weekRangeDescription: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        let startStr = formatter.string(from: weekStartDate)
+        let endStr = formatter.string(from: weekEndDate)
+        return "\(startStr) - \(endStr)"
+    }
+}
+

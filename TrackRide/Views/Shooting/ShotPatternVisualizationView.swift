@@ -569,7 +569,7 @@ struct ShotPatternVisualizationView: View {
                 .font(.caption)
             }
             .toggleStyle(.button)
-            .buttonStyle(.bordered)
+            .tint(.blue)
 
             Toggle(isOn: $showGroupRadius) {
                 HStack(spacing: 4) {
@@ -579,7 +579,7 @@ struct ShotPatternVisualizationView: View {
                 .font(.caption)
             }
             .toggleStyle(.button)
-            .buttonStyle(.bordered)
+            .tint(.purple)
 
             Spacer()
 

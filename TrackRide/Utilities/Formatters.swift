@@ -273,8 +273,8 @@ enum Formatters {
         return formatter
     }()
 
-    /// Cached ISO8601 formatter for GPX/data export
-    static let iso8601Formatter: ISO8601DateFormatter = {
+    /// Cached ISO8601 formatter for GPX/data export (nonisolated for actor compatibility)
+    nonisolated(unsafe) static let iso8601Formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
@@ -325,17 +325,17 @@ enum Formatters {
     }
 
     /// Format date for file names (yyyy-MM-dd)
-    static func fileNameDate(_ date: Date) -> String {
+    nonisolated static func fileNameDate(_ date: Date) -> String {
         fileNameDateFormatter.string(from: date)
     }
 
     /// Format date+time for file names (yyyy-MM-dd_HHmm)
-    static func fileNameDateTime(_ date: Date) -> String {
+    nonisolated static func fileNameDateTime(_ date: Date) -> String {
         fileNameDateTimeFormatter.string(from: date)
     }
 
     /// Format as ISO8601 for data export
-    static func iso8601(_ date: Date) -> String {
+    nonisolated static func iso8601(_ date: Date) -> String {
         iso8601Formatter.string(from: date)
     }
 }

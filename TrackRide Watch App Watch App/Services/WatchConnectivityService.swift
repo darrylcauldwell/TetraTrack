@@ -354,6 +354,8 @@ final class WatchConnectivityService: NSObject {
         case riding
         case swimming
         case running
+        case shooting
+        case training
     }
 
     var activeDiscipline: ActiveDiscipline {
@@ -363,11 +365,17 @@ final class WatchConnectivityService: NSObject {
         let type = (rideType ?? "").lowercased()
         let gaitLower = gait.lowercased()
 
-        if gaitLower == "swimming" || type.contains("swim") || type.contains("3-min") || type == "training" {
+        if gaitLower == "swimming" || type.contains("swim") || type.contains("3-min") {
             return .swimming
         }
         if gaitLower == "running" || type.contains("run") || type.contains("interval") || type.contains("tempo") || type.contains("easy") || type.contains("time trial") {
             return .running
+        }
+        if gaitLower == "shooting" || type.contains("shoot") || type.contains("competition") || type.contains("practice") {
+            return .shooting
+        }
+        if type == "training" || type.contains("drill") {
+            return .training
         }
 
         // Default to riding for hacking, flatwork, cross-country, etc.
@@ -380,6 +388,10 @@ final class WatchConnectivityService: NSObject {
 
     var isRunning: Bool {
         activeDiscipline == .running
+    }
+
+    var isShooting: Bool {
+        activeDiscipline == .shooting
     }
 }
 

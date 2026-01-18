@@ -81,10 +81,11 @@ struct AggregatedShootingMetrics {
 
 /// Generated insights from shooting history analysis
 struct ShootingInsights {
-    let clusterDescription: String      // Description of shot cluster quality
+    let clusterDescription: String      // Description of shot cluster quality (Observation)
     let trendDescription: String        // Trend over time
     let outlierDescription: String?     // Outlier explanation if relevant
     let biasDescription: String?        // Bias direction explanation
+    let practiceFocusText: String       // What to focus on in practice
     let suggestedDrills: [String]       // Recommended drills
 
     /// Combined insight text for display
@@ -97,6 +98,23 @@ struct ShootingInsights {
             parts.append(bias)
         }
         return parts.joined(separator: " ")
+    }
+
+    /// Backward-compatible initializer
+    init(
+        clusterDescription: String,
+        trendDescription: String,
+        outlierDescription: String?,
+        biasDescription: String?,
+        suggestedDrills: [String],
+        practiceFocusText: String = ""
+    ) {
+        self.clusterDescription = clusterDescription
+        self.trendDescription = trendDescription
+        self.outlierDescription = outlierDescription
+        self.biasDescription = biasDescription
+        self.practiceFocusText = practiceFocusText
+        self.suggestedDrills = suggestedDrills
     }
 }
 
@@ -245,12 +263,16 @@ final class ShootingHistoryService {
             // Ring-aware drill suggestions
             let suggestedDrills = ringInsights.trainingHints
 
+            // Generate practice focus
+            let practiceFocus = ringInsights.groupingDescription
+
             return ShootingInsights(
                 clusterDescription: clusterDescription,
                 trendDescription: trendDescription,
                 outlierDescription: outlierDescription,
                 biasDescription: biasDescription,
-                suggestedDrills: suggestedDrills
+                suggestedDrills: suggestedDrills,
+                practiceFocusText: practiceFocus
             )
         }
 
@@ -260,13 +282,15 @@ final class ShootingHistoryService {
         let outlierDescription = generateOutlierDescription(metrics: metrics)
         let biasDescription = generateBiasDescription(metrics: metrics)
         let suggestedDrills = generateDrillSuggestions(metrics: metrics)
+        let practiceFocus = generatePracticeFocus(metrics: metrics)
 
         return ShootingInsights(
             clusterDescription: clusterDescription,
             trendDescription: trendDescription,
             outlierDescription: outlierDescription,
             biasDescription: biasDescription,
-            suggestedDrills: suggestedDrills
+            suggestedDrills: suggestedDrills,
+            practiceFocusText: practiceFocus
         )
     }
 
@@ -323,6 +347,59 @@ final class ShootingHistoryService {
             groupRadiusCurrent: nil,
             groupRadiusAggregate: metrics.groupRadius
         )
+    }
+
+    // MARK: - Pattern Label Computation
+
+    /// Compute a pattern label from aggregate metrics
+    func computePatternLabel(metrics: AggregatedShootingMetrics) -> PatternLabel {
+        let tightness = classifyTightness(metrics.groupRadius)
+        let biasSeverity = classifyBiasSeverity(metrics.offset)
+        let biasDirection = determineBiasDirectionEnum(mpi: metrics.averageImpactPoint, offset: metrics.offset)
+
+        return PatternLabel(
+            tightness: tightness,
+            bias: biasDirection,
+            biasSeverity: biasSeverity
+        )
+    }
+
+    private func classifyBiasSeverity(_ offset: Double) -> BiasSeverity {
+        if offset <= ShotPatternAnalyzer.Thresholds.centeredOffset {
+            return .centered
+        } else if offset <= ShotPatternAnalyzer.Thresholds.slightOffset {
+            return .slight
+        } else {
+            return .significant
+        }
+    }
+
+    private func determineBiasDirectionEnum(mpi: CGPoint, offset: Double) -> BiasDirection {
+        let threshold = ShotPatternAnalyzer.Thresholds.directionDeadZone
+
+        guard offset >= threshold else { return .centered }
+
+        let absX = abs(mpi.x)
+        let absY = abs(mpi.y)
+
+        let hasHorizontalBias = absX > threshold
+        let hasVerticalBias = absY > threshold
+
+        let isLeft = mpi.x < 0
+        let isHigh = mpi.y < 0
+
+        if hasHorizontalBias && hasVerticalBias {
+            if isHigh && isLeft { return .highLeft }
+            if isHigh && !isLeft { return .highRight }
+            if !isHigh && isLeft { return .lowLeft }
+            return .lowRight
+        } else if hasHorizontalBias {
+            return isLeft ? .left : .right
+        } else if hasVerticalBias {
+            return isHigh ? .high : .low
+        }
+
+        return .centered
     }
 
     // MARK: - Private Helpers
@@ -386,6 +463,34 @@ final class ShootingHistoryService {
             return "Your average impact point is \(direction) of center."
         } else {
             return "Shots tend toward the \(direction) side of the target."
+        }
+    }
+
+    private func generatePracticeFocus(metrics: AggregatedShootingMetrics) -> String {
+        let tightness = classifyTightness(metrics.groupRadius)
+        let biasSeverity = classifyBiasSeverity(metrics.offset)
+
+        switch (tightness, biasSeverity) {
+        case (.tight, .centered):
+            return "You're showing excellent consistency! Many athletes at this level focus on maintaining their routine and staying relaxed."
+
+        case (.tight, .slight):
+            return "Your grouping is great! With a tight cluster like this, small adjustments to your natural point of aim often help center the group."
+
+        case (.tight, .significant):
+            return "Excellent grouping consistency! Your shots are landing together, which is the first goal. Athletes often explore their natural point of aim to shift the group."
+
+        case (.moderate, .centered):
+            return "You're building good habits with your shots balanced around center. Developing a consistent shot routine often helps tighten groups."
+
+        case (.moderate, .slight), (.moderate, .significant):
+            return "Building consistency is the focus at this stage. Many athletes benefit from slowing down and focusing on one element at a time."
+
+        case (.wide, .centered):
+            return "Your shots are balanced around center, which is a good foundation. Working on stability and developing a repeatable routine often helps tighten groups."
+
+        case (.wide, _):
+            return "Developing a steady, repeatable routine is often helpful. Many athletes focus on stability and taking their time between shots."
         }
     }
 

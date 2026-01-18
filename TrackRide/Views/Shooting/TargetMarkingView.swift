@@ -12,21 +12,24 @@ import PhotosUI
 
 // MARK: - Interaction Mode (Simplified)
 
+/// Interaction mode for target marking.
+///
+/// **Auto-Center Design**: The `.center` mode has been removed. With perspective-corrected crops,
+/// the target center is automatically calculated as the geometric center of the crop image.
+/// This eliminates the need for manual center placement, simplifying the athlete workflow
+/// and reducing potential errors.
 enum MarkingMode: String, CaseIterable {
-    case holes = "Holes"
-    case center = "Center"
+    case holes = "Mark Holes"
 
     var icon: String {
         switch self {
         case .holes: return "circle"
-        case .center: return "plus.circle"
         }
     }
 
     var hint: String {
         switch self {
         case .holes: return "Tap to add, tap hole to select, long-press to drag"
-        case .center: return "Tap to set target center"
         }
     }
 }
@@ -80,15 +83,24 @@ struct MarkedHole: Identifiable, Equatable {
 
 // MARK: - Undo Action
 
+/// Actions that can be undone.
+/// Note: setCenter is deprecated since center is now auto-calculated.
 enum UndoAction {
     case addHole(UUID)
     case deleteHole(MarkedHole)
     case moveHole(UUID, from: ImagePoint)
+    /// Deprecated: Center is now auto-calculated. This case is kept for backward compatibility.
     case setCenter(ImagePoint?)
 }
 
 // MARK: - Target Marking View
 
+/// Target marking view with auto-center calculation.
+///
+/// **Auto-Center Design**: The target center is automatically calculated as the geometric
+/// center of the image (width/2, height/2). With perspective-corrected crops, this
+/// eliminates the need for manual center placement, simplifying the athlete workflow.
+/// Athletes only need to mark shot holes - the center is derived automatically.
 struct TargetMarkingView: View {
     let image: UIImage
     let onComplete: () -> Void
@@ -96,10 +108,9 @@ struct TargetMarkingView: View {
 
     // Marking state
     @State private var holes: [MarkedHole] = []
-    @State private var targetCenter: ImagePoint?
     @State private var selectedHoleID: UUID?
 
-    // Interaction mode
+    // Interaction mode - simplified to holes only (center is auto-calculated)
     @State private var mode: MarkingMode = .holes
 
     // Undo stack (single action)
@@ -127,18 +138,21 @@ struct TargetMarkingView: View {
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
     private let notificationFeedback = UINotificationFeedbackGenerator()
 
-    // Validation
+    /// Auto-calculated target center based on image dimensions.
+    /// With perspective-corrected crops, center is always at the geometric midpoint.
+    private var autoCalculatedCenter: ImagePoint {
+        ImagePoint(x: imageSize.width / 2, y: imageSize.height / 2)
+    }
+
+    // Validation - simplified: only need holes, center is auto-calculated
     private var canSubmit: Bool {
-        !holes.isEmpty && targetCenter != nil
+        !holes.isEmpty
     }
 
     private var validationMessages: [String] {
         var messages: [String] = []
         if holes.isEmpty {
             messages.append("Mark at least one hole")
-        }
-        if targetCenter == nil {
-            messages.append("Mark target center")
         }
         return messages
     }
@@ -176,20 +190,19 @@ struct TargetMarkingView: View {
             imageSize = image.size
         }
         .fullScreenCover(isPresented: $showingAnalysis) {
-            if let center = targetCenter {
-                TargetAnalysisResultView(
-                    image: image,
-                    holes: holes,
-                    center: center,
-                    onDone: {
-                        showingAnalysis = false
-                        onComplete()
-                    },
-                    onEdit: {
-                        showingAnalysis = false
-                    }
-                )
-            }
+            // Use auto-calculated center - no manual center input needed
+            TargetAnalysisResultView(
+                image: image,
+                holes: holes,
+                center: autoCalculatedCenter,  // Auto-calculated: imageWidth/2, imageHeight/2
+                onDone: {
+                    showingAnalysis = false
+                    onComplete()
+                },
+                onEdit: {
+                    showingAnalysis = false
+                }
+            )
         }
     }
 
@@ -223,35 +236,40 @@ struct TargetMarkingView: View {
         .padding(.vertical, 10)
     }
 
-    // MARK: - Mode Selector (Simplified)
+    // MARK: - Mode Header (Simplified - Single Mode)
 
+    /// Mode header showing current mode and auto-center indicator.
+    /// With auto-center, there's only one interaction mode (marking holes).
     private var modeSelector: some View {
-        HStack(spacing: 0) {
-            ForEach(MarkingMode.allCases, id: \.self) { modeOption in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        mode = modeOption
-                        if modeOption == .center {
-                            selectedHoleID = nil
-                        }
-                    }
-                    impactLight.impactOccurred()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: modeOption.icon)
-                            .font(.body.weight(.medium))
-                        Text(modeOption.rawValue)
-                            .font(.body.weight(.medium))
-                    }
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .background(mode == modeOption ? Color.blue : Color.clear)
-                    .foregroundStyle(mode == modeOption ? .white : .primary)
-                }
+        HStack(spacing: 12) {
+            // Current mode indicator
+            HStack(spacing: 6) {
+                Image(systemName: mode.icon)
+                    .font(.body.weight(.medium))
+                Text(mode.rawValue)
+                    .font(.body.weight(.medium))
             }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(Color.blue)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            Spacer()
+
+            // Auto-center indicator for user reassurance
+            HStack(spacing: 4) {
+                Image(systemName: "scope")
+                    .font(.caption)
+                Text("Center: Auto")
+                    .font(.caption)
+            }
+            .foregroundStyle(.green)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(Color.green.opacity(0.15))
+            .clipShape(Capsule())
         }
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Marking Canvas
@@ -285,12 +303,10 @@ struct TargetMarkingView: View {
                         .position(viewPos)
                     }
 
-                    // Center marker
-                    if let center = targetCenter {
-                        let viewPos = imageToViewLocal(center.cgPoint, imageFrame: imageFrame)
-                        CenterMarkerShape()
-                            .position(viewPos)
-                    }
+                    // Auto-calculated center marker (always visible for user reassurance)
+                    // Center is computed as imageWidth/2, imageHeight/2
+                    AutoCenterMarkerShape()
+                        .position(imageToViewLocal(autoCalculatedCenter.cgPoint, imageFrame: imageFrame))
                 }
                 .frame(width: imageFrame.width, height: imageFrame.height)
                 .scaleEffect(scale)
@@ -443,12 +459,13 @@ struct TargetMarkingView: View {
 
                 Spacer()
 
-                // Center status
+                // Auto-center status (always shows as ready)
                 HStack(spacing: 6) {
-                    Image(systemName: targetCenter != nil ? "checkmark.circle.fill" : "plus.circle")
-                        .foregroundStyle(targetCenter != nil ? Color.green : Color.secondary)
-                    Text(targetCenter != nil ? "Center marked" : "No center")
+                    Image(systemName: "scope")
+                        .foregroundStyle(Color.green)
+                    Text("Center: Auto")
                         .font(.subheadline)
+                        .foregroundStyle(.green)
                 }
 
                 Spacer()
@@ -466,8 +483,8 @@ struct TargetMarkingView: View {
                     }
                 }
 
-                // Clear all
-                if !holes.isEmpty || targetCenter != nil {
+                // Clear all holes
+                if !holes.isEmpty {
                     Button {
                         clearAll()
                     } label: {
@@ -627,29 +644,23 @@ struct TargetMarkingView: View {
 
     // MARK: - Gesture Handling
 
+    /// Handle tap gestures - only for hole marking (center is auto-calculated).
     private func handleTap(at location: CGPoint, canvasSize: CGSize, imageFrame: CGRect) {
-        switch mode {
-        case .holes:
-            // First check if tapping on existing hole (for selection)
-            if let tappedHole = findHoleNear(screenPoint: location, canvasSize: canvasSize, imageFrame: imageFrame) {
-                // Toggle selection
-                if selectedHoleID == tappedHole.id {
-                    selectedHoleID = nil
-                } else {
-                    selectedHoleID = tappedHole.id
-                }
-                impactLight.impactOccurred()
+        // Only holes mode is available - center is auto-calculated
+        // First check if tapping on existing hole (for selection)
+        if let tappedHole = findHoleNear(screenPoint: location, canvasSize: canvasSize, imageFrame: imageFrame) {
+            // Toggle selection
+            if selectedHoleID == tappedHole.id {
+                selectedHoleID = nil
             } else {
-                // Add new hole at tap location
-                if let imagePoint = screenToImage(location, canvasSize: canvasSize, imageFrame: imageFrame) {
-                    addHole(at: ImagePoint(imagePoint))
-                    selectedHoleID = nil
-                }
+                selectedHoleID = tappedHole.id
             }
-
-        case .center:
+            impactLight.impactOccurred()
+        } else {
+            // Add new hole at tap location
             if let imagePoint = screenToImage(location, canvasSize: canvasSize, imageFrame: imageFrame) {
-                setCenter(at: ImagePoint(imagePoint))
+                addHole(at: ImagePoint(imagePoint))
+                selectedHoleID = nil
             }
         }
     }
@@ -710,13 +721,7 @@ struct TargetMarkingView: View {
         impactMedium.impactOccurred()
     }
 
-    private func setCenter(at position: ImagePoint) {
-        let oldCenter = targetCenter
-        targetCenter = position
-        lastAction = .setCenter(oldCenter)
-        impactMedium.impactOccurred()
-        notificationFeedback.notificationOccurred(.success)
-    }
+    // Note: setCenter removed - center is now auto-calculated as (imageWidth/2, imageHeight/2)
 
     private func deleteHole(id: UUID) {
         guard let hole = holes.first(where: { $0.id == id }) else { return }
@@ -729,9 +734,9 @@ struct TargetMarkingView: View {
         impactMedium.impactOccurred()
     }
 
+    /// Clear all marked holes. Center is auto-calculated and cannot be cleared.
     private func clearAll() {
         holes.removeAll()
-        targetCenter = nil
         selectedHoleID = nil
         lastAction = nil
         notificationFeedback.notificationOccurred(.warning)
@@ -752,8 +757,9 @@ struct TargetMarkingView: View {
                 holes[index].position = from
             }
 
-        case .setCenter(let oldCenter):
-            targetCenter = oldCenter
+        case .setCenter:
+            // Deprecated: center is now auto-calculated. No undo needed.
+            break
         }
 
         lastAction = nil
@@ -804,8 +810,43 @@ struct TargetHoleMarker: View {
     }
 }
 
-// MARK: - Center Marker Shape
+// MARK: - Auto Center Marker Shape
 
+/// Subtle, non-interactive center marker for user reassurance.
+/// The center is auto-calculated as the geometric center of the perspective-corrected crop.
+/// This marker is visually distinct from hole markers and clearly indicates the computed center.
+struct AutoCenterMarkerShape: View {
+    var body: some View {
+        ZStack {
+            // Subtle crosshair - horizontal
+            Rectangle()
+                .fill(Color.green.opacity(0.6))
+                .frame(width: 20, height: 1)
+
+            // Subtle crosshair - vertical
+            Rectangle()
+                .fill(Color.green.opacity(0.6))
+                .frame(width: 1, height: 20)
+
+            // Small center dot
+            Circle()
+                .fill(Color.green.opacity(0.8))
+                .frame(width: 4, height: 4)
+
+            // Outer ring (subtle indicator)
+            Circle()
+                .stroke(Color.green.opacity(0.5), lineWidth: 1)
+                .frame(width: 16, height: 16)
+        }
+    }
+}
+
+// MARK: - Legacy Center Marker Shape (Deprecated)
+
+/// Legacy center marker for manual center placement.
+/// Deprecated: With auto-center calculation, this marker is no longer needed for input.
+/// Kept for backward compatibility.
+@available(*, deprecated, message: "Use AutoCenterMarkerShape - center is now auto-calculated.")
 struct CenterMarkerShape: View {
     var body: some View {
         ZStack {

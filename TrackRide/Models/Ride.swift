@@ -62,6 +62,32 @@ final class Ride: GaitTimeTracking {
     var aiSummaryData: Data?     // Encoded SessionSummary
     var voiceNotesData: Data?    // Encoded [String] voice notes from session
 
+    // MARK: - Biomechanical Metrics (Physics-Based)
+
+    /// Average stride length across session (meters)
+    var averageStrideLength: Double = 0.0
+
+    /// Average stride frequency across session (Hz)
+    var averageStrideFrequency: Double = 0.0
+
+    /// Average impulsion across session (0-100)
+    var averageImpulsion: Double = 0.0
+
+    /// Average engagement across session (0-100)
+    var averageEngagement: Double = 0.0
+
+    /// Average straightness across session (0-100)
+    var averageStraightness: Double = 0.0
+
+    /// Average rider stability across session (0-100)
+    var averageRiderStability: Double = 0.0
+
+    /// Total training load for session
+    var totalTrainingLoad: Double = 0.0
+
+    /// Per-gait stride metrics (encoded JSON)
+    var strideMetricsData: Data?
+
     // MARK: - Cached Transient Properties (not persisted, avoid repeated computation)
     @Transient private var _cachedHeartRateSamples: [HeartRateSample]?
     @Transient private var _cachedRecoveryMetrics: RecoveryMetrics??
@@ -264,6 +290,37 @@ final class Ride: GaitTimeTracking {
     /// Formatted right lead duration
     var formattedRightLeadDuration: String {
         rightLeadDuration.formattedDuration
+    }
+
+    /// Percentage of canter/gallop time with correct lead (lead matches rein direction)
+    var correctLeadPercentage: Double {
+        let canterSegments = sortedGaitSegments.filter {
+            ($0.gait == .canter || $0.gait == .gallop) && $0.hasKnownLead
+        }
+        guard !canterSegments.isEmpty else { return 100.0 }
+        let correctDuration = canterSegments.filter { $0.isCorrectLead }.reduce(0) { $0 + $1.duration }
+        let totalDuration = canterSegments.reduce(0) { $0 + $1.duration }
+        guard totalDuration > 0 else { return 100.0 }
+        return (correctDuration / totalDuration) * 100
+    }
+
+    /// Duration of cross-canter (incorrect lead for rein direction)
+    var crossCanterDuration: TimeInterval {
+        sortedGaitSegments
+            .filter { ($0.gait == .canter || $0.gait == .gallop) && $0.hasKnownLead && !$0.isCorrectLead }
+            .reduce(0) { $0 + $1.duration }
+    }
+
+    /// Formatted cross-canter duration
+    var formattedCrossCanterDuration: String {
+        crossCanterDuration.formattedDuration
+    }
+
+    /// Average vertical-yaw coherence across all segments
+    var averageVerticalYawCoherence: Double {
+        let segments = sortedGaitSegments.filter { $0.verticalYawCoherence > 0 }
+        guard !segments.isEmpty else { return 0 }
+        return segments.reduce(0) { $0 + $1.verticalYawCoherence } / Double(segments.count)
     }
 
     // MARK: - Rein Stats

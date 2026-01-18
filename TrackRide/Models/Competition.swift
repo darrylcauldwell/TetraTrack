@@ -803,6 +803,25 @@ enum CompetitionLevel: String, Codable, CaseIterable {
         return "\(minutes):\(String(format: "%02d", seconds))"
     }
 
+    /// Map to PonyClubAgeCategory for scoring calculations
+    var scoringCategory: PonyClubAgeCategory {
+        switch self {
+        case .minimus: return .minimus
+        case .junior: return .junior
+        case .intermediateGirls, .intermediateBoys: return .intermediate
+        case .openGirls, .openBoys: return .open
+        }
+    }
+
+    /// Map to PonyClubGender for scoring calculations
+    var scoringGender: PonyClubGender {
+        switch self {
+        case .minimus, .junior: return .girls  // Default to girls for mixed categories
+        case .intermediateGirls, .openGirls: return .girls
+        case .intermediateBoys, .openBoys: return .boys
+        }
+    }
+
     // Group levels for display
     static var groupedLevels: [(String, [CompetitionLevel])] {
         [

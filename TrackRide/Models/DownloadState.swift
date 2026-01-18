@@ -9,7 +9,7 @@ import Foundation
 
 /// Tracks the state of an in-progress OSM region download
 /// Stored in UserDefaults to survive app termination
-struct DownloadState: Codable {
+struct DownloadState: Codable, Sendable {
     let regionId: String
     let regionDisplayName: String
     let bounds: Bounds
@@ -22,14 +22,14 @@ struct DownloadState: Codable {
     var startedAt: Date
     var lastUpdatedAt: Date
 
-    struct Bounds: Codable {
+    struct Bounds: Codable, Sendable {
         let minLat: Double
         let maxLat: Double
         let minLon: Double
         let maxLon: Double
     }
 
-    enum Phase: String, Codable {
+    enum Phase: String, Codable, Sendable {
         case downloading        // Fetching from Overpass API
         case downloaded         // JSON saved to disk, ready to process
         case processingNodes    // Creating OSMNode records
@@ -39,7 +39,7 @@ struct DownloadState: Codable {
         case failed             // Failed with error
     }
 
-    var isResumable: Bool {
+    nonisolated var isResumable: Bool {
         switch phase {
         case .downloaded, .processingNodes, .processingEdges:
             return jsonFilePath != nil
@@ -71,10 +71,10 @@ struct DownloadState: Codable {
 // MARK: - Persistence
 
 extension DownloadState {
-    private static let userDefaultsKey = "com.trackride.downloadStates"
+    nonisolated(unsafe) private static let userDefaultsKey = "com.trackride.downloadStates"
 
     /// Get all persisted download states
-    static func loadAll() -> [String: DownloadState] {
+    nonisolated static func loadAll() -> [String: DownloadState] {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
               let states = try? JSONDecoder().decode([String: DownloadState].self, from: data) else {
             return [:]
@@ -83,7 +83,7 @@ extension DownloadState {
     }
 
     /// Save a download state
-    static func save(_ state: DownloadState) {
+    nonisolated static func save(_ state: DownloadState) {
         var states = loadAll()
         states[state.regionId] = state
         if let data = try? JSONEncoder().encode(states) {
@@ -92,7 +92,7 @@ extension DownloadState {
     }
 
     /// Remove a download state
-    static func remove(regionId: String) {
+    nonisolated static func remove(regionId: String) {
         var states = loadAll()
         states.removeValue(forKey: regionId)
         if let data = try? JSONEncoder().encode(states) {
@@ -101,12 +101,12 @@ extension DownloadState {
     }
 
     /// Get incomplete downloads that can be resumed
-    static func getResumableDownloads() -> [DownloadState] {
+    nonisolated static func getResumableDownloads() -> [DownloadState] {
         loadAll().values.filter { $0.isResumable }
     }
 
     /// Get failed or incomplete downloads that need cleanup
-    static func getIncompleteDownloads() -> [DownloadState] {
+    nonisolated static func getIncompleteDownloads() -> [DownloadState] {
         loadAll().values.filter { state in
             switch state.phase {
             case .complete:
@@ -122,7 +122,7 @@ extension DownloadState {
 
 extension DownloadState {
     /// Directory for storing downloaded JSON files
-    static var jsonCacheDirectory: URL {
+    nonisolated static var jsonCacheDirectory: URL {
         let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let osmDir = cacheDir.appendingPathComponent("OSMDownloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: osmDir, withIntermediateDirectories: true)
@@ -130,18 +130,18 @@ extension DownloadState {
     }
 
     /// Generate path for a region's JSON file
-    static func jsonFilePath(for regionId: String) -> URL {
+    nonisolated static func jsonFilePath(for regionId: String) -> URL {
         jsonCacheDirectory.appendingPathComponent("\(regionId).json")
     }
 
     /// Delete the JSON file for a region
-    static func deleteJsonFile(for regionId: String) {
+    nonisolated static func deleteJsonFile(for regionId: String) {
         let path = jsonFilePath(for: regionId)
         try? FileManager.default.removeItem(at: path)
     }
 
     /// Check if JSON file exists for a region
-    static func jsonFileExists(for regionId: String) -> Bool {
+    nonisolated static func jsonFileExists(for regionId: String) -> Bool {
         FileManager.default.fileExists(atPath: jsonFilePath(for: regionId).path)
     }
 }

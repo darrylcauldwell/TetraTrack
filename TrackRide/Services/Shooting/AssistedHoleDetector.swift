@@ -42,10 +42,10 @@ struct HoleDetectionConfig {
     /// Enable local background estimation
     var useLocalBackground: Bool = true
 
-    static let `default` = HoleDetectionConfig()
+    nonisolated static let `default` = HoleDetectionConfig()
 
     /// Calibrate configuration based on image and target
-    static func calibrated(
+    nonisolated static func calibrated(
         for imageSize: CGSize,
         transformer: TargetCoordinateTransformer,
         holeSizeCalibration: HoleSizeCalibration?
@@ -131,8 +131,9 @@ actor AssistedHoleDetector {
         in image: CGImage,
         cropGeometry: TargetCropGeometry,
         targetType: ShootingTargetGeometryType = .tetrathlon,
-        config: HoleDetectionConfig = .default
+        config: HoleDetectionConfig? = nil
     ) async throws -> [DetectedHoleCandidate] {
+        let effectiveConfig = config ?? .default
         let imageSize = CGSize(width: image.width, height: image.height)
         let transformer = TargetCoordinateTransformer(cropGeometry: cropGeometry, imageSize: imageSize)
 
@@ -155,19 +156,19 @@ actor AssistedHoleDetector {
                 imageHeight: image.height,
                 transformer: transformer,
                 targetType: targetType,
-                config: config
+                effectiveConfig: effectiveConfig
             ) else {
                 continue
             }
 
             // Filter by confidence
-            guard candidate.confidence >= config.minimumConfidence else {
+            guard candidate.confidence >= effectiveConfig.minimumConfidence else {
                 continue
             }
 
             // Filter scoring ring artifacts
-            if config.filterScoringRingArtifacts {
-                if isOnScoringRing(candidate.targetPosition, targetType: targetType, tolerance: config.scoringRingTolerance) {
+            if effectiveConfig.filterScoringRingArtifacts {
+                if isOnScoringRing(candidate.targetPosition, targetType: targetType, tolerance: effectiveConfig.scoringRingTolerance) {
                     // Only reject if confidence is not very high
                     if candidate.confidence < 0.9 {
                         continue
@@ -184,7 +185,7 @@ actor AssistedHoleDetector {
         // Step 5: Sort by confidence and limit
         let sorted = filtered
             .sorted { $0.confidence > $1.confidence }
-            .prefix(config.maxCandidates)
+            .prefix(effectiveConfig.maxCandidates)
 
         return Array(sorted)
     }
@@ -193,8 +194,9 @@ actor AssistedHoleDetector {
     func detectOverlappingHoles(
         in image: CGImage,
         cropGeometry: TargetCropGeometry,
-        config: HoleDetectionConfig = .default
+        config: HoleDetectionConfig? = nil
     ) async throws -> [(CGPoint, CGPoint)] {
+        let effectiveConfig = config ?? .default
         // This is an advanced feature - detect elongated shapes that might be two holes
         guard let grayscale = convertToGrayscale(image) else {
             return []
@@ -270,7 +272,7 @@ actor AssistedHoleDetector {
         imageHeight: Int,
         transformer: TargetCoordinateTransformer,
         targetType: ShootingTargetGeometryType,
-        config: HoleDetectionConfig
+        effectiveConfig: HoleDetectionConfig
     ) -> DetectedHoleCandidate? {
         let points = contour.normalizedPoints
         guard points.count >= 6 else { return nil }
@@ -289,7 +291,7 @@ actor AssistedHoleDetector {
         let diameter = (width + height) / 2
 
         // Size filter
-        guard config.expectedHoleDiameterPixels.contains(diameter) else {
+        guard effectiveConfig.expectedHoleDiameterPixels.contains(diameter) else {
             return nil
         }
 
@@ -303,7 +305,7 @@ actor AssistedHoleDetector {
         let area = Double(width * height)
 
         // Shape filter
-        guard circularity >= config.minCircularity else { return nil }
+        guard circularity >= effectiveConfig.minCircularity else { return nil }
         guard aspectRatio > 0.5 && aspectRatio < 2.0 else { return nil }
 
         // Calculate intensity features
@@ -317,7 +319,7 @@ actor AssistedHoleDetector {
 
         // Local background estimation
         var darknessZScore: Double = 0
-        if config.useLocalBackground {
+        if effectiveConfig.useLocalBackground {
             let localBG = LocalBackgroundEstimator.estimate(
                 around: pixelPosition,
                 in: grayscale,
@@ -348,7 +350,7 @@ actor AssistedHoleDetector {
         )
 
         // Calculate confidence
-        let confidence = calculateConfidence(features: features, config: config)
+        let confidence = calculateConfidence(features: features, effectiveConfig: effectiveConfig)
 
         // Convert to target coordinates
         let targetPosition = transformer.toTargetCoordinates(pixelPosition: pixelPosition)
@@ -472,13 +474,13 @@ actor AssistedHoleDetector {
         return count > 0 ? min(1.0, gradientSum / Double(count) / 100.0) : 0
     }
 
-    private func calculateConfidence(features: HoleFeatures, config: HoleDetectionConfig) -> Double {
+    private func calculateConfidence(features: HoleFeatures, effectiveConfig: HoleDetectionConfig) -> Double {
         var score: Double = 0
 
         // Circularity (most important)
         if features.circularity > 0.7 {
             score += 0.35
-        } else if features.circularity > config.minCircularity {
+        } else if features.circularity > effectiveConfig.minCircularity {
             score += 0.2
         }
 

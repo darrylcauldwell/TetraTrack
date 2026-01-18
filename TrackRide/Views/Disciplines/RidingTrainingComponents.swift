@@ -19,6 +19,10 @@ struct RidingTrainingView: View {
     @State private var showingCoreStabilityDrill = false
     @State private var showingTwoPointDrill = false
     @State private var showingBalanceBoardDrill = false
+    @State private var showingHipMobilityDrill = false
+    @State private var showingPostingRhythmDrill = false
+    @State private var showingRiderStillnessDrill = false
+    @State private var showingStirrupPressureDrill = false
 
     private var streak: TrainingStreak? {
         streaks.first
@@ -76,6 +80,57 @@ struct RidingTrainingView: View {
                             )
                         }
                         .buttonStyle(.plain)
+
+                        // Movement Science Drills Section
+                        Text("Movement Science")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+
+                        // Hip Mobility Drill
+                        Button { showingHipMobilityDrill = true } label: {
+                            DisciplineCard(
+                                title: "Hip Mobility",
+                                subtitle: "Following motion",
+                                icon: "figure.flexibility",
+                                color: .pink
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Posting Rhythm Drill
+                        Button { showingPostingRhythmDrill = true } label: {
+                            DisciplineCard(
+                                title: "Posting Rhythm",
+                                subtitle: "Metronome training",
+                                icon: "metronome",
+                                color: .indigo
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Rider Stillness Drill
+                        Button { showingRiderStillnessDrill = true } label: {
+                            DisciplineCard(
+                                title: "Rider Stillness",
+                                subtitle: "Quiet aids",
+                                icon: "person.and.background.dotted",
+                                color: .teal
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Stirrup Pressure Drill
+                        Button { showingStirrupPressureDrill = true } label: {
+                            DisciplineCard(
+                                title: "Stirrup Pressure",
+                                subtitle: "Heel weight",
+                                icon: "arrow.down.to.line",
+                                color: .mint
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)
@@ -105,6 +160,18 @@ struct RidingTrainingView: View {
             }
             .fullScreenCover(isPresented: $showingBalanceBoardDrill) {
                 BalanceBoardDrillView()
+            }
+            .fullScreenCover(isPresented: $showingHipMobilityDrill) {
+                HipMobilityDrillView()
+            }
+            .fullScreenCover(isPresented: $showingPostingRhythmDrill) {
+                PostingRhythmDrillView()
+            }
+            .fullScreenCover(isPresented: $showingRiderStillnessDrill) {
+                RiderStillnessDrillView()
+            }
+            .fullScreenCover(isPresented: $showingStirrupPressureDrill) {
+                StirrupPressureDrillView()
             }
         }
     }

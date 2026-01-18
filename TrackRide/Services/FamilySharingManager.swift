@@ -23,6 +23,11 @@ final class FamilySharingManager: FamilySharing {
     var mySession: LiveTrackingSession?  // My current session being shared
     var linkedRiders: [LinkedRider] = []  // People who share their rides with you (always visible)
 
+    // CloudKit-backed family relationship (replaces UserDefaults discovery)
+    private(set) var familyRelationship: FamilyRelationship?
+    private(set) var isLoadingRelationship: Bool = false
+    private(set) var relationshipError: String?
+
     // Alert tracking
     private var sentWarningAlerts: Set<String> = []  // Rider IDs we've warned about
     private var sentUrgentAlerts: Set<String> = []   // Rider IDs we've sent urgent alerts for
@@ -76,6 +81,7 @@ final class FamilySharingManager: FamilySharing {
         if isCloudKitAvailable {
             await setupFamilyZone()
             await subscribeToChanges()
+            await discoverFamilyRelationship()
         }
     }
 
@@ -140,6 +146,217 @@ final class FamilySharingManager: FamilySharing {
             Log.family.info("Subscribed to family tracking changes")
         } catch {
             Log.family.error("Failed to subscribe: \(error)")
+        }
+    }
+
+    // MARK: - CloudKit Family Relationship Discovery
+
+    /// Discovers and loads the family relationship from CloudKit.
+    /// Works for both parent and child - relationship is shared via zone share.
+    func discoverFamilyRelationship() async {
+        // First try to load from cache for immediate UI
+        if let cached = FamilyRelationship.loadFromCache() {
+            await MainActor.run {
+                self.familyRelationship = cached
+            }
+        }
+
+        await MainActor.run {
+            self.isLoadingRelationship = true
+            self.relationshipError = nil
+        }
+
+        // Query private database first (for child's own relationship record)
+        if let relationship = await fetchRelationshipFromPrivate() {
+            await MainActor.run {
+                self.familyRelationship = relationship
+                self.isLoadingRelationship = false
+            }
+            relationship.saveToCache()
+            Log.family.info("Found relationship in private database")
+            return
+        }
+
+        // Query shared database (for parent viewing child's shared zone)
+        if let relationship = await fetchRelationshipFromShared() {
+            await MainActor.run {
+                self.familyRelationship = relationship
+                self.isLoadingRelationship = false
+            }
+            relationship.saveToCache()
+            Log.family.info("Found relationship in shared database")
+            return
+        }
+
+        await MainActor.run {
+            self.isLoadingRelationship = false
+        }
+        Log.family.debug("No family relationship found")
+    }
+
+    private func fetchRelationshipFromPrivate() async -> FamilyRelationship? {
+        guard let privateDatabase = privateDatabase,
+              let zoneID = familyZoneID else { return nil }
+
+        do {
+            let predicate = NSPredicate(format: "childUserID == %@ OR parentUserID == %@",
+                                        currentUserID, currentUserID)
+            let query = CKQuery(recordType: FamilyRelationship.recordType, predicate: predicate)
+
+            let (results, _) = try await privateDatabase.records(matching: query, inZoneWith: zoneID)
+
+            for (_, result) in results {
+                if case .success(let record) = result {
+                    if let relationship = FamilyRelationship.from(record: record) {
+                        return relationship
+                    }
+                }
+            }
+        } catch {
+            Log.family.error("Failed to fetch relationship from private: \(error)")
+        }
+
+        return nil
+    }
+
+    private func fetchRelationshipFromShared() async -> FamilyRelationship? {
+        guard let sharedDatabase = sharedDatabase else { return nil }
+
+        do {
+            let zones = try await sharedDatabase.allRecordZones()
+
+            for zone in zones {
+                let predicate = NSPredicate(format: "parentUserID == %@", currentUserID)
+                let query = CKQuery(recordType: FamilyRelationship.recordType, predicate: predicate)
+
+                let (results, _) = try await sharedDatabase.records(matching: query, inZoneWith: zone.zoneID)
+
+                for (_, result) in results {
+                    if case .success(let record) = result {
+                        if let relationship = FamilyRelationship.from(record: record) {
+                            return relationship
+                        }
+                    }
+                }
+            }
+        } catch {
+            Log.family.error("Failed to fetch relationship from shared: \(error)")
+        }
+
+        return nil
+    }
+
+    /// Creates a new family relationship (called by child when linking with parent).
+    /// - Parameters:
+    ///   - parentUserID: CloudKit user ID of the parent
+    ///   - parentName: Display name of the parent
+    ///   - childName: Display name of the child (current user)
+    /// - Returns: The created relationship, or nil if creation failed
+    func createFamilyRelationship(
+        parentUserID: String,
+        parentName: String,
+        childName: String
+    ) async -> FamilyRelationship? {
+        guard let privateDatabase = privateDatabase,
+              let zoneID = familyZoneID else { return nil }
+
+        let relationship = FamilyRelationship(
+            parentUserID: parentUserID,
+            childUserID: currentUserID,
+            childName: childName,
+            parentName: parentName,
+            status: .pending,
+            createdBy: currentUserID
+        )
+
+        let record = relationship.toCKRecord(zoneID: zoneID)
+
+        do {
+            _ = try await privateDatabase.save(record)
+            await MainActor.run {
+                self.familyRelationship = relationship
+            }
+            relationship.saveToCache()
+            Log.family.info("Created family relationship with parent \(parentName)")
+            return relationship
+        } catch {
+            Log.family.error("Failed to create family relationship: \(error)")
+            await MainActor.run {
+                self.relationshipError = "Failed to create relationship: \(error.localizedDescription)"
+            }
+            return nil
+        }
+    }
+
+    /// Activates a pending family relationship (called when parent accepts share).
+    func activateFamilyRelationship() async -> Bool {
+        guard var relationship = familyRelationship,
+              let privateDatabase = privateDatabase,
+              let zoneID = familyZoneID else { return false }
+
+        relationship.status = .active
+        relationship.modifiedAt = Date()
+
+        let record = relationship.toCKRecord(zoneID: zoneID)
+
+        do {
+            _ = try await privateDatabase.save(record)
+            await MainActor.run {
+                self.familyRelationship = relationship
+            }
+            relationship.saveToCache()
+            Log.family.info("Activated family relationship")
+            return true
+        } catch {
+            Log.family.error("Failed to activate family relationship: \(error)")
+            return false
+        }
+    }
+
+    /// Revokes the family relationship.
+    func revokeFamilyRelationship() async -> Bool {
+        guard var relationship = familyRelationship,
+              let privateDatabase = privateDatabase,
+              let zoneID = familyZoneID else { return false }
+
+        relationship.status = .revoked
+        relationship.modifiedAt = Date()
+
+        let record = relationship.toCKRecord(zoneID: zoneID)
+
+        do {
+            _ = try await privateDatabase.save(record)
+            await MainActor.run {
+                self.familyRelationship = relationship
+            }
+            FamilyRelationship.clearCache()
+            Log.family.info("Revoked family relationship")
+            return true
+        } catch {
+            Log.family.error("Failed to revoke family relationship: \(error)")
+            return false
+        }
+    }
+
+    /// Whether the current user has an active family relationship as a parent.
+    var isParentInRelationship: Bool {
+        guard let relationship = familyRelationship else { return false }
+        return relationship.isActive && relationship.isParent(currentUserID: currentUserID)
+    }
+
+    /// Whether the current user has an active family relationship as a child.
+    var isChildInRelationship: Bool {
+        guard let relationship = familyRelationship else { return false }
+        return relationship.isActive && relationship.isChild(currentUserID: currentUserID)
+    }
+
+    /// The linked family member's name (child's name for parent, parent's name for child).
+    var linkedFamilyMemberName: String? {
+        guard let relationship = familyRelationship, relationship.isActive else { return nil }
+        if relationship.isParent(currentUserID: currentUserID) {
+            return relationship.childName
+        } else {
+            return relationship.parentName
         }
     }
 
@@ -738,6 +955,164 @@ final class FamilySharingManager: FamilySharing {
     /// Check if URL is a CloudKit share URL
     func isCloudKitShareURL(_ url: URL) -> Bool {
         url.scheme == "cloudkit" || url.host?.contains("icloud") == true
+    }
+
+    // MARK: - Multi-Discipline Artifact Support
+
+    /// Current role in family sharing (determined by CloudKit relationship)
+    var currentRole: FamilyRole {
+        // Use CloudKit relationship as primary source
+        if let relationship = familyRelationship, relationship.isActive {
+            if relationship.isParent(currentUserID: currentUserID) {
+                return .parent
+            } else if relationship.isChild(currentUserID: currentUserID) {
+                return .child
+            }
+        }
+
+        // Fallback to legacy detection for backwards compatibility
+        if !linkedRiders.isEmpty {
+            return .parent
+        }
+        if mySession != nil || !localContacts.isEmpty {
+            return .child
+        }
+        return .selfOnly
+    }
+
+    /// Creates a ViewContext appropriate for the current user's role and relationship.
+    func createViewContext() -> ViewContext {
+        switch currentRole {
+        case .parent:
+            let childName = linkedFamilyMemberName ?? "Athlete"
+            return ViewContext.parentReview(childName: childName)
+        case .child:
+            return ViewContext.athleteCapture()
+        case .selfOnly:
+            return ViewContext.athleteCapture()
+        }
+    }
+
+    /// Fetch artifacts from linked riders (parent view)
+    func fetchFamilyArtifacts() async -> [TrainingArtifact] {
+        guard let sharedDatabase = sharedDatabase else { return [] }
+
+        var allArtifacts: [TrainingArtifact] = []
+
+        do {
+            // Fetch all shared zones
+            let zones = try await sharedDatabase.allRecordZones()
+
+            for zone in zones {
+                let predicate = NSPredicate(value: true)
+                let query = CKQuery(recordType: TrainingArtifact.recordType, predicate: predicate)
+                query.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: false)]
+
+                let (results, _) = try await sharedDatabase.records(matching: query, inZoneWith: zone.zoneID)
+
+                for (_, result) in results {
+                    if case .success(let record) = result {
+                        let artifact = TrainingArtifact.from(record: record)
+                        allArtifacts.append(artifact)
+                    }
+                }
+            }
+
+            Log.family.info("Fetched \(allArtifacts.count) artifacts from family members")
+        } catch {
+            Log.family.error("Failed to fetch family artifacts: \(error)")
+        }
+
+        return allArtifacts
+    }
+
+    /// Fetch competitions from linked family members
+    func fetchFamilyCompetitions() async -> [SharedCompetition] {
+        guard let sharedDatabase = sharedDatabase else { return [] }
+
+        var allCompetitions: [SharedCompetition] = []
+
+        do {
+            let zones = try await sharedDatabase.allRecordZones()
+
+            for zone in zones {
+                let predicate = NSPredicate(value: true)
+                let query = CKQuery(recordType: SharedCompetition.recordType, predicate: predicate)
+                query.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
+
+                let (results, _) = try await sharedDatabase.records(matching: query, inZoneWith: zone.zoneID)
+
+                for (_, result) in results {
+                    if case .success(let record) = result {
+                        let competition = SharedCompetition.from(record: record)
+                        allCompetitions.append(competition)
+                    }
+                }
+            }
+
+            Log.family.info("Fetched \(allCompetitions.count) competitions from family members")
+        } catch {
+            Log.family.error("Failed to fetch family competitions: \(error)")
+        }
+
+        return allCompetitions
+    }
+
+    /// Subscribe to artifact and competition changes
+    func subscribeToArtifactChanges() async {
+        guard let privateDatabase = privateDatabase,
+              let zoneID = familyZoneID else { return }
+
+        // Artifact subscription
+        let artifactSubscription = CKRecordZoneSubscription(
+            zoneID: zoneID,
+            subscriptionID: "family-artifact-changes"
+        )
+        let artifactNotificationInfo = CKSubscription.NotificationInfo()
+        artifactNotificationInfo.shouldSendContentAvailable = true
+        artifactSubscription.notificationInfo = artifactNotificationInfo
+
+        do {
+            _ = try await privateDatabase.modifySubscriptions(
+                saving: [artifactSubscription],
+                deleting: []
+            )
+            Log.family.info("Subscribed to artifact and competition changes")
+        } catch {
+            Log.family.error("Failed to subscribe to changes: \(error)")
+        }
+    }
+
+    /// Send completion notification to family members
+    func notifyFamilyOfCompletion(
+        artifact: TrainingArtifact,
+        summary: String
+    ) async {
+        // This would integrate with the notification system
+        // For now, log the notification
+        Log.family.info("Notifying family of completion: \(artifact.discipline.rawValue) - \(summary)")
+
+        // In a full implementation, this would:
+        // 1. Create a notification record in CloudKit
+        // 2. Trigger push notifications to family members
+        // 3. Update the artifact with notification status
+    }
+}
+
+// MARK: - Family Role
+
+/// Role in the family sharing relationship
+enum FamilyRole {
+    case parent     // Viewing child's data
+    case child      // Sharing own data
+    case selfOnly   // No family sharing active
+
+    var displayName: String {
+        switch self {
+        case .parent: return "Parent View"
+        case .child: return "Athlete View"
+        case .selfOnly: return "Personal"
+        }
     }
 }
 

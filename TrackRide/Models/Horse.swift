@@ -8,12 +8,267 @@ import Foundation
 import SwiftData
 import UIKit
 
+// MARK: - Biomechanical Priors
+
+/// Biomechanical parameters for gait analysis, specific to horse type/breed
+struct BiomechanicalPriors: Codable, Equatable {
+    /// Expected stride frequency range for walk (Hz)
+    let walkFrequencyRange: ClosedRange<Double>
+
+    /// Expected stride frequency range for trot (Hz)
+    let trotFrequencyRange: ClosedRange<Double>
+
+    /// Expected stride frequency range for canter (Hz)
+    let canterFrequencyRange: ClosedRange<Double>
+
+    /// Expected stride frequency range for gallop (Hz)
+    let gallopFrequencyRange: ClosedRange<Double>
+
+    /// Stride length coefficients for physics-based calculation
+    /// stride = k × height × (Az/g)^0.25
+    let strideCoefficients: StrideCoefficients
+
+    /// Typical weight for this breed type (kg)
+    let typicalWeight: Double
+
+    /// Typical height for this breed type (hands)
+    let typicalHeight: Double
+
+    /// Default priors for a standard 15.2hh horse
+    /// Frequency ranges per spec: Walk 1-2.2Hz, Trot 2-3.8Hz, Canter 1.8-3Hz, Gallop >3Hz
+    static let `default` = BiomechanicalPriors(
+        walkFrequencyRange: 1.0...2.2,
+        trotFrequencyRange: 2.0...3.8,
+        canterFrequencyRange: 1.8...3.0,
+        gallopFrequencyRange: 3.0...6.0,
+        strideCoefficients: StrideCoefficients(walk: 2.2, trot: 2.7, canter: 3.3, gallop: 4.0),
+        typicalWeight: 500,
+        typicalHeight: 15.2
+    )
+}
+
+/// Stride length coefficients per gait
+struct StrideCoefficients: Codable, Equatable {
+    let walk: Double
+    let trot: Double
+    let canter: Double
+    let gallop: Double
+}
+
+// MARK: - Horse Breed Enum
+
+/// Horse breed categories with biomechanical characteristics
+enum HorseBreed: String, Codable, CaseIterable, Identifiable {
+    // Ponies (under 14.2hh typically)
+    case shetland = "Shetland"
+    case welshA = "Welsh Section A"
+    case welshB = "Welsh Section B"
+    case welshC = "Welsh Section C"
+    case welshD = "Welsh Section D"
+    case connemara = "Connemara"
+    case newForest = "New Forest"
+    case dartmoor = "Dartmoor"
+    case exmoor = "Exmoor"
+    case highland = "Highland"
+    case fell = "Fell"
+    case dales = "Dales"
+
+    // Sport Horses
+    case thoroughbred = "Thoroughbred"
+    case warmblood = "Warmblood"
+    case irishSportHorse = "Irish Sport Horse"
+    case hanoverian = "Hanoverian"
+    case holsteiner = "Holsteiner"
+    case oldenburg = "Oldenburg"
+    case trakehner = "Trakehner"
+    case dutchWarmblood = "Dutch Warmblood"
+    case selleFrancais = "Selle Francais"
+    case quarterHorse = "Quarter Horse"
+
+    // Heavy/Draft Types
+    case cob = "Cob"
+    case irishDraught = "Irish Draught"
+    case friesian = "Friesian"
+
+    // Other Breeds
+    case arabian = "Arabian"
+    case andalusian = "Andalusian"
+    case lusitano = "Lusitano"
+    case appaloosa = "Appaloosa"
+    case morgan = "Morgan"
+    case trotter = "Trotter"
+
+    // Generic
+    case unknown = "Unknown"
+    case mixed = "Mixed/Other"
+
+    var id: String { rawValue }
+
+    /// Biomechanical priors for this breed
+    var biomechanicalPriors: BiomechanicalPriors {
+        switch self {
+        // Small ponies: higher stride frequencies, shorter strides
+        case .shetland, .welshA, .dartmoor, .exmoor:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.3...2.5,
+                trotFrequencyRange: 2.8...4.5,
+                canterFrequencyRange: 2.2...3.5,
+                gallopFrequencyRange: 3.5...6.5,
+                strideCoefficients: StrideCoefficients(walk: 2.0, trot: 2.4, canter: 2.9, gallop: 3.5),
+                typicalWeight: 200,
+                typicalHeight: 11.5
+            )
+
+        // Medium ponies
+        case .welshB, .welshC, .newForest, .connemara:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.2...2.4,
+                trotFrequencyRange: 2.4...4.2,
+                canterFrequencyRange: 2.0...3.3,
+                gallopFrequencyRange: 3.2...6.0,
+                strideCoefficients: StrideCoefficients(walk: 2.1, trot: 2.5, canter: 3.0, gallop: 3.6),
+                typicalWeight: 350,
+                typicalHeight: 13.5
+            )
+
+        // Large ponies / small horses
+        case .welshD, .highland, .fell, .dales:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.1...2.3,
+                trotFrequencyRange: 2.2...4.0,
+                canterFrequencyRange: 1.9...3.2,
+                gallopFrequencyRange: 3.1...5.8,
+                strideCoefficients: StrideCoefficients(walk: 2.15, trot: 2.6, canter: 3.1, gallop: 3.7),
+                typicalWeight: 450,
+                typicalHeight: 14.2
+            )
+
+        // Warmbloods: lower frequencies, longer strides
+        case .warmblood, .hanoverian, .holsteiner, .oldenburg, .trakehner, .dutchWarmblood, .selleFrancais:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 0.9...2.0,
+                trotFrequencyRange: 1.8...3.5,
+                canterFrequencyRange: 1.6...2.8,
+                gallopFrequencyRange: 2.8...5.5,
+                strideCoefficients: StrideCoefficients(walk: 2.3, trot: 2.8, canter: 3.4, gallop: 4.1),
+                typicalWeight: 550,
+                typicalHeight: 16.2
+            )
+
+        // Thoroughbreds: intermediate, optimized for speed
+        case .thoroughbred:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.0...2.2,
+                trotFrequencyRange: 2.0...3.8,
+                canterFrequencyRange: 1.8...3.0,
+                gallopFrequencyRange: 3.0...6.0,
+                strideCoefficients: StrideCoefficients(walk: 2.2, trot: 2.7, canter: 3.3, gallop: 4.0),
+                typicalWeight: 500,
+                typicalHeight: 16.0
+            )
+
+        // Irish Sport Horse
+        case .irishSportHorse:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 0.95...2.1,
+                trotFrequencyRange: 1.9...3.6,
+                canterFrequencyRange: 1.7...2.9,
+                gallopFrequencyRange: 2.9...5.8,
+                strideCoefficients: StrideCoefficients(walk: 2.25, trot: 2.75, canter: 3.35, gallop: 4.05),
+                typicalWeight: 530,
+                typicalHeight: 16.1
+            )
+
+        // Quarter Horse: compact, quick
+        case .quarterHorse:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.0...2.2,
+                trotFrequencyRange: 2.0...3.8,
+                canterFrequencyRange: 1.8...3.0,
+                gallopFrequencyRange: 3.0...6.2,
+                strideCoefficients: StrideCoefficients(walk: 2.1, trot: 2.6, canter: 3.2, gallop: 3.9),
+                typicalWeight: 480,
+                typicalHeight: 15.0
+            )
+
+        // Heavy types: slower, more powerful
+        case .cob, .irishDraught, .friesian:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 0.9...2.0,
+                trotFrequencyRange: 1.8...3.2,
+                canterFrequencyRange: 1.5...2.7,
+                gallopFrequencyRange: 2.6...5.0,
+                strideCoefficients: StrideCoefficients(walk: 2.15, trot: 2.6, canter: 3.15, gallop: 3.8),
+                typicalWeight: 600,
+                typicalHeight: 15.3
+            )
+
+        // Arabian: light, animated
+        case .arabian:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.1...2.3,
+                trotFrequencyRange: 2.2...4.0,
+                canterFrequencyRange: 1.9...3.2,
+                gallopFrequencyRange: 3.1...6.0,
+                strideCoefficients: StrideCoefficients(walk: 2.1, trot: 2.55, canter: 3.1, gallop: 3.8),
+                typicalWeight: 450,
+                typicalHeight: 15.0
+            )
+
+        // Iberian breeds: collected, elevated
+        case .andalusian, .lusitano:
+            return BiomechanicalPriors(
+                walkFrequencyRange: 1.0...2.2,
+                trotFrequencyRange: 2.0...3.6,
+                canterFrequencyRange: 1.7...2.9,
+                gallopFrequencyRange: 2.8...5.5,
+                strideCoefficients: StrideCoefficients(walk: 2.15, trot: 2.6, canter: 3.2, gallop: 3.85),
+                typicalWeight: 500,
+                typicalHeight: 15.2
+            )
+
+        // Other breeds / defaults
+        case .appaloosa, .morgan, .trotter, .unknown, .mixed:
+            return .default
+        }
+    }
+
+    /// Display name for picker/UI
+    var displayName: String { rawValue }
+
+    /// Category for grouping in pickers
+    var category: BreedCategory {
+        switch self {
+        case .shetland, .welshA, .welshB, .welshC, .welshD, .connemara, .newForest, .dartmoor, .exmoor, .highland, .fell, .dales:
+            return .pony
+        case .thoroughbred, .warmblood, .irishSportHorse, .hanoverian, .holsteiner, .oldenburg, .trakehner, .dutchWarmblood, .selleFrancais, .quarterHorse:
+            return .sportHorse
+        case .cob, .irishDraught, .friesian:
+            return .heavyType
+        case .arabian, .andalusian, .lusitano, .appaloosa, .morgan, .trotter:
+            return .otherBreed
+        case .unknown, .mixed:
+            return .other
+        }
+    }
+}
+
+/// Breed category for grouping
+enum BreedCategory: String, CaseIterable {
+    case pony = "Ponies"
+    case sportHorse = "Sport Horses"
+    case heavyType = "Heavy Types"
+    case otherBreed = "Other Breeds"
+    case other = "Other"
+}
+
 @Model
 final class Horse {
     // All properties have defaults for CloudKit compatibility
     var id: UUID = UUID()
     var name: String = ""
-    var breed: String = ""
+    var breed: String = ""  // Legacy free-form breed string
+    var breedType: String = HorseBreed.unknown.rawValue  // Typed breed for biomechanics
     var color: String = ""
     var dateOfBirth: Date?
     var weight: Double?  // kg
@@ -84,6 +339,106 @@ final class Horse {
     var poleSpacings: PoleSpacings? {
         guard let height = heightHands else { return nil }
         return PoleSpacingCalculator.recommendedSpacings(forHeightHands: height)
+    }
+
+    /// Horse size category derived from height (for polework calculations)
+    /// Returns .average if height is not set
+    var horseSize: HorseSize {
+        guard let height = heightHands else { return .average }
+        return HorseSize.fromHeight(height)
+    }
+
+    /// Whether this horse has height set (needed for accurate polework distances)
+    var hasHeightSet: Bool {
+        heightHands != nil
+    }
+
+    // MARK: - Biomechanics
+
+    /// Typed breed for biomechanical analysis
+    var typedBreed: HorseBreed {
+        get { HorseBreed(rawValue: breedType) ?? .unknown }
+        set { breedType = newValue.rawValue }
+    }
+
+    /// Biomechanical priors based on breed
+    var biomechanicalPriors: BiomechanicalPriors {
+        typedBreed.biomechanicalPriors
+    }
+
+    /// Age-based adjustment factor for gait thresholds
+    /// Young and old horses have slightly wider acceptable ranges
+    var ageAdjustmentFactor: Double {
+        guard let age = age else { return 1.0 }
+        switch age {
+        case ..<4: return 1.15   // Young horses: wider thresholds (still developing)
+        case 4..<8: return 1.0   // Prime age: standard thresholds
+        case 8..<15: return 1.0  // Mature: standard thresholds
+        case 15..<20: return 1.05 // Senior: slightly wider
+        default: return 1.1      // Very senior: wider thresholds
+        }
+    }
+
+    /// Normalize vertical RMS by horse weight for cross-horse comparison
+    /// - Parameter rawRMS: Raw RMS value from accelerometer
+    /// - Returns: Normalized RMS (scaled to 500kg reference horse)
+    func normalizedVerticalRMS(_ rawRMS: Double) -> Double {
+        guard let weight = weight, weight > 0 else { return rawRMS }
+        let referenceWeight = 500.0
+        return rawRMS * (referenceWeight / weight)
+    }
+
+    /// Compute stride length using physics-based formula
+    /// stride = k × h × (Az/g)^0.25
+    /// - Parameters:
+    ///   - gait: Current gait type
+    ///   - verticalRMS: RMS vertical acceleration (g)
+    /// - Returns: Estimated stride length in meters
+    func computeStrideLength(for gait: GaitType, verticalRMS: Double) -> Double {
+        guard let height = heightHands else {
+            // Use default priors if height not set
+            return defaultStrideLength(for: gait, verticalRMS: verticalRMS)
+        }
+
+        let priors = biomechanicalPriors
+        let coefficient: Double
+
+        switch gait {
+        case .walk: coefficient = priors.strideCoefficients.walk
+        case .trot: coefficient = priors.strideCoefficients.trot
+        case .canter: coefficient = priors.strideCoefficients.canter
+        case .gallop: coefficient = priors.strideCoefficients.gallop
+        case .stationary: return 0
+        }
+
+        // Convert hands to meters (1 hand = 4 inches = 0.1016m)
+        let heightMeters = height * 0.1016
+        // Physics factor from vertical acceleration: (Az/g)^0.25
+        let gFactor = pow(max(verticalRMS, 0.01) / 1.0, 0.25)
+
+        // Formula: stride = k × h × (Az/g)^0.25
+        return coefficient * heightMeters * gFactor
+    }
+
+    /// Default stride length when horse height is unknown
+    private func defaultStrideLength(for gait: GaitType, verticalRMS: Double) -> Double {
+        let defaultHeight = 15.2
+        let priors = BiomechanicalPriors.default
+        let coefficient: Double
+
+        switch gait {
+        case .walk: coefficient = priors.strideCoefficients.walk
+        case .trot: coefficient = priors.strideCoefficients.trot
+        case .canter: coefficient = priors.strideCoefficients.canter
+        case .gallop: coefficient = priors.strideCoefficients.gallop
+        case .stationary: return 0
+        }
+
+        let heightMeters = defaultHeight * 0.1016
+        let gFactor = pow(max(verticalRMS, 0.01) / 1.0, 0.25)
+
+        // Formula: stride = k × h × (Az/g)^0.25
+        return coefficient * heightMeters * gFactor
     }
 
     /// Get all active (non-archived) rides

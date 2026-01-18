@@ -7,13 +7,16 @@
 
 import SwiftUI
 import CoreMotion
+import SwiftData
 import Combine
 
 // MARK: - Steady Hold Drill View
 
 struct SteadyHoldDrillView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var motionManager = SteadyHoldMotionManager()
+    @State private var cueSystem = RealTimeCueSystem()
 
     @State private var isRunning = false
     @State private var elapsedTime: TimeInterval = 0
@@ -60,11 +63,13 @@ struct SteadyHoldDrillView: View {
                     }
                 }
             }
+            .withRealTimeCues(cueSystem)
         }
         .onDisappear {
             timer?.invalidate()
             timer = nil
             motionManager.stopUpdates()
+            cueSystem.reset()
         }
     }
 
@@ -87,6 +92,9 @@ struct SteadyHoldDrillView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+
+            PhonePlacementGuidanceView(placement: .twoHandedGrip)
+                .padding(.horizontal, 32)
 
             Picker("Duration", selection: $targetDuration) {
                 Text("5s").tag(TimeInterval(5))
@@ -286,6 +294,10 @@ struct SteadyHoldDrillView: View {
             elapsedTime += 0.1
             wobbleHistory.append(motionManager.wobble)
 
+            // Process real-time cues
+            let stabilityScore = max(0, 100 - motionManager.wobble * 200)
+            cueSystem.processDrillState(score: stabilityScore, stability: stabilityScore, elapsed: elapsedTime, duration: targetDuration)
+
             if elapsedTime >= targetDuration {
                 endDrill()
             }
@@ -297,6 +309,30 @@ struct SteadyHoldDrillView: View {
         timer = nil
         isRunning = false
         motionManager.stopUpdates()
+        cueSystem.reset()
+
+        // Calculate score from wobble history
+        let avgWobble = wobbleHistory.isEmpty ? 0.5 : wobbleHistory.reduce(0, +) / Double(wobbleHistory.count)
+        let score = Double(max(0, 100 - Int(avgWobble * 200)))
+
+        // Save drill session to history
+        let session = ShootingDrillSession(
+            drillType: .steadyHold,
+            duration: targetDuration,
+            score: score
+        )
+        session.stabilityScore = score
+        session.averageWobble = avgWobble
+        modelContext.insert(session)
+        try? modelContext.save()
+
+        // Compute and save skill domain scores
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+        try? modelContext.save()
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)

@@ -86,13 +86,16 @@ struct NormalizedTargetPosition: Codable, Equatable, Hashable {
 
 // MARK: - Target Crop Geometry
 
-/// Represents how the target was cropped and aligned in the image
+/// Represents how the target was cropped and aligned in the image.
+///
+/// **Auto-Center Design**: With perspective-corrected crops, the target center is automatically
+/// calculated as the geometric center of the crop (0.5, 0.5). This eliminates the need for
+/// manual center placement, reducing user steps and potential errors while maintaining
+/// scoring accuracy. The crop itself defines the target boundaries, so the center is always
+/// at the midpoint.
 struct TargetCropGeometry: Codable, Equatable {
     /// Normalized crop rectangle in original image (0-1 coordinates)
     let cropRect: CGRect
-
-    /// Center of target within the cropped image (0-1 normalized)
-    var targetCenterInCrop: CGPoint
 
     /// Semi-axes of target ellipse within crop (0-1 normalized)
     /// For circular targets, width == height
@@ -116,47 +119,94 @@ struct TargetCropGeometry: Codable, Equatable {
         case elliptical
     }
 
+    /// Auto-calculated center of target within the cropped image.
+    /// With a proper perspective crop, the center is always at (0.5, 0.5) - the geometric
+    /// center of the crop. This removes the need for manual center placement.
+    var targetCenterInCrop: CGPoint {
+        // Auto-calculated: center is always at the midpoint of the perspective-corrected crop.
+        // Formula: centreX = cropWidth / 2, centreY = cropHeight / 2
+        // In normalized coordinates (0-1), this is simply (0.5, 0.5).
+        CGPoint(x: 0.5, y: 0.5)
+    }
+
     init(
         cropRect: CGRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
-        targetCenterInCrop: CGPoint = CGPoint(x: 0.5, y: 0.5),
         targetSemiAxes: CGSize = CGSize(width: 0.4, height: 0.45),
         rotationDegrees: Double = 0,
         physicalAspectRatio: Double = 0.77,  // Tetrathlon default
         boundaryType: BoundaryType = .elliptical
     ) {
         self.cropRect = cropRect
-        self.targetCenterInCrop = targetCenterInCrop
         self.targetSemiAxes = targetSemiAxes
         self.rotationDegrees = rotationDegrees
         self.physicalAspectRatio = physicalAspectRatio
         self.boundaryType = boundaryType
     }
+
+    /// Legacy initializer for backward compatibility.
+    /// The targetCenterInCrop parameter is ignored as center is now auto-calculated.
+    @available(*, deprecated, message: "Center is now auto-calculated. Use init without targetCenterInCrop.")
+    init(
+        cropRect: CGRect,
+        targetCenterInCrop: CGPoint,  // Ignored - kept for API compatibility
+        targetSemiAxes: CGSize,
+        rotationDegrees: Double = 0,
+        physicalAspectRatio: Double = 0.77,
+        boundaryType: BoundaryType = .elliptical
+    ) {
+        self.cropRect = cropRect
+        self.targetSemiAxes = targetSemiAxes
+        self.rotationDegrees = rotationDegrees
+        self.physicalAspectRatio = physicalAspectRatio
+        self.boundaryType = boundaryType
+        // Note: targetCenterInCrop is computed as (0.5, 0.5), ignoring the passed value
+    }
 }
 
 // MARK: - Target Alignment
 
-/// User-confirmed alignment adjustments
+/// Alignment parameters for target analysis.
+///
+/// **Auto-Center Design**: With perspective-corrected crops, manual center adjustment
+/// is no longer required. The center is automatically calculated as the geometric
+/// center of the crop (0.5, 0.5). This struct now primarily tracks semi-axes scaling
+/// and any rotation adjustments.
 struct TargetAlignment: Codable, Equatable {
-    /// User-confirmed center position
+    /// Center position - auto-calculated as (0.5, 0.5) for perspective-corrected crops.
+    /// This property is kept for backward compatibility but should not be manually set.
     var confirmedCenter: CGPoint
 
-    /// User-confirmed semi-axes
+    /// Semi-axes of the target ellipse (can be adjusted for different target sizes)
     var confirmedSemiAxes: CGSize
 
-    /// Offset from auto-detected center (for auditing)
+    /// Offset from auto-detected center (for auditing) - typically zero with auto-center
     var centerOffset: CGPoint = .zero
 
     /// Rotation adjustment in degrees
     var rotationAdjustment: Double = 0
 
-    /// Confidence in alignment (0-1)
+    /// Confidence in alignment (0-1) - high by default with auto-center
     var alignmentConfidence: Double = 1.0
 
-    /// Whether user manually adjusted the alignment
+    /// Whether user manually adjusted the alignment (legacy - always false with auto-center)
     var wasManuallyAdjusted: Bool = false
 
     /// Timestamp of alignment confirmation
     var confirmedAt: Date = Date()
+
+    /// Creates an auto-calculated alignment with center at (0.5, 0.5).
+    /// This is the preferred initializer for the auto-center workflow.
+    static func autoCalculated(semiAxes: CGSize = CGSize(width: 0.4, height: 0.45)) -> TargetAlignment {
+        TargetAlignment(
+            confirmedCenter: CGPoint(x: 0.5, y: 0.5),  // Auto-calculated center
+            confirmedSemiAxes: semiAxes,
+            centerOffset: .zero,
+            rotationAdjustment: 0,
+            alignmentConfidence: 1.0,  // High confidence with auto-center
+            wasManuallyAdjusted: false,
+            confirmedAt: Date()
+        )
+    }
 }
 
 // MARK: - Perspective Assessment

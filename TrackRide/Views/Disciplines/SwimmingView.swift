@@ -75,6 +75,17 @@ struct SwimmingView: View {
                             let healthKit = HealthKitManager.shared
                             let _ = await healthKit.saveSwimmingSessionAsWorkout(session)
                         }
+                        // Compute and save skill domain scores (basic without subjective score)
+                        let skillService = SkillDomainService()
+                        let skillScores = skillService.computeScores(from: session, score: nil)
+                        for skillScore in skillScores {
+                            modelContext.insert(skillScore)
+                        }
+                        try? modelContext.save()
+                        // Convert to TrainingArtifact and sync to CloudKit for family sharing
+                        Task {
+                            await ArtifactConversionService.shared.convertAndSyncSwimmingSession(session)
+                        }
                         // Sync sessions to widgets
                         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
                         activeSession = nil

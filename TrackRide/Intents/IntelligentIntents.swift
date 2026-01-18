@@ -18,19 +18,17 @@ struct GetLastRideSummaryIntent: AppIntent {
     static var description = IntentDescription("Get an AI-powered summary of your most recent ride")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let ride = try await MainActor.run {
-            try IntentDataManager.shared.fetchLastRideSync()
+        // Extract all needed data on MainActor to avoid capturing non-Sendable Ride
+        let rideData = try await MainActor.run { () -> (date: String, distance: String, duration: String)? in
+            guard let ride = try IntentDataManager.shared.fetchLastRideSync() else { return nil }
+            return (ride.formattedDate, ride.formattedDistance, ride.formattedDuration)
         }
 
-        guard let ride = ride else {
+        guard let rideData = rideData else {
             return .result(dialog: IntentDialog("You haven't recorded any rides yet. Would you like to start one?"))
         }
 
-        let dateStr = await MainActor.run { ride.formattedDate }
-        let distanceStr = await MainActor.run { ride.formattedDistance }
-        let durationStr = await MainActor.run { ride.formattedDuration }
-
-        return .result(dialog: IntentDialog("Your last ride on \(dateStr): \(distanceStr) in \(durationStr). Great job!"))
+        return .result(dialog: IntentDialog("Your last ride on \(rideData.date): \(rideData.distance) in \(rideData.duration). Great job!"))
     }
 }
 
@@ -68,16 +66,15 @@ struct CompareRidesIntent: AppIntent {
     static var description = IntentDescription("Compare your recent rides to see progress")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let rides = try await MainActor.run {
-            try IntentDataManager.shared.fetchRecentRidesSync(limit: 2)
+        // Extract comparison data on MainActor to avoid capturing non-Sendable Ride
+        let comparison = try await MainActor.run { () -> String? in
+            let rides = try IntentDataManager.shared.fetchRecentRidesSync(limit: 2)
+            guard rides.count >= 2 else { return nil }
+            return compareRides(rides[0], rides[1])
         }
 
-        guard rides.count >= 2 else {
+        guard let comparison = comparison else {
             return .result(dialog: IntentDialog("You need at least 2 rides to compare. Keep riding!"))
-        }
-
-        let comparison = await MainActor.run {
-            compareRides(rides[0], rides[1])
         }
 
         return .result(dialog: IntentDialog(stringLiteral: comparison))
@@ -175,16 +172,15 @@ struct GetTrainingRecommendationIntent: AppIntent {
     static var description = IntentDescription("Get a training recommendation based on your recent rides")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let rides = try await MainActor.run {
-            try IntentDataManager.shared.fetchRecentRidesSync(limit: 5)
+        // Extract recommendation data on MainActor to avoid capturing non-Sendable Ride
+        let suggestion = try await MainActor.run { () -> String? in
+            let rides = try IntentDataManager.shared.fetchRecentRidesSync(limit: 5)
+            guard !rides.isEmpty else { return nil }
+            return generateRecommendation(from: rides)
         }
 
-        guard !rides.isEmpty else {
+        guard let suggestion = suggestion else {
             return .result(dialog: IntentDialog("Start riding to get personalized recommendations!"))
-        }
-
-        let suggestion = await MainActor.run {
-            generateRecommendation(from: rides)
         }
 
         return .result(dialog: IntentDialog(stringLiteral: suggestion))

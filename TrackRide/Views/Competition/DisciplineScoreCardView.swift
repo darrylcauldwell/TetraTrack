@@ -15,6 +15,9 @@ struct DisciplineScoreCardView: View {
     // Weather service for auto-fetching weather on completion
     private let weatherService = WeatherService.shared
 
+    // Scoring info sheet
+    @State private var showScoringInfo = false
+
     // Input state for each discipline
     @State private var shootingScoreText: String = ""
     @State private var poolLength: Double = 25
@@ -87,12 +90,20 @@ struct DisciplineScoreCardView: View {
         }
 
         if showDiscipline(.swimming), swimDistance > 0 {
-            total += PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
+            total += PonyClubScoringService.calculateSwimmingPoints(
+                distanceMeters: swimDistance,
+                ageCategory: competition.level.scoringCategory,
+                gender: competition.level.scoringGender
+            )
         }
 
         let runTime = Double(runMinutes * 60 + runSeconds)
         if showDiscipline(.running), runTime > 0 {
-            total += PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)
+            total += PonyClubScoringService.calculateRunningPoints(
+                timeInSeconds: runTime,
+                ageCategory: competition.level.scoringCategory,
+                gender: competition.level.scoringGender
+            )
         }
 
         if showDiscipline(.riding), let penalties = Double(ridingPenalties) {
@@ -109,7 +120,17 @@ struct DisciplineScoreCardView: View {
                 HStack {
                     Text("Score Card")
                         .font(.headline)
+
+                    Button {
+                        showScoringInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Spacer()
+
                     if totalPoints > 0 {
                         Text(String(format: "%.0f pts", totalPoints))
                             .font(.headline.monospacedDigit())
@@ -145,6 +166,9 @@ struct DisciplineScoreCardView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onAppear { loadExistingResults() }
+            .sheet(isPresented: $showScoringInfo) {
+                ScoringInfoView()
+            }
         }
     }
 
@@ -204,7 +228,10 @@ struct DisciplineScoreCardView: View {
                         .padding(.vertical, 8)
                         .background(Color(.tertiarySystemBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .onChange(of: shootingScoreText) { _, _ in saveResults() }
+                        .onChange(of: shootingScoreText) { _, newValue in
+                            validateShootingScore(newValue)
+                            saveResults()
+                        }
 
                     Text("/ 100")
                         .font(.subheadline)
@@ -220,6 +247,30 @@ struct DisciplineScoreCardView: View {
     private var shootingPoints: Double? {
         guard let score = Int(shootingScoreText), score > 0 else { return nil }
         return PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)
+    }
+
+    /// Validate shooting score: max 100, even numbers only
+    private func validateShootingScore(_ value: String) {
+        // Filter to digits only
+        let filtered = value.filter { $0.isNumber }
+
+        guard let number = Int(filtered) else {
+            if filtered.isEmpty {
+                shootingScoreText = ""
+            }
+            return
+        }
+
+        // Cap at 100
+        let capped = min(number, 100)
+
+        // Round to nearest even number
+        let evenScore = (capped / 2) * 2
+
+        let newValue = "\(evenScore)"
+        if shootingScoreText != newValue {
+            shootingScoreText = newValue
+        }
     }
 
     // MARK: - Swimming Row
@@ -355,7 +406,11 @@ struct DisciplineScoreCardView: View {
 
     private var swimmingPoints: Double? {
         guard swimDistance > 0 else { return nil }
-        return PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
+        return PonyClubScoringService.calculateSwimmingPoints(
+            distanceMeters: swimDistance,
+            ageCategory: competition.level.scoringCategory,
+            gender: competition.level.scoringGender
+        )
     }
 
     // MARK: - Running Row
@@ -443,7 +498,11 @@ struct DisciplineScoreCardView: View {
     private var runningPoints: Double? {
         let time = Double(runMinutes * 60 + runSeconds)
         guard time > 0 else { return nil }
-        return PonyClubScoringService.calculateRunningPoints(timeInSeconds: time)
+        return PonyClubScoringService.calculateRunningPoints(
+            timeInSeconds: time,
+            ageCategory: competition.level.scoringCategory,
+            gender: competition.level.scoringGender
+        )
     }
 
     // MARK: - Riding Row
@@ -601,7 +660,11 @@ struct DisciplineScoreCardView: View {
             competition.swimmingDistance = swimDistance
             competition.swimmingTime = swimTime
             if swimDistance > 0 {
-                competition.swimmingPoints = PonyClubScoringService.calculateSwimmingPoints(timeInSeconds: swimTime, distanceMeters: swimDistance)
+                competition.swimmingPoints = PonyClubScoringService.calculateSwimmingPoints(
+                    distanceMeters: swimDistance,
+                    ageCategory: competition.level.scoringCategory,
+                    gender: competition.level.scoringGender
+                )
             }
         }
 
@@ -610,7 +673,11 @@ struct DisciplineScoreCardView: View {
             let runTime = Double(runMinutes * 60 + runSeconds)
             competition.runningTime = runTime > 0 ? runTime : nil
             if runTime > 0 {
-                competition.runningPoints = PonyClubScoringService.calculateRunningPoints(timeInSeconds: runTime)
+                competition.runningPoints = PonyClubScoringService.calculateRunningPoints(
+                    timeInSeconds: runTime,
+                    ageCategory: competition.level.scoringCategory,
+                    gender: competition.level.scoringGender
+                )
             }
         }
 

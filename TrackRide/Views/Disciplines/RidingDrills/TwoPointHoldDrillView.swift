@@ -359,16 +359,34 @@ struct TwoPointHoldDrillView: View {
         isRunning = false
         motionManager.stopUpdates()
 
+        // Calculate average stability score
+        let avgStability = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
+
+        // Save unified drill session
+        let session = UnifiedDrillSession(
+            drillType: .twoPoint,
+            duration: targetDuration,
+            score: avgStability * 100
+        )
+        modelContext.insert(session)
+
+        // Compute and save skill domain scores for profile integration
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+
         // Update streak
         if let streak = streak {
             streak.recordActivity()
-            try? modelContext.save()
         } else {
             let newStreak = TrainingStreak()
             newStreak.recordActivity()
             modelContext.insert(newStreak)
-            try? modelContext.save()
         }
+
+        try? modelContext.save()
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)

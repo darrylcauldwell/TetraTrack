@@ -412,24 +412,34 @@ struct SettingsView: View {
                     }
                 }
 
-                // Route Planning Data Section
-                Section {
-                    Text("Route planning uses OpenStreetMap data for bridleways and trails. Download your riding area to enable route planning.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                // Route Planning Data Section - temporarily disabled
+                // Will be re-enabled when route planning feature is complete
 
-                    // Show all regions with their status
-                    RouteDataRegionsList()
-                } header: {
-                    Text("Route Planning Data")
-                } footer: {
-                    Text("Route data is separate from Apple Maps. Swipe left on a downloaded region to remove it.")
-                        .font(.caption2)
+                // Shooting ML Development Section
+                Section("Shooting Development") {
+                    NavigationLink(destination: MLTrainingDashboardView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "brain")
+                                .font(.title2)
+                                .foregroundStyle(.purple)
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("ML Training Data")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+
+                                Text("View collection progress for hole detection")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
 
                 // Data Management Section
                 Section {
-                    // Clear Training History
+                    // Clear Session History
                     Button(role: .destructive) {
                         showingClearTrainingConfirmation = true
                     } label: {
@@ -440,7 +450,7 @@ struct SettingsView: View {
                                 .frame(width: 32)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Clear Training History")
+                                Text("Clear Session History")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
 
@@ -583,7 +593,7 @@ struct SettingsView: View {
                 checkDownloadedRegions()
             }
             .confirmationDialog(
-                "Clear Training History",
+                "Clear Session History",
                 isPresented: $showingClearTrainingConfirmation,
                 titleVisibility: .visible
             ) {

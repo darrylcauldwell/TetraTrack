@@ -8,7 +8,7 @@ import SwiftData
 import CoreLocation
 
 /// Way type from OpenStreetMap highway tag
-enum OSMWayType: String, Codable, CaseIterable {
+enum OSMWayType: String, Codable, CaseIterable, Sendable {
     case bridleway
     case byway
     case track
@@ -25,7 +25,7 @@ enum OSMWayType: String, Codable, CaseIterable {
     case other
 
     /// Cost multiplier for horse routing (lower = preferred)
-    var horseCostMultiplier: Double {
+    nonisolated var horseCostMultiplier: Double {
         switch self {
         case .bridleway: return 0.5    // Strongly preferred
         case .byway: return 0.6
@@ -43,7 +43,7 @@ enum OSMWayType: String, Codable, CaseIterable {
     }
 
     /// Whether horses are legally allowed
-    var isLegalForHorses: Bool {
+    nonisolated var isLegalForHorses: Bool {
         switch self {
         case .footway, .motorway, .trunk: return false
         default: return true
@@ -71,7 +71,7 @@ enum OSMWayType: String, Codable, CaseIterable {
     }
 
     /// Initialize from OSM highway tag value
-    init(osmTag: String) {
+    nonisolated init(osmTag: String) {
         switch osmTag {
         case "bridleway": self = .bridleway
         case "byway": self = .byway
@@ -92,7 +92,7 @@ enum OSMWayType: String, Codable, CaseIterable {
 }
 
 /// Surface type from OpenStreetMap surface tag
-enum OSMSurfaceType: String, Codable, CaseIterable {
+enum OSMSurfaceType: String, Codable, CaseIterable, Sendable {
     case grass
     case ground
     case earth
@@ -110,7 +110,7 @@ enum OSMSurfaceType: String, Codable, CaseIterable {
     case unknown
 
     /// Cost multiplier for horse routing (lower = preferred)
-    var horseCostMultiplier: Double {
+    nonisolated var horseCostMultiplier: Double {
         switch self {
         case .grass, .ground, .earth: return 0.8
         case .dirt: return 0.85
@@ -144,7 +144,7 @@ enum OSMSurfaceType: String, Codable, CaseIterable {
     }
 
     /// Initialize from OSM surface tag value
-    init(osmTag: String?) {
+    nonisolated init(osmTag: String?) {
         guard let tag = osmTag else {
             self = .unknown
             return
@@ -169,7 +169,7 @@ enum OSMSurfaceType: String, Codable, CaseIterable {
 }
 
 /// Horse access type from OSM tags
-enum OSMHorseAccess: String, Codable {
+enum OSMHorseAccess: String, Codable, Sendable {
     case yes
     case no
     case permissive
@@ -177,7 +177,7 @@ enum OSMHorseAccess: String, Codable {
     case unknown
 
     /// Initialize from OSM tags
-    init(tags: [String: String], wayType: OSMWayType) {
+    nonisolated init(tags: [String: String], wayType: OSMWayType) {
         // Explicit horse tag takes precedence
         if let horse = tags["horse"] {
             switch horse {
@@ -220,7 +220,7 @@ struct OSMEdge: Codable, Sendable {
     var cost: Double              // Pre-computed routing cost
     var bidirectional: Bool
 
-    init(
+    nonisolated init(
         toNodeId: Int64,
         distance: Double,
         wayType: OSMWayType,
@@ -236,7 +236,7 @@ struct OSMEdge: Codable, Sendable {
     }
 
     /// Calculate routing cost for this edge
-    static func calculateCost(
+    nonisolated static func calculateCost(
         distance: Double,
         wayType: OSMWayType,
         surface: OSMSurfaceType

@@ -630,3 +630,304 @@ struct SafetyAlert: Identifiable, Codable {
         "\(Int(stationaryDuration / 60)) min"
     }
 }
+
+// MARK: - Multi-Discipline Notification Extension
+
+extension NotificationManager {
+    // MARK: - User Preferences Storage
+
+    private static let preferencesKey = "notificationPreferences"
+    private static let alertHistoryKey = "notificationAlertHistory"
+
+    /// Load notification preferences from UserDefaults
+    func loadPreferences() -> NotificationPreferences {
+        if let data = UserDefaults.standard.data(forKey: Self.preferencesKey),
+           let prefs = try? JSONDecoder().decode(NotificationPreferences.self, from: data) {
+            return prefs
+        }
+        return .default
+    }
+
+    /// Save notification preferences to UserDefaults
+    func savePreferences(_ preferences: NotificationPreferences) {
+        if let data = try? JSONEncoder().encode(preferences) {
+            UserDefaults.standard.set(data, forKey: Self.preferencesKey)
+        }
+    }
+
+    // MARK: - Session Completion Notifications
+
+    /// Send completion notification for any discipline
+    func sendSessionCompletedNotification(
+        discipline: TrainingDiscipline,
+        athleteName: String,
+        summary: String,
+        details: String? = nil
+    ) {
+        let preferences = loadPreferences()
+
+        // Check if completion alerts are enabled for this discipline
+        guard preferences.shouldSendCompletionAlert(for: discipline) else {
+            Log.notifications.debug("Completion alerts disabled for \(discipline.rawValue)")
+            return
+        }
+
+        // Check quiet hours
+        if preferences.isInQuietHours() {
+            Log.notifications.debug("Skipping notification during quiet hours")
+            return
+        }
+
+        // Check throttling
+        if isThrottled(for: preferences) {
+            Log.notifications.debug("Notification throttled")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(discipline.rawValue) Completed"
+        content.subtitle = athleteName
+        content.body = summary
+        if let details = details {
+            content.body += "\n\(details)"
+        }
+        content.sound = .default
+        content.categoryIdentifier = "SESSION_COMPLETED"
+
+        // Add discipline icon via thread identifier for grouping
+        content.threadIdentifier = "session-\(discipline.rawValue.lowercased())"
+
+        let request = UNNotificationRequest(
+            identifier: "session-completed-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        notificationCenter.add(request) { error in
+            if let error = error {
+                Log.notifications.error("Failed to send session notification: \(error)")
+            } else {
+                self.recordNotificationSent()
+            }
+        }
+    }
+
+    /// Send running session completed notification
+    func sendRunningCompletedNotification(
+        athleteName: String,
+        distance: String,
+        duration: String,
+        pace: String
+    ) {
+        sendSessionCompletedNotification(
+            discipline: .running,
+            athleteName: athleteName,
+            summary: "\(distance) in \(duration)",
+            details: "Pace: \(pace)"
+        )
+    }
+
+    /// Send swimming session completed notification
+    func sendSwimmingCompletedNotification(
+        athleteName: String,
+        distance: String,
+        duration: String,
+        laps: Int
+    ) {
+        sendSessionCompletedNotification(
+            discipline: .swimming,
+            athleteName: athleteName,
+            summary: "\(distance) in \(duration)",
+            details: "\(laps) laps completed"
+        )
+    }
+
+    /// Send shooting session completed notification
+    func sendShootingCompletedNotification(
+        athleteName: String,
+        score: Int,
+        maxScore: Int,
+        sessionType: String
+    ) {
+        let percentage = maxScore > 0 ? (Double(score) / Double(maxScore) * 100) : 0
+        sendSessionCompletedNotification(
+            discipline: .shooting,
+            athleteName: athleteName,
+            summary: "\(score)/\(maxScore) points (\(Int(percentage))%)",
+            details: sessionType
+        )
+    }
+
+    // MARK: - Competition Reminders
+
+    /// Schedule competition reminder notifications
+    func scheduleCompetitionReminder(
+        competition: SharedCompetition,
+        daysBeforeOptions: [Int] = [7, 1]
+    ) {
+        let preferences = loadPreferences()
+        guard preferences.competitionReminders else { return }
+
+        let reminderDays = daysBeforeOptions.isEmpty ? preferences.competitionReminderDays : daysBeforeOptions
+
+        for daysBefore in reminderDays {
+            let reminderDate = Calendar.current.date(
+                byAdding: .day,
+                value: -daysBefore,
+                to: competition.date
+            )
+
+            guard let date = reminderDate, date > Date() else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Competition Reminder"
+            content.body = "\(competition.name) is in \(daysBefore) day\(daysBefore == 1 ? "" : "s")"
+            content.subtitle = competition.venue
+            content.sound = .default
+            content.categoryIdentifier = "COMPETITION_REMINDER"
+
+            // Schedule for 9 AM on the reminder day
+            var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            dateComponents.hour = 9
+            dateComponents.minute = 0
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+
+            let request = UNNotificationRequest(
+                identifier: "competition-reminder-\(competition.id)-\(daysBefore)",
+                content: content,
+                trigger: trigger
+            )
+
+            notificationCenter.add(request) { error in
+                if let error = error {
+                    Log.notifications.error("Failed to schedule competition reminder: \(error)")
+                }
+            }
+        }
+
+        Log.notifications.info("Scheduled reminders for \(competition.name)")
+    }
+
+    /// Cancel competition reminders
+    func cancelCompetitionReminders(for competitionID: UUID) {
+        notificationCenter.getPendingNotificationRequests { requests in
+            let idsToRemove = requests
+                .filter { $0.identifier.contains("competition-reminder-\(competitionID)") }
+                .map { $0.identifier }
+            self.notificationCenter.removePendingNotificationRequests(withIdentifiers: idsToRemove)
+        }
+    }
+
+    // MARK: - Live Tracking Notifications
+
+    /// Send live session started notification to family
+    func sendLiveSessionStartedNotification(
+        discipline: TrainingDiscipline,
+        athleteName: String
+    ) {
+        let preferences = loadPreferences()
+
+        guard preferences.isLiveTrackingEnabled(for: discipline) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(discipline.rawValue) Started"
+        content.body = "\(athleteName) started a \(discipline.rawValue.lowercased()) session"
+        content.sound = .default
+        content.categoryIdentifier = "SESSION_STARTED"
+
+        let request = UNNotificationRequest(
+            identifier: "session-started-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        notificationCenter.add(request)
+    }
+
+    // MARK: - Throttling
+
+    private var notificationHistory: [Date] {
+        get {
+            if let data = UserDefaults.standard.data(forKey: Self.alertHistoryKey),
+               let dates = try? JSONDecoder().decode([Date].self, from: data) {
+                return dates
+            }
+            return []
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: Self.alertHistoryKey)
+            }
+        }
+    }
+
+    private func isThrottled(for preferences: NotificationPreferences) -> Bool {
+        let oneHourAgo = Date().addingTimeInterval(-3600)
+        let recentCount = notificationHistory.filter { $0 > oneHourAgo }.count
+        return recentCount >= preferences.maxAlertsPerHour
+    }
+
+    private func recordNotificationSent() {
+        var history = notificationHistory
+        history.append(Date())
+
+        // Keep only last 24 hours of history
+        let oneDayAgo = Date().addingTimeInterval(-86400)
+        history = history.filter { $0 > oneDayAgo }
+
+        notificationHistory = history
+    }
+
+    // MARK: - Friend Alert Routing
+
+    /// Route an alert to appropriate friends based on their permissions
+    func routeAlertToFriends(
+        alert: TrainingAlert,
+        friends: [SharingRelationship]
+    ) async {
+        for friend in friends {
+            guard friend.shouldReceiveAlert(for: alert.discipline, alertType: alert.alertType) else {
+                continue
+            }
+
+            // Check quiet hours for this friend
+            if friend.isInQuietHours() {
+                Log.notifications.debug("Skipping alert for \(friend.name) - quiet hours")
+                continue
+            }
+
+            // Send notification (in a real implementation, this would be a push notification)
+            Log.notifications.info("Routing \(alert.alertType) alert to friend: \(friend.name)")
+        }
+    }
+}
+
+// MARK: - Training Alert
+
+/// Alert for training sessions (multi-discipline)
+struct TrainingAlert {
+    let id: UUID
+    let discipline: TrainingDiscipline
+    let alertType: SharingRelationship.AlertType
+    let athleteName: String
+    let summary: String
+    let timestamp: Date
+    var location: (latitude: Double, longitude: Double)?
+
+    init(
+        discipline: TrainingDiscipline,
+        alertType: SharingRelationship.AlertType,
+        athleteName: String,
+        summary: String,
+        location: (latitude: Double, longitude: Double)? = nil
+    ) {
+        self.id = UUID()
+        self.discipline = discipline
+        self.alertType = alertType
+        self.athleteName = athleteName
+        self.summary = summary
+        self.timestamp = Date()
+        self.location = location
+    }
+}

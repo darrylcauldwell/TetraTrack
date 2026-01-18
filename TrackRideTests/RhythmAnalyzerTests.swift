@@ -249,7 +249,11 @@ struct RhythmAnalyzerTests {
             rotationZ: 0,
             pitch: pitch,
             roll: 0,
-            yaw: 0
+            yaw: 0,
+            quaternionW: 1.0,
+            quaternionX: 0.0,
+            quaternionY: 0.0,
+            quaternionZ: 0.0
         )
     }
 }
@@ -274,7 +278,11 @@ struct StrideDetectionTests {
                 rotationZ: 0,
                 pitch: 0,
                 roll: 0,
-                yaw: 0
+                yaw: 0,
+                quaternionW: 1.0,
+                quaternionX: 0.0,
+                quaternionY: 0.0,
+                quaternionZ: 0.0
             )
             analyzer.processMotionSample(sample, currentGait: .walk)
         }

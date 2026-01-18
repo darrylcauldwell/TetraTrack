@@ -209,6 +209,15 @@ struct SwimmingScorecardView: View {
         score.session = session
         modelContext.insert(score)
         try? modelContext.save()
+
+        // Compute and save skill domain scores
+        let skillService = SkillDomainService()
+        let skillScores = skillService.computeScores(from: session, score: score)
+        for skillScore in skillScores {
+            modelContext.insert(skillScore)
+        }
+        try? modelContext.save()
+
         dismiss()
     }
 }

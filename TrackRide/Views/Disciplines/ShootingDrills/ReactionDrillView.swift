@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import AVFoundation
 import Combine
 
@@ -13,6 +14,7 @@ import Combine
 
 struct ReactionDrillView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @StateObject private var voiceManager = RangeOfficerVoice()
     @State private var phase: RangePhase = .idle
@@ -357,6 +359,29 @@ struct ReactionDrillView: View {
         if currentRound > totalRounds {
             phase = .complete
             voiceManager.speak("Session complete. Well done.")
+
+            // Calculate score based on average reaction time (faster = better)
+            let avgReaction = reactionTimes.isEmpty ? 1.0 : reactionTimes.reduce(0, +) / Double(reactionTimes.count)
+            let score = max(0, min(100, (1.5 - avgReaction) / 1.5 * 100))
+
+            // Save drill session to history
+            let session = ShootingDrillSession(
+                drillType: .reaction,
+                duration: TimeInterval(totalRounds * 5),  // ~5s per round
+                score: score
+            )
+            session.bestReactionTime = reactionTimes.min() ?? 0
+            modelContext.insert(session)
+            try? modelContext.save()
+
+            // Compute and save skill domain scores
+            let skillService = SkillDomainService()
+            let skillScores = skillService.computeScores(from: session)
+            for skillScore in skillScores {
+                modelContext.insert(skillScore)
+            }
+            try? modelContext.save()
+
             return
         }
 

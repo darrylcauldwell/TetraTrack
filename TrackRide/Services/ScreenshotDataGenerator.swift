@@ -140,6 +140,9 @@ struct ScreenshotDataGenerator {
         // Create shooting sessions
         generateShootingSessions(in: context)
 
+        // Create training drill sessions
+        generateDrillSessions(in: context)
+
         // Create competitions
         generateCompetitions(in: context, horse: bella)
 
@@ -186,6 +189,24 @@ struct ScreenshotDataGenerator {
         let shootDescriptor = FetchDescriptor<ShootingSession>()
         if let shoots = try? context.fetch(shootDescriptor) {
             shoots.forEach { context.delete($0) }
+        }
+
+        // Clear unified drill sessions
+        let drillDescriptor = FetchDescriptor<UnifiedDrillSession>()
+        if let drills = try? context.fetch(drillDescriptor) {
+            drills.forEach { context.delete($0) }
+        }
+
+        // Clear legacy riding drill sessions
+        let ridingDrillDescriptor = FetchDescriptor<RidingDrillSession>()
+        if let drills = try? context.fetch(ridingDrillDescriptor) {
+            drills.forEach { context.delete($0) }
+        }
+
+        // Clear legacy shooting drill sessions
+        let shootingDrillDescriptor = FetchDescriptor<ShootingDrillSession>()
+        if let drills = try? context.fetch(shootingDrillDescriptor) {
+            drills.forEach { context.delete($0) }
         }
 
         try? context.save()
@@ -1082,6 +1103,231 @@ struct ScreenshotDataGenerator {
             shot.end = end
             context.insert(shot)
         }
+    }
+
+    // MARK: - Drill Sessions
+
+    private static func generateDrillSessions(in context: ModelContext) {
+        let calendar = Calendar.current
+
+        // MARK: Riding Drills
+
+        // Core Stability - Yesterday
+        let coreStability = UnifiedDrillSession(
+            drillType: .coreStability,
+            duration: 65,
+            score: 78,
+            stabilityScore: 82,
+            symmetryScore: 75,
+            enduranceScore: 72,
+            averageRMS: 0.12,
+            averageWobble: 0.08
+        )
+        coreStability.startDate = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        coreStability.notes = "Good session! Discovered my core is stronger than my willpower to continue. The phone kept telling me to 'stay stable' - easier said than done when you're shaking like a leaf."
+        context.insert(coreStability)
+
+        // Two-Point - 3 days ago
+        let twoPoint = UnifiedDrillSession(
+            drillType: .twoPoint,
+            duration: 45,
+            score: 71,
+            stabilityScore: 68,
+            symmetryScore: 74,
+            enduranceScore: 65,
+            averageRMS: 0.18,
+            peakDeviation: 0.25
+        )
+        twoPoint.startDate = calendar.date(byAdding: .day, value: -3, to: Date()) ?? Date()
+        twoPoint.notes = "Two-point position practice. My thighs are filing a formal complaint. The endurance score declined sharply after 30 seconds - I prefer to think of it as 'strategic energy conservation'."
+        context.insert(twoPoint)
+
+        // Heel Position - 5 days ago
+        let heelPosition = UnifiedDrillSession(
+            drillType: .heelPosition,
+            duration: 60,
+            score: 85,
+            stabilityScore: 88,
+            symmetryScore: 82,
+            coordinationScore: 80,
+            averageRMS: 0.09
+        )
+        heelPosition.startDate = calendar.date(byAdding: .day, value: -5, to: Date()) ?? Date()
+        heelPosition.notes = "Heels down drill went well! Who knew standing with your heels down could be this challenging without a horse? The cat was unimpressed by my efforts."
+        context.insert(heelPosition)
+
+        // Posting Rhythm - 8 days ago
+        let postingRhythm = UnifiedDrillSession(
+            drillType: .postingRhythm,
+            duration: 90,
+            score: 82,
+            enduranceScore: 76,
+            coordinationScore: 78,
+            rhythmScore: 85,
+            rhythmAccuracy: 87
+        )
+        postingRhythm.startDate = calendar.date(byAdding: .day, value: -8, to: Date()) ?? Date()
+        postingRhythm.notes = "Practiced posting to metronome at 145 BPM. Started strong, ended looking like a confused kangaroo. Rhythm score proves I CAN keep time when nobody's watching."
+        context.insert(postingRhythm)
+
+        // MARK: Shooting Drills
+
+        // Box Breathing - 2 days ago
+        let boxBreathing = UnifiedDrillSession(
+            drillType: .boxBreathing,
+            duration: 180,
+            score: 92,
+            stabilityScore: 88,
+            enduranceScore: 90,
+            breathingScore: 95,
+            averageRMS: 0.05
+        )
+        boxBreathing.startDate = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+        boxBreathing.notes = "3 minutes of box breathing - 4 in, 4 hold, 4 out, 4 hold. Achieved an almost zen-like state. Then the dog barked and ruined everything. Still a PB!"
+        context.insert(boxBreathing)
+
+        // Dry Fire - 4 days ago
+        let dryFire = UnifiedDrillSession(
+            drillType: .dryFire,
+            duration: 120,
+            score: 76,
+            stabilityScore: 78,
+            symmetryScore: 72,
+            coordinationScore: 74,
+            averageWobble: 0.12,
+            peakDeviation: 0.18
+        )
+        dryFire.startDate = calendar.date(byAdding: .day, value: -4, to: Date()) ?? Date()
+        dryFire.notes = "Dry fire practice - trigger pull without the bang. My imaginary targets were hit with great precision. Real targets may vary. Stability improved toward the end!"
+        context.insert(dryFire)
+
+        // Steady Hold - 6 days ago
+        let steadyHold = UnifiedDrillSession(
+            drillType: .steadyHold,
+            duration: 90,
+            score: 68,
+            stabilityScore: 65,
+            symmetryScore: 71,
+            enduranceScore: 62,
+            averageWobble: 0.15,
+            peakDeviation: 0.22
+        )
+        steadyHold.startDate = calendar.date(byAdding: .day, value: -6, to: Date()) ?? Date()
+        steadyHold.notes = "Extended hold drill. Discovered that holding still is HARD. My arms have opinions about this. Stability degraded significantly after 60 seconds - arms staged a mutiny."
+        context.insert(steadyHold)
+
+        // Reaction Time - 9 days ago
+        let reactionTime = UnifiedDrillSession(
+            drillType: .reactionTime,
+            duration: 60,
+            score: 81,
+            coordinationScore: 78,
+            reactionScore: 84,
+            bestReactionTime: 0.28,
+            averageReactionTime: 0.42
+        )
+        reactionTime.startDate = calendar.date(byAdding: .day, value: -9, to: Date()) ?? Date()
+        reactionTime.notes = "Reaction drill with voice commands. Best time 0.28s - channeling my inner ninja! Average is still 'human speed' at 0.42s. The 'FIRE!' command made me jump once."
+        context.insert(reactionTime)
+
+        // MARK: Running Drills
+
+        // Cadence Training - Today
+        let cadence = UnifiedDrillSession(
+            drillType: .cadenceTraining,
+            duration: 180,
+            score: 88,
+            enduranceScore: 84,
+            coordinationScore: 82,
+            rhythmScore: 91,
+            rhythmAccuracy: 92,
+            cadence: 178
+        )
+        cadence.startDate = calendar.date(byAdding: .hour, value: -3, to: Date()) ?? Date()
+        cadence.notes = "Target: 180 SPM. Achieved: 178 SPM. Close enough! The metronome was relentless but my feet eventually cooperated. Felt like a running robot by the end."
+        context.insert(cadence)
+
+        // Breathing Patterns - 7 days ago
+        let breathingPatterns = UnifiedDrillSession(
+            drillType: .breathingPatterns,
+            duration: 150,
+            score: 79,
+            enduranceScore: 74,
+            breathingScore: 82,
+            rhythmScore: 76
+        )
+        breathingPatterns.startDate = calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        breathingPatterns.notes = "3:2 breathing pattern practice. In-in-in, out-out. Surprisingly hard to coordinate with feet. Brain wanted to do its own thing. Eventually found the rhythm."
+        context.insert(breathingPatterns)
+
+        // Plyometrics - 11 days ago
+        let plyometrics = UnifiedDrillSession(
+            drillType: .plyometrics,
+            duration: 120,
+            score: 74,
+            enduranceScore: 68,
+            coordinationScore: 76,
+            rhythmScore: 72,
+            averageRMS: 0.22
+        )
+        plyometrics.startDate = calendar.date(byAdding: .day, value: -11, to: Date()) ?? Date()
+        plyometrics.notes = "Jump power drill! My vertical is... aspirational. The neighbours may have thought I was trying to escape something. Legs complained for two days afterward."
+        context.insert(plyometrics)
+
+        // MARK: Swimming Drills
+
+        // Breathing Rhythm - Yesterday
+        let breathingRhythm = UnifiedDrillSession(
+            drillType: .breathingRhythm,
+            duration: 120,
+            score: 83,
+            symmetryScore: 78,
+            breathingScore: 86,
+            rhythmScore: 80
+        )
+        breathingRhythm.startDate = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        breathingRhythm.notes = "Bilateral breathing practice - 3 strokes right, 3 strokes left. No longer drowning on the left side! Symmetry is improving. The pool was cold but the session was worth it."
+        context.insert(breathingRhythm)
+
+        // Kick Efficiency - 10 days ago
+        let kickEfficiency = UnifiedDrillSession(
+            drillType: .kickEfficiency,
+            duration: 90,
+            score: 72,
+            enduranceScore: 68,
+            coordinationScore: 70,
+            rhythmScore: 74
+        )
+        kickEfficiency.startDate = calendar.date(byAdding: .day, value: -10, to: Date()) ?? Date()
+        kickEfficiency.notes = "Flutter kick rhythm drill. My kick is more 'enthusiastic splashing' than 'efficient propulsion' but the rhythm is getting steadier. Less white water is a win."
+        context.insert(kickEfficiency)
+
+        // Streamline Position - 12 days ago
+        let streamline = UnifiedDrillSession(
+            drillType: .streamlinePosition,
+            duration: 60,
+            score: 86,
+            stabilityScore: 89,
+            symmetryScore: 84,
+            enduranceScore: 80,
+            averageRMS: 0.08
+        )
+        streamline.startDate = calendar.date(byAdding: .day, value: -12, to: Date()) ?? Date()
+        streamline.notes = "Streamline posture drill - arms squeezed behind ears, core tight. I am now 4.7% more hydrodynamic (imaginary statistic). Actually held it well this time!"
+        context.insert(streamline)
+
+        // Shoulder Mobility - 14 days ago
+        let shoulderMobility = UnifiedDrillSession(
+            drillType: .shoulderMobility,
+            duration: 75,
+            score: 77,
+            symmetryScore: 75,
+            enduranceScore: 72,
+            coordinationScore: 79
+        )
+        shoulderMobility.startDate = calendar.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        shoulderMobility.notes = "Shoulder circles and mobility work. Left shoulder is the problem child - always has been. Range of motion improving though. Can now wave hello without wincing."
+        context.insert(shoulderMobility)
     }
 
     // MARK: - Competitions

@@ -22,13 +22,44 @@ final class AudioCoachManager: AudioCoaching {
     var volume: Float = 0.8
     var speechRate: Float = 0.5 // 0.0-1.0, default is 0.5
 
-    // Announcement toggles
+    // Voice selection
+    var selectedVoiceIdentifier: String = "" // Empty = default en-GB voice
+
+    // MARK: - Riding Announcements
     var announceGaitChanges: Bool = true
     var announceDistanceMilestones: Bool = true
     var announceTimeMilestones: Bool = true
     var announceHeartRateZones: Bool = true
     var announceWorkoutIntervals: Bool = true
+
+    // MARK: - Running Announcements
     var announceRunningFormReminders: Bool = true
+    var announceRunningPace: Bool = true
+    var announceRunningLaps: Bool = true
+    var announceVirtualPacer: Bool = true
+    var announceCadenceFeedback: Bool = true
+    var announcePBRaceCoaching: Bool = true
+
+    // MARK: - Cross-Country/Eventing Announcements
+    var announceCrossCountry: Bool = true
+
+    // MARK: - Swimming Announcements
+    var announceSwimmingLaps: Bool = true
+    var announceSwimmingRest: Bool = true
+    var announceSwimmingPace: Bool = true
+
+    // MARK: - Shooting Announcements
+    var announceShootingDrills: Bool = true
+    var announceShootingStance: Bool = true
+
+    // MARK: - General Announcements
+    var announceSessionStartEnd: Bool = true
+    var announceSafetyStatus: Bool = true
+    var announceSessionSummary: Bool = true
+
+    // MARK: - Biomechanics Announcements (Real-time feedback)
+    var announceRidingBiomechanics: Bool = true
+    var announceRunningBiomechanics: Bool = true
 
     // Running form reminder interval (in seconds)
     var formReminderIntervalSeconds: TimeInterval = 300 // Every 5 minutes by default
@@ -53,6 +84,57 @@ final class AudioCoachManager: AudioCoaching {
     // Queue for announcements to avoid overlapping
     private var announcementQueue: [String] = []
     private var isProcessingQueue: Bool = false
+
+    // MARK: - Voice Selection
+
+    /// Get the selected voice, or default to en-GB
+    var selectedVoice: AVSpeechSynthesisVoice? {
+        if !selectedVoiceIdentifier.isEmpty,
+           let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceIdentifier) {
+            return voice
+        }
+        return AVSpeechSynthesisVoice(language: "en-GB")
+    }
+
+    /// Get all available English voices for selection
+    static var availableVoices: [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+            .sorted { voice1, voice2 in
+                // Sort by quality (enhanced first), then by name
+                if voice1.quality != voice2.quality {
+                    return voice1.quality.rawValue > voice2.quality.rawValue
+                }
+                return voice1.name < voice2.name
+            }
+    }
+
+    /// Get display name for a voice
+    static func displayName(for voice: AVSpeechSynthesisVoice) -> String {
+        let qualityLabel: String
+        switch voice.quality {
+        case .enhanced:
+            qualityLabel = " (Enhanced)"
+        case .premium:
+            qualityLabel = " (Premium)"
+        default:
+            qualityLabel = ""
+        }
+
+        // Extract country from language code
+        let country: String
+        switch voice.language {
+        case "en-GB": country = "🇬🇧"
+        case "en-US": country = "🇺🇸"
+        case "en-AU": country = "🇦🇺"
+        case "en-IE": country = "🇮🇪"
+        case "en-ZA": country = "🇿🇦"
+        case "en-IN": country = "🇮🇳"
+        default: country = "🌐"
+        }
+
+        return "\(country) \(voice.name)\(qualityLabel)"
+    }
 
     // MARK: - Singleton
 
@@ -364,7 +446,7 @@ final class AudioCoachManager: AudioCoaching {
         let utterance = AVSpeechUtterance(string: message)
         utterance.rate = speechRate
         utterance.volume = volume
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
+        utterance.voice = selectedVoice
         utterance.pitchMultiplier = 1.0
 
         // Add slight pause between announcements
@@ -390,12 +472,45 @@ extension AudioCoachManager {
         static let isEnabled = "audioCoach.isEnabled"
         static let volume = "audioCoach.volume"
         static let speechRate = "audioCoach.speechRate"
+        static let selectedVoiceIdentifier = "audioCoach.selectedVoiceIdentifier"
+
+        // Riding
         static let announceGaitChanges = "audioCoach.announceGaitChanges"
         static let announceDistanceMilestones = "audioCoach.announceDistanceMilestones"
         static let announceTimeMilestones = "audioCoach.announceTimeMilestones"
         static let announceHeartRateZones = "audioCoach.announceHeartRateZones"
         static let announceWorkoutIntervals = "audioCoach.announceWorkoutIntervals"
+
+        // Running
         static let announceRunningFormReminders = "audioCoach.announceRunningFormReminders"
+        static let announceRunningPace = "audioCoach.announceRunningPace"
+        static let announceRunningLaps = "audioCoach.announceRunningLaps"
+        static let announceVirtualPacer = "audioCoach.announceVirtualPacer"
+        static let announceCadenceFeedback = "audioCoach.announceCadenceFeedback"
+        static let announcePBRaceCoaching = "audioCoach.announcePBRaceCoaching"
+
+        // Cross-Country
+        static let announceCrossCountry = "audioCoach.announceCrossCountry"
+
+        // Swimming
+        static let announceSwimmingLaps = "audioCoach.announceSwimmingLaps"
+        static let announceSwimmingRest = "audioCoach.announceSwimmingRest"
+        static let announceSwimmingPace = "audioCoach.announceSwimmingPace"
+
+        // Shooting
+        static let announceShootingDrills = "audioCoach.announceShootingDrills"
+        static let announceShootingStance = "audioCoach.announceShootingStance"
+
+        // General
+        static let announceSessionStartEnd = "audioCoach.announceSessionStartEnd"
+        static let announceSafetyStatus = "audioCoach.announceSafetyStatus"
+        static let announceSessionSummary = "audioCoach.announceSessionSummary"
+
+        // Biomechanics
+        static let announceRidingBiomechanics = "audioCoach.announceRidingBiomechanics"
+        static let announceRunningBiomechanics = "audioCoach.announceRunningBiomechanics"
+
+        // Intervals
         static let distanceMilestoneKm = "audioCoach.distanceMilestoneKm"
         static let timeMilestoneMinutes = "audioCoach.timeMilestoneMinutes"
         static let formReminderIntervalSeconds = "audioCoach.formReminderIntervalSeconds"
@@ -413,6 +528,11 @@ extension AudioCoachManager {
         if defaults.object(forKey: Keys.speechRate) != nil {
             speechRate = defaults.float(forKey: Keys.speechRate)
         }
+        if let voiceId = defaults.string(forKey: Keys.selectedVoiceIdentifier) {
+            selectedVoiceIdentifier = voiceId
+        }
+
+        // Riding
         if defaults.object(forKey: Keys.announceGaitChanges) != nil {
             announceGaitChanges = defaults.bool(forKey: Keys.announceGaitChanges)
         }
@@ -428,9 +548,71 @@ extension AudioCoachManager {
         if defaults.object(forKey: Keys.announceWorkoutIntervals) != nil {
             announceWorkoutIntervals = defaults.bool(forKey: Keys.announceWorkoutIntervals)
         }
+
+        // Running
         if defaults.object(forKey: Keys.announceRunningFormReminders) != nil {
             announceRunningFormReminders = defaults.bool(forKey: Keys.announceRunningFormReminders)
         }
+        if defaults.object(forKey: Keys.announceRunningPace) != nil {
+            announceRunningPace = defaults.bool(forKey: Keys.announceRunningPace)
+        }
+        if defaults.object(forKey: Keys.announceRunningLaps) != nil {
+            announceRunningLaps = defaults.bool(forKey: Keys.announceRunningLaps)
+        }
+        if defaults.object(forKey: Keys.announceVirtualPacer) != nil {
+            announceVirtualPacer = defaults.bool(forKey: Keys.announceVirtualPacer)
+        }
+        if defaults.object(forKey: Keys.announceCadenceFeedback) != nil {
+            announceCadenceFeedback = defaults.bool(forKey: Keys.announceCadenceFeedback)
+        }
+        if defaults.object(forKey: Keys.announcePBRaceCoaching) != nil {
+            announcePBRaceCoaching = defaults.bool(forKey: Keys.announcePBRaceCoaching)
+        }
+
+        // Cross-Country
+        if defaults.object(forKey: Keys.announceCrossCountry) != nil {
+            announceCrossCountry = defaults.bool(forKey: Keys.announceCrossCountry)
+        }
+
+        // Swimming
+        if defaults.object(forKey: Keys.announceSwimmingLaps) != nil {
+            announceSwimmingLaps = defaults.bool(forKey: Keys.announceSwimmingLaps)
+        }
+        if defaults.object(forKey: Keys.announceSwimmingRest) != nil {
+            announceSwimmingRest = defaults.bool(forKey: Keys.announceSwimmingRest)
+        }
+        if defaults.object(forKey: Keys.announceSwimmingPace) != nil {
+            announceSwimmingPace = defaults.bool(forKey: Keys.announceSwimmingPace)
+        }
+
+        // Shooting
+        if defaults.object(forKey: Keys.announceShootingDrills) != nil {
+            announceShootingDrills = defaults.bool(forKey: Keys.announceShootingDrills)
+        }
+        if defaults.object(forKey: Keys.announceShootingStance) != nil {
+            announceShootingStance = defaults.bool(forKey: Keys.announceShootingStance)
+        }
+
+        // General
+        if defaults.object(forKey: Keys.announceSessionStartEnd) != nil {
+            announceSessionStartEnd = defaults.bool(forKey: Keys.announceSessionStartEnd)
+        }
+        if defaults.object(forKey: Keys.announceSafetyStatus) != nil {
+            announceSafetyStatus = defaults.bool(forKey: Keys.announceSafetyStatus)
+        }
+        if defaults.object(forKey: Keys.announceSessionSummary) != nil {
+            announceSessionSummary = defaults.bool(forKey: Keys.announceSessionSummary)
+        }
+
+        // Biomechanics
+        if defaults.object(forKey: Keys.announceRidingBiomechanics) != nil {
+            announceRidingBiomechanics = defaults.bool(forKey: Keys.announceRidingBiomechanics)
+        }
+        if defaults.object(forKey: Keys.announceRunningBiomechanics) != nil {
+            announceRunningBiomechanics = defaults.bool(forKey: Keys.announceRunningBiomechanics)
+        }
+
+        // Intervals
         if defaults.object(forKey: Keys.distanceMilestoneKm) != nil {
             distanceMilestoneKm = defaults.double(forKey: Keys.distanceMilestoneKm)
         }
@@ -447,12 +629,45 @@ extension AudioCoachManager {
         defaults.set(isEnabled, forKey: Keys.isEnabled)
         defaults.set(volume, forKey: Keys.volume)
         defaults.set(speechRate, forKey: Keys.speechRate)
+        defaults.set(selectedVoiceIdentifier, forKey: Keys.selectedVoiceIdentifier)
+
+        // Riding
         defaults.set(announceGaitChanges, forKey: Keys.announceGaitChanges)
         defaults.set(announceDistanceMilestones, forKey: Keys.announceDistanceMilestones)
         defaults.set(announceTimeMilestones, forKey: Keys.announceTimeMilestones)
         defaults.set(announceHeartRateZones, forKey: Keys.announceHeartRateZones)
         defaults.set(announceWorkoutIntervals, forKey: Keys.announceWorkoutIntervals)
+
+        // Running
         defaults.set(announceRunningFormReminders, forKey: Keys.announceRunningFormReminders)
+        defaults.set(announceRunningPace, forKey: Keys.announceRunningPace)
+        defaults.set(announceRunningLaps, forKey: Keys.announceRunningLaps)
+        defaults.set(announceVirtualPacer, forKey: Keys.announceVirtualPacer)
+        defaults.set(announceCadenceFeedback, forKey: Keys.announceCadenceFeedback)
+        defaults.set(announcePBRaceCoaching, forKey: Keys.announcePBRaceCoaching)
+
+        // Cross-Country
+        defaults.set(announceCrossCountry, forKey: Keys.announceCrossCountry)
+
+        // Swimming
+        defaults.set(announceSwimmingLaps, forKey: Keys.announceSwimmingLaps)
+        defaults.set(announceSwimmingRest, forKey: Keys.announceSwimmingRest)
+        defaults.set(announceSwimmingPace, forKey: Keys.announceSwimmingPace)
+
+        // Shooting
+        defaults.set(announceShootingDrills, forKey: Keys.announceShootingDrills)
+        defaults.set(announceShootingStance, forKey: Keys.announceShootingStance)
+
+        // General
+        defaults.set(announceSessionStartEnd, forKey: Keys.announceSessionStartEnd)
+        defaults.set(announceSafetyStatus, forKey: Keys.announceSafetyStatus)
+        defaults.set(announceSessionSummary, forKey: Keys.announceSessionSummary)
+
+        // Biomechanics
+        defaults.set(announceRidingBiomechanics, forKey: Keys.announceRidingBiomechanics)
+        defaults.set(announceRunningBiomechanics, forKey: Keys.announceRunningBiomechanics)
+
+        // Intervals
         defaults.set(distanceMilestoneKm, forKey: Keys.distanceMilestoneKm)
         defaults.set(timeMilestoneMinutes, forKey: Keys.timeMilestoneMinutes)
         defaults.set(formReminderIntervalSeconds, forKey: Keys.formReminderIntervalSeconds)
@@ -1140,5 +1355,342 @@ extension AudioCoachManager {
         if !message.isEmpty {
             announce(message)
         }
+    }
+}
+
+// MARK: - Riding Biomechanics Coaching
+
+extension AudioCoachManager {
+    // Throttle tracking for biomechanics announcements
+    private static var lastSymmetryWarning: Date?
+    private static var lastRhythmWarning: Date?
+    private static var lastBalanceWarning: Date?
+    private static var lastImpulsionWarning: Date?
+    private static var lastStabilityWarning: Date?
+    private static var lastTransitionFeedback: Date?
+
+    /// Throttle interval for biomechanics announcements (seconds)
+    private static let biomechanicsThrottleInterval: TimeInterval = 30
+
+    /// Process symmetry score and announce if asymmetry detected
+    /// - Parameter score: Symmetry score 0-100 (100 = perfect symmetry)
+    func processSymmetry(_ score: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        // Throttle announcements
+        if let lastWarning = Self.lastSymmetryWarning,
+           Date().timeIntervalSince(lastWarning) < Self.biomechanicsThrottleInterval {
+            return
+        }
+
+        // Announce if symmetry drops below threshold
+        if score < 70 {
+            Self.lastSymmetryWarning = Date()
+            if score < 50 {
+                announce("Significant asymmetry detected. Check your position and your horse's movement")
+            } else {
+                announce("Slight left-right imbalance. Center your weight")
+            }
+        }
+    }
+
+    /// Process rhythm regularity and announce if irregular
+    /// - Parameter score: Rhythm regularity 0-100 (100 = perfect rhythm)
+    func processRhythm(_ score: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        if let lastWarning = Self.lastRhythmWarning,
+           Date().timeIntervalSince(lastWarning) < Self.biomechanicsThrottleInterval {
+            return
+        }
+
+        if score < 60 {
+            Self.lastRhythmWarning = Date()
+            if score < 40 {
+                announce("Rhythm very irregular. Steady your pace and establish a consistent tempo")
+            } else {
+                announce("Rhythm inconsistent. Focus on maintaining an even tempo")
+            }
+        }
+    }
+
+    /// Process rein balance and announce if imbalanced
+    /// - Parameter balance: Rein balance -1 to +1 (0 = centered, negative = left bias, positive = right bias)
+    func processReinBalance(_ balance: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        if let lastWarning = Self.lastBalanceWarning,
+           Date().timeIntervalSince(lastWarning) < Self.biomechanicsThrottleInterval {
+            return
+        }
+
+        let absBalance = abs(balance)
+        if absBalance > 0.3 {
+            Self.lastBalanceWarning = Date()
+            if balance < -0.3 {
+                announce("Leaning left. Center your weight over your horse")
+            } else {
+                announce("Leaning right. Center your weight over your horse")
+            }
+        }
+    }
+
+    /// Process impulsion score and provide coaching
+    /// - Parameter score: Impulsion 0-100
+    func processImpulsion(_ score: Double, gait: GaitType) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+        guard gait != .walk && gait != .stationary else { return }
+
+        if let lastWarning = Self.lastImpulsionWarning,
+           Date().timeIntervalSince(lastWarning) < Self.biomechanicsThrottleInterval * 2 {
+            return
+        }
+
+        if score < 40 {
+            Self.lastImpulsionWarning = Date()
+            announce("Low impulsion. Ask for more forward energy from your horse")
+        } else if score > 85 {
+            Self.lastImpulsionWarning = Date()
+            announce("Excellent impulsion. Maintain this forward energy")
+        }
+    }
+
+    /// Process rider stability score
+    /// - Parameter score: Stability 0-100 (100 = very stable)
+    func processRiderStability(_ score: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        if let lastWarning = Self.lastStabilityWarning,
+           Date().timeIntervalSince(lastWarning) < Self.biomechanicsThrottleInterval {
+            return
+        }
+
+        if score < 50 {
+            Self.lastStabilityWarning = Date()
+            if score < 30 {
+                announce("Position unstable. Sit deep, relax your hips, and follow your horse's movement")
+            } else {
+                announce("Work on your stability. Keep a steady, balanced position")
+            }
+        }
+    }
+
+    /// Announce transition quality feedback
+    /// - Parameter quality: Transition quality 0-100
+    func announceTransitionQuality(_ quality: Double, from oldGait: GaitType, to newGait: GaitType) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        if let lastFeedback = Self.lastTransitionFeedback,
+           Date().timeIntervalSince(lastFeedback) < 10 {
+            return
+        }
+
+        Self.lastTransitionFeedback = Date()
+
+        if quality >= 80 {
+            announce("Smooth transition. Well done")
+        } else if quality < 50 {
+            let transitionName = "\(oldGait.rawValue) to \(newGait.rawValue)"
+            announce("Abrupt \(transitionName) transition. Prepare earlier and use half-halts")
+        }
+    }
+
+    /// Announce engagement feedback
+    /// - Parameter score: Engagement 0-100
+    func processEngagement(_ score: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        // Only announce exceptional engagement
+        if score > 85 {
+            announce("Excellent engagement. Your horse is working well from behind")
+        }
+    }
+
+    /// Announce straightness feedback
+    /// - Parameter score: Straightness 0-100
+    func processStraightness(_ score: Double) {
+        guard isEnabled, announceRidingBiomechanics else { return }
+
+        if score < 60 {
+            announce("Horse drifting. Use your legs to maintain straightness")
+        }
+    }
+}
+
+// MARK: - Running Biomechanics Coaching
+
+extension AudioCoachManager {
+    private static var lastAsymmetryWarning: Date?
+    private static var lastStabilityFeedback: Date?
+    private static var lastGroundContactWarning: Date?
+
+    /// Process running motion asymmetry
+    /// - Parameter asymmetry: Left-right asymmetry (-1 to +1, 0 = balanced)
+    func processRunningAsymmetry(_ asymmetry: Double) {
+        guard isEnabled, announceRunningBiomechanics else { return }
+
+        if let lastWarning = Self.lastAsymmetryWarning,
+           Date().timeIntervalSince(lastWarning) < 45 {
+            return
+        }
+
+        let absAsymmetry = abs(asymmetry)
+        if absAsymmetry > 0.15 {
+            Self.lastAsymmetryWarning = Date()
+            if asymmetry > 0 {
+                announce("Right-side dominant. Balance your stride")
+            } else {
+                announce("Left-side dominant. Balance your stride")
+            }
+        }
+    }
+
+    /// Process rotational stability for running
+    /// - Parameter stability: Rotational stability 0-100
+    func processRunningStability(_ stability: Double) {
+        guard isEnabled, announceRunningBiomechanics else { return }
+
+        if let lastFeedback = Self.lastStabilityFeedback,
+           Date().timeIntervalSince(lastFeedback) < 60 {
+            return
+        }
+
+        if stability < 60 {
+            Self.lastStabilityFeedback = Date()
+            announce("Core rotation detected. Engage your core and run tall")
+        }
+    }
+
+    /// Process vertical oscillation (bounce)
+    /// - Parameter oscillation: Oscillation frequency in Hz
+    func processVerticalOscillation(_ oscillation: Double) {
+        guard isEnabled, announceRunningBiomechanics else { return }
+
+        // High oscillation indicates too much bounce
+        if oscillation > 3.5 {
+            announce("Too much vertical bounce. Run smoother, push forward not up")
+        }
+    }
+
+    /// Process ground contact time (rhythm consistency)
+    /// - Parameter consistency: Rhythm consistency 0-100
+    func processRunningRhythm(_ consistency: Double) {
+        guard isEnabled, announceRunningBiomechanics else { return }
+
+        if let lastWarning = Self.lastGroundContactWarning,
+           Date().timeIntervalSince(lastWarning) < 45 {
+            return
+        }
+
+        if consistency < 70 {
+            Self.lastGroundContactWarning = Date()
+            announce("Uneven rhythm. Focus on consistent foot strikes")
+        }
+    }
+}
+
+// MARK: - Swimming Announcements
+// Note: Voice coaching during swimming is impractical as swimmers cannot hear underwater.
+// These methods are for pre/post swim and poolside announcements only.
+
+extension AudioCoachManager {
+    /// Announce swimming session start (before entering water)
+    func announceSwimmingStart(targetLaps: Int?, targetDistance: Double?) {
+        guard isEnabled, announceSwimmingLaps else { return }
+
+        var message = "Swimming session started"
+        if let laps = targetLaps {
+            message += ". Target: \(laps) lengths"
+        } else if let distance = targetDistance {
+            message += ". Target: \(Int(distance)) meters"
+        }
+        announce(message)
+    }
+
+    /// Announce swimming session complete (after exiting water)
+    func announceSwimmingComplete(laps: Int, distance: Double, duration: TimeInterval) {
+        guard isEnabled, announceSwimmingLaps else { return }
+
+        let minutes = Int(duration) / 60
+        let distanceKm = distance / 1000
+
+        var message = "Swimming complete. \(laps) lengths"
+        if distanceKm >= 1 {
+            message += ". \(String(format: "%.1f", distanceKm)) kilometers"
+        } else {
+            message += ". \(Int(distance)) meters"
+        }
+        message += " in \(minutes) minutes"
+
+        // Add pace per 100m
+        if distance > 0 {
+            let pacePer100 = (duration / distance) * 100
+            let paceMinutes = Int(pacePer100) / 60
+            let paceSeconds = Int(pacePer100) % 60
+            message += ". Average pace \(paceMinutes):\(String(format: "%02d", paceSeconds)) per 100"
+        }
+
+        announce(message)
+    }
+}
+
+// MARK: - Shooting Stance Coaching
+
+extension AudioCoachManager {
+    private static var lastStanceWarning: Date?
+    private static var lastStabilityAnnouncement: Date?
+
+    /// Process shooting stance stability
+    /// - Parameter stability: Stance stability 0-100
+    func processShootingStance(_ stability: Double) {
+        guard isEnabled, announceShootingStance else { return }
+
+        if let lastWarning = Self.lastStanceWarning,
+           Date().timeIntervalSince(lastWarning) < 10 {
+            return
+        }
+
+        if stability < 50 {
+            Self.lastStanceWarning = Date()
+            if stability < 30 {
+                announce("Unstable. Reset your stance")
+            } else {
+                announce("Steady. Control your breathing")
+            }
+        } else if stability > 90 {
+            if let lastAnnouncement = Self.lastStabilityAnnouncement,
+               Date().timeIntervalSince(lastAnnouncement) < 30 {
+                return
+            }
+            Self.lastStabilityAnnouncement = Date()
+            announce("Excellent stability. Hold and shoot")
+        }
+    }
+
+    /// Announce shooting drill start
+    func announceShootingDrillStart(_ drillName: String) {
+        guard isEnabled, announceShootingDrills else { return }
+        announce("Starting \(drillName). Get ready")
+    }
+
+    /// Announce shooting drill score
+    func announceShootingDrillScore(_ score: Int, total: Int) {
+        guard isEnabled, announceShootingDrills else { return }
+
+        let percentage = total > 0 ? (score * 100) / total : 0
+
+        if percentage >= 90 {
+            announce("Excellent! Score \(score) out of \(total). \(percentage) percent")
+        } else if percentage >= 70 {
+            announce("Good shooting. Score \(score) out of \(total). \(percentage) percent")
+        } else {
+            announce("Score \(score) out of \(total). \(percentage) percent. Keep practicing")
+        }
+    }
+
+    /// Announce breathing cue for shooting
+    func announceShootingBreathingCue() {
+        guard isEnabled, announceShootingStance else { return }
+        announce("Breathe in. Hold. Squeeze")
     }
 }

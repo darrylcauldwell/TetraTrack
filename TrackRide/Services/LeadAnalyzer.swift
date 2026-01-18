@@ -2,13 +2,15 @@
 //  LeadAnalyzer.swift
 //  TrackRide
 //
-//  Detects lead leg (left/right) during canter and gallop using
-//  lateral acceleration asymmetry patterns from device motion.
+//  Physics-based lead detection using Hilbert transform phase analysis.
+//  Detects lead leg (left/right) during canter and gallop by analyzing
+//  the phase relationship between lateral acceleration and yaw rate.
 
 import Foundation
 
 /// Analyzes motion data to detect which lead leg the horse is using during canter/gallop
 final class LeadAnalyzer: Resettable {
+
     // MARK: - Public Properties
 
     /// Currently detected lead
@@ -23,21 +25,42 @@ final class LeadAnalyzer: Resettable {
     /// Total duration on right lead
     private(set) var totalRightLeadDuration: TimeInterval = 0.0
 
+    // MARK: - New Physics-Based Outputs
+
+    /// Phase angle between lateral acceleration and yaw rate (degrees)
+    /// +90° indicates left lead, -90° indicates right lead
+    var phaseAngle: Double = 0
+
+    /// Lead quality metric (coherence × |sin(phase)|)
+    /// Higher values indicate clearer lead detection
+    var leadQuality: Double = 0
+
+    /// Current stride frequency for lead analysis
+    var strideFrequency: Double = 0
+
     // MARK: - Configuration
 
     /// Minimum confidence threshold to report a lead (70%)
     private let confidenceThreshold: Double = 0.7
 
-    /// Size of rolling window in samples (2 seconds at 50Hz)
-    private let windowSize: Int = 100
+    /// Size of rolling window in samples (128 samples ≈ 1.3s at 100Hz)
+    private let windowSize: Int = 128
 
     /// Minimum samples needed before analyzing
-    private let minimumSamples: Int = 50
+    private let minimumSamples: Int = 64
+
+    // MARK: - Buffers
+
+    /// Rolling buffer of lateral acceleration samples
+    private var lateralBuffer: [Double] = []
+
+    /// Rolling buffer of yaw rate samples
+    private var yawBuffer: [Double] = []
+
+    /// Coherence analyzer for phase confidence
+    private let coherenceAnalyzer = CoherenceAnalyzer(segmentLength: 64, overlap: 32, sampleRate: 100)
 
     // MARK: - Internal State
-
-    /// Rolling buffer of lateral acceleration samples (using RollingBuffer)
-    private var lateralAccelBuffer: RollingBuffer<Double>
 
     /// Timestamps for duration tracking
     private var lastUpdateTime: Date?
@@ -46,9 +69,11 @@ final class LeadAnalyzer: Resettable {
     /// Whether currently in a lead-detectable gait
     private var isInCanterOrGallop: Bool = false
 
-    init() {
-        lateralAccelBuffer = RollingBuffer(capacity: windowSize)
-    }
+    /// Last FFT analysis time
+    private var lastAnalysisTime: Date = .distantPast
+    private let analysisInterval: TimeInterval = 0.25  // 4 Hz
+
+    init() {}
 
     // MARK: - Public Methods
 
@@ -64,13 +89,15 @@ final class LeadAnalyzer: Resettable {
         isInCanterOrGallop = (currentGait == .canter || currentGait == .gallop)
 
         if !isInCanterOrGallop {
-            // Clear buffer when not in canter/gallop
+            // Clear buffers when not in canter/gallop
             if wasInCanterOrGallop {
                 finalizeCurrentLead(at: now)
             }
-            lateralAccelBuffer.removeAll()
+            clearBuffers()
             currentLead = .unknown
             currentConfidence = 0.0
+            phaseAngle = 0
+            leadQuality = 0
             lastUpdateTime = now
             return
         }
@@ -80,12 +107,21 @@ final class LeadAnalyzer: Resettable {
             leadStartTime = now
         }
 
-        // Add lateral acceleration to buffer (X-axis = left/right)
-        lateralAccelBuffer.append(sample.lateralAcceleration)
+        // Add to buffers
+        lateralBuffer.append(sample.lateralAcceleration)
+        yawBuffer.append(sample.yawRate)
 
-        // Analyze if we have enough samples
-        if lateralAccelBuffer.count >= minimumSamples {
-            analyzeLead()
+        // Maintain buffer size
+        if lateralBuffer.count > windowSize {
+            lateralBuffer.removeFirst()
+            yawBuffer.removeFirst()
+        }
+
+        // Analyze at fixed rate
+        if now.timeIntervalSince(lastAnalysisTime) >= analysisInterval &&
+           lateralBuffer.count >= minimumSamples {
+            analyzeLeadWithPhase()
+            lastAnalysisTime = now
         }
 
         // Track duration
@@ -97,9 +133,14 @@ final class LeadAnalyzer: Resettable {
         lastUpdateTime = now
     }
 
+    /// Configure with current stride frequency from gait analyzer
+    func configure(strideFrequency: Double) {
+        self.strideFrequency = strideFrequency
+    }
+
     /// Reset all state
     func reset() {
-        lateralAccelBuffer.removeAll()
+        clearBuffers()
         currentLead = .unknown
         currentConfidence = 0.0
         totalLeftLeadDuration = 0.0
@@ -107,67 +148,151 @@ final class LeadAnalyzer: Resettable {
         lastUpdateTime = nil
         leadStartTime = nil
         isInCanterOrGallop = false
+        phaseAngle = 0
+        leadQuality = 0
+        strideFrequency = 0
+        lastAnalysisTime = .distantPast
     }
 
-    // MARK: - Lead Detection Algorithm
+    private func clearBuffers() {
+        lateralBuffer = []
+        yawBuffer = []
+    }
 
-    private func analyzeLead() {
-        // Lead detection uses lateral acceleration asymmetry:
-        // - During canter, the horse's body rolls slightly toward the leading leg
-        // - This creates a bias in lateral (X-axis) acceleration
-        // - Left lead: more negative lateral acceleration peaks (tilting left)
-        // - Right lead: more positive lateral acceleration peaks (tilting right)
+    // MARK: - Physics-Based Lead Detection
 
-        let samples = lateralAccelBuffer.items
-
-        // Calculate statistics using RollingBuffer mean
-        let mean = lateralAccelBuffer.mean
-
-        // Detect peaks (local maxima and minima)
-        let (positivePeaks, negativePeaks) = detectPeaks(samples)
-
-        // Calculate asymmetry metrics
-        let positiveAvg = positivePeaks.isEmpty ? 0 : positivePeaks.reduce(0, +) / Double(positivePeaks.count)
-        let negativeAvg = negativePeaks.isEmpty ? 0 : abs(negativePeaks.reduce(0, +)) / Double(negativePeaks.count)
-
-        // Peak count asymmetry
-        let totalPeaks = positivePeaks.count + negativePeaks.count
-        guard totalPeaks > 0 else {
-            currentConfidence = 0.0
+    /// Detect lead using Hilbert transform phase analysis
+    /// Left lead: lateral phase leads yaw by ~+90°
+    /// Right lead: yaw phase leads lateral by ~-90°
+    private func analyzeLeadWithPhase() {
+        guard lateralBuffer.count >= minimumSamples && yawBuffer.count >= minimumSamples else {
             return
         }
 
-        // Calculate bias toward left or right
-        // Negative mean indicates left-leaning (left lead)
-        // Positive mean indicates right-leaning (right lead)
-        let meanBias = mean
+        // Compute instantaneous phase of both signals using Hilbert transform
+        let lateralPhase = HilbertTransform.instantaneousPhase(lateralBuffer)
+        let yawPhase = HilbertTransform.instantaneousPhase(yawBuffer)
 
-        // Peak magnitude asymmetry
-        let peakBias = positiveAvg - negativeAvg
+        // Compute phase difference
+        let minLength = min(lateralPhase.count, yawPhase.count)
+        guard minLength > 0 else { return }
 
-        // Combined score (-1 = strong left, +1 = strong right)
-        let combinedScore = (meanBias * 0.4) + (peakBias * 0.6)
+        var phaseDiff: [Double] = []
+        phaseDiff.reserveCapacity(minLength)
 
-        // Determine lead and confidence
-        let absScore = abs(combinedScore)
-        let detectedLead: Lead
-
-        if absScore < 0.05 {
-            // Too ambiguous
-            detectedLead = .unknown
-            currentConfidence = absScore / 0.05 * 0.5  // 0-50%
-        } else {
-            detectedLead = combinedScore < 0 ? .left : .right
-            // Scale confidence: 0.05-0.3 maps to 50%-100%
-            currentConfidence = min(1.0, 0.5 + (absScore - 0.05) / 0.25 * 0.5)
+        for i in 0..<minLength {
+            var diff = lateralPhase[i] - yawPhase[i]
+            // Wrap to -π to π
+            while diff > .pi { diff -= 2 * .pi }
+            while diff < -.pi { diff += 2 * .pi }
+            phaseDiff.append(diff)
         }
 
-        // Only update if confidence meets threshold
-        if currentConfidence >= confidenceThreshold {
-            currentLead = detectedLead
+        // Compute mean phase using circular statistics
+        let sinSum = phaseDiff.reduce(0) { $0 + sin($1) }
+        let cosSum = phaseDiff.reduce(0) { $0 + cos($1) }
+        let meanPhase = atan2(sinSum, cosSum)
+
+        // Convert to degrees
+        let phaseDegrees = meanPhase * 180.0 / .pi
+        phaseAngle = phaseDegrees
+
+        // Compute coherence at stride frequency for confidence
+        let targetFreq = strideFrequency > 0 ? strideFrequency : 2.0  // Default canter frequency
+        let coherence = coherenceAnalyzer.coherence(
+            signal1: lateralBuffer,
+            signal2: yawBuffer,
+            atFrequency: targetFreq
+        )
+
+        // Lead quality combines coherence with phase clarity
+        leadQuality = coherence * abs(sin(meanPhase))
+
+        // Determine lead from phase angle
+        // Left lead: +45° to +135° (lateral leads yaw)
+        // Right lead: -45° to -135° (yaw leads lateral)
+        let detectedLead: Lead
+        let phaseConfidence: Double
+
+        if phaseDegrees > 45 && phaseDegrees < 135 {
+            // Left lead
+            detectedLead = .left
+            // Confidence peaks at 90°, decreases toward 45° and 135°
+            phaseConfidence = coherence * (1.0 - abs(phaseDegrees - 90) / 45.0)
+        } else if phaseDegrees < -45 && phaseDegrees > -135 {
+            // Right lead
+            detectedLead = .right
+            phaseConfidence = coherence * (1.0 - abs(phaseDegrees + 90) / 45.0)
+        } else {
+            // Ambiguous - phase near 0° or ±180°
+            detectedLead = .unknown
+            phaseConfidence = 0.0
+        }
+
+        // Combine with legacy asymmetry detection for robustness
+        let legacyResult = analyzeLegacyAsymmetry()
+
+        // Weighted combination: 70% phase, 30% legacy
+        var finalConfidence: Double
+        var finalLead: Lead
+
+        if phaseConfidence > 0.5 {
+            // Trust phase-based detection
+            finalConfidence = phaseConfidence * 0.7 + legacyResult.confidence * 0.3
+            finalLead = detectedLead
+        } else if legacyResult.confidence > confidenceThreshold {
+            // Fall back to legacy
+            finalConfidence = legacyResult.confidence * 0.7
+            finalLead = legacyResult.lead
+        } else {
+            finalConfidence = max(phaseConfidence, legacyResult.confidence) * 0.5
+            finalLead = .unknown
+        }
+
+        // Update state
+        currentConfidence = finalConfidence
+        if finalConfidence >= confidenceThreshold {
+            currentLead = finalLead
         } else {
             currentLead = .unknown
         }
+    }
+
+    // MARK: - Legacy Asymmetry Detection (Fallback)
+
+    private func analyzeLegacyAsymmetry() -> (lead: Lead, confidence: Double) {
+        guard lateralBuffer.count >= minimumSamples else {
+            return (.unknown, 0)
+        }
+
+        // Calculate mean bias
+        let mean = lateralBuffer.reduce(0, +) / Double(lateralBuffer.count)
+
+        // Detect peaks
+        let (positivePeaks, negativePeaks) = detectPeaks(lateralBuffer)
+
+        let positiveAvg = positivePeaks.isEmpty ? 0 : positivePeaks.reduce(0, +) / Double(positivePeaks.count)
+        let negativeAvg = negativePeaks.isEmpty ? 0 : abs(negativePeaks.reduce(0, +)) / Double(negativePeaks.count)
+
+        let totalPeaks = positivePeaks.count + negativePeaks.count
+        guard totalPeaks > 0 else { return (.unknown, 0) }
+
+        let peakBias = positiveAvg - negativeAvg
+        let combinedScore = (mean * 0.4) + (peakBias * 0.6)
+
+        let absScore = abs(combinedScore)
+        let detectedLead: Lead
+        let confidence: Double
+
+        if absScore < 0.05 {
+            detectedLead = .unknown
+            confidence = absScore / 0.05 * 0.5
+        } else {
+            detectedLead = combinedScore < 0 ? .left : .right
+            confidence = min(1.0, 0.5 + (absScore - 0.05) / 0.25 * 0.5)
+        }
+
+        return (detectedLead, confidence)
     }
 
     /// Detect positive and negative peaks in the acceleration data
@@ -177,18 +302,14 @@ final class LeadAnalyzer: Resettable {
 
         guard samples.count >= 3 else { return ([], []) }
 
-        // Simple peak detection: value higher/lower than neighbors
         for i in 1..<(samples.count - 1) {
             let prev = samples[i - 1]
             let curr = samples[i]
             let next = samples[i + 1]
 
-            // Positive peak (local maximum above threshold)
             if curr > prev && curr > next && curr > 0.1 {
                 positivePeaks.append(curr)
-            }
-            // Negative peak (local minimum below threshold)
-            else if curr < prev && curr < next && curr < -0.1 {
+            } else if curr < prev && curr < next && curr < -0.1 {
                 negativePeaks.append(curr)
             }
         }
@@ -212,7 +333,6 @@ final class LeadAnalyzer: Resettable {
     }
 
     private func finalizeCurrentLead(at time: Date) {
-        // When exiting canter/gallop, finalize any remaining duration
         if let lastTime = lastUpdateTime {
             let elapsed = time.timeIntervalSince(lastTime)
             updateLeadDuration(elapsed: elapsed)

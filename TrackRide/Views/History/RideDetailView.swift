@@ -78,26 +78,34 @@ struct RideDetailView: View {
                     }
                 }
 
-                // Gait Breakdown
-                GaitBreakdownView(ride: ride)
+                // Full Biomechanical Insights
+                NavigationLink(destination: RideInsightsView(ride: ride)) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.title2)
+                            .foregroundStyle(AppColors.primary)
 
-                // Turn Balance
-                TurnBalanceView(ride: ride)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Biomechanical Insights")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
 
-                // Lead Balance (if has lead data)
-                if ride.totalLeadDuration > 0 {
-                    LeadBalanceView(ride: ride)
+                            Text("Rhythm, balance, engagement & coach feedback")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding()
+                    .background(AppColors.primary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-
-                // Rein Balance (if flatwork with rein data)
-                if ride.rideType == .schooling && ride.totalReinDuration > 0 {
-                    ReinBalanceView(ride: ride)
-                }
-
-                // Schooling Scores (if has rhythm or turn data)
-                if ride.overallRhythm > 0 || (ride.leftTurns + ride.rightTurns) > 0 {
-                    SymmetryRhythmView(ride: ride)
-                }
+                .buttonStyle(.plain)
 
                 // Heart Rate Summary (if has HR data)
                 if ride.hasHeartRateData {

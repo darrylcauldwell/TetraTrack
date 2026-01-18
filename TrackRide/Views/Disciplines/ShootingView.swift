@@ -72,11 +72,9 @@ struct ShootingView: View {
                         showingFreePractice = false
                     },
                     onAnalysisComplete: {
-                        // Navigate to history after completing analysis
+                        // Just dismiss - analysis view already showed insights
+                        // User can access history separately from menu if needed
                         showingFreePractice = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showingHistory = true
-                        }
                     }
                 )
             }

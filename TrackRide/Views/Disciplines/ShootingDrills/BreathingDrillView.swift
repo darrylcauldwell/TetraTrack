@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import SwiftData
 
 // MARK: - Breathing Drill View
 
 struct BreathingDrillView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var phase: BreathPhase = .ready
     @State private var breathCount = 0
@@ -340,6 +342,25 @@ struct BreathingDrillView: View {
             breathCount += 1
             if breathCount >= totalBreaths {
                 phase = .complete
+
+                // Save drill session to history (4 seconds per phase × 4 phases × total breaths)
+                let duration = TimeInterval(totalBreaths * 16)
+                let session = ShootingDrillSession(
+                    drillType: .breathing,
+                    duration: duration,
+                    score: 100  // Completed = 100%
+                )
+                modelContext.insert(session)
+                try? modelContext.save()
+
+                // Compute and save skill domain scores
+                let skillService = SkillDomainService()
+                let skillScores = skillService.computeScores(from: session)
+                for skillScore in skillScores {
+                    modelContext.insert(skillScore)
+                }
+                try? modelContext.save()
+
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
             } else {

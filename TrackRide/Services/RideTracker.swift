@@ -121,6 +121,38 @@ final class RideTracker {
     var currentSymmetry: Double = 0.0
     var currentRhythm: Double = 0.0
 
+    // MARK: - Biomechanics Metrics (Physics-Based)
+
+    /// Current stride length in meters
+    var strideLength: Double = 0.0
+
+    /// Current stride frequency in Hz
+    var strideFrequency: Double = 0.0
+
+    /// Current stride speed in m/s (stride × frequency)
+    var strideSpeed: Double = 0.0
+
+    /// Current impulsion (0-100)
+    var impulsion: Double = 0.0
+
+    /// Current engagement (0-100)
+    var engagement: Double = 0.0
+
+    /// Current straightness (0-100)
+    var straightness: Double = 0.0
+
+    /// Current rider stability (0-100)
+    var riderStability: Double = 0.0
+
+    /// Cumulative training load
+    var trainingLoad: Double = 0.0
+
+    /// Gait confidence from HMM (0-1)
+    var gaitConfidence: Double = 0.0
+
+    /// Lead quality from phase analysis
+    var leadQuality: Double = 0.0
+
     // Heart rate metrics
     var currentHeartRate: Int = 0
     var averageHeartRate: Int = 0
@@ -182,6 +214,7 @@ final class RideTracker {
     private let reinAnalyzer = ReinAnalyzer()
     private let symmetryAnalyzer = SymmetryAnalyzer()
     private let rhythmAnalyzer = RhythmAnalyzer()
+    private let biomechanicsAnalyzer = BiomechanicsAnalyzer()
 
     // Extracted coordinators
     private let healthCoordinator = RideHealthCoordinator()
@@ -424,6 +457,13 @@ final class RideTracker {
         reinAnalyzer.reset()
         symmetryAnalyzer.reset()
         rhythmAnalyzer.reset()
+        biomechanicsAnalyzer.reset()
+
+        // Configure analyzers with horse profile for breed-specific priors
+        if let horse = selectedHorse {
+            gaitAnalyzer.configure(for: horse)
+            biomechanicsAnalyzer.configure(for: horse)
+        }
 
         // Start motion updates
         motionManager.startUpdates()
@@ -635,6 +675,15 @@ final class RideTracker {
             ride.minHeartRate = hrStats.minBPM
             ride.heartRateSamples = Array(hrStats.samples)
 
+            // Save biomechanical metrics
+            ride.averageStrideLength = strideLength
+            ride.averageStrideFrequency = strideFrequency
+            ride.averageImpulsion = impulsion
+            ride.averageEngagement = engagement
+            ride.averageStraightness = straightness
+            ride.averageRiderStability = riderStability
+            ride.totalTrainingLoad = trainingLoad
+
             // Start recovery analysis if we have HR data
             if hrStats.maxBPM > 0 {
                 Task {
@@ -643,6 +692,16 @@ final class RideTracker {
             }
 
             try? modelContext?.save()
+
+            // Compute and save skill domain scores
+            if let context = modelContext {
+                let skillService = SkillDomainService()
+                let scores = skillService.computeScores(from: ride)
+                for score in scores {
+                    context.insert(score)
+                }
+                try? context.save()
+            }
 
             // Save to HealthKit
             Task {
@@ -658,6 +717,11 @@ final class RideTracker {
 
             // Generate and announce post-session AI summary
             generatePostSessionSummary(for: ride)
+
+            // Convert to TrainingArtifact and sync to CloudKit for family sharing
+            Task {
+                await ArtifactConversionService.shared.convertAndSyncRide(ride)
+            }
         }
 
         // Reset state
@@ -679,6 +743,16 @@ final class RideTracker {
         averageHeartRate = 0
         maxHeartRate = 0
         currentHeartRateZone = .zone1
+
+        // Reset biomechanical metrics
+        strideLength = 0
+        strideSpeed = 0
+        strideFrequency = 0
+        impulsion = 0
+        engagement = 0
+        straightness = 0
+        riderStability = 0
+        trainingLoad = 0
 
         // Reset health coordinator
         healthCoordinator.resetState()
@@ -976,6 +1050,48 @@ final class RideTracker {
 
         // Update gait analyzer with rhythm
         gaitAnalyzer.updateRhythm(currentRhythm)
+
+        // Update stride frequency for lead analyzer
+        leadAnalyzer.configure(strideFrequency: gaitAnalyzer.strideFrequency)
+        leadQuality = leadAnalyzer.leadQuality
+
+        // Update gait confidence from HMM
+        gaitConfidence = gaitAnalyzer.gaitConfidence
+
+        // Biomechanics analysis - compute stride, impulsion, engagement, etc.
+        let yawRateMean = sample.yawRate
+        let yawRateStdDev = 0.1  // Simplified - would need rolling stats
+        biomechanicsAnalyzer.update(
+            strideFrequency: gaitAnalyzer.strideFrequency,
+            gait: currentGait,
+            verticalRMS: gaitAnalyzer.bounceAmplitude,
+            forwardRMS: abs(sample.forwardAcceleration),
+            lateralRMS: abs(sample.lateralAcceleration),
+            yawRateMean: yawRateMean,
+            yawRateStdDev: yawRateStdDev,
+            pitchRMS: abs(sample.pitch),
+            spectralEntropy: gaitAnalyzer.spectralEntropy,
+            xyCoherence: gaitAnalyzer.leftRightSymmetry,
+            zYawCoherence: gaitAnalyzer.verticalYawCoherence,
+            gpsSpeed: currentSpeed,
+            elapsedTime: elapsedTime
+        )
+
+        // Feed lateral sample for proper rein balance calculation (RMS+/RMS- method)
+        biomechanicsAnalyzer.addLateralSample(sample.lateralAcceleration)
+
+        // Feed forward acceleration for IMU displacement integration (stride refinement)
+        biomechanicsAnalyzer.addForwardAccelSample(sample.forwardAcceleration)
+
+        // Update public biomechanics metrics
+        strideLength = biomechanicsAnalyzer.strideLength
+        strideFrequency = gaitAnalyzer.strideFrequency
+        strideSpeed = biomechanicsAnalyzer.strideSpeed
+        impulsion = biomechanicsAnalyzer.impulsion
+        engagement = biomechanicsAnalyzer.engagement
+        straightness = biomechanicsAnalyzer.straightness
+        riderStability = biomechanicsAnalyzer.riderStability
+        trainingLoad = biomechanicsAnalyzer.trainingLoad
 
         // Fall detection processing
         fallDetectionManager.processMotionSample(sample)
