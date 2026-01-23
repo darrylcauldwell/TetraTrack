@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct TrackRideWatchApp: App {
-    @State private var workoutManager = WorkoutManager()
+    @State private var workoutManager = WorkoutManager.shared
     @State private var connectivityService = WatchConnectivityService.shared
 
     var body: some Scene {

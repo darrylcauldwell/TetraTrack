@@ -135,18 +135,18 @@ struct HeartRateRingView: View {
 
     private var zoneColor: Color {
         switch zone {
-        case 1: return .gray
-        case 2: return .blue
-        case 3: return .green
-        case 4: return .orange
-        case 5: return .red
-        default: return .gray
+        case 1: return WatchAppColors.inactive
+        case 2: return WatchAppColors.primary
+        case 3: return WatchAppColors.active
+        case 4: return WatchAppColors.running
+        case 5: return WatchAppColors.error
+        default: return WatchAppColors.inactive
         }
     }
 }
 
 #Preview {
     HeartRateRingView()
-        .environment(WorkoutManager())
+        .environment(WorkoutManager.shared)
         .environment(WatchConnectivityService.shared)
 }

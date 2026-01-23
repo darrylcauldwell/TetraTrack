@@ -15,7 +15,7 @@ struct WatchFallAlertView: View {
         ZStack {
             // Red background with gradient
             LinearGradient(
-                gradient: Gradient(colors: [Color.red.opacity(0.9), Color.red.opacity(0.7)]),
+                gradient: Gradient(colors: [WatchAppColors.error.opacity(0.9), WatchAppColors.error.opacity(0.7)]),
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -25,7 +25,7 @@ struct WatchFallAlertView: View {
                 // Warning icon with pulse animation
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 40))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(WatchAppColors.warning)
                     .scaleEffect(isPulsing ? 1.15 : 1.0)
                     .animation(
                         .easeInOut(duration: 0.5).repeatForever(autoreverses: true),
@@ -64,7 +64,7 @@ struct WatchFallAlertView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.green)
+                    .background(WatchAppColors.active)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }

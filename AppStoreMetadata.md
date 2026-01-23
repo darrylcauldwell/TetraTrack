@@ -75,35 +75,26 @@ Finally! An app that knows the difference between a canter and an "enthusiastic 
 
 ## What's New (4000 characters max)
 
-What's New in Version 0.0.17
+What's New in Version 0.0.72
 
-We've been busy fixing things, adding things, and trying not to break other things. Here's what's new:
+WATCH GOES SOLO
+Your Apple Watch just got a lot more independent. Start Ride, Run, or Swim sessions directly from your wrist — no iPhone required.
 
-PRETTIER PIXELS
-• Trusted Contacts got a makeover — cleaner, simpler, works on screens of all sizes (yes, even your mum's phone with the massive text)
-• Family Sharing is easier to manage — fewer taps to control who's watching your magnificent canter work
+• AUTONOMOUS SESSIONS — Tap and go. GPS tracking, heart rate monitoring, and all your metrics captured right on Watch
+• SWIMMING METRICS — Stroke count, lap tracking, distance, SWOLF scores, and stroke type detection. Your Watch knows freestyle from breaststroke
+• LOCAL SESSION STORAGE — Sessions save on Watch until iPhone syncs. No lost data, even if you left your phone at the lorry
 
-MORE WAYS TO PRETEND YOU'RE TRAINING
-Demo data now includes:
-• Schooling sessions like "Polework Puzzle" and "Bounce Grid Bootcamp"
-• Running horrors including "Hill Repeats (Stairway to Suffering)" and "Sunday Long Run (Pain & Suffering)"
-• Swimming adventures from "Lake Adventure (Cold Water Shock)" to "Distance Day (Channel Prep?)"
-• Shooting practice with "Under Pressure (Dad Watching)" — we've all been there
+WATCH UI IMPROVEMENTS
+• Simplified home screen — your Training Day Streak takes centre stage with vibrant colours
+• "This Week" stats now include local Watch sessions — no more showing 0 when you've just finished a brilliant ride
+• Recent Sessions view shows pending local sessions with sync status indicators
+• Compact discipline selector — all three activities visible without scrolling
 
-NERDY IMPROVEMENTS
-• Photos now link to your ENTIRE riding day, not just session time — so that selfie with your horse actually shows up
-• Rhythm detection got smarter — we're using ALL the sensors now, not just the easy ones
-• "Schooling Scores" explains what rhythm actually means (spoiler: it's about keeping a steady beat, not dancing)
-
-SQUASHED BUGS
-• Fixed that thing where photos weren't appearing for schooling rides
-• Movement Quality now has explanations a human can understand
-• Various invisible improvements that we're very proud of
-
-COMING SOON
-• Offline route planning with actual bridleways (no more accidentally routing through someone's garden)
-• Dressage test scoring
-• Video analysis (the AI will be honest, we can't help that)
+NERDY BITS
+• Adaptive GPS sampling — high accuracy during movement, power-saving when stationary
+• Heart rate zones tracked throughout your workout
+• Elevation gain/loss captured for rides and runs
+• Sessions queue for background sync when iPhone becomes reachable
 
 Thanks for riding with us. Every update is shaped by feedback from riders, runners, swimmers, and shooters like you.
 
@@ -306,3 +297,211 @@ Future localizations planned:
 **Seasonal Considerations:**
 - Peak downloads: Spring (competition season starts)
 - Update promotional text for: Championships season, winter training, back-to-school
+
+---
+
+## A/B Testing: Keyword Variants
+
+### Current Keywords (Baseline - Variant A)
+```
+tetrathlon,pony club,eventing,horse riding,gps tracker,gait,running,swimming,shooting,equestrian,AI
+```
+**Characters:** 99/100
+
+### Variant B — Safety & Family Focus
+```
+tetrathlon,pony club,eventing,horse tracker,fall detection,family safety,gait,running,swimming,equestrian
+```
+**Characters:** 100/100
+**Rationale:** Parents searching for safety features; "horse tracker" has higher search volume than "horse riding"
+
+### Variant C — Training & Coaching Focus
+```
+tetrathlon,pony club,eventing,horse training,AI coach,gait analysis,running,swimming,shooting,equestrian
+```
+**Characters:** 99/100
+**Rationale:** Emphasizes AI coaching and training aspects; appeals to competitive athletes
+
+### Variant D — Broader Equestrian Appeal
+```
+tetrathlon,pony club,eventing,dressage,horse riding,gps,gait detection,running,swimming,equestrian,coach
+```
+**Characters:** 100/100
+**Rationale:** Adds "dressage" to capture broader equestrian market; future feature alignment
+
+### Variant E — Typo & Alternative Spelling Capture
+```
+tetrathlon,pentathlon,pony club,eventing,horse riding,gait tracker,running,swimming,shooting,equestrian
+```
+**Characters:** 98/100
+**Rationale:** "pentathlon" captures misspellings and related searches
+
+### Testing Strategy
+
+| Phase | Duration | Variants | Success Metric |
+|-------|----------|----------|----------------|
+| 1 | 2 weeks | A vs B | Impressions + Downloads |
+| 2 | 2 weeks | Winner vs C | Conversion rate |
+| 3 | 2 weeks | Winner vs D | Impressions in new markets |
+
+### Keywords to Monitor (Not Currently Used)
+- `horse app` — High volume, high competition
+- `riding diary` — Moderate volume, low competition
+- `equine` — Niche but dedicated audience
+- `triathlon` — Different sport but captures typos
+- `xc` / `cross country` — Eventing-specific terminology
+
+---
+
+## Localization Plan: German & French Markets
+
+### Market Analysis
+
+| Market | Equestrian Population | Pony Club Equivalent | Key Terms |
+|--------|----------------------|---------------------|-----------|
+| **Germany** | 1.3M riders, strongest EU market | Deutsche Reiterliche Vereinigung (FN) | Vielseitigkeit, Reiten, Dressur |
+| **France** | 700K licensed riders | Fédération Française d'Équitation (FFE) | Concours complet, Équitation |
+
+### German Localization (de-DE)
+
+#### App Name
+**TrackRide** (keep English — recognized brand style)
+
+#### Subtitle (30 chars max)
+```
+Vielseitigkeit & Reitsport
+```
+(28 chars — "Eventing & Equestrian Sports")
+
+#### Keywords (100 chars max)
+```
+vielseitigkeit,reiten,pony,dressur,gps tracker,gangarten,laufen,schwimmen,schießen,pferd,training
+```
+(99 chars)
+
+| German | English | Rationale |
+|--------|---------|-----------|
+| vielseitigkeit | eventing | Primary discipline term |
+| reiten | riding | Core activity |
+| pony | pony | Same in German |
+| dressur | dressage | Popular discipline |
+| gangarten | gaits | Technical riding term |
+| laufen | running | Discipline |
+| schwimmen | swimming | Discipline |
+| schießen | shooting | Discipline |
+| pferd | horse | Core term |
+| training | training | Same in German |
+
+#### Promotional Text (170 chars max)
+```
+Endlich! Eine App, die Schritt von Trab unterscheiden kann. KI-Coaching, Gangerkennung, Sturzalarm. Dein Pferd ist begeistert. Wahrscheinlich.
+```
+(143 chars)
+
+#### Key Description Sections to Translate
+1. Opening hook (adapt humor for German market — more direct)
+2. Feature bullets (REITEN, LAUFEN, SCHWIMMEN, SCHIEßEN)
+3. Safety features (strong selling point for German parents)
+4. Privacy section (Germans highly value data privacy)
+
+### French Localization (fr-FR)
+
+#### App Name
+**TrackRide** (keep English)
+
+#### Subtitle (30 chars max)
+```
+Concours Complet & Équitation
+```
+(29 chars — "Eventing & Riding")
+
+#### Keywords (100 chars max)
+```
+concours complet,équitation,poney club,cheval,gps,allures,course,natation,tir,entraînement,coach IA
+```
+(100 chars)
+
+| French | English | Rationale |
+|--------|---------|-----------|
+| concours complet | eventing | Official FFE term |
+| équitation | riding/equestrian | Core term |
+| poney club | pony club | French equivalent |
+| cheval | horse | Core term |
+| allures | gaits | Technical term |
+| course | running | Discipline |
+| natation | swimming | Discipline |
+| tir | shooting | Discipline |
+| entraînement | training | Core activity |
+| coach IA | AI coach | Feature highlight |
+
+#### Promotional Text (170 chars max)
+```
+Enfin ! Une app qui distingue le trot du galop "enthousiaste". Coaching IA, détection des allures, alerte chute. Votre cheval approuve. Probablement.
+```
+(150 chars)
+
+#### Key Description Sections to Translate
+1. Opening hook (French appreciate wit — maintain playful tone)
+2. Feature bullets (ÉQUITATION, COURSE, NATATION, TIR)
+3. Family safety features
+4. Apple Intelligence emphasis (strong Apple market in France)
+
+### Localization Implementation Checklist
+
+#### Phase 1: Metadata Translation
+- [ ] Translate App Store description (German)
+- [ ] Translate App Store description (French)
+- [ ] Translate screenshot captions (German)
+- [ ] Translate screenshot captions (French)
+- [ ] Create localized keywords list
+- [ ] Translate What's New template
+
+#### Phase 2: In-App Localization
+- [ ] Create Localizable.strings (German)
+- [ ] Create Localizable.strings (French)
+- [ ] Localize date/time formats
+- [ ] Localize distance units (km standard in EU)
+- [ ] Localize number formats (comma vs period)
+- [ ] Review humor/idioms for cultural fit
+
+#### Phase 3: Visual Assets
+- [ ] Generate German screenshots with localized UI
+- [ ] Generate French screenshots with localized UI
+- [ ] Ensure fonts support German umlauts (ä, ö, ü, ß)
+- [ ] Ensure fonts support French accents (é, è, ê, ç, etc.)
+
+#### Phase 4: Testing
+- [ ] Native speaker review (German)
+- [ ] Native speaker review (French)
+- [ ] UI string length testing (German typically 30% longer)
+- [ ] Cultural appropriateness review
+
+### Budget Estimate
+
+| Item | German | French | Total |
+|------|--------|--------|-------|
+| App Store metadata translation | £200 | £200 | £400 |
+| In-app strings (~500 strings) | £400 | £400 | £800 |
+| Screenshot generation | £100 | £100 | £200 |
+| Native speaker QA | £150 | £150 | £300 |
+| **Total** | **£850** | **£850** | **£1,700** |
+
+### Timeline
+
+| Week | Task |
+|------|------|
+| 1 | Extract all localizable strings |
+| 2-3 | Professional translation (parallel) |
+| 4 | Integration & screenshot generation |
+| 5 | Native speaker review & fixes |
+| 6 | Submit localized builds |
+
+### Success Metrics
+
+| Metric | Target (6 months post-launch) |
+|--------|------------------------------|
+| German downloads | 500+ |
+| French downloads | 300+ |
+| Localized conversion rate | >3% (vs 2% baseline) |
+| German App Store rating | 4.5+ |
+| French App Store rating | 4.5+ |

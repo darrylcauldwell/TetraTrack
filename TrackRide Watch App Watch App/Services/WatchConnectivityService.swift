@@ -3,10 +3,12 @@
 //  TrackRide Watch App
 //
 //  Watch-side WatchConnectivity manager
+//  Receives session control commands and statistics from iPhone
 //
 
 import Foundation
 import WatchConnectivity
+import HealthKit
 import Observation
 
 @Observable
@@ -15,6 +17,7 @@ final class WatchConnectivityService: NSObject {
 
     private(set) var isReachable: Bool = false
     private(set) var rideState: SharedRideState = .idle
+    private(set) var messageCount: Int = 0  // Debug: count received messages
     private(set) var duration: TimeInterval = 0
     private(set) var distance: Double = 0
     private(set) var speed: Double = 0
@@ -27,7 +30,7 @@ final class WatchConnectivityService: NSObject {
     private(set) var rideType: String?
     private(set) var lastUpdateTime: Date?
 
-    // Discipline-specific ride metrics
+    // Discipline-specific ride metrics (received from iPhone)
     private(set) var walkPercent: Double = 0
     private(set) var trotPercent: Double = 0
     private(set) var canterPercent: Double = 0
@@ -43,6 +46,39 @@ final class WatchConnectivityService: NSObject {
     private(set) var optimalTime: TimeInterval = 0
     private(set) var timeDifference: TimeInterval = 0
     private(set) var elevation: Double = 0
+
+    // MARK: - Phase 2: Insights Data from iPhone
+
+    /// Recent training sessions (received from iPhone)
+    private(set) var recentSessions: [TrainingSessionSummary] = []
+
+    /// Training trends data (received from iPhone)
+    private(set) var trends: TrainingTrends = TrainingTrends(
+        periodLabel: "This Week",
+        sessionCount: 0,
+        totalDuration: 0,
+        ridingCount: 0,
+        runningCount: 0,
+        swimmingCount: 0,
+        shootingCount: 0,
+        comparedToPrevious: 0
+    )
+
+    /// Workload data (received from iPhone)
+    private(set) var workload: WorkloadData = WorkloadData(
+        sessionsThisWeek: 0,
+        targetSessionsPerWeek: 4,
+        totalDurationThisWeek: 0,
+        restDays: 0,
+        consecutiveTrainingDays: 0,
+        recommendation: .ready
+    )
+
+    // MARK: - SpO2 Monitoring
+
+    private(set) var currentOxygenSaturation: Double = 0.0  // 0-100%
+    private var healthStore: HKHealthStore?
+    private var spo2Query: HKAnchoredObjectQuery?
 
     // MARK: - Private
 
@@ -71,45 +107,129 @@ final class WatchConnectivityService: NSObject {
         session?.activate()
     }
 
-    // MARK: - Sending Commands
+    // MARK: - Computed Properties
 
-    func sendCommand(_ command: WatchCommand) {
-        let message = WatchMessage.command(command)
-        sendMessage(message)
+    /// Whether there is an active session on iPhone
+    var hasActiveSession: Bool {
+        rideState == .tracking
     }
 
-    func sendStartRide() {
-        sendCommand(.startRide)
+    /// Convenience for checking if riding discipline is active
+    var isRiding: Bool {
+        rideState == .tracking && activeDiscipline == .riding
     }
 
-    func sendStopRide() {
-        sendCommand(.stopRide)
+    // MARK: - SpO2 Monitoring
+
+    /// Start monitoring oxygen saturation (requires HealthKit authorization)
+    func startSpO2Monitoring() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("WatchConnectivityService: HealthKit not available")
+            return
+        }
+
+        healthStore = HKHealthStore()
+
+        guard let spo2Type = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) else {
+            print("WatchConnectivityService: SpO2 type not available")
+            return
+        }
+
+        // Request authorization
+        healthStore?.requestAuthorization(toShare: nil, read: [spo2Type]) { [weak self] success, error in
+            if success {
+                self?.startSpO2Query(spo2Type)
+            } else if let error = error {
+                print("WatchConnectivityService: SpO2 auth error - \(error)")
+            }
+        }
     }
 
-    func sendPauseRide() {
-        sendCommand(.pauseRide)
+    private func startSpO2Query(_ spo2Type: HKQuantityType) {
+        let predicate = HKQuery.predicateForSamples(
+            withStart: Date().addingTimeInterval(-60),  // Last minute
+            end: nil,
+            options: .strictStartDate
+        )
+
+        spo2Query = HKAnchoredObjectQuery(
+            type: spo2Type,
+            predicate: predicate,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, samples, _, _, error in
+            if let error = error {
+                print("WatchConnectivityService: SpO2 query error - \(error)")
+                return
+            }
+            self?.processSpO2Samples(samples)
+        }
+
+        spo2Query?.updateHandler = { [weak self] _, samples, _, _, error in
+            if let error = error {
+                print("WatchConnectivityService: SpO2 update error - \(error)")
+                return
+            }
+            self?.processSpO2Samples(samples)
+        }
+
+        if let query = spo2Query {
+            healthStore?.execute(query)
+            print("WatchConnectivityService: SpO2 monitoring started")
+        }
     }
 
-    func sendResumeRide() {
-        sendCommand(.resumeRide)
+    private func processSpO2Samples(_ samples: [HKSample]?) {
+        guard let quantitySamples = samples as? [HKQuantitySample],
+              let latest = quantitySamples.last else { return }
+
+        let spo2 = latest.quantity.doubleValue(for: HKUnit.percent()) * 100
+        DispatchQueue.main.async {
+            self.currentOxygenSaturation = spo2
+        }
     }
 
+    func stopSpO2Monitoring() {
+        if let query = spo2Query {
+            healthStore?.stop(query)
+            spo2Query = nil
+        }
+    }
+
+    // MARK: - Sending Messages (Simplified - No Session Control)
+
+    /// Send heart rate update to iPhone (companion feature - no session control)
     func sendHeartRateUpdate(_ bpm: Int) {
         let message = WatchMessage.heartRateUpdate(bpm)
         sendMessage(message)
     }
 
+    /// Send voice note to iPhone (companion feature)
     func sendVoiceNote(_ text: String) {
         let message = WatchMessage.voiceNote(text)
         sendMessage(message)
     }
 
+    /// Request updated statistics from iPhone
+    func requestStatisticsUpdate() {
+        let message: [String: Any] = [
+            "type": "requestStats",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        sendRawMessage(message)
+    }
+
+    // MARK: - Motion Data Sending (Sensor Companion)
+
+    /// Send motion sensor data to iPhone for analysis.
+    /// Watch captures IMU data, iPhone processes and stores.
     func sendMotionUpdate() {
         let motionManager = WatchMotionManager.shared
         let mode: WatchMotionModeShared = switch motionManager.currentMode {
         case .shooting: .shooting
         case .swimming: .swimming
         case .running: .running
+        case .riding: .riding
         case .idle: .idle
         }
 
@@ -120,12 +240,51 @@ final class WatchConnectivityService: NSObject {
             strokeRate: motionManager.strokeRate,
             verticalOscillation: motionManager.verticalOscillation,
             groundContactTime: motionManager.groundContactTime,
-            cadence: motionManager.cadence
+            cadence: motionManager.cadence,
+            // Enhanced sensor data
+            relativeAltitude: motionManager.relativeAltitude,
+            altitudeChangeRate: motionManager.altitudeChangeRate,
+            barometricPressure: motionManager.barometricPressure,
+            isSubmerged: motionManager.isSubmerged,
+            waterDepth: motionManager.waterDepth,
+            oxygenSaturation: currentOxygenSaturation,
+            compassHeading: motionManager.compassHeading,
+            breathingRate: motionManager.breathingRate,
+            posturePitch: motionManager.posturePitch,
+            postureRoll: motionManager.postureRoll,
+            tremorLevel: motionManager.tremorLevel,
+            movementIntensity: motionManager.movementIntensity
         )
         sendMessage(message)
     }
 
-    // MARK: - Fall Detection Messages
+    /// Send raw motion samples for detailed analysis (bulk transfer)
+    func sendMotionSamples(_ samples: [WatchMotionSample]) {
+        guard !samples.isEmpty else { return }
+
+        // Encode samples for transfer
+        guard let data = try? JSONEncoder().encode(samples),
+              let jsonString = String(data: data, encoding: .utf8) else { return }
+
+        let message: [String: Any] = [
+            "type": "motionSamples",
+            "samples": jsonString,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        sendRawMessage(message)
+    }
+
+    /// Start motion tracking for a specific discipline
+    func startMotionTracking(mode: WatchMotionMode) {
+        WatchMotionManager.shared.startTracking(mode: mode)
+    }
+
+    /// Stop motion tracking
+    func stopMotionTracking() {
+        WatchMotionManager.shared.stopTracking()
+    }
+
+    // MARK: - Fall Detection Messages (Safety Feature - Kept)
 
     func sendFallDetected(confidence: Double, impactMagnitude: Double, rotationMagnitude: Double) {
         let message = WatchMessage.fallDetectedMessage(
@@ -149,6 +308,10 @@ final class WatchConnectivityService: NSObject {
     // MARK: - Private Methods
 
     private func sendMessage(_ message: WatchMessage) {
+        sendRawMessage(message.toDictionary())
+    }
+
+    private func sendRawMessage(_ message: [String: Any]) {
         guard let session = session,
               session.activationState == .activated else {
             print("WatchConnectivityService: Session not active")
@@ -156,13 +319,13 @@ final class WatchConnectivityService: NSObject {
         }
 
         if session.isReachable {
-            session.sendMessage(message.toDictionary(), replyHandler: nil) { error in
+            session.sendMessage(message, replyHandler: nil) { error in
                 print("WatchConnectivityService: Send error - \(error)")
             }
         } else {
             // Use application context for background updates
             do {
-                try session.updateApplicationContext(message.toDictionary())
+                try session.updateApplicationContext(message)
             } catch {
                 print("WatchConnectivityService: Context update error - \(error)")
             }
@@ -170,10 +333,28 @@ final class WatchConnectivityService: NSObject {
     }
 
     private func handleReceivedMessage(_ message: [String: Any]) {
-        print("WatchConnectivityService: Received message with keys: \(message.keys)")
+        DispatchQueue.main.async {
+            self.messageCount += 1
+        }
+        print("WatchConnectivityService: Received message #\(messageCount + 1) with keys: \(message.keys)")
 
+        // Handle insights data updates
+        if let type = message["type"] as? String {
+            switch type {
+            case "recentSessions":
+                handleRecentSessionsUpdate(message)
+            case "trends":
+                handleTrendsUpdate(message)
+            case "workload":
+                handleWorkloadUpdate(message)
+            default:
+                break
+            }
+        }
+
+        // Handle standard WatchMessage
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
-            print("WatchConnectivityService: Failed to parse message")
+            print("WatchConnectivityService: Could not parse as WatchMessage")
             return
         }
 
@@ -185,44 +366,71 @@ final class WatchConnectivityService: NSObject {
             // Handle commands from iPhone
             if let command = watchMessage.command {
                 switch command {
+                // Session control commands - update Watch state to match iPhone
                 case .startRide:
-                    // iPhone started a ride - notify observers to start Watch workout
-                    NotificationCenter.default.post(name: .iPhoneStartedRide, object: nil)
+                    self.rideState = .tracking
+                    // Start heart rate monitoring for the session
+                    Task {
+                        await WorkoutManager.shared.startHeartRateMonitoring()
+                    }
+                    print("WatchConnectivityService: Session started from iPhone")
+
                 case .stopRide:
-                    // iPhone stopped a ride
-                    NotificationCenter.default.post(name: .iPhoneStoppedRide, object: nil)
+                    self.rideState = .idle
+                    // Reset session data
+                    self.duration = 0
+                    self.distance = 0
+                    self.speed = 0
+                    self.gait = "Stationary"
+                    self.heartRate = 0
+                    self.horseName = nil
+                    self.rideType = nil
+                    print("WatchConnectivityService: Session stopped from iPhone")
+
                 case .pauseRide:
-                    NotificationCenter.default.post(name: .iPhonePausedRide, object: nil)
+                    self.rideState = .paused
+                    print("WatchConnectivityService: Session paused from iPhone")
+
                 case .resumeRide:
-                    NotificationCenter.default.post(name: .iPhoneResumedRide, object: nil)
+                    self.rideState = .tracking
+                    print("WatchConnectivityService: Session resumed from iPhone")
+
+                // Motion tracking commands
                 case .startMotionTracking:
-                    if let mode = watchMessage.motionMode {
-                        let motionMode: WatchMotionMode = switch mode {
+                    if let sharedMode = watchMessage.motionMode {
+                        // Convert from shared enum to Watch-local enum
+                        let mode: WatchMotionMode = switch sharedMode {
                         case .shooting: .shooting
                         case .swimming: .swimming
                         case .running: .running
+                        case .riding: .riding
                         case .idle: .idle
                         }
-                        WatchMotionManager.shared.startTracking(mode: motionMode)
-                        // Start periodic motion updates
-                        self.startMotionUpdateTimer()
+                        WatchMotionManager.shared.startTracking(mode: mode)
+                        print("WatchConnectivityService: Motion tracking started - \(mode)")
                     }
+
                 case .stopMotionTracking:
                     WatchMotionManager.shared.stopTracking()
-                    self.stopMotionUpdateTimer()
+                    print("WatchConnectivityService: Motion tracking stopped")
+
+                // Fall detection sync
                 case .syncFallState:
-                    // Handle fall state sync from iPhone
                     let detected = watchMessage.fallDetected ?? false
                     let countdown = watchMessage.fallCountdown
                     WatchFallDetectionManager.shared.handleSyncedFallState(
                         detected: detected,
                         countdown: countdown
                     )
-                default:
+
+                // Commands sent from Watch to iPhone (ignore on Watch side)
+                case .requestStatus, .heartRateUpdate, .voiceNote,
+                     .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:
                     break
                 }
             }
 
+            // Update session state (read-only display)
             if let state = watchMessage.rideState {
                 self.rideState = state
             }
@@ -302,20 +510,63 @@ final class WatchConnectivityService: NSObject {
         }
     }
 
-    // MARK: - Motion Update Timer
+    // MARK: - Insights Data Handlers
 
-    private var motionUpdateTimer: Timer?
+    private func handleRecentSessionsUpdate(_ message: [String: Any]) {
+        guard let sessionsData = message["sessions"] as? [[String: Any]] else { return }
 
-    private func startMotionUpdateTimer() {
-        stopMotionUpdateTimer()
-        motionUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.sendMotionUpdate()
+        DispatchQueue.main.async {
+            self.recentSessions = sessionsData.compactMap { dict -> TrainingSessionSummary? in
+                guard let idString = dict["id"] as? String,
+                      let id = UUID(uuidString: idString),
+                      let discipline = dict["discipline"] as? String,
+                      let timestamp = dict["date"] as? TimeInterval,
+                      let duration = dict["duration"] as? TimeInterval,
+                      let keyMetric = dict["keyMetric"] as? String,
+                      let keyMetricLabel = dict["keyMetricLabel"] as? String else {
+                    return nil
+                }
+                return TrainingSessionSummary(
+                    id: id,
+                    discipline: discipline,
+                    date: Date(timeIntervalSince1970: timestamp),
+                    duration: duration,
+                    keyMetric: keyMetric,
+                    keyMetricLabel: keyMetricLabel
+                )
+            }
         }
     }
 
-    private func stopMotionUpdateTimer() {
-        motionUpdateTimer?.invalidate()
-        motionUpdateTimer = nil
+    private func handleTrendsUpdate(_ message: [String: Any]) {
+        DispatchQueue.main.async {
+            self.trends = TrainingTrends(
+                periodLabel: message["periodLabel"] as? String ?? "This Week",
+                sessionCount: message["sessionCount"] as? Int ?? 0,
+                totalDuration: message["totalDuration"] as? TimeInterval ?? 0,
+                ridingCount: message["ridingCount"] as? Int ?? 0,
+                runningCount: message["runningCount"] as? Int ?? 0,
+                swimmingCount: message["swimmingCount"] as? Int ?? 0,
+                shootingCount: message["shootingCount"] as? Int ?? 0,
+                comparedToPrevious: message["comparedToPrevious"] as? Double ?? 0
+            )
+        }
+    }
+
+    private func handleWorkloadUpdate(_ message: [String: Any]) {
+        DispatchQueue.main.async {
+            let recommendationString = message["recommendation"] as? String ?? "ready"
+            let recommendation = WorkloadData.WorkloadRecommendation(rawValue: recommendationString) ?? .ready
+
+            self.workload = WorkloadData(
+                sessionsThisWeek: message["sessionsThisWeek"] as? Int ?? 0,
+                targetSessionsPerWeek: message["targetSessionsPerWeek"] as? Int ?? 4,
+                totalDurationThisWeek: message["totalDurationThisWeek"] as? TimeInterval ?? 0,
+                restDays: message["restDays"] as? Int ?? 0,
+                consecutiveTrainingDays: message["consecutiveTrainingDays"] as? Int ?? 0,
+                recommendation: recommendation
+            )
+        }
     }
 
     // MARK: - Formatted Values
@@ -341,10 +592,6 @@ final class WatchConnectivityService: NSObject {
     var formattedSpeed: String {
         let kmh = speed * 3.6
         return String(format: "%.1f km/h", kmh)
-    }
-
-    var isRiding: Bool {
-        rideState == .tracking
     }
 
     // MARK: - Discipline Detection
@@ -395,15 +642,6 @@ final class WatchConnectivityService: NSObject {
     }
 }
 
-// MARK: - Notification Names for iPhone Commands
-
-extension Notification.Name {
-    static let iPhoneStartedRide = Notification.Name("iPhoneStartedRide")
-    static let iPhoneStoppedRide = Notification.Name("iPhoneStoppedRide")
-    static let iPhonePausedRide = Notification.Name("iPhonePausedRide")
-    static let iPhoneResumedRide = Notification.Name("iPhoneResumedRide")
-}
-
 // MARK: - WCSessionDelegate
 
 extension WatchConnectivityService: WCSessionDelegate {
@@ -421,6 +659,11 @@ extension WatchConnectivityService: WCSessionDelegate {
             self.isReachable = session.isReachable
         }
 
+        // Request initial statistics on activation
+        if session.isReachable {
+            requestStatisticsUpdate()
+        }
+
         print("WatchConnectivityService: Activated - reachable: \(session.isReachable)")
     }
 
@@ -428,9 +671,15 @@ extension WatchConnectivityService: WCSessionDelegate {
         DispatchQueue.main.async {
             self.isReachable = session.isReachable
         }
+
+        // Request statistics when connection is restored
+        if session.isReachable {
+            requestStatisticsUpdate()
+        }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        print("WatchConnectivityService: didReceiveMessage called")
         handleReceivedMessage(message)
     }
 
@@ -439,6 +688,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
+        print("WatchConnectivityService: didReceiveMessage (with reply) called")
         handleReceivedMessage(message)
         replyHandler(["status": "received"])
     }
@@ -447,6 +697,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
+        print("WatchConnectivityService: didReceiveApplicationContext called with keys: \(applicationContext.keys)")
         handleReceivedMessage(applicationContext)
     }
 }

@@ -56,6 +56,20 @@ public enum WatchMessageKey: String {
     case fallRotationMagnitude = "fallRotationMagnitude"
     case fallCountdown = "fallCountdown"
     case fallResponse = "fallResponse"
+    // Enhanced sensor data (Watch -> iPhone)
+    case relativeAltitude = "relativeAltitude"
+    case altitudeChangeRate = "altitudeChangeRate"
+    case barometricPressure = "barometricPressure"
+    case isSubmerged = "isSubmerged"
+    case waterDepth = "waterDepth"
+    case oxygenSaturation = "oxygenSaturation"
+    case compassHeading = "compassHeading"
+    case breathingRate = "breathingRate"
+    case bodyTemperature = "bodyTemperature"
+    case posturePitch = "posturePitch"
+    case postureRoll = "postureRoll"
+    case tremorLevel = "tremorLevel"
+    case movementIntensity = "movementIntensity"
 }
 
 // MARK: - Commands
@@ -92,6 +106,7 @@ public enum WatchMotionModeShared: String, Codable, Sendable {
     case shooting
     case swimming
     case running
+    case riding
     case idle
 }
 
@@ -152,6 +167,20 @@ public struct WatchMessage: Codable, Sendable {
     public let fallRotationMagnitude: Double?
     public let fallCountdown: Int?
     public let fallResponse: FallResponse?
+    // Enhanced sensor data
+    public let relativeAltitude: Double?        // Meters relative to session start
+    public let altitudeChangeRate: Double?      // Meters per second (climb rate)
+    public let barometricPressure: Double?      // kPa
+    public let isSubmerged: Bool?               // Water detection
+    public let waterDepth: Double?              // Meters (if available)
+    public let oxygenSaturation: Double?        // SpO2 percentage (0-100)
+    public let compassHeading: Double?          // Degrees (0-360)
+    public let breathingRate: Double?           // Breaths per minute
+    public let bodyTemperature: Double?         // Celsius
+    public let posturePitch: Double?            // Forward/back lean in degrees
+    public let postureRoll: Double?             // Left/right lean in degrees
+    public let tremorLevel: Double?             // Tremor intensity (0-100)
+    public let movementIntensity: Double?       // Overall movement (0-100)
 
     public init(
         command: WatchCommand? = nil,
@@ -195,7 +224,21 @@ public struct WatchMessage: Codable, Sendable {
         fallImpactMagnitude: Double? = nil,
         fallRotationMagnitude: Double? = nil,
         fallCountdown: Int? = nil,
-        fallResponse: FallResponse? = nil
+        fallResponse: FallResponse? = nil,
+        // Enhanced sensor data
+        relativeAltitude: Double? = nil,
+        altitudeChangeRate: Double? = nil,
+        barometricPressure: Double? = nil,
+        isSubmerged: Bool? = nil,
+        waterDepth: Double? = nil,
+        oxygenSaturation: Double? = nil,
+        compassHeading: Double? = nil,
+        breathingRate: Double? = nil,
+        bodyTemperature: Double? = nil,
+        posturePitch: Double? = nil,
+        postureRoll: Double? = nil,
+        tremorLevel: Double? = nil,
+        movementIntensity: Double? = nil
     ) {
         self.command = command
         self.rideState = rideState
@@ -240,6 +283,20 @@ public struct WatchMessage: Codable, Sendable {
         self.fallRotationMagnitude = fallRotationMagnitude
         self.fallCountdown = fallCountdown
         self.fallResponse = fallResponse
+        // Enhanced sensor data
+        self.relativeAltitude = relativeAltitude
+        self.altitudeChangeRate = altitudeChangeRate
+        self.barometricPressure = barometricPressure
+        self.isSubmerged = isSubmerged
+        self.waterDepth = waterDepth
+        self.oxygenSaturation = oxygenSaturation
+        self.compassHeading = compassHeading
+        self.breathingRate = breathingRate
+        self.bodyTemperature = bodyTemperature
+        self.posturePitch = posturePitch
+        self.postureRoll = postureRoll
+        self.tremorLevel = tremorLevel
+        self.movementIntensity = movementIntensity
     }
 
     // MARK: - Convenience Initializers
@@ -331,7 +388,20 @@ public struct WatchMessage: Codable, Sendable {
         strokeRate: Double? = nil,
         verticalOscillation: Double? = nil,
         groundContactTime: Double? = nil,
-        cadence: Int? = nil
+        cadence: Int? = nil,
+        // Enhanced sensor data
+        relativeAltitude: Double? = nil,
+        altitudeChangeRate: Double? = nil,
+        barometricPressure: Double? = nil,
+        isSubmerged: Bool? = nil,
+        waterDepth: Double? = nil,
+        oxygenSaturation: Double? = nil,
+        compassHeading: Double? = nil,
+        breathingRate: Double? = nil,
+        posturePitch: Double? = nil,
+        postureRoll: Double? = nil,
+        tremorLevel: Double? = nil,
+        movementIntensity: Double? = nil
     ) -> WatchMessage {
         WatchMessage(
             command: .motionUpdate,
@@ -341,7 +411,19 @@ public struct WatchMessage: Codable, Sendable {
             strokeRate: strokeRate,
             verticalOscillation: verticalOscillation,
             groundContactTime: groundContactTime,
-            cadence: cadence
+            cadence: cadence,
+            relativeAltitude: relativeAltitude,
+            altitudeChangeRate: altitudeChangeRate,
+            barometricPressure: barometricPressure,
+            isSubmerged: isSubmerged,
+            waterDepth: waterDepth,
+            oxygenSaturation: oxygenSaturation,
+            compassHeading: compassHeading,
+            breathingRate: breathingRate,
+            posturePitch: posturePitch,
+            postureRoll: postureRoll,
+            tremorLevel: tremorLevel,
+            movementIntensity: movementIntensity
         )
     }
 
@@ -516,6 +598,46 @@ public struct WatchMessage: Codable, Sendable {
         if let fallResponse = fallResponse {
             dict[WatchMessageKey.fallResponse.rawValue] = fallResponse.rawValue
         }
+        // Enhanced sensor data
+        if let relativeAltitude = relativeAltitude {
+            dict[WatchMessageKey.relativeAltitude.rawValue] = relativeAltitude
+        }
+        if let altitudeChangeRate = altitudeChangeRate {
+            dict[WatchMessageKey.altitudeChangeRate.rawValue] = altitudeChangeRate
+        }
+        if let barometricPressure = barometricPressure {
+            dict[WatchMessageKey.barometricPressure.rawValue] = barometricPressure
+        }
+        if let isSubmerged = isSubmerged {
+            dict[WatchMessageKey.isSubmerged.rawValue] = isSubmerged
+        }
+        if let waterDepth = waterDepth {
+            dict[WatchMessageKey.waterDepth.rawValue] = waterDepth
+        }
+        if let oxygenSaturation = oxygenSaturation {
+            dict[WatchMessageKey.oxygenSaturation.rawValue] = oxygenSaturation
+        }
+        if let compassHeading = compassHeading {
+            dict[WatchMessageKey.compassHeading.rawValue] = compassHeading
+        }
+        if let breathingRate = breathingRate {
+            dict[WatchMessageKey.breathingRate.rawValue] = breathingRate
+        }
+        if let bodyTemperature = bodyTemperature {
+            dict[WatchMessageKey.bodyTemperature.rawValue] = bodyTemperature
+        }
+        if let posturePitch = posturePitch {
+            dict[WatchMessageKey.posturePitch.rawValue] = posturePitch
+        }
+        if let postureRoll = postureRoll {
+            dict[WatchMessageKey.postureRoll.rawValue] = postureRoll
+        }
+        if let tremorLevel = tremorLevel {
+            dict[WatchMessageKey.tremorLevel.rawValue] = tremorLevel
+        }
+        if let movementIntensity = movementIntensity {
+            dict[WatchMessageKey.movementIntensity.rawValue] = movementIntensity
+        }
 
         return dict
     }
@@ -579,7 +701,21 @@ public struct WatchMessage: Codable, Sendable {
             fallImpactMagnitude: dict[WatchMessageKey.fallImpactMagnitude.rawValue] as? Double,
             fallRotationMagnitude: dict[WatchMessageKey.fallRotationMagnitude.rawValue] as? Double,
             fallCountdown: dict[WatchMessageKey.fallCountdown.rawValue] as? Int,
-            fallResponse: fallResponse
+            fallResponse: fallResponse,
+            // Enhanced sensor data
+            relativeAltitude: dict[WatchMessageKey.relativeAltitude.rawValue] as? Double,
+            altitudeChangeRate: dict[WatchMessageKey.altitudeChangeRate.rawValue] as? Double,
+            barometricPressure: dict[WatchMessageKey.barometricPressure.rawValue] as? Double,
+            isSubmerged: dict[WatchMessageKey.isSubmerged.rawValue] as? Bool,
+            waterDepth: dict[WatchMessageKey.waterDepth.rawValue] as? Double,
+            oxygenSaturation: dict[WatchMessageKey.oxygenSaturation.rawValue] as? Double,
+            compassHeading: dict[WatchMessageKey.compassHeading.rawValue] as? Double,
+            breathingRate: dict[WatchMessageKey.breathingRate.rawValue] as? Double,
+            bodyTemperature: dict[WatchMessageKey.bodyTemperature.rawValue] as? Double,
+            posturePitch: dict[WatchMessageKey.posturePitch.rawValue] as? Double,
+            postureRoll: dict[WatchMessageKey.postureRoll.rawValue] as? Double,
+            tremorLevel: dict[WatchMessageKey.tremorLevel.rawValue] as? Double,
+            movementIntensity: dict[WatchMessageKey.movementIntensity.rawValue] as? Double
         )
 
         return message
