@@ -50,6 +50,7 @@ enum CalendarEvent: Identifiable {
 
 struct CompetitionCalendarView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Competition.date) private var competitions: [Competition]
     @Query(filter: #Predicate<Horse> { !$0.isArchived }, sort: \Horse.name) private var horses: [Horse]
 
@@ -174,149 +175,239 @@ struct CompetitionCalendarView: View {
     }
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
+            }
+        }
+    }
+
+    // MARK: - iPad Layout (Split View)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            competitionListContent
+                .navigationTitle("Competitions")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingStats = true
+                        } label: {
+                            Image(systemName: "chart.bar.xaxis")
+                        }
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingFilters = true
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                if activeFilterCount > 0 {
+                                    Text("\(activeFilterCount)")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.white)
+                                        .padding(4)
+                                        .background(AppColors.primary)
+                                        .clipShape(Circle())
+                                        .offset(x: 8, y: -8)
+                                }
+                            }
+                        }
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { showingAddCompetition = true }) {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
+        } detail: {
+            if let competition = selectedCompetition {
+                CompetitionDetailView(competition: competition)
+            } else {
+                ContentUnavailableView(
+                    "Select a Competition",
+                    systemImage: "calendar",
+                    description: Text("Choose a competition to view details")
+                )
+            }
+        }
+        .navigationDestination(isPresented: $showingStats) {
+            CompetitionStatsView()
+        }
+        .sheet(isPresented: $showingAddCompetition) {
+            CompetitionEditView(competition: nil)
+        }
+        .sheet(isPresented: $showingFilters) {
+            CompetitionFilterSheet(
+                horses: horses,
+                venues: uniqueVenues,
+                selectedHorse: $selectedHorse,
+                selectedVenue: $selectedVenue,
+                selectedType: $selectedType,
+                selectedLevel: $selectedLevel
+            )
+            .presentationDetents([.medium, .large])
+        }
+    }
+
+    // MARK: - iPhone Layout (Stack)
+
+    private var iPhoneLayout: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Next competition countdown
-                    if let next = nextCompetition {
-                        NextCompetitionCard(competition: next)
-                            .onTapGesture {
-                                selectedCompetition = next
-                            }
-                    }
-
-                    // Active filters display
-                    if activeFilterCount > 0 {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                if let horse = selectedHorse {
-                                    CompetitionFilterChip(
-                                        label: horse.name,
-                                        icon: "figure.equestrian.sports",
-                                        onRemove: { selectedHorse = nil }
-                                    )
-                                }
-                                if let venue = selectedVenue {
-                                    CompetitionFilterChip(
-                                        label: venue,
-                                        icon: "building.2",
-                                        onRemove: { selectedVenue = nil }
-                                    )
-                                }
-                                if let type = selectedType {
-                                    CompetitionFilterChip(
-                                        label: type.rawValue,
-                                        icon: type.icon,
-                                        onRemove: { selectedType = nil }
-                                    )
-                                }
-                                if let level = selectedLevel {
-                                    CompetitionFilterChip(
-                                        label: level.rawValue,
-                                        icon: "flag",
-                                        onRemove: { selectedLevel = nil }
-                                    )
-                                }
-                            }
-                            .padding(.horizontal)
+            competitionListContent
+                .navigationTitle("Competitions")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingStats = true
+                        } label: {
+                            Image(systemName: "chart.bar.xaxis")
                         }
                     }
 
-                    // View mode picker
-                    Picker("View", selection: $viewMode) {
-                        ForEach(ViewMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingFilters = true
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                if activeFilterCount > 0 {
+                                    Text("\(activeFilterCount)")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(.white)
+                                        .padding(4)
+                                        .background(AppColors.primary)
+                                        .clipShape(Circle())
+                                        .offset(x: 8, y: -8)
+                                }
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
 
-                    // Competition and deadline list
-                    if filteredEvents.isEmpty {
-                        emptyStateView
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(filteredEvents) { event in
-                                switch event {
-                                case .competition(let competition):
-                                    CompetitionRowView(competition: competition)
-                                        .onTapGesture {
-                                            selectedCompetition = competition
-                                        }
-                                case .entryDeadline(let competition):
-                                    EntryDeadlineRowView(competition: competition)
-                                        .onTapGesture {
-                                            selectedCompetition = competition
-                                        }
-                                case .stableDeadline(let competition):
-                                    StableDeadlineRowView(competition: competition)
-                                        .onTapGesture {
-                                            selectedCompetition = competition
-                                        }
-                                }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: { showingAddCompetition = true }) {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
+                .navigationDestination(isPresented: $showingStats) {
+                    CompetitionStatsView()
+                }
+                .sheet(isPresented: $showingAddCompetition) {
+                    CompetitionEditView(competition: nil)
+                }
+                .sheet(item: $selectedCompetition) { competition in
+                    CompetitionDetailView(competition: competition)
+                }
+                .sheet(isPresented: $showingFilters) {
+                    CompetitionFilterSheet(
+                        horses: horses,
+                        venues: uniqueVenues,
+                        selectedHorse: $selectedHorse,
+                        selectedVenue: $selectedVenue,
+                        selectedType: $selectedType,
+                        selectedLevel: $selectedLevel
+                    )
+                    .presentationDetents([.medium, .large])
+                }
+                .presentationBackground(Color.black)
+        }
+    }
+
+    // MARK: - Shared List Content
+
+    private var competitionListContent: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Next competition countdown
+                if let next = nextCompetition {
+                    NextCompetitionCard(competition: next)
+                        .onTapGesture {
+                            selectedCompetition = next
+                        }
+                }
+
+                // Active filters display
+                if activeFilterCount > 0 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            if let horse = selectedHorse {
+                                CompetitionFilterChip(
+                                    label: horse.name,
+                                    icon: "figure.equestrian.sports",
+                                    onRemove: { selectedHorse = nil }
+                                )
+                            }
+                            if let venue = selectedVenue {
+                                CompetitionFilterChip(
+                                    label: venue,
+                                    icon: "building.2",
+                                    onRemove: { selectedVenue = nil }
+                                )
+                            }
+                            if let type = selectedType {
+                                CompetitionFilterChip(
+                                    label: type.rawValue,
+                                    icon: type.icon,
+                                    onRemove: { selectedType = nil }
+                                )
+                            }
+                            if let level = selectedLevel {
+                                CompetitionFilterChip(
+                                    label: level.rawValue,
+                                    icon: "flag",
+                                    onRemove: { selectedLevel = nil }
+                                )
                             }
                         }
                         .padding(.horizontal)
                     }
                 }
-                .padding(.vertical)
-            }
-            .navigationTitle("Competitions")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingStats = true
-                    } label: {
-                        Image(systemName: "chart.bar.xaxis")
+
+                // View mode picker
+                Picker("View", selection: $viewMode) {
+                    ForEach(ViewMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
                     }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingFilters = true
-                    } label: {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                            if activeFilterCount > 0 {
-                                Text("\(activeFilterCount)")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.white)
-                                    .padding(4)
-                                    .background(AppColors.primary)
-                                    .clipShape(Circle())
-                                    .offset(x: 8, y: -8)
+                // Competition and deadline list
+                if filteredEvents.isEmpty {
+                    emptyStateView
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(filteredEvents) { event in
+                            switch event {
+                            case .competition(let competition):
+                                CompetitionRowView(competition: competition)
+                                    .onTapGesture {
+                                        selectedCompetition = competition
+                                    }
+                            case .entryDeadline(let competition):
+                                EntryDeadlineRowView(competition: competition)
+                                    .onTapGesture {
+                                        selectedCompetition = competition
+                                    }
+                            case .stableDeadline(let competition):
+                                StableDeadlineRowView(competition: competition)
+                                    .onTapGesture {
+                                        selectedCompetition = competition
+                                    }
                             }
                         }
                     }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingAddCompetition = true }) {
-                        Image(systemName: "plus")
-                    }
+                    .padding(.horizontal)
                 }
             }
-            .navigationDestination(isPresented: $showingStats) {
-                CompetitionStatsView()
-            }
-            .sheet(isPresented: $showingAddCompetition) {
-                CompetitionEditView(competition: nil)
-            }
-            .sheet(item: $selectedCompetition) { competition in
-                CompetitionDetailView(competition: competition)
-            }
-            .sheet(isPresented: $showingFilters) {
-                CompetitionFilterSheet(
-                    horses: horses,
-                    venues: uniqueVenues,
-                    selectedHorse: $selectedHorse,
-                    selectedVenue: $selectedVenue,
-                    selectedType: $selectedType,
-                    selectedLevel: $selectedLevel
-                )
-                .presentationDetents([.medium, .large])
-            }
+            .padding(.vertical)
         }
     }
 

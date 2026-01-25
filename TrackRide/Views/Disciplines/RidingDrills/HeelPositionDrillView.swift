@@ -30,7 +30,7 @@ struct HeelPositionDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.green.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -46,7 +46,7 @@ struct HeelPositionDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -82,7 +82,7 @@ struct HeelPositionDrillView: View {
 
             Image(systemName: "figure.stand")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.riding)
 
             Text("Heel Position Drill")
                 .font(.title2.bold())
@@ -107,19 +107,14 @@ struct HeelPositionDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.riding))
+            .accessibilityLabel("Start Heel Position Drill")
+            .accessibilityHint("Begins the heel-down balance practice")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -132,7 +127,7 @@ struct HeelPositionDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.riding)
             Text("Heels down, weight in stirrups")
                 .font(.headline)
             Spacer()
@@ -215,7 +210,7 @@ struct HeelPositionDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -225,7 +220,7 @@ struct HeelPositionDrillView: View {
             VStack {
                 Text("\(Int(avgStability * 100))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.riding)
                 Text("Average Stability")
                     .foregroundStyle(.secondary)
             }
@@ -241,40 +236,31 @@ struct HeelPositionDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     results = []
                     countdown = 3
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the heel position drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.riding))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
-        if motionManager.stabilityScore > 0.8 { return .green }
-        if motionManager.stabilityScore > 0.5 { return .yellow }
-        return .red
+        if motionManager.stabilityScore > 0.8 { return AppColors.active }
+        if motionManager.stabilityScore > 0.5 { return AppColors.warning }
+        return AppColors.error
     }
 
     private var stabilityMessage: String {
@@ -293,9 +279,9 @@ struct HeelPositionDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score > 0.8 { return .green }
-        if score > 0.6 { return .yellow }
-        return .orange
+        if score > 0.8 { return AppColors.active }
+        if score > 0.6 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startCountdown() {

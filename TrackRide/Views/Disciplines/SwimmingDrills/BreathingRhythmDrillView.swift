@@ -57,7 +57,7 @@ struct BreathingRhythmDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.blue.opacity(0.1).ignoresSafeArea()
+                AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -97,7 +97,7 @@ struct BreathingRhythmDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -110,7 +110,7 @@ struct BreathingRhythmDrillView: View {
 
             Image(systemName: "wind")
                 .font(.system(size: 60))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.swimming)
 
             Text("Swimming Breathing Rhythm")
                 .font(.title2.bold())
@@ -150,19 +150,14 @@ struct BreathingRhythmDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.swimming))
+            .accessibilityLabel("Start Breathing Rhythm Drill")
+            .accessibilityHint("Begins the swimming breathing pattern exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -175,7 +170,7 @@ struct BreathingRhythmDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.swimming)
             Text("Simulate swimming strokes")
                 .font(.headline)
             Spacer()
@@ -193,7 +188,7 @@ struct BreathingRhythmDrillView: View {
             // Breath indicator
             ZStack {
                 Circle()
-                    .fill(breathSide == .none ? Color.blue.opacity(0.2) : breathColor.opacity(0.3))
+                    .fill(breathSide == .none ? AppColors.swimming.opacity(0.2) : breathColor.opacity(0.3))
                     .frame(width: 180, height: 180)
                     .scaleEffect(breathSide == .none ? 1.0 : 1.2)
                     .animation(.easeInOut(duration: 0.3), value: breathSide)
@@ -201,11 +196,11 @@ struct BreathingRhythmDrillView: View {
                 VStack(spacing: 8) {
                     Image(systemName: breathSide == .none ? "figure.pool.swim" : "wind")
                         .font(.system(size: 50))
-                        .foregroundStyle(breathSide == .none ? .blue : breathColor)
+                        .foregroundStyle(breathSide == .none ? AppColors.swimming : breathColor)
 
                     Text(breathSide.rawValue.uppercased())
                         .font(.title.bold())
-                        .foregroundStyle(breathSide == .none ? .blue : breathColor)
+                        .foregroundStyle(breathSide == .none ? AppColors.swimming : breathColor)
                 }
             }
 
@@ -213,7 +208,7 @@ struct BreathingRhythmDrillView: View {
             HStack(spacing: 8) {
                 ForEach(0..<pattern.strokesPerBreath, id: \.self) { i in
                     Circle()
-                        .fill(i < (pattern.strokesPerBreath - strokesUntilBreath) ? Color.blue : Color.gray.opacity(0.3))
+                        .fill(i < (pattern.strokesPerBreath - strokesUntilBreath) ? AppColors.swimming : Color.gray.opacity(0.3))
                         .frame(width: 20, height: 20)
                 }
             }
@@ -248,7 +243,7 @@ struct BreathingRhythmDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -258,7 +253,7 @@ struct BreathingRhythmDrillView: View {
             VStack {
                 Text("\(Int(avgScore))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppColors.swimming)
                 Text("Breathing Score")
                     .foregroundStyle(.secondary)
             }
@@ -285,54 +280,45 @@ struct BreathingRhythmDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(avgScore))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(avgScore >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(avgScore >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(avgScore >= 70 ? AppColors.active.opacity(0.2) : AppColors.running.opacity(0.2))
+                .foregroundStyle(avgScore >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the breathing rhythm drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.swimming))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var breathColor: Color {
         switch breathSide {
-        case .left: return .orange
-        case .right: return .green
-        case .none: return .blue
+        case .left: return AppColors.running
+        case .right: return AppColors.active
+        case .none: return AppColors.swimming
         }
     }
 

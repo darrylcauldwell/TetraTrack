@@ -24,7 +24,7 @@ struct WeatherBadgeView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(Capsule())
     }
 }
@@ -150,7 +150,7 @@ struct LiveWeatherCardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -234,7 +234,7 @@ struct WeatherDetailView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -321,7 +321,7 @@ struct WeatherChangeSummaryView: View {
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }

@@ -11,7 +11,7 @@ import SwiftData
 struct ChildDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var syncService = ArtifactSyncService.shared
-    @State private var friendService = FriendSharingService.shared
+    @State private var sharingCoordinator = UnifiedSharingCoordinator.shared
 
     @Query(sort: \SharingRelationship.addedDate, order: .reverse)
     private var friendRelationships: [SharingRelationship]
@@ -52,7 +52,7 @@ struct ChildDashboardView: View {
                     // Friend sharing status
                     FriendSharingStatusCard(
                         relationships: friendRelationships,
-                        activeShareCount: friendService.activeShares.count,
+                        activeShareCount: 0,  // Will be updated via repository
                         onManageFriends: { showingFriendManagement = true }
                     )
                     .padding(.horizontal)
@@ -83,6 +83,7 @@ struct ChildDashboardView: View {
                     friends: friendRelationships
                 )
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -148,7 +149,7 @@ struct SyncStatusBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -329,7 +330,7 @@ struct FullMetricsArtifactRow: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -421,7 +422,7 @@ struct UpcomingCompetitionRow: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
@@ -479,7 +480,7 @@ struct FriendSharingStatusCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -527,6 +528,7 @@ struct FriendManagementView: View {
             .sheet(isPresented: $showingAddFriend) {
                 AddFriendView()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -534,7 +536,7 @@ struct FriendManagementView: View {
         for index in offsets {
             let relationship = relationships[index]
             Task {
-                await FriendSharingService.shared.deleteRelationship(relationship, context: modelContext)
+                await UnifiedSharingCoordinator.shared.deleteRelationship(relationship)
             }
         }
     }
@@ -627,11 +629,12 @@ struct AddFriendView: View {
     }
 
     private func addFriend() {
-        _ = FriendSharingService.shared.createRelationship(
+        _ = UnifiedSharingCoordinator.shared.createRelationship(
             name: name,
             type: relationshipType,
             email: email.isEmpty ? nil : email,
-            context: modelContext
+            phoneNumber: nil,
+            preset: nil
         )
         dismiss()
     }

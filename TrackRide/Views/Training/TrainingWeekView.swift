@@ -151,6 +151,7 @@ struct TrainingWeekView: View {
                 regeneratePlan()
             }
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Weekly Focus Header
@@ -216,7 +217,7 @@ struct TrainingWeekView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -281,7 +282,7 @@ struct TrainingWeekView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -376,7 +377,7 @@ struct TrainingWeekView: View {
                 // Force view refresh
                 refreshID = UUID()
             } catch {
-                print("Failed to regenerate plan: \(error)")
+                // Plan regeneration failed silently
             }
             isGeneratingPlan = false
         }
@@ -569,7 +570,7 @@ struct DayRow: View {
             }
         }
         .padding()
-        .background(isToday ? Color.blue.opacity(0.05) : Color(uiColor: .secondarySystemBackground))
+        .background(isToday ? Color.blue.opacity(0.05) : AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -684,7 +685,7 @@ struct ScheduledDrillCardCompact: View {
 
     private var cardBackground: Color {
         if workout.isCompleted {
-            return Color(uiColor: .tertiarySystemBackground)
+            return AppColors.elevatedSurface
         } else {
             return workout.targetDomain.colorValue.opacity(0.08)
         }
@@ -745,7 +746,7 @@ struct DayColumn: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(AppColors.elevatedSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -755,7 +756,7 @@ struct DayColumn: View {
         }
         .frame(width: 100)
         .padding(8)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onDrop(of: [.text], isTargeted: nil) { providers in
             if let workout = draggedWorkout {
@@ -877,7 +878,7 @@ struct ScheduledDrillCard: View {
 
     private var cardBackground: Color {
         if workout.isCompleted {
-            return Color(.tertiarySystemBackground)
+            return AppColors.elevatedSurface
         } else {
             return workout.targetDomain.colorValue.opacity(0.08)
         }
@@ -916,7 +917,7 @@ struct AddDrillSheet: View {
                                     .font(.caption.bold())
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(selectedDomain == nil ? .blue : Color(.tertiarySystemBackground))
+                                    .background(selectedDomain == nil ? .blue : AppColors.elevatedSurface)
                                     .foregroundStyle(selectedDomain == nil ? .white : .primary)
                                     .clipShape(Capsule())
                             }
@@ -929,7 +930,7 @@ struct AddDrillSheet: View {
                                         .font(.caption.bold())
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
-                                        .background(selectedDomain == domain ? domain.colorValue : Color(.tertiarySystemBackground))
+                                        .background(selectedDomain == domain ? domain.colorValue : AppColors.elevatedSurface)
                                         .foregroundStyle(selectedDomain == domain ? .white : .primary)
                                         .clipShape(Capsule())
                                 }
@@ -1071,7 +1072,7 @@ struct DrillLauncherSheet: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -1087,7 +1088,7 @@ struct DrillLauncherSheet: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 

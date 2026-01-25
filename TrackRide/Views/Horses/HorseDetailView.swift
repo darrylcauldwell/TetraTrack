@@ -10,7 +10,9 @@ import SwiftData
 struct HorseDetailView: View {
     @Bindable var horse: Horse
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showingEditSheet = false
+    @State private var showingGaitTuning = false
     @State private var selectedPeriod: StatisticsPeriod = .allTime
     @State private var selectedVideoIndex: Int?
     @State private var showingVideoPlayer = false
@@ -29,25 +31,11 @@ struct HorseDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // Profile Header
-                profileHeader
-
-                // Videos Gallery
-                if horse.hasVideos {
-                    videoGallerySection
-                }
-
-                // Workload Card
-                WorkloadCardView(workload: workload)
-
-                // Statistics
-                statisticsSection
-
-                // Recent Rides
-                recentRidesSection
+            if horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
             }
-            .padding()
         }
         .navigationTitle(horse.name.isEmpty ? "Horse" : horse.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -58,7 +46,58 @@ struct HorseDetailView: View {
         }
         .sheet(isPresented: $showingEditSheet) {
             HorseEditView(horse: horse)
+                .presentationBackground(Color.black)
         }
+    }
+
+    // MARK: - iPad Layout (Side-by-Side)
+
+    private var iPadLayout: some View {
+        HStack(alignment: .top, spacing: Spacing.xl) {
+            // Left column: Profile and Videos
+            VStack(spacing: 20) {
+                profileHeader
+
+                gaitTuningSection
+
+                if horse.hasVideos {
+                    videoGallerySection
+                }
+
+                WorkloadCardView(workload: workload)
+            }
+            .frame(width: 350)
+
+            // Right column: Statistics and Rides
+            VStack(spacing: 20) {
+                statisticsSection
+
+                recentRidesSection
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(Spacing.xl)
+    }
+
+    // MARK: - iPhone Layout (Vertical)
+
+    private var iPhoneLayout: some View {
+        VStack(spacing: 20) {
+            profileHeader
+
+            gaitTuningSection
+
+            if horse.hasVideos {
+                videoGallerySection
+            }
+
+            WorkloadCardView(workload: workload)
+
+            statisticsSection
+
+            recentRidesSection
+        }
+        .padding()
     }
 
     // MARK: - Profile Header
@@ -90,7 +129,7 @@ struct HorseDetailView: View {
                     HorseDetailRow(label: "Height", value: horse.formattedHeight, icon: "ruler")
                 }
             }
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Notes
@@ -106,6 +145,43 @@ struct HorseDetailView: View {
         .frame(maxWidth: .infinity)
         .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Gait Tuning Section
+
+    private var gaitTuningSection: some View {
+        Button {
+            showingGaitTuning = true
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Gait Detection", systemImage: "waveform.path.ecg")
+                        .font(.headline)
+
+                    if horse.hasCustomGaitSettings {
+                        Text("Custom settings applied")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("Using \(horse.typedBreed.displayName) defaults")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingGaitTuning) {
+            HorseGaitTuningView(horse: horse)
+        }
     }
 
     // MARK: - Video Gallery Section
@@ -151,6 +227,7 @@ struct HorseDetailView: View {
         .sheet(isPresented: $showingVideoPlayer) {
             if let index = selectedVideoIndex, index < horse.videoAssetIdentifiers.count {
                 HorseVideoPlayer(assetIdentifier: horse.videoAssetIdentifiers[index])
+                    .presentationBackground(Color.black)
             }
         }
     }

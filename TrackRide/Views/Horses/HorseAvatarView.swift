@@ -19,7 +19,7 @@ struct HorseAvatarView: View {
             } else {
                 ZStack {
                     Circle()
-                        .fill(AppColors.light)
+                        .fill(AppColors.primary.opacity(0.15))
 
                     Image(systemName: "figure.equestrian.sports")
                         .font(.system(size: size * 0.4))

@@ -42,7 +42,7 @@ final class ShootingSession: TrainingSessionProtocol {
 
     // Results
     @Relationship(deleteRule: .cascade, inverse: \ShootingEnd.session)
-    var ends: [ShootingEnd] = []
+    var ends: [ShootingEnd]? = []
 
     var targetType: ShootingTargetType {
         get { ShootingTargetType(rawValue: targetTypeRaw) ?? .olympic }
@@ -89,7 +89,7 @@ final class ShootingSession: TrainingSessionProtocol {
     // MARK: - Computed Properties
 
     var totalScore: Int {
-        ends.reduce(0) { $0 + $1.totalScore }
+        (ends ?? []).reduce(0) { $0 + $1.totalScore }
     }
 
     var maxPossibleScore: Int {
@@ -102,26 +102,26 @@ final class ShootingSession: TrainingSessionProtocol {
     }
 
     var averageScorePerArrow: Double {
-        let totalArrows = ends.flatMap { $0.shots }.count
+        let totalArrows = (ends ?? []).flatMap { $0.shots ?? [] }.count
         guard totalArrows > 0 else { return 0 }
         return Double(totalScore) / Double(totalArrows)
     }
 
     var averageScorePerEnd: Double {
-        guard !ends.isEmpty else { return 0 }
-        return Double(totalScore) / Double(ends.count)
+        guard !(ends ?? []).isEmpty else { return 0 }
+        return Double(totalScore) / Double((ends ?? []).count)
     }
 
     var xCount: Int {
-        ends.flatMap { $0.shots }.filter { $0.isX }.count
+        (ends ?? []).flatMap { $0.shots ?? [] }.filter { $0.isX }.count
     }
 
     var tensCount: Int {
-        ends.flatMap { $0.shots }.filter { $0.score == 10 }.count
+        (ends ?? []).flatMap { $0.shots ?? [] }.filter { $0.score == 10 }.count
     }
 
     var sortedEnds: [ShootingEnd] {
-        ends.sorted { $0.orderIndex < $1.orderIndex }
+        (ends ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     var formattedDistance: String {
@@ -153,7 +153,7 @@ final class ShootingEnd {
     var session: ShootingSession?
 
     @Relationship(deleteRule: .cascade, inverse: \Shot.end)
-    var shots: [Shot] = []
+    var shots: [Shot]? = []
 
     init() {}
 
@@ -162,15 +162,15 @@ final class ShootingEnd {
     }
 
     var totalScore: Int {
-        shots.reduce(0) { $0 + $1.score }
+        (shots ?? []).reduce(0) { $0 + $1.score }
     }
 
     var sortedShots: [Shot] {
-        shots.sorted { $0.orderIndex < $1.orderIndex }
+        (shots ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     var xCount: Int {
-        shots.filter { $0.isX }.count
+        (shots ?? []).filter { $0.isX }.count
     }
 
     var formattedScores: String {
@@ -352,7 +352,7 @@ struct ShootingScoreCalculator {
 
     /// Get score breakdown
     static func breakdown(for session: ShootingSession) -> ScoreBreakdown {
-        let allShots = session.ends.flatMap { $0.shots }
+        let allShots = (session.ends ?? []).flatMap { $0.shots ?? [] }
 
         var distribution: [Int: Int] = [:]
         for score in 0...session.targetType.maxScore {

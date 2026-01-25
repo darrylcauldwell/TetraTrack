@@ -325,7 +325,7 @@ final class MultiDisciplineDataManager {
 
         guard !sessions.isEmpty else { return .empty }
 
-        let totalShots = sessions.reduce(0) { $0 + $1.ends.flatMap { $0.shots }.count }
+        let totalShots = sessions.reduce(0) { $0 + ($1.ends ?? []).flatMap { $0.shots ?? [] }.count }
         let avgScore = sessions.reduce(0) { $0 + $1.scorePercentage } / Double(sessions.count)
         let totalX = sessions.reduce(0) { $0 + $1.xCount }
 

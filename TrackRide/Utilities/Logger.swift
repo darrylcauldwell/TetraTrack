@@ -55,4 +55,7 @@ enum Log {
 
     /// UI/View lifecycle logging
     static let ui = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrackRide", category: "UI")
+
+    /// Gait analysis diagnostic logging (DEBUG only)
+    static let gait = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TrackRide", category: "GaitDiagnostic")
 }

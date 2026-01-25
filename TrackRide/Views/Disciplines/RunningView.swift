@@ -147,6 +147,7 @@ struct RunningView: View {
                     }
                 )
             }
+        .presentationBackground(Color.black)
     }
 
     private func startSession(type: RunningSessionType) {

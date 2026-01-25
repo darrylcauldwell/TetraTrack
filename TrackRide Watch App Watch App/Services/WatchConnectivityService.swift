@@ -10,6 +10,7 @@ import Foundation
 import WatchConnectivity
 import HealthKit
 import Observation
+import os
 
 @Observable
 final class WatchConnectivityService: NSObject {
@@ -98,7 +99,7 @@ final class WatchConnectivityService: NSObject {
 
     func activate() {
         guard WCSession.isSupported() else {
-            print("WatchConnectivityService: WCSession not supported")
+            Log.watch.warning("WCSession not supported")
             return
         }
 
@@ -124,14 +125,14 @@ final class WatchConnectivityService: NSObject {
     /// Start monitoring oxygen saturation (requires HealthKit authorization)
     func startSpO2Monitoring() {
         guard HKHealthStore.isHealthDataAvailable() else {
-            print("WatchConnectivityService: HealthKit not available")
+            Log.health.warning("HealthKit not available")
             return
         }
 
         healthStore = HKHealthStore()
 
         guard let spo2Type = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) else {
-            print("WatchConnectivityService: SpO2 type not available")
+            Log.health.warning("SpO2 type not available")
             return
         }
 
@@ -140,7 +141,7 @@ final class WatchConnectivityService: NSObject {
             if success {
                 self?.startSpO2Query(spo2Type)
             } else if let error = error {
-                print("WatchConnectivityService: SpO2 auth error - \(error)")
+                Log.health.error("SpO2 auth error: \(error.localizedDescription)")
             }
         }
     }
@@ -159,7 +160,7 @@ final class WatchConnectivityService: NSObject {
             limit: HKObjectQueryNoLimit
         ) { [weak self] _, samples, _, _, error in
             if let error = error {
-                print("WatchConnectivityService: SpO2 query error - \(error)")
+                Log.health.error("SpO2 query error: \(error.localizedDescription)")
                 return
             }
             self?.processSpO2Samples(samples)
@@ -167,7 +168,7 @@ final class WatchConnectivityService: NSObject {
 
         spo2Query?.updateHandler = { [weak self] _, samples, _, _, error in
             if let error = error {
-                print("WatchConnectivityService: SpO2 update error - \(error)")
+                Log.health.error("SpO2 update error: \(error.localizedDescription)")
                 return
             }
             self?.processSpO2Samples(samples)
@@ -175,7 +176,7 @@ final class WatchConnectivityService: NSObject {
 
         if let query = spo2Query {
             healthStore?.execute(query)
-            print("WatchConnectivityService: SpO2 monitoring started")
+            Log.health.info("SpO2 monitoring started")
         }
     }
 
@@ -184,8 +185,8 @@ final class WatchConnectivityService: NSObject {
               let latest = quantitySamples.last else { return }
 
         let spo2 = latest.quantity.doubleValue(for: HKUnit.percent()) * 100
-        DispatchQueue.main.async {
-            self.currentOxygenSaturation = spo2
+        DispatchQueue.main.async { [weak self] in
+            self?.currentOxygenSaturation = spo2
         }
     }
 
@@ -314,20 +315,20 @@ final class WatchConnectivityService: NSObject {
     private func sendRawMessage(_ message: [String: Any]) {
         guard let session = session,
               session.activationState == .activated else {
-            print("WatchConnectivityService: Session not active")
+            Log.watch.debug("Session not active")
             return
         }
 
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { error in
-                print("WatchConnectivityService: Send error - \(error)")
+                Log.watch.error("Send error: \(error.localizedDescription)")
             }
         } else {
             // Use application context for background updates
             do {
                 try session.updateApplicationContext(message)
             } catch {
-                print("WatchConnectivityService: Context update error - \(error)")
+                Log.watch.error("Context update error: \(error.localizedDescription)")
             }
         }
     }
@@ -336,7 +337,7 @@ final class WatchConnectivityService: NSObject {
         DispatchQueue.main.async {
             self.messageCount += 1
         }
-        print("WatchConnectivityService: Received message #\(messageCount + 1) with keys: \(message.keys)")
+        Log.watch.debug("Received message #\(self.messageCount + 1) with keys: \(message.keys)")
 
         // Handle insights data updates
         if let type = message["type"] as? String {
@@ -354,11 +355,11 @@ final class WatchConnectivityService: NSObject {
 
         // Handle standard WatchMessage
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
-            print("WatchConnectivityService: Could not parse as WatchMessage")
+            Log.watch.warning("Could not parse as WatchMessage")
             return
         }
 
-        print("WatchConnectivityService: Parsed message - rideState: \(String(describing: watchMessage.rideState)), gait: \(String(describing: watchMessage.gait))")
+        Log.watch.debug("Parsed message - rideState: \(String(describing: watchMessage.rideState)), gait: \(String(describing: watchMessage.gait))")
 
         DispatchQueue.main.async {
             self.lastUpdateTime = watchMessage.timestamp
@@ -373,7 +374,7 @@ final class WatchConnectivityService: NSObject {
                     Task {
                         await WorkoutManager.shared.startHeartRateMonitoring()
                     }
-                    print("WatchConnectivityService: Session started from iPhone")
+                    Log.watch.info("Session started from iPhone")
 
                 case .stopRide:
                     self.rideState = .idle
@@ -385,15 +386,15 @@ final class WatchConnectivityService: NSObject {
                     self.heartRate = 0
                     self.horseName = nil
                     self.rideType = nil
-                    print("WatchConnectivityService: Session stopped from iPhone")
+                    Log.watch.info("Session stopped from iPhone")
 
                 case .pauseRide:
                     self.rideState = .paused
-                    print("WatchConnectivityService: Session paused from iPhone")
+                    Log.watch.info("Session paused from iPhone")
 
                 case .resumeRide:
                     self.rideState = .tracking
-                    print("WatchConnectivityService: Session resumed from iPhone")
+                    Log.watch.info("Session resumed from iPhone")
 
                 // Motion tracking commands
                 case .startMotionTracking:
@@ -407,12 +408,12 @@ final class WatchConnectivityService: NSObject {
                         case .idle: .idle
                         }
                         WatchMotionManager.shared.startTracking(mode: mode)
-                        print("WatchConnectivityService: Motion tracking started - \(mode)")
+                        Log.location.info("Motion tracking started - \(mode.rawValue)")
                     }
 
                 case .stopMotionTracking:
                     WatchMotionManager.shared.stopTracking()
-                    print("WatchConnectivityService: Motion tracking stopped")
+                    Log.location.info("Motion tracking stopped")
 
                 // Fall detection sync
                 case .syncFallState:
@@ -651,7 +652,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         error: Error?
     ) {
         if let error = error {
-            print("WatchConnectivityService: Activation error - \(error)")
+            Log.watch.error("Activation error: \(error.localizedDescription)")
             return
         }
 
@@ -664,7 +665,7 @@ extension WatchConnectivityService: WCSessionDelegate {
             requestStatisticsUpdate()
         }
 
-        print("WatchConnectivityService: Activated - reachable: \(session.isReachable)")
+        Log.watch.info("Activated - reachable: \(session.isReachable)")
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
@@ -679,7 +680,7 @@ extension WatchConnectivityService: WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        print("WatchConnectivityService: didReceiveMessage called")
+        Log.watch.debug("didReceiveMessage called")
         handleReceivedMessage(message)
     }
 
@@ -688,7 +689,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
-        print("WatchConnectivityService: didReceiveMessage (with reply) called")
+        Log.watch.debug("didReceiveMessage (with reply) called")
         handleReceivedMessage(message)
         replyHandler(["status": "received"])
     }
@@ -697,7 +698,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
-        print("WatchConnectivityService: didReceiveApplicationContext called with keys: \(applicationContext.keys)")
+        Log.watch.debug("didReceiveApplicationContext called with keys: \(applicationContext.keys)")
         handleReceivedMessage(applicationContext)
     }
 }

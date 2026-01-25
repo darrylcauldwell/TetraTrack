@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct WatchStartSessionView: View {
-    @State private var workoutManager = WorkoutManager.shared
+    @Environment(WorkoutManager.self) private var workoutManager
     @State private var showRideControl = false
     @State private var showRunControl = false
     @State private var showSwimControl = false

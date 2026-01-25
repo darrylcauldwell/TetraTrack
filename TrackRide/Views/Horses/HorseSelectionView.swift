@@ -28,7 +28,7 @@ struct HorseSelectionView: View {
                     HStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .fill(AppColors.light)
+                                .fill(AppColors.primary.opacity(0.15))
                                 .frame(width: 50, height: 50)
 
                             Image(systemName: "plus")
@@ -68,6 +68,7 @@ struct HorseSelectionView: View {
             NavigationStack {
                 HorseListView()
             }
+            .presentationBackground(Color.black)
         }
         .onAppear {
             // Auto-select first horse if none selected and horses exist
@@ -75,6 +76,7 @@ struct HorseSelectionView: View {
                 selectedHorse = firstHorse
             }
         }
+        .presentationBackground(Color.black)
     }
 }
 

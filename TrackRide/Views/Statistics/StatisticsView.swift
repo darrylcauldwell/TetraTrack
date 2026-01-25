@@ -10,6 +10,7 @@ import SwiftData
 import Charts
 
 struct StatisticsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Ride.startDate, order: .reverse) private var rides: [Ride]
     @Query private var streaks: [TrainingStreak]
     @State private var selectedPeriod: StatisticsPeriod = .allTime
@@ -39,17 +40,9 @@ struct StatisticsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Glass background
-                LinearGradient(
-                    colors: [
-                        AppColors.light,
-                        AppColors.primary.opacity(0.03),
-                        AppColors.light.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Pure black background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -63,49 +56,11 @@ struct StatisticsView: View {
                         .padding(.horizontal)
 
                         if rides.isEmpty {
-                            ContentUnavailableView(
-                                "No Ride Data",
-                                systemImage: "chart.bar",
-                                description: Text("Complete some rides to see your statistics")
-                            )
-                            .glassCard(material: .ultraThin, cornerRadius: 20, padding: 40)
-                            .padding()
+                            emptyStateView
+                        } else if horizontalSizeClass == .regular {
+                            iPadContent
                         } else {
-                            // AI Narrative Section
-                            StatisticsAINarrativeView(
-                                statistics: statistics,
-                                narrative: aiNarrative,
-                                isLoading: isLoadingNarrative,
-                                onRefresh: { generateNarrative() }
-                            )
-
-                            // Overview Cards
-                            OverviewCardsView(statistics: statistics)
-
-                            // Weekly Activity Chart
-                            WeeklyActivityChart(data: weeklyData)
-
-                            // Personal Records
-                            PersonalRecordsView(statistics: statistics)
-
-                            // Training Streaks
-                            StreakStatsView(streak: streak, totalRides: statistics.totalRides)
-
-                            // Gait Analysis
-                            GaitAnalysisView(statistics: statistics)
-
-                            // Turn Balance
-                            TurnBalanceStatsView(statistics: statistics)
-
-                            // Lead Balance Stats (if has data)
-                            if statistics.totalLeadDuration > 0 {
-                                LeadBalanceStatsView(statistics: statistics)
-                            }
-
-                            // Quality Trends (if has data)
-                            if statistics.averageSymmetry > 0 || statistics.averageRhythm > 0 {
-                                QualityTrendsView(weeklyTrends: weeklyTrends, statistics: statistics)
-                            }
+                            iPhoneContent
                         }
                     }
                     .padding(.vertical)
@@ -122,6 +77,113 @@ struct StatisticsView: View {
             }
             .onChange(of: rides.count) { _, _ in
                 refreshStatistics()
+            }
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "No Ride Data",
+            systemImage: "chart.bar",
+            description: Text("Complete some rides to see your statistics")
+        )
+        .glassCard(material: .ultraThin, cornerRadius: 20, padding: 40)
+        .padding()
+    }
+
+    // MARK: - iPad Layout (Multi-Column Grid)
+
+    private var iPadContent: some View {
+        VStack(spacing: Spacing.xl) {
+            // AI Narrative Section (full width)
+            StatisticsAINarrativeView(
+                statistics: statistics,
+                narrative: aiNarrative,
+                isLoading: isLoadingNarrative,
+                onRefresh: { generateNarrative() }
+            )
+
+            // Top row: Overview Cards and Weekly Chart side-by-side
+            HStack(alignment: .top, spacing: Spacing.xl) {
+                OverviewCardsView(statistics: statistics)
+                    .frame(width: 380)
+
+                WeeklyActivityChart(data: weeklyData)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, Spacing.lg)
+
+            // Two-column grid for the rest
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: Spacing.lg),
+                GridItem(.flexible(), spacing: Spacing.lg)
+            ], spacing: Spacing.lg) {
+                // Personal Records
+                PersonalRecordsView(statistics: statistics)
+
+                // Training Streaks
+                StreakStatsView(streak: streak, totalRides: statistics.totalRides)
+
+                // Gait Analysis
+                GaitAnalysisView(statistics: statistics)
+
+                // Turn Balance
+                TurnBalanceStatsView(statistics: statistics)
+
+                // Lead Balance Stats (if has data)
+                if statistics.totalLeadDuration > 0 {
+                    LeadBalanceStatsView(statistics: statistics)
+                }
+
+                // Quality Trends (if has data)
+                if statistics.averageSymmetry > 0 || statistics.averageRhythm > 0 {
+                    QualityTrendsView(weeklyTrends: weeklyTrends, statistics: statistics)
+                }
+            }
+            .padding(.horizontal, Spacing.lg)
+        }
+    }
+
+    // MARK: - iPhone Layout (Vertical)
+
+    private var iPhoneContent: some View {
+        VStack(spacing: 24) {
+            // AI Narrative Section
+            StatisticsAINarrativeView(
+                statistics: statistics,
+                narrative: aiNarrative,
+                isLoading: isLoadingNarrative,
+                onRefresh: { generateNarrative() }
+            )
+
+            // Overview Cards
+            OverviewCardsView(statistics: statistics)
+
+            // Weekly Activity Chart
+            WeeklyActivityChart(data: weeklyData)
+
+            // Personal Records
+            PersonalRecordsView(statistics: statistics)
+
+            // Training Streaks
+            StreakStatsView(streak: streak, totalRides: statistics.totalRides)
+
+            // Gait Analysis
+            GaitAnalysisView(statistics: statistics)
+
+            // Turn Balance
+            TurnBalanceStatsView(statistics: statistics)
+
+            // Lead Balance Stats (if has data)
+            if statistics.totalLeadDuration > 0 {
+                LeadBalanceStatsView(statistics: statistics)
+            }
+
+            // Quality Trends (if has data)
+            if statistics.averageSymmetry > 0 || statistics.averageRhythm > 0 {
+                QualityTrendsView(weeklyTrends: weeklyTrends, statistics: statistics)
             }
         }
     }

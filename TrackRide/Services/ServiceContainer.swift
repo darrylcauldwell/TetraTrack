@@ -20,6 +20,7 @@ final class ServiceContainer {
     let audioCoach: AudioCoaching
     let weatherService: WeatherFetching
     let familySharing: FamilySharing
+    let unifiedSharing: UnifiedSharingCoordinator
     let fallDetection: FallDetecting
     let watchConnectivity: WatchConnecting
     let routePlanning: RoutePlanningService
@@ -28,7 +29,8 @@ final class ServiceContainer {
     private init() {
         self.audioCoach = AudioCoachManager.shared
         self.weatherService = WeatherService.shared
-        self.familySharing = FamilySharingManager.shared
+        self.unifiedSharing = UnifiedSharingCoordinator.shared
+        self.familySharing = UnifiedSharingCoordinator.shared  // Use unified coordinator
         self.fallDetection = FallDetectionManager.shared
         self.watchConnectivity = WatchConnectivityManager.shared
         self.routePlanning = RoutePlanningService()
@@ -39,6 +41,7 @@ final class ServiceContainer {
         audioCoach: AudioCoaching,
         weatherService: WeatherFetching,
         familySharing: FamilySharing,
+        unifiedSharing: UnifiedSharingCoordinator? = nil,
         fallDetection: FallDetecting,
         watchConnectivity: WatchConnecting,
         routePlanning: RoutePlanningService? = nil
@@ -46,6 +49,7 @@ final class ServiceContainer {
         self.audioCoach = audioCoach
         self.weatherService = weatherService
         self.familySharing = familySharing
+        self.unifiedSharing = unifiedSharing ?? UnifiedSharingCoordinator.shared
         self.fallDetection = fallDetection
         self.watchConnectivity = watchConnectivity
         self.routePlanning = routePlanning ?? RoutePlanningService()
@@ -63,7 +67,11 @@ private struct WeatherServiceKey: EnvironmentKey {
 }
 
 private struct FamilySharingKey: EnvironmentKey {
-    static let defaultValue: FamilySharing = FamilySharingManager.shared
+    static let defaultValue: FamilySharing = UnifiedSharingCoordinator.shared
+}
+
+private struct UnifiedSharingKey: EnvironmentKey {
+    static let defaultValue: UnifiedSharingCoordinator = UnifiedSharingCoordinator.shared
 }
 
 private struct FallDetectionKey: EnvironmentKey {
@@ -96,6 +104,11 @@ extension EnvironmentValues {
         set { self[FamilySharingKey.self] = newValue }
     }
 
+    var unifiedSharing: UnifiedSharingCoordinator {
+        get { self[UnifiedSharingKey.self] }
+        set { self[UnifiedSharingKey.self] = newValue }
+    }
+
     var fallDetection: FallDetecting {
         get { self[FallDetectionKey.self] }
         set { self[FallDetectionKey.self] = newValue }
@@ -121,6 +134,7 @@ extension View {
             .environment(\.audioCoach, container.audioCoach)
             .environment(\.weatherService, container.weatherService)
             .environment(\.familySharing, container.familySharing)
+            .environment(\.unifiedSharing, container.unifiedSharing)
             .environment(\.fallDetection, container.fallDetection)
             .environment(\.watchConnectivity, container.watchConnectivity)
             .environment(\.routePlanning, container.routePlanning)

@@ -88,7 +88,7 @@ struct DrillImpactChartView: View {
                     .font(.subheadline)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Capsule())
                 }
 
@@ -105,7 +105,7 @@ struct DrillImpactChartView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -158,7 +158,7 @@ struct DrillImpactChartView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -183,11 +183,12 @@ struct DrillImpactChartView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .sheet(isPresented: $showCorrelationDetails) {
             CorrelationDetailSheet(correlations: significantCorrelations)
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Drill Type Selector
@@ -214,7 +215,7 @@ struct DrillImpactChartView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -236,7 +237,7 @@ struct DrillImpactChartView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(40)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -692,7 +693,7 @@ struct DrillTypeCard: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(isSelected ? Color.blue : Color(.tertiarySystemBackground))
+            .background(isSelected ? Color.blue : AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
@@ -723,7 +724,7 @@ struct CorrelationInsightRow: View {
             Spacer()
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

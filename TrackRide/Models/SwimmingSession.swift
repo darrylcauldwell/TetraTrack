@@ -30,10 +30,10 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
 
     // Relationship
     @Relationship(deleteRule: .cascade, inverse: \SwimmingLap.session)
-    var laps: [SwimmingLap] = []
+    var laps: [SwimmingLap]? = []
 
     @Relationship(deleteRule: .cascade, inverse: \SwimmingInterval.session)
-    var intervals: [SwimmingInterval] = []
+    var intervals: [SwimmingInterval]? = []
 
     var poolMode: SwimmingPoolMode {
         get { SwimmingPoolMode(rawValue: poolModeRaw) ?? .pool }
@@ -55,7 +55,7 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
     // MARK: - Computed Properties
 
     var lapCount: Int {
-        laps.count
+        (laps ?? []).count
     }
 
     var averagePace: TimeInterval {
@@ -64,24 +64,24 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
     }
 
     var averageSwolf: Double {
-        let validLaps = laps.filter { $0.swolf > 0 }
+        let validLaps = (laps ?? []).filter { $0.swolf > 0 }
         guard !validLaps.isEmpty else { return 0 }
         return Double(validLaps.reduce(0) { $0 + $1.swolf }) / Double(validLaps.count)
     }
 
     var averageStrokesPerLap: Double {
-        guard !laps.isEmpty else { return 0 }
-        return Double(totalStrokes) / Double(laps.count)
+        guard !(laps ?? []).isEmpty else { return 0 }
+        return Double(totalStrokes) / Double((laps ?? []).count)
     }
 
     var dominantStroke: SwimmingStroke {
-        let strokeCounts = Dictionary(grouping: laps, by: { $0.stroke })
+        let strokeCounts = Dictionary(grouping: (laps ?? []), by: { $0.stroke })
             .mapValues { $0.count }
         return strokeCounts.max(by: { $0.value < $1.value })?.key ?? .freestyle
     }
 
     var sortedLaps: [SwimmingLap] {
-        laps.sorted { $0.orderIndex < $1.orderIndex }
+        (laps ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     var formattedPace: String {

@@ -28,7 +28,7 @@ struct RiderStillnessDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.teal.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -71,7 +71,7 @@ struct RiderStillnessDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -84,7 +84,7 @@ struct RiderStillnessDrillView: View {
 
             Image(systemName: "person.and.background.dotted")
                 .font(.system(size: 60))
-                .foregroundStyle(.teal)
+                .foregroundStyle(AppColors.riding)
 
             Text("Rider Stillness Challenge")
                 .font(.title2.bold())
@@ -115,19 +115,14 @@ struct RiderStillnessDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.teal)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.riding))
+            .accessibilityLabel("Start Rider Stillness Drill")
+            .accessibilityHint("Begins the minimal movement challenge")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -140,7 +135,7 @@ struct RiderStillnessDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.teal)
+                .foregroundStyle(AppColors.riding)
             Text("Find your stillness")
                 .font(.headline)
             Spacer()
@@ -161,7 +156,7 @@ struct RiderStillnessDrillView: View {
                 ForEach(0..<5, id: \.self) { ring in
                     Circle()
                         .stroke(
-                            Color.teal.opacity(0.2 + Double(4 - ring) * 0.15),
+                            AppColors.riding.opacity(0.2 + Double(4 - ring) * 0.15),
                             lineWidth: 2
                         )
                         .frame(
@@ -217,7 +212,7 @@ struct RiderStillnessDrillView: View {
                             ))
                         }
                     }
-                    .stroke(Color.teal, lineWidth: 2)
+                    .stroke(AppColors.riding, lineWidth: 2)
                 }
                 .frame(height: 40)
                 .background(Color.gray.opacity(0.1))
@@ -244,7 +239,7 @@ struct RiderStillnessDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -254,7 +249,7 @@ struct RiderStillnessDrillView: View {
             VStack {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(AppColors.riding)
                 Text("Stillness Score")
                     .foregroundStyle(.secondary)
             }
@@ -267,7 +262,7 @@ struct RiderStillnessDrillView: View {
                 resultRow(label: "Peak Deviation", value: String(format: "%.2f°", peakDeviation * 57.3))
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -281,34 +276,25 @@ struct RiderStillnessDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     stabilityHistory = []
                     peakDeviation = 0
                     countdown = 3
                     motionAnalyzer.reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the rider stillness drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.teal)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.riding))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -326,10 +312,10 @@ struct RiderStillnessDrillView: View {
 
     private var stabilityColor: Color {
         let score = motionAnalyzer.stabilityScore
-        if score > 0.85 { return .green }
-        if score > 0.65 { return .yellow }
-        if score > 0.45 { return .orange }
-        return .red
+        if score > 0.85 { return AppColors.active }
+        if score > 0.65 { return AppColors.warning }
+        if score > 0.45 { return AppColors.running }
+        return AppColors.error
     }
 
     private var stillnessMessage: String {
@@ -351,9 +337,9 @@ struct RiderStillnessDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        if score >= 80 { return AppColors.active }
+        if score >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startCountdown() {

@@ -2,17 +2,18 @@
 //  SymmetryAnalyzer.swift
 //  TrackRide
 //
-//  Comprehensive symmetry analysis using all available sensor data:
-//  - Accelerometer (X, Y, Z) for footfall impact patterns
-//  - Gyroscope for rotational symmetry
-//  - Attitude (roll) for side-to-side balance
+//  Comprehensive symmetry analysis using frequency-domain methods:
+//  - RMS left vs RMS right lateral acceleration balance
+//  - Coherence between forward (X) and lateral (Y) at stride frequency
+//  - Roll angle consistency for rider balance
 //
-//  Symmetry measures how evenly the horse moves on both sides,
-//  comparing left/right impact forces and movement patterns.
+//  Symmetry measures how evenly the horse moves on both sides.
+//  Uses frequency-domain analysis per gait-logic.md specification,
+//  avoiding peak detection which fails when rider changes seat.
 
 import Foundation
 
-/// Analyzes motion data to calculate movement symmetry score using all available sensors
+/// Analyzes motion data to calculate movement symmetry score using frequency-domain methods
 final class SymmetryAnalyzer: Resettable, ReinAwareAnalyzer {
     // MARK: - Public Properties
 
@@ -34,115 +35,83 @@ final class SymmetryAnalyzer: Resettable, ReinAwareAnalyzer {
 
     // MARK: - Configuration
 
-    /// Minimum vertical acceleration for footfall detection (g-force)
-    private let footfallThreshold: Double = 0.25
+    /// Window size for symmetry calculation (samples at ~100Hz)
+    private let analysisWindowSize: Int = 256  // ~2.5 seconds
 
-    /// Window size for symmetry calculation (samples at 50Hz)
-    private let analysisWindowSize: Int = 250  // 5 seconds
+    /// Minimum samples needed before analyzing
+    private let minimumSamples: Int = 128
 
-    /// Minimum impacts needed for analysis
-    private let minimumImpacts: Int = 6
+    /// Analysis update interval
+    private var lastAnalysisTime: Date = .distantPast
+    private let analysisInterval: TimeInterval = 0.25  // 4 Hz
 
     // MARK: - Multi-Channel Sensor Buffers
 
-    /// Vertical acceleration for impact detection
-    private var verticalAccelBuffer: TimestampedRollingBuffer<Double>
+    /// Vertical acceleration (Z)
+    private var verticalBuffer: [Double] = []
 
-    /// Lateral acceleration for left/right movement
-    private var lateralAccelBuffer: TimestampedRollingBuffer<Double>
+    /// Lateral acceleration (Y) - positive = right, negative = left
+    private var lateralBuffer: [Double] = []
 
-    /// Acceleration magnitude for overall impact
-    private var magnitudeBuffer: TimestampedRollingBuffer<Double>
+    /// Forward acceleration (X)
+    private var forwardBuffer: [Double] = []
 
     /// Roll angle for side-to-side tilt
-    private var rollBuffer: TimestampedRollingBuffer<Double>
+    private var rollBuffer: [Double] = []
 
-    /// Lateral rotation rate
-    private var lateralRotationBuffer: TimestampedRollingBuffer<Double>
+    // MARK: - DSP Components
 
-    // MARK: - Impact Tracking
+    /// Coherence analyzer for X-Y correlation at stride frequency
+    private let coherenceAnalyzer = CoherenceAnalyzer(segmentLength: 64, overlap: 32, sampleRate: 100)
 
-    /// Detected impact events with full sensor context
-    private var impactEvents: [ImpactEvent] = []
+    /// Current stride frequency from gait analyzer
+    private var strideFrequency: Double = 2.0  // Default canter frequency
 
-    /// Per-rein symmetry tracking
+    // MARK: - Per-Rein Tracking
+
     private var reinScores = ReinScoreTracker()
-
-    /// Current rein being tracked
     private var currentRein: ReinDirection = .straight
 
-    /// Running statistics for adaptive thresholds
-    private var verticalMean: Double = 0
-    private var verticalStdDev: Double = 0.15
-    private var lateralMean: Double = 0
-    private var lateralStdDev: Double = 0.1
+    // MARK: - Running Statistics
 
-    /// State for peak detection
-    private var inPotentialImpact: Bool = false
-    private var peakValue: Double = 0
-    private var peakTimestamp: Date = Date()
-    private var peakLateral: Double = 0
-    private var peakRoll: Double = 0
+    private var verticalRMS: Double = 0
+    private var lateralRMS: Double = 0
+    private var leftRMS: Double = 0  // RMS of negative lateral samples
+    private var rightRMS: Double = 0 // RMS of positive lateral samples
 
-    struct ImpactEvent {
-        let timestamp: Date
-        let verticalMagnitude: Double
-        let lateralAccel: Double      // Positive = right, negative = left
-        let rollAngle: Double         // Positive = right tilt, negative = left tilt
-        let totalMagnitude: Double
-        let rein: ReinDirection
-
-        /// Estimated side of impact based on lateral acceleration and roll
-        var estimatedSide: ImpactSide {
-            // Combine lateral acceleration and roll to estimate which side
-            let lateralScore = lateralAccel
-            let rollScore = rollAngle * 0.5  // Roll is less direct indicator
-
-            let combinedScore = lateralScore + rollScore
-            if combinedScore > 0.05 {
-                return .right
-            } else if combinedScore < -0.05 {
-                return .left
-            }
-            return .center
-        }
-    }
-
-    enum ImpactSide {
-        case left, right, center
-    }
-
-    init() {
-        verticalAccelBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        lateralAccelBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        magnitudeBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        rollBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        lateralRotationBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-    }
+    init() {}
 
     // MARK: - Public Methods
 
-    /// Process a motion sample for symmetry analysis using all sensor channels
+    /// Configure with current stride frequency from gait analyzer
+    func configure(strideFrequency: Double) {
+        self.strideFrequency = strideFrequency
+    }
+
+    /// Process a motion sample for symmetry analysis using frequency-domain methods
     func processMotionSample(_ sample: MotionSample, currentRein: ReinDirection) {
         self.currentRein = currentRein
         let timestamp = sample.timestamp
 
-        // Store all sensor channels
-        verticalAccelBuffer.append(sample.verticalAcceleration, at: timestamp)
-        lateralAccelBuffer.append(sample.lateralAcceleration, at: timestamp)
-        magnitudeBuffer.append(sample.accelerationMagnitude, at: timestamp)
-        rollBuffer.append(sample.roll, at: timestamp)
-        lateralRotationBuffer.append(sample.rotationX, at: timestamp)
+        // Store sensor channels
+        verticalBuffer.append(sample.verticalAcceleration)
+        lateralBuffer.append(sample.lateralAcceleration)
+        forwardBuffer.append(sample.forwardAcceleration)
+        rollBuffer.append(sample.roll)
 
-        // Update running statistics
-        updateRunningStatistics(sample)
+        // Maintain buffer size
+        if verticalBuffer.count > analysisWindowSize {
+            verticalBuffer.removeFirst()
+            lateralBuffer.removeFirst()
+            forwardBuffer.removeFirst()
+            rollBuffer.removeFirst()
+        }
 
-        // Detect footfall impacts using peak detection
-        detectFootfallImpacts(sample: sample)
-
-        // Calculate symmetry periodically
-        if verticalAccelBuffer.count >= analysisWindowSize / 2 {
-            calculateSymmetry()
+        // Calculate symmetry at fixed rate
+        if timestamp.timeIntervalSince(lastAnalysisTime) >= analysisInterval &&
+           verticalBuffer.count >= minimumSamples {
+            calculateSymmetryFrequencyDomain()
+            lastAnalysisTime = timestamp
         }
     }
 
@@ -153,222 +122,173 @@ final class SymmetryAnalyzer: Resettable, ReinAwareAnalyzer {
 
     /// Reset all state
     func reset() {
-        verticalAccelBuffer.removeAll()
-        lateralAccelBuffer.removeAll()
-        magnitudeBuffer.removeAll()
+        verticalBuffer.removeAll()
+        lateralBuffer.removeAll()
+        forwardBuffer.removeAll()
         rollBuffer.removeAll()
-        lateralRotationBuffer.removeAll()
 
-        impactEvents.removeAll()
         reinScores.reset()
         currentSymmetryScore = 0.0
         symmetryConfidence = 0.0
         currentRein = .straight
 
-        verticalMean = 0
-        verticalStdDev = 0.15
-        lateralMean = 0
-        lateralStdDev = 0.1
-
-        inPotentialImpact = false
-        peakValue = 0
-        peakTimestamp = Date()
-        peakLateral = 0
-        peakRoll = 0
+        verticalRMS = 0
+        lateralRMS = 0
+        leftRMS = 0
+        rightRMS = 0
+        strideFrequency = 2.0
+        lastAnalysisTime = .distantPast
     }
 
-    // MARK: - Running Statistics
+    // MARK: - Frequency-Domain Symmetry Calculation
 
-    private func updateRunningStatistics(_ sample: MotionSample) {
-        let alpha = 0.01
-
-        let vertDelta = sample.verticalAcceleration - verticalMean
-        verticalMean += alpha * vertDelta
-        verticalStdDev = sqrt((1 - alpha) * verticalStdDev * verticalStdDev + alpha * vertDelta * vertDelta)
-
-        let latDelta = sample.lateralAcceleration - lateralMean
-        lateralMean += alpha * latDelta
-        lateralStdDev = sqrt((1 - alpha) * lateralStdDev * lateralStdDev + alpha * latDelta * latDelta)
-    }
-
-    // MARK: - Footfall Detection
-
-    private func detectFootfallImpacts(sample: MotionSample) {
-        // Adaptive threshold based on running statistics
-        let threshold = max(footfallThreshold, verticalMean + verticalStdDev)
-
-        if sample.verticalAcceleration > threshold {
-            // We're in a potential impact zone
-            if !inPotentialImpact {
-                // Start of new potential impact
-                inPotentialImpact = true
-                peakValue = sample.verticalAcceleration
-                peakTimestamp = sample.timestamp
-                peakLateral = sample.lateralAcceleration
-                peakRoll = sample.roll
-            } else if sample.verticalAcceleration > peakValue {
-                // Update peak
-                peakValue = sample.verticalAcceleration
-                peakTimestamp = sample.timestamp
-                peakLateral = sample.lateralAcceleration
-                peakRoll = sample.roll
-            }
-        } else if inPotentialImpact {
-            // End of impact zone - record the peak
-            inPotentialImpact = false
-
-            // Validate timing
-            let minInterval: TimeInterval = 0.15
-            if let lastImpact = impactEvents.last {
-                let interval = peakTimestamp.timeIntervalSince(lastImpact.timestamp)
-                guard interval >= minInterval else { return }
-            }
-
-            let impact = ImpactEvent(
-                timestamp: peakTimestamp,
-                verticalMagnitude: peakValue,
-                lateralAccel: peakLateral,
-                rollAngle: peakRoll,
-                totalMagnitude: sqrt(peakValue * peakValue + peakLateral * peakLateral),
-                rein: currentRein
-            )
-            impactEvents.append(impact)
-
-            // Keep recent impacts only
-            let cutoffTime = Date().addingTimeInterval(-5.0)
-            impactEvents.removeAll { $0.timestamp < cutoffTime }
-        }
-    }
-
-    // MARK: - Symmetry Calculation
-
-    private func calculateSymmetry() {
-        guard impactEvents.count >= minimumImpacts else {
+    /// Calculate symmetry using RMS balance and coherence (no peak detection)
+    private func calculateSymmetryFrequencyDomain() {
+        guard lateralBuffer.count >= minimumSamples else {
             currentSymmetryScore = 0.0
             symmetryConfidence = 0.0
             return
         }
 
-        // Calculate multiple symmetry metrics and fuse them
+        // 1. Rein balance from RMS(Y+) vs RMS(Y-)
+        // Per spec: (left - right) / (left + right) where left = negative Y
+        let reinBalance = calculateRMSBalance()
 
-        // 1. Impact magnitude symmetry (are all footfalls equal force?)
-        let magnitudeSymmetry = calculateMagnitudeSymmetry()
+        // 2. X-Y coherence at stride frequency
+        // Per spec: high coherence indicates good left-right symmetry
+        let xyCoherence = calculateXYCoherence()
 
-        // 2. Timing symmetry (are stride intervals consistent?)
-        let timingSymmetry = calculateTimingSymmetry()
+        // 3. Roll angle consistency
+        let rollSymmetry = calculateRollConsistency()
 
-        // 3. Left/right balance (are impacts evenly distributed?)
-        let lateralBalance = calculateLateralBalance()
+        // 4. Vertical RMS consistency (coefficient of variation)
+        let verticalConsistency = calculateVerticalConsistency()
 
-        // 4. Roll symmetry (is the rider balanced?)
-        let rollSymmetry = calculateRollSymmetry()
+        // Combine metrics with weights
+        // Rein balance: 0 = perfect (left=right), 1 = completely asymmetric
+        // Convert to 0-100 where 100 = perfect symmetry
+        let reinSymmetryScore = max(0, (1.0 - abs(reinBalance)) * 100)
+
+        // Coherence: 0-1 → 0-100
+        let coherenceScore = xyCoherence * 100
 
         // Fused symmetry score with weights
-        currentSymmetryScore = magnitudeSymmetry * 0.30 +
-                               timingSymmetry * 0.30 +
-                               lateralBalance * 0.25 +
-                               rollSymmetry * 0.15
+        currentSymmetryScore = reinSymmetryScore * 0.35 +
+                               coherenceScore * 0.30 +
+                               rollSymmetry * 0.20 +
+                               verticalConsistency * 0.15
 
-        // Calculate confidence based on data quality
+        // Confidence based on data quality
         symmetryConfidence = calculateConfidence()
     }
 
-    /// Calculate symmetry based on impact magnitudes
-    private func calculateMagnitudeSymmetry() -> Double {
-        let magnitudes = impactEvents.map { $0.verticalMagnitude }
-        guard magnitudes.count >= 2 else { return 0.0 }
+    /// Calculate left-right RMS balance from lateral acceleration
+    /// Per spec: (RMS_left - RMS_right) / (RMS_left + RMS_right)
+    private func calculateRMSBalance() -> Double {
+        // Separate positive (right) and negative (left) lateral samples
+        let leftSamples = lateralBuffer.filter { $0 < 0 }
+        let rightSamples = lateralBuffer.filter { $0 > 0 }
 
-        let mean = magnitudes.reduce(0, +) / Double(magnitudes.count)
-        let variance = magnitudes.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(magnitudes.count)
-        let stdDev = sqrt(variance)
-        let cv = mean > 0 ? stdDev / mean : 0.0
-
-        // CV of 0 = perfect (100%), CV of 0.4 = poor (0%)
-        return max(0.0, (1.0 - min(1.0, cv / 0.4)) * 100)
-    }
-
-    /// Calculate symmetry based on stride timing intervals
-    private func calculateTimingSymmetry() -> Double {
-        guard impactEvents.count >= 3 else { return 0.0 }
-
-        var intervals: [TimeInterval] = []
-        for i in 1..<impactEvents.count {
-            let interval = impactEvents[i].timestamp.timeIntervalSince(impactEvents[i - 1].timestamp)
-            if interval > 0.1 && interval < 2.0 {
-                intervals.append(interval)
-            }
+        // Compute RMS for each side
+        if leftSamples.isEmpty {
+            leftRMS = 0
+        } else {
+            leftRMS = sqrt(leftSamples.map { $0 * $0 }.reduce(0, +) / Double(leftSamples.count))
         }
 
-        guard intervals.count >= 2 else { return 0.0 }
-
-        let mean = intervals.reduce(0, +) / Double(intervals.count)
-        let variance = intervals.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(intervals.count)
-        let stdDev = sqrt(variance)
-        let cv = mean > 0 ? stdDev / mean : 0.0
-
-        // CV of 0 = perfect (100%), CV of 0.25 = poor (0%)
-        return max(0.0, (1.0 - min(1.0, cv / 0.25)) * 100)
-    }
-
-    /// Calculate left/right balance from lateral acceleration
-    private func calculateLateralBalance() -> Double {
-        let leftImpacts = impactEvents.filter { $0.estimatedSide == .left }
-        let rightImpacts = impactEvents.filter { $0.estimatedSide == .right }
-
-        // If we can't distinguish sides, return neutral
-        guard !leftImpacts.isEmpty || !rightImpacts.isEmpty else {
-            return 50.0
+        if rightSamples.isEmpty {
+            rightRMS = 0
+        } else {
+            rightRMS = sqrt(rightSamples.map { $0 * $0 }.reduce(0, +) / Double(rightSamples.count))
         }
 
-        // Calculate average magnitude for each side
-        let leftAvg = leftImpacts.isEmpty ? 0 : leftImpacts.map { $0.totalMagnitude }.reduce(0, +) / Double(leftImpacts.count)
-        let rightAvg = rightImpacts.isEmpty ? 0 : rightImpacts.map { $0.totalMagnitude }.reduce(0, +) / Double(rightImpacts.count)
+        // Compute balance: (left - right) / (left + right)
+        let total = leftRMS + rightRMS
+        guard total > 0.01 else { return 0 }
 
-        // Also consider count balance
-        let totalCount = leftImpacts.count + rightImpacts.count
-        let countBalance = totalCount > 0 ? Double(min(leftImpacts.count, rightImpacts.count)) / Double(max(leftImpacts.count, rightImpacts.count, 1)) : 0.5
-
-        // Magnitude balance
-        let maxAvg = max(leftAvg, rightAvg, 0.01)
-        let minAvg = min(leftAvg, rightAvg)
-        let magnitudeBalance = minAvg / maxAvg
-
-        // Combined balance score
-        let balance = (countBalance * 0.4 + magnitudeBalance * 0.6)
-        return balance * 100
+        // Positive = left bias, negative = right bias
+        return (leftRMS - rightRMS) / total
     }
 
-    /// Calculate roll angle symmetry
-    private func calculateRollSymmetry() -> Double {
-        let rollValues = impactEvents.map { $0.rollAngle }
-        guard rollValues.count >= 2 else { return 50.0 }
+    /// Calculate X-Y coherence at stride frequency
+    /// High coherence indicates coordinated left-right movement
+    private func calculateXYCoherence() -> Double {
+        guard forwardBuffer.count >= minimumSamples && lateralBuffer.count >= minimumSamples else {
+            return 0.5  // Neutral when not enough data
+        }
 
-        // Calculate mean roll - should be near zero for balanced rider
-        let meanRoll = rollValues.reduce(0, +) / Double(rollValues.count)
+        return coherenceAnalyzer.coherence(
+            signal1: forwardBuffer,
+            signal2: lateralBuffer,
+            atFrequency: strideFrequency
+        )
+    }
 
-        // Calculate variance - should be low for consistent balance
-        let variance = rollValues.reduce(0) { $0 + ($1 - meanRoll) * ($1 - meanRoll) } / Double(rollValues.count)
+    /// Calculate roll angle consistency
+    private func calculateRollConsistency() -> Double {
+        guard rollBuffer.count >= minimumSamples else { return 50.0 }
+
+        // Mean roll should be near zero for balanced rider
+        let meanRoll = rollBuffer.reduce(0, +) / Double(rollBuffer.count)
+
+        // Standard deviation for consistency
+        let variance = rollBuffer.reduce(0) { $0 + ($1 - meanRoll) * ($1 - meanRoll) } / Double(rollBuffer.count)
         let stdDev = sqrt(variance)
 
-        // Score based on mean roll (should be near 0) and consistency
-        let meanScore = max(0.0, 1.0 - abs(meanRoll) / 0.3) * 100  // Penalize if mean > 0.3 rad
-        let consistencyScore = max(0.0, 1.0 - stdDev / 0.2) * 100  // Penalize high variance
+        // Score based on mean (near 0) and consistency (low variance)
+        let meanScore = max(0, 1.0 - abs(meanRoll) / 0.3) * 100  // Penalize if mean > 0.3 rad
+        let consistencyScore = max(0, 1.0 - stdDev / 0.2) * 100  // Penalize high variance
 
         return meanScore * 0.6 + consistencyScore * 0.4
     }
 
+    /// Calculate vertical acceleration consistency
+    /// Consistent vertical RMS indicates regular footfalls
+    private func calculateVerticalConsistency() -> Double {
+        guard verticalBuffer.count >= minimumSamples else { return 50.0 }
+
+        // Compute overall RMS
+        verticalRMS = sqrt(verticalBuffer.map { $0 * $0 }.reduce(0, +) / Double(verticalBuffer.count))
+
+        // Divide buffer into segments and check RMS consistency
+        let segmentSize = 32
+        var segmentRMS: [Double] = []
+
+        for i in stride(from: 0, to: verticalBuffer.count - segmentSize, by: segmentSize) {
+            let segment = Array(verticalBuffer[i..<(i + segmentSize)])
+            let rms = sqrt(segment.map { $0 * $0 }.reduce(0, +) / Double(segment.count))
+            segmentRMS.append(rms)
+        }
+
+        guard segmentRMS.count >= 2 else { return 50.0 }
+
+        // Compute coefficient of variation
+        let mean = segmentRMS.reduce(0, +) / Double(segmentRMS.count)
+        guard mean > 0.01 else { return 0 }
+
+        let variance = segmentRMS.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(segmentRMS.count)
+        let cv = sqrt(variance) / mean
+
+        // CV of 0 = perfect (100%), CV of 0.4 = poor (0%)
+        return max(0, (1.0 - min(1.0, cv / 0.4)) * 100)
+    }
+
     /// Calculate confidence based on data quality
     private func calculateConfidence() -> Double {
-        // More impacts = higher confidence
-        let impactConfidence = min(1.0, Double(impactEvents.count) / 12.0)
+        // Data quantity confidence
+        let dataConfidence = min(1.0, Double(lateralBuffer.count) / Double(analysisWindowSize))
 
-        // Better side detection = higher confidence
-        let leftCount = impactEvents.filter { $0.estimatedSide == .left }.count
-        let rightCount = impactEvents.filter { $0.estimatedSide == .right }.count
-        _ = impactEvents.filter { $0.estimatedSide == .center }.count  // Center impacts tracked but not used in confidence
-        let sideConfidence = Double(leftCount + rightCount) / Double(max(impactEvents.count, 1))
+        // Signal quality - lateral samples should have both positive and negative values
+        let leftCount = lateralBuffer.filter { $0 < 0 }.count
+        let rightCount = lateralBuffer.filter { $0 > 0 }.count
+        let totalLateral = leftCount + rightCount
+        let balanceConfidence = totalLateral > 0 ?
+            Double(min(leftCount, rightCount)) / Double(max(leftCount, rightCount, 1)) : 0.5
 
-        return impactConfidence * 0.6 + sideConfidence * 0.4
+        // RMS confidence - need meaningful signal
+        let rmsConfidence = min(1.0, (leftRMS + rightRMS) / 0.2)
+
+        return dataConfidence * 0.4 + balanceConfidence * 0.3 + rmsConfidence * 0.3
     }
 
     // MARK: - Public Accessors
@@ -381,5 +301,12 @@ final class SymmetryAnalyzer: Resettable, ReinAwareAnalyzer {
     /// Get symmetry with confidence
     func symmetryWithConfidence() -> (score: Double, confidence: Double) {
         return (currentSymmetryScore, symmetryConfidence)
+    }
+
+    /// Get rein balance value (-1 to +1, positive = left bias)
+    func getReinBalance() -> Double {
+        let total = leftRMS + rightRMS
+        guard total > 0.01 else { return 0 }
+        return (leftRMS - rightRMS) / total
     }
 }

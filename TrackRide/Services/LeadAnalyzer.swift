@@ -258,63 +258,61 @@ final class LeadAnalyzer: Resettable {
         }
     }
 
-    // MARK: - Legacy Asymmetry Detection (Fallback)
+    // MARK: - RMS Asymmetry Detection (Frequency-Domain Fallback)
 
+    /// Fallback lead detection using RMS asymmetry (avoids peak detection)
+    /// Per gait-logic.md: "Never use ... peak detection ... as these fail when the rider changes seat"
     private func analyzeLegacyAsymmetry() -> (lead: Lead, confidence: Double) {
         guard lateralBuffer.count >= minimumSamples else {
             return (.unknown, 0)
         }
 
-        // Calculate mean bias
+        // Calculate lateral RMS for positive and negative samples
+        // This is a frequency-domain-inspired approach without explicit peak detection
+        let positiveSamples = lateralBuffer.filter { $0 > 0 }
+        let negativeSamples = lateralBuffer.filter { $0 < 0 }
+
+        // Compute RMS for each side
+        let positiveRMS: Double
+        if positiveSamples.isEmpty {
+            positiveRMS = 0
+        } else {
+            positiveRMS = sqrt(positiveSamples.map { $0 * $0 }.reduce(0, +) / Double(positiveSamples.count))
+        }
+
+        let negativeRMS: Double
+        if negativeSamples.isEmpty {
+            negativeRMS = 0
+        } else {
+            negativeRMS = sqrt(negativeSamples.map { $0 * $0 }.reduce(0, +) / Double(negativeSamples.count))
+        }
+
+        let total = positiveRMS + negativeRMS
+        guard total > 0.02 else { return (.unknown, 0) }
+
+        // Compute asymmetry ratio
+        let asymmetry = (negativeRMS - positiveRMS) / total  // Negative = left bias
+
+        // Also compute mean bias (DC component)
         let mean = lateralBuffer.reduce(0, +) / Double(lateralBuffer.count)
 
-        // Detect peaks
-        let (positivePeaks, negativePeaks) = detectPeaks(lateralBuffer)
-
-        let positiveAvg = positivePeaks.isEmpty ? 0 : positivePeaks.reduce(0, +) / Double(positivePeaks.count)
-        let negativeAvg = negativePeaks.isEmpty ? 0 : abs(negativePeaks.reduce(0, +)) / Double(negativePeaks.count)
-
-        let totalPeaks = positivePeaks.count + negativePeaks.count
-        guard totalPeaks > 0 else { return (.unknown, 0) }
-
-        let peakBias = positiveAvg - negativeAvg
-        let combinedScore = (mean * 0.4) + (peakBias * 0.6)
+        // Combine RMS asymmetry with DC bias
+        let combinedScore = asymmetry * 0.7 + (mean * -5.0).clamped(to: -1...1) * 0.3
 
         let absScore = abs(combinedScore)
         let detectedLead: Lead
         let confidence: Double
 
-        if absScore < 0.05 {
+        if absScore < 0.1 {
             detectedLead = .unknown
-            confidence = absScore / 0.05 * 0.5
+            confidence = absScore / 0.1 * 0.4
         } else {
-            detectedLead = combinedScore < 0 ? .left : .right
-            confidence = min(1.0, 0.5 + (absScore - 0.05) / 0.25 * 0.5)
+            // Positive asymmetry (negativeRMS > positiveRMS) indicates left lead
+            detectedLead = combinedScore > 0 ? .left : .right
+            confidence = min(1.0, 0.4 + (absScore - 0.1) / 0.4 * 0.5)
         }
 
         return (detectedLead, confidence)
-    }
-
-    /// Detect positive and negative peaks in the acceleration data
-    private func detectPeaks(_ samples: [Double]) -> (positive: [Double], negative: [Double]) {
-        var positivePeaks: [Double] = []
-        var negativePeaks: [Double] = []
-
-        guard samples.count >= 3 else { return ([], []) }
-
-        for i in 1..<(samples.count - 1) {
-            let prev = samples[i - 1]
-            let curr = samples[i]
-            let next = samples[i + 1]
-
-            if curr > prev && curr > next && curr > 0.1 {
-                positivePeaks.append(curr)
-            } else if curr < prev && curr < next && curr < -0.1 {
-                negativePeaks.append(curr)
-            }
-        }
-
-        return (positivePeaks, negativePeaks)
     }
 
     // MARK: - Duration Tracking

@@ -110,7 +110,7 @@ struct RunningSessionTrimView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -197,7 +197,7 @@ struct RunningSessionTrimView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 

@@ -29,7 +29,7 @@ struct ExtendedSeatHoldDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.purple.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -65,7 +65,7 @@ struct ExtendedSeatHoldDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -78,7 +78,7 @@ struct ExtendedSeatHoldDrillView: View {
 
             Image(systemName: "timer.circle")
                 .font(.system(size: 60))
-                .foregroundStyle(.purple)
+                .foregroundStyle(AppColors.riding)
 
             Text("Extended Seat Hold")
                 .font(.title2.bold())
@@ -120,7 +120,7 @@ struct ExtendedSeatHoldDrillView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.purple)
+                    .background(AppColors.riding)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -137,7 +137,7 @@ struct ExtendedSeatHoldDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.purple)
+                .foregroundStyle(AppColors.riding)
             Text("Find your balanced seat")
                 .font(.headline)
             Spacer()
@@ -217,7 +217,7 @@ struct ExtendedSeatHoldDrillView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(AppColors.elevatedSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 }
@@ -257,7 +257,7 @@ struct ExtendedSeatHoldDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -268,7 +268,7 @@ struct ExtendedSeatHoldDrillView: View {
             VStack {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(AppColors.riding)
                 Text("Average Stability")
                     .foregroundStyle(.secondary)
             }
@@ -298,7 +298,7 @@ struct ExtendedSeatHoldDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -311,7 +311,7 @@ struct ExtendedSeatHoldDrillView: View {
                     HStack(spacing: 0) {
                         ForEach(checkpoints.indices, id: \.self) { index in
                             Rectangle()
-                                .fill(checkpoints[index].score >= 70 ? Color.green : Color.orange)
+                                .fill(checkpoints[index].score >= 70 ? AppColors.active : AppColors.running)
                                 .frame(height: 8)
                         }
                     }
@@ -324,7 +324,7 @@ struct ExtendedSeatHoldDrillView: View {
                 .font(.title2.bold())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
-                .background(avgStability >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                .background(avgStability >= 70 ? AppColors.active.opacity(0.2) : AppColors.running.opacity(0.2))
                 .foregroundStyle(avgStability >= 70 ? .green : .orange)
                 .clipShape(Capsule())
 
@@ -338,7 +338,7 @@ struct ExtendedSeatHoldDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -350,7 +350,7 @@ struct ExtendedSeatHoldDrillView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.purple)
+                        .background(AppColors.riding)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -361,23 +361,23 @@ struct ExtendedSeatHoldDrillView: View {
 
     private var stabilityColor: Color {
         let score = motionAnalyzer.scorer.stability
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        if score >= 80 { return AppColors.active }
+        if score >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var enduranceColor: Color {
         let retention = motionAnalyzer.stabilityRetention
-        if retention >= 85 { return .green }
-        if retention >= 70 { return .yellow }
-        return .orange
+        if retention >= 85 { return AppColors.active }
+        if retention >= 70 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var progressColor: Color {
         let progress = elapsedTime / targetDuration
-        if progress < 0.5 { return .purple }
-        if progress < 0.8 { return .blue }
-        return .green
+        if progress < 0.5 { return AppColors.riding }
+        if progress < 0.8 { return AppColors.swimming }
+        return AppColors.active
     }
 
     private var enduranceMessage: String {

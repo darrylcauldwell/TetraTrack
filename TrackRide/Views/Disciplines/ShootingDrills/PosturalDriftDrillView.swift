@@ -27,7 +27,7 @@ struct PosturalDriftDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.indigo.opacity(0.1).ignoresSafeArea()
+                AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -70,7 +70,7 @@ struct PosturalDriftDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -83,7 +83,7 @@ struct PosturalDriftDrillView: View {
 
             Image(systemName: "figure.walk.motion")
                 .font(.system(size: 60))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.shooting)
 
             Text("Postural Drift Drill")
                 .font(.title2.bold())
@@ -113,19 +113,14 @@ struct PosturalDriftDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.indigo)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.shooting))
+            .accessibilityLabel("Start Postural Drift Drill")
+            .accessibilityHint("Begins the extended stability hold drill")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -138,7 +133,7 @@ struct PosturalDriftDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.shooting)
             Text("Find your stable hold")
                 .font(.headline)
             Spacer()
@@ -238,14 +233,14 @@ struct PosturalDriftDrillView: View {
                             ))
                         }
                     }
-                    .stroke(Color.indigo, lineWidth: 2)
+                    .stroke(AppColors.shooting, lineWidth: 2)
 
                     // Threshold line
                     Path { path in
                         path.move(to: CGPoint(x: 0, y: geo.size.height * 0.3))
                         path.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height * 0.3))
                     }
-                    .stroke(Color.green.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                    .stroke(AppColors.active.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5]))
                 }
                 .frame(height: 60)
                 .background(Color.gray.opacity(0.1))
@@ -294,7 +289,7 @@ struct PosturalDriftDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -307,7 +302,7 @@ struct PosturalDriftDrillView: View {
             VStack(spacing: 8) {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(AppColors.shooting)
                 Text("Average Stability")
                     .foregroundStyle(.secondary)
             }
@@ -320,7 +315,7 @@ struct PosturalDriftDrillView: View {
                 resultRow(label: "Duration", value: String(format: "%.0fs", elapsedTime))
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -336,32 +331,23 @@ struct PosturalDriftDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     stabilityHistory = []
                     countdown = 3
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the postural drift drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.indigo)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.shooting))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -380,16 +366,16 @@ struct PosturalDriftDrillView: View {
 
     private var progressColor: Color {
         let progress = elapsedTime / targetDuration
-        if progress > 0.8 { return .green }
-        if progress > 0.5 { return .yellow }
-        return .indigo
+        if progress > 0.8 { return AppColors.active }
+        if progress > 0.5 { return AppColors.warning }
+        return AppColors.shooting
     }
 
     private var stabilityColor: Color {
-        if currentStability >= 70 { return .green }
-        if currentStability >= 50 { return .yellow }
-        if currentStability >= 30 { return .orange }
-        return .red
+        if currentStability >= 70 { return AppColors.active }
+        if currentStability >= 50 { return AppColors.warning }
+        if currentStability >= 30 { return AppColors.running }
+        return AppColors.error
     }
 
     private var feedbackMessage: String {
@@ -409,9 +395,9 @@ struct PosturalDriftDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 70 { return .green }
-        if score >= 50 { return .yellow }
-        return .orange
+        if score >= 70 { return AppColors.active }
+        if score >= 50 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startCountdown() {

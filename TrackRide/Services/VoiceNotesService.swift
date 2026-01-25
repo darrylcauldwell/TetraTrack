@@ -59,6 +59,18 @@ final class VoiceNotesService: NSObject {
         // This prevents permission prompts appearing when views load
     }
 
+    deinit {
+        // Clean up remote command handlers to prevent memory leaks
+        if remoteCommandsConfigured {
+            let commandCenter = MPRemoteCommandCenter.shared()
+            commandCenter.togglePlayPauseCommand.removeTarget(nil)
+            commandCenter.nextTrackCommand.removeTarget(nil)
+        }
+        // Stop any active recording
+        silenceTimer?.invalidate()
+        audioEngine.stop()
+    }
+
     // MARK: - Authorization
 
     func checkAuthorization() {

@@ -52,7 +52,7 @@ struct RidingDrillDetailView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .padding(.horizontal)
 
@@ -74,7 +74,7 @@ struct RidingDrillDetailView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
 
@@ -148,7 +148,7 @@ private struct DrillStatBox: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

@@ -203,6 +203,7 @@ struct SymmetryRhythmView: View {
         .sheet(isPresented: $showingInfo) {
             TrainingScaleInfoSheet()
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -300,7 +301,7 @@ struct TrainingScaleDetailCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding(12)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

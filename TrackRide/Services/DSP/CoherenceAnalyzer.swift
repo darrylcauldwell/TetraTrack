@@ -23,6 +23,14 @@ final class CoherenceAnalyzer {
     private let fftProcessor: FFTProcessor
     private let frequencyResolution: Double
 
+    /// Cached FFT setup to avoid allocation/deallocation overhead per call
+    /// Creating/destroying FFT setup on every call is expensive and can affect real-time performance
+    private let fftSetup: OpaquePointer?
+    private let log2n: vDSP_Length
+
+    /// Pre-allocated Hanning window
+    private let windowDouble: [Double]
+
     // MARK: - Initialization
 
     /// Initialize coherence analyzer
@@ -38,6 +46,21 @@ final class CoherenceAnalyzer {
 
         // Use FFT processor with segment length
         self.fftProcessor = FFTProcessor(windowSize: segmentLength, sampleRate: sampleRate)
+
+        // Pre-compute and cache FFT setup (expensive operation)
+        self.log2n = vDSP_Length(log2(Double(segmentLength)))
+        self.fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+
+        // Pre-compute Hanning window
+        var window = [Float](repeating: 0, count: segmentLength)
+        vDSP_hann_window(&window, vDSP_Length(segmentLength), Int32(vDSP_HANN_NORM))
+        self.windowDouble = window.map { Double($0) }
+    }
+
+    deinit {
+        if let setup = fftSetup {
+            vDSP_destroy_fftsetup(setup)
+        }
     }
 
     // MARK: - Coherence Computation
@@ -177,10 +200,7 @@ final class CoherenceAnalyzer {
         var pxyRealSum = [Double](repeating: 0, count: halfSize)
         var pxyImagSum = [Double](repeating: 0, count: halfSize)
 
-        // Create Hanning window
-        var window = [Float](repeating: 0, count: segmentLength)
-        vDSP_hann_window(&window, vDSP_Length(segmentLength), Int32(vDSP_HANN_NORM))
-        let windowDouble = window.map { Double($0) }
+        // Use pre-computed Hanning window (cached in init)
 
         // Process each segment
         for segIdx in 0..<numSegments {
@@ -198,7 +218,7 @@ final class CoherenceAnalyzer {
                 seg2[i] *= windowDouble[i]
             }
 
-            // Compute FFTs
+            // Compute FFTs using cached setup
             let fft1 = computeFFT(seg1)
             let fft2 = computeFFT(seg2)
 
@@ -225,16 +245,16 @@ final class CoherenceAnalyzer {
         return (pxx, pyy, pxy)
     }
 
-    /// Compute FFT of a windowed segment
+    /// Compute FFT of a windowed segment using cached setup
     private func computeFFT(_ segment: [Double]) -> [(real: Double, imag: Double)] {
         let n = segment.count
         guard n > 1 else { return segment.map { ($0, 0) } }
 
-        let log2n = vDSP_Length(log2(Double(n)))
-        guard let fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else {
-            return segment.map { ($0, 0) }
+        // Use cached FFT setup - don't create/destroy per call
+        guard let setup = fftSetup, n == segmentLength else {
+            // Fallback for mismatched sizes (shouldn't happen in normal use)
+            return computeFFTFallback(segment)
         }
-        defer { vDSP_destroy_fftsetup(fftSetup) }
 
         let floatSegment = segment.map { Float($0) }
         let halfSize = n / 2
@@ -252,11 +272,48 @@ final class CoherenceAnalyzer {
                     }
                 }
 
-                vDSP_fft_zrip(fftSetup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
+                vDSP_fft_zrip(setup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
             }
         }
 
         // Scale and convert to complex pairs
+        let scale = 1.0 / Float(n)
+        return (0..<halfSize).map { i in
+            (Double(realBuffer[i] * scale), Double(imagBuffer[i] * scale))
+        }
+    }
+
+    /// Fallback FFT for segments that don't match cached size
+    private func computeFFTFallback(_ segment: [Double]) -> [(real: Double, imag: Double)] {
+        let n = segment.count
+        guard n > 1 else { return segment.map { ($0, 0) } }
+
+        let fallbackLog2n = vDSP_Length(log2(Double(n)))
+        guard let fallbackSetup = vDSP_create_fftsetup(fallbackLog2n, FFTRadix(kFFTRadix2)) else {
+            return segment.map { ($0, 0) }
+        }
+        defer { vDSP_destroy_fftsetup(fallbackSetup) }
+
+        let floatSegment = segment.map { Float($0) }
+        let halfSize = n / 2
+
+        var realBuffer = [Float](repeating: 0, count: halfSize)
+        var imagBuffer = [Float](repeating: 0, count: halfSize)
+
+        realBuffer.withUnsafeMutableBufferPointer { realPtr in
+            imagBuffer.withUnsafeMutableBufferPointer { imagPtr in
+                var splitComplex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
+
+                floatSegment.withUnsafeBufferPointer { segPtr in
+                    segPtr.baseAddress!.withMemoryRebound(to: DSPComplex.self, capacity: halfSize) { complexPtr in
+                        vDSP_ctoz(complexPtr, 2, &splitComplex, 1, vDSP_Length(halfSize))
+                    }
+                }
+
+                vDSP_fft_zrip(fallbackSetup, &splitComplex, 1, fallbackLog2n, FFTDirection(FFT_FORWARD))
+            }
+        }
+
         let scale = 1.0 / Float(n)
         return (0..<halfSize).map { i in
             (Double(realBuffer[i] * scale), Double(imagBuffer[i] * scale))

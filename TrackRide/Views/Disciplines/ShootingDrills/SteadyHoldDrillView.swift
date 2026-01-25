@@ -28,7 +28,7 @@ struct SteadyHoldDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.cyan.opacity(0.1).ignoresSafeArea()
+                AppColors.cyan.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -44,7 +44,7 @@ struct SteadyHoldDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -79,7 +79,7 @@ struct SteadyHoldDrillView: View {
 
             Image(systemName: "scope")
                 .font(.system(size: 60))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(AppColors.cyan)
 
             Text("Steady Hold Drill")
                 .font(.title2.bold())
@@ -107,19 +107,14 @@ struct SteadyHoldDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startDrill()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.cyan)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.cyan))
+            .accessibilityLabel("Start Steady Hold Drill")
+            .accessibilityHint("Begins the aiming stability exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -165,7 +160,7 @@ struct SteadyHoldDrillView: View {
 
                 // Center target
                 Circle()
-                    .fill(.cyan)
+                    .fill(AppColors.cyan)
                     .frame(width: 10, height: 10)
             }
 
@@ -200,7 +195,7 @@ struct SteadyHoldDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -211,7 +206,7 @@ struct SteadyHoldDrillView: View {
             VStack {
                 Text("\(steadyScore)")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(AppColors.cyan)
                 Text("Steadiness Score")
                     .foregroundStyle(.secondary)
             }
@@ -226,40 +221,31 @@ struct SteadyHoldDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     wobbleHistory = []
                     elapsedTime = 0
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the steady hold drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.cyan)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.cyan))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var wobbleColor: Color {
-        if motionManager.wobble < 0.1 { return .green }
-        if motionManager.wobble < 0.3 { return .yellow }
-        return .red
+        if motionManager.wobble < 0.1 { return AppColors.active }
+        if motionManager.wobble < 0.3 { return AppColors.warning }
+        return AppColors.error
     }
 
     private var wobbleMessage: String {
@@ -279,9 +265,9 @@ struct SteadyHoldDrillView: View {
     }
 
     private func gradeColor(_ score: Int) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        if score >= 80 { return AppColors.active }
+        if score >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startDrill() {

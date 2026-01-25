@@ -95,7 +95,7 @@ struct ExerciseLibraryView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                 }
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
 
                 // Exercise list
                 List {
@@ -145,6 +145,7 @@ struct ExerciseLibraryView: View {
             .onAppear {
                 initializeBuiltInExercisesIfNeeded()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -180,7 +181,7 @@ struct FilterChip: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(isActive ? AppColors.primary : Color(.tertiarySystemBackground))
+        .background(isActive ? AppColors.primary : AppColors.elevatedSurface)
         .foregroundStyle(isActive ? .white : .primary)
         .clipShape(Capsule())
     }

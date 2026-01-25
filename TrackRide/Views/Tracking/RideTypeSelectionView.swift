@@ -59,7 +59,7 @@ struct RideTypeCard: View {
                         .fill(rideType.color)
                 } else {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(AppColors.cardBackground)
                 }
             }
             .overlay {

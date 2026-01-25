@@ -28,7 +28,7 @@ struct BalanceDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.purple.opacity(0.1).ignoresSafeArea()
+                AppColors.drillBalance.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -44,7 +44,7 @@ struct BalanceDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -77,54 +77,52 @@ struct BalanceDrillView: View {
     }
 
     private var instructionsView: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    Image(systemName: "figure.stand")
+                        .font(.system(size: 60))
+                        .foregroundStyle(AppColors.drillBalance)
+                        .padding(.top, Spacing.xl)
 
-            Image(systemName: "figure.stand")
-                .font(.system(size: 60))
-                .foregroundStyle(.purple)
+                    Text("One-Leg Balance")
+                        .font(.title2.bold())
 
-            Text("One-Leg Balance")
-                .font(.title2.bold())
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Hold phone in shooting stance", systemImage: "iphone")
+                        Label("Stand on one leg", systemImage: "figure.stand")
+                        Label("Stay as still as possible for \(Int(targetDuration))s", systemImage: "timer")
+                        Label("Phone sensors measure your stability", systemImage: "gyroscope")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Hold phone in shooting stance", systemImage: "iphone")
-                Label("Stand on one leg", systemImage: "figure.stand")
-                Label("Stay as still as possible for \(Int(targetDuration))s", systemImage: "timer")
-                Label("Phone sensors measure your stability", systemImage: "gyroscope")
+                    PhonePlacementGuidanceView(placement: .chestHeld)
+                        .padding(.horizontal, 32)
+
+                    Picker("Duration", selection: $targetDuration) {
+                        Text("15s").tag(TimeInterval(15))
+                        Text("30s").tag(TimeInterval(30))
+                        Text("45s").tag(TimeInterval(45))
+                        Text("60s").tag(TimeInterval(60))
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 20)
+                }
+                .padding(.horizontal)
             }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
 
-            PhonePlacementGuidanceView(placement: .chestHeld)
-                .padding(.horizontal, 32)
-
-            Picker("Duration", selection: $targetDuration) {
-                Text("15s").tag(TimeInterval(15))
-                Text("30s").tag(TimeInterval(30))
-                Text("45s").tag(TimeInterval(45))
-                Text("60s").tag(TimeInterval(60))
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 32)
-
-            Spacer()
-
-            Button {
+            Button("Start Drill") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.purple)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.drillBalance))
+            .accessibilityLabel("Start Balance Drill")
+            .accessibilityHint("Begins the one-leg balance exercise with countdown")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
+            .background(AppColors.drillBalance.opacity(Opacity.light).ignoresSafeArea(edges: .bottom))
         }
-        .padding(.horizontal)
     }
 
     private var countdownView: some View {
@@ -135,7 +133,7 @@ struct BalanceDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.purple)
+                .foregroundStyle(AppColors.drillBalance)
             Text("Stand on one leg")
                 .font(.headline)
             Spacer()
@@ -218,7 +216,7 @@ struct BalanceDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -228,7 +226,7 @@ struct BalanceDrillView: View {
             VStack {
                 Text("\(Int(avgStability * 100))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(AppColors.drillBalance)
                 Text("Average Stability")
                     .foregroundStyle(.secondary)
             }
@@ -244,40 +242,29 @@ struct BalanceDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     results = []
                     countdown = 3
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the balance drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.purple)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.drillBalance))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
-        if motionManager.stabilityScore > 0.8 { return .green }
-        if motionManager.stabilityScore > 0.5 { return .yellow }
-        return .red
+        StabilityColors.color(for: motionManager.stabilityScore)
     }
 
     private var stabilityMessage: String {
@@ -296,9 +283,7 @@ struct BalanceDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score > 0.8 { return .green }
-        if score > 0.6 { return .yellow }
-        return .orange
+        StabilityColors.gradeColor(for: score)
     }
 
     private func startCountdown() {

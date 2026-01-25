@@ -23,6 +23,7 @@ struct ShootingView: View {
     @State private var showingFreePractice = false
     @State private var showingHistory = false
     @State private var showingSettings = false
+    @State private var historyPreSelectedFilter: DateFilterOption? = nil
 
     private var menuItems: [DisciplineMenuItem] {
         [
@@ -31,6 +32,7 @@ struct ShootingView: View {
                 subtitle: "2x 5-shot competition cards",
                 icon: "trophy.fill",
                 color: .orange,
+                requiresCapture: true,  // Session capture
                 action: { showingCompetition = true }
             ),
             DisciplineMenuItem(
@@ -38,6 +40,7 @@ struct ShootingView: View {
                 subtitle: "Analyse single target",
                 icon: "target",
                 color: .blue,
+                requiresCapture: true,  // Session capture
                 action: { showingFreePractice = true }
             ),
             DisciplineMenuItem(
@@ -45,6 +48,7 @@ struct ShootingView: View {
                 subtitle: "View patterns over time",
                 icon: "chart.line.uptrend.xyaxis",
                 color: .purple,
+                requiresCapture: false,  // Review only - available on iPad
                 action: { showingHistory = true }
             )
         ]
@@ -72,20 +76,34 @@ struct ShootingView: View {
                         showingFreePractice = false
                     },
                     onAnalysisComplete: {
-                        // Just dismiss - analysis view already showed insights
-                        // User can access history separately from menu if needed
+                        // Legacy fallback - just dismiss
                         showingFreePractice = false
+                    },
+                    onNavigateToHistory: { filter in
+                        // Navigate to history with pre-selected filter
+                        showingFreePractice = false
+                        historyPreSelectedFilter = filter
+                        // Small delay to allow dismiss animation before showing history
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showingHistory = true
+                        }
                     }
                 )
             }
             .fullScreenCover(isPresented: $showingHistory) {
-                ShootingHistoryAggregateView(onDismiss: {
-                    showingHistory = false
-                })
+                // Use dedicated ShootingHistoryAggregateView for comprehensive shooting history
+                ShootingHistoryAggregateView(
+                    onDismiss: {
+                        showingHistory = false
+                        historyPreSelectedFilter = nil
+                    },
+                    initialDateFilter: historyPreSelectedFilter
+                )
             }
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()
             }
+        .presentationBackground(Color.black)
     }
 }
 

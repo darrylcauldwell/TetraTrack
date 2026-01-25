@@ -14,6 +14,7 @@ import SwiftData
 import os
 
 @Observable
+@MainActor
 final class FallDetectionManager: FallDetecting {
     // MARK: - State
 

@@ -42,7 +42,7 @@ struct FriendShareSheet: View {
                 // Artifact summary
                 artifactSummaryHeader
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
 
                 Divider()
 
@@ -98,7 +98,7 @@ struct FriendShareSheet: View {
                 if isSharing {
                     ProgressView("Sharing...")
                         .padding()
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -183,12 +183,13 @@ struct FriendShareSheet: View {
 
         Task {
             var successCount = 0
+            let sharingCoordinator = UnifiedSharingCoordinator.shared
 
             for friendID in selectedFriends {
                 guard let friend = friends.first(where: { $0.id == friendID }) else { continue }
 
                 do {
-                    _ = try await FriendSharingService.shared.shareArtifact(
+                    _ = try await sharingCoordinator.shareArtifact(
                         artifact,
                         with: friend,
                         expiresIn: expiryOption.duration
@@ -317,7 +318,7 @@ struct ShareConfirmationView: View {
 
 struct ExistingSharesView: View {
     let artifact: TrainingArtifact
-    @State private var shares: [FriendShare] = []
+    @State private var shares: [ArtifactShare] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -336,15 +337,15 @@ struct ExistingSharesView: View {
                 }
             }
         }
-        .onAppear {
-            shares = FriendSharingService.shared.shares(for: artifact.id)
+        .task {
+            shares = await UnifiedSharingCoordinator.shared.shares(for: artifact.id)
         }
     }
 
-    private func revokeShare(_ share: FriendShare) {
+    private func revokeShare(_ share: ArtifactShare) {
         Task {
-            try? await FriendSharingService.shared.revokeShare(share)
-            shares = FriendSharingService.shared.shares(for: artifact.id)
+            try? await UnifiedSharingCoordinator.shared.revokeArtifactShare(share)
+            shares = await UnifiedSharingCoordinator.shared.shares(for: artifact.id)
         }
     }
 }
@@ -352,7 +353,7 @@ struct ExistingSharesView: View {
 // MARK: - Existing Share Row
 
 struct ExistingShareRow: View {
-    let share: FriendShare
+    let share: ArtifactShare
     let onRevoke: () -> Void
 
     var body: some View {
@@ -381,7 +382,7 @@ struct ExistingShareRow: View {
                 .buttonStyle(.bordered)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

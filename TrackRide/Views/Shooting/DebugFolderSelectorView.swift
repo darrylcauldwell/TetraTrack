@@ -92,6 +92,7 @@ struct DebugFolderSelectorView: View {
                     )
                 }
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -122,7 +123,7 @@ struct DebugFolderSelectorView: View {
                 instructionRow(number: 4, text: "Optionally add metadata.json with expected hole positions")
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -291,6 +292,7 @@ struct FolderImagePickerView: View {
                     }
                 )
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -338,7 +340,7 @@ private struct ImageThumbnail: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(AppColors.elevatedSurface)
 
             if let thumbnail = thumbnail {
                 Image(uiImage: thumbnail)
@@ -356,7 +358,7 @@ private struct ImageThumbnail: View {
                     .font(.caption2.bold())
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Capsule())
                     .padding(4)
             }
@@ -423,7 +425,7 @@ struct FolderImageDetailView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding()
@@ -458,7 +460,7 @@ struct FolderImageDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(AppColors.elevatedSurface)
                     .frame(height: 200)
                     .overlay {
                         ProgressView()
@@ -500,7 +502,7 @@ struct FolderImageDetailView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -543,7 +545,7 @@ struct FolderImageDetailView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 

@@ -10,10 +10,29 @@ import SwiftData
 import WidgetKit
 import CloudKit
 import os
+#if os(iOS)
+import UIKit
+#endif
 
 @main
 struct TrackRideApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
+
+    // MARK: - iPad Review-Only Mode
+    /// Determines the ViewContext based on device idiom.
+    /// iPad operates in review-only mode with no capture capabilities.
+    /// iPhone operates in full capture mode.
+    private var viewContext: ViewContext {
+        #if os(iOS)
+        let isIPad = UIDevice.current.userInterfaceIdiom == .pad
+        return isIPad
+            ? ViewContext.athleteReview()  // iPad is always review-only
+            : ViewContext.athleteCapture() // iPhone can capture
+        #else
+        return ViewContext.athleteCapture() // Default for other platforms
+        #endif
+    }
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -53,22 +72,63 @@ struct TrackRideApp: App {
             // Family sharing models
             TrainingArtifact.self,
             SharedCompetition.self,
+            SharingRelationship.self,
+            PendingShareRequest.self,
         ])
-        // TODO: RE-ENABLE CLOUDKIT FOR PRODUCTION
-        // When you have a paid Apple Developer account:
-        // 1. Change cloudKitDatabase: .none → .automatic
-        // 2. Restore TrackRide.entitlements from TrackRide.entitlements.cloudkit-backup
-        // 3. Re-add setupCloudKitSubscriptions() call in .task below
-        let modelConfiguration = ModelConfiguration(
+        // Try CloudKit first, fall back to local-only if it fails
+        // Explicitly specify the CloudKit container for sync
+        let cloudKitConfig = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
-            cloudKitDatabase: .none  // Disabled for personal development team
+            cloudKitDatabase: .private("iCloud.MyHorse.TrackRide")
         )
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(for: schema, configurations: [cloudKitConfig])
+            #if DEBUG
+            print("✅ CloudKit ModelContainer created successfully")
+            print("📦 Container: iCloud.MyHorse.TrackRide")
+            #endif
+
+            // Check iCloud account status asynchronously
+            Task {
+                await checkCloudKitStatus()
+            }
+
+            return container
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // CloudKit failed - log error and fall back to local-only storage
+            #if DEBUG
+            print("❌ CloudKit ModelContainer failed: \(error)")
+            print("⚠️ Falling back to local-only storage - data will NOT sync")
+            #endif
+
+            // Notify sync status monitor about the fallback
+            Task { @MainActor in
+                SyncStatusMonitor.shared.setLocalOnlyMode(
+                    reason: "CloudKit initialization failed: \(error.localizedDescription)"
+                )
+
+                // Also send a user notification about sync issues
+                await NotificationManager.shared.sendSyncFailureNotification(
+                    reason: "Your data is being stored locally only. iCloud sync is not available."
+                )
+            }
+
+            let localConfig = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .none
+            )
+
+            do {
+                return try ModelContainer(for: schema, configurations: [localConfig])
+            } catch {
+                #if DEBUG
+                print("Local ModelContainer also failed: \(error)")
+                #endif
+                fatalError("Could not create ModelContainer: \(error)")
+            }
         }
     }()
 
@@ -81,6 +141,7 @@ struct TrackRideApp: App {
             ContentView()
                 .environment(locationManager)
                 .environment(rideTracker)
+                .viewContext(viewContext)
                 .onAppear {
                     Log.app.info("ContentView.onAppear - rideTracker is \(rideTracker == nil ? "nil" : "set")")
                     // Create RideTracker on first appear if needed
@@ -95,8 +156,8 @@ struct TrackRideApp: App {
                 .task {
                 // Request notification permissions
                 _ = await NotificationManager.shared.requestAuthorization()
-                // TODO: Re-enable when CloudKit is available
-                // await NotificationManager.shared.setupCloudKitSubscriptions()
+                // Setup CloudKit subscriptions (handles errors internally)
+                await NotificationManager.shared.setupCloudKitSubscriptions()
             }
             .onReceive(NotificationCenter.default.publisher(for: .startRideFromSiri)) { notification in
                 handleStartRide(notification: notification)
@@ -257,8 +318,8 @@ struct TrackRideApp: App {
         Log.app.info("Received URL: \(url)")
 
         // Handle CloudKit share URLs
-        let familySharing = FamilySharingManager.shared
-        if familySharing.isCloudKitShareURL(url) {
+        let sharingCoordinator = UnifiedSharingCoordinator.shared
+        if sharingCoordinator.isCloudKitShareURL(url) {
             Task {
                 // Store as pending request instead of auto-accepting
                 // This allows the user to review and accept/decline in the app
@@ -268,31 +329,82 @@ struct TrackRideApp: App {
     }
 
     private func storePendingShareRequest(from url: URL) async {
-        guard let container = CKContainer.default() as CKContainer? else {
-            Log.app.error("CloudKit container not available")
-            return
-        }
+        // SECURITY: Don't auto-accept shares. Store as pending for user review.
+        Log.app.info("Storing share request as pending for user approval")
 
         do {
-            // Get share metadata from URL
-            let metadata = try await container.shareMetadata(for: url)
+            // Fetch share metadata WITHOUT accepting to get owner info
+            let (ownerID, ownerName) = try await UnifiedSharingCoordinator.shared.fetchShareMetadata(from: url)
 
-            // Store as pending request
-            await MainActor.run {
-                FamilySharingManager.shared.addPendingRequest(from: metadata)
+            // Check if we already have a pending request from this owner
+            if let repository = UnifiedSharingCoordinator.shared.repository {
+                let hasPending = try repository.hasPendingRequest(fromOwnerID: ownerID)
+                if hasPending {
+                    Log.app.info("Already have pending request from \(ownerName), ignoring duplicate")
+                    return
+                }
             }
 
-            Log.app.info("Stored pending share request")
+            // Create pending request (don't accept yet)
+            await UnifiedSharingCoordinator.shared.addPendingRequest(
+                ownerID: ownerID,
+                ownerName: ownerName,
+                shareURL: url
+            )
+
+            // Send local notification about pending request
+            await NotificationManager.shared.sendPendingShareRequestNotification(from: ownerName)
+
+            Log.app.info("Stored pending share request from \(ownerName)")
+
         } catch {
-            Log.app.error("Failed to get share metadata: \(error)")
+            Log.app.error("Failed to process share URL: \(error.localizedDescription)")
 
-            // Fallback: Try to accept directly (old behavior)
-            let success = await FamilySharingManager.shared.acceptShare(from: url)
-            if success {
-                Log.app.info("Successfully accepted CloudKit share (fallback)")
-            } else {
-                Log.app.error("Failed to accept CloudKit share")
-            }
+            // If we can't get metadata, still store with generic info
+            await UnifiedSharingCoordinator.shared.addPendingRequest(
+                ownerID: "unknown",
+                ownerName: "Someone",
+                shareURL: url
+            )
         }
+    }
+
+    /// Check CloudKit account status and log diagnostics
+    private static func checkCloudKitStatus() async {
+        #if DEBUG
+        let container = CKContainer(identifier: "iCloud.MyHorse.TrackRide")
+
+        do {
+            let status = try await container.accountStatus()
+            switch status {
+            case .available:
+                print("✅ iCloud account: Available")
+                // Check if we can access the private database
+                let privateDB = container.privateCloudDatabase
+                let query = CKQuery(recordType: "CD_Ride", predicate: NSPredicate(value: true))
+                do {
+                    _ = try await privateDB.records(matching: query, resultsLimit: 1)
+                    print("✅ CloudKit private database: Accessible")
+                } catch {
+                    print("⚠️ CloudKit query failed: \(error.localizedDescription)")
+                    print("   This may be normal if no data exists yet")
+                }
+            case .noAccount:
+                print("❌ iCloud account: Not signed in")
+                print("   → User needs to sign into iCloud in Settings")
+            case .restricted:
+                print("❌ iCloud account: Restricted")
+                print("   → Parental controls may be blocking iCloud")
+            case .couldNotDetermine:
+                print("⚠️ iCloud account: Could not determine status")
+            case .temporarilyUnavailable:
+                print("⚠️ iCloud account: Temporarily unavailable")
+            @unknown default:
+                print("⚠️ iCloud account: Unknown status")
+            }
+        } catch {
+            print("❌ Failed to check iCloud status: \(error)")
+        }
+        #endif
     }
 }

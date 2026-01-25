@@ -78,6 +78,7 @@ struct TaskListView: View {
             .sheet(item: $selectedTask) { task in
                 TaskEditView(task: task, competition: task.competition)
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -316,7 +317,7 @@ struct TaskStatBadge: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
         .padding(.horizontal, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -444,7 +445,7 @@ struct TaskRowView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
@@ -724,7 +725,7 @@ struct CompetitionTasksSection: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .sheet(isPresented: $showingAddTask) {
             TaskEditView(task: nil, competition: competition)
@@ -732,6 +733,7 @@ struct CompetitionTasksSection: View {
         .sheet(item: $selectedTask) { task in
             TaskEditView(task: task, competition: competition)
         }
+        .presentationBackground(Color.black)
     }
 
     private var quickTaskSuggestions: some View {

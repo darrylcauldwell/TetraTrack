@@ -247,7 +247,7 @@ struct RidingStreakBanner: View {
             }
         }
         .padding(12)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)

@@ -39,13 +39,8 @@ final class DataMigrationService {
         context: ModelContext
     ) async throws {
         guard !Self.isMigrationComplete else {
-            print("Migration already complete, skipping...")
             return
         }
-
-        print("Starting drill session migration...")
-        print("  - Riding sessions to migrate: \(ridingSessions.count)")
-        print("  - Shooting sessions to migrate: \(shootingSessions.count)")
 
         var migratedCount = 0
 
@@ -68,8 +63,6 @@ final class DataMigrationService {
 
         // Mark as complete
         Self.markMigrationComplete()
-
-        print("Migration complete! Migrated \(migratedCount) sessions.")
     }
 
     /// Migrate a single riding drill session
@@ -208,7 +201,6 @@ extension DataMigrationService {
 
             // Only run migration if there are sessions to migrate
             if ridingSessions.isEmpty && shootingSessions.isEmpty {
-                print("No legacy sessions to migrate, marking complete.")
                 markMigrationComplete()
                 return
             }
@@ -219,7 +211,7 @@ extension DataMigrationService {
                 context: context
             )
         } catch {
-            print("Migration error: \(error.localizedDescription)")
+            // Migration error - silently fail
         }
     }
 }

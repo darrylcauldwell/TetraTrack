@@ -45,7 +45,7 @@ struct DisciplineRow: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)

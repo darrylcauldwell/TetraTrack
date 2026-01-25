@@ -23,7 +23,12 @@ enum HilbertTransform {
 
         // Pad to power of 2 for efficient FFT
         let paddedSize = nextPowerOfTwo(n)
-        let paddedSignal = signal + [Double](repeating: 0, count: paddedSize - n)
+
+        // Remove DC component before Hilbert transform
+        // DC offset causes phase errors in the analytic signal
+        let mean = signal.reduce(0, +) / Double(n)
+        let dcRemoved = signal.map { $0 - mean }
+        let paddedSignal = dcRemoved + [Double](repeating: 0, count: paddedSize - n)
 
         // Convert to float for vDSP
         let floatSignal = paddedSignal.map { Float($0) }

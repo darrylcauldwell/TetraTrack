@@ -197,7 +197,7 @@ struct RouteMapView: View {
                     Annotation("Start", coordinate: first) {
                         ZStack {
                             Circle()
-                                .fill(.ultraThinMaterial)
+                                .fill(AppColors.cardBackground)
                                 .frame(width: 36, height: 36)
                             Circle()
                                 .fill(.white)
@@ -215,7 +215,7 @@ struct RouteMapView: View {
                     Annotation("End", coordinate: last) {
                         ZStack {
                             Circle()
-                                .fill(.ultraThinMaterial)
+                                .fill(AppColors.cardBackground)
                                 .frame(width: 36, height: 36)
                             Circle()
                                 .fill(.white)
@@ -237,7 +237,7 @@ struct RouteMapView: View {
                             } label: {
                                 ZStack {
                                     Circle()
-                                        .fill(.ultraThinMaterial)
+                                        .fill(AppColors.cardBackground)
                                         .frame(width: 32, height: 32)
                                     Circle()
                                         .fill(.white)
@@ -273,7 +273,7 @@ struct RouteMapView: View {
                     Image(systemName: mapStyle.icon)
                         .font(.system(size: 16, weight: .medium))
                         .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                 }
@@ -286,7 +286,7 @@ struct RouteMapView: View {
                         Image(systemName: showPhotos ? "camera.fill" : "camera")
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Circle())
                             .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                     }
@@ -305,6 +305,7 @@ struct RouteMapView: View {
         .task {
             await loadPhotoAnnotations()
         }
+        .presentationBackground(Color.black)
     }
 
     private func loadPhotoAnnotations() async {
@@ -355,7 +356,7 @@ struct GaitMapLegend: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)

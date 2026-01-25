@@ -82,6 +82,7 @@ struct ShootingHistoryView: View {
                 AnalysisDetailView(analysis: analysis)
             }
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Empty State
@@ -204,7 +205,7 @@ struct ShootingHistoryView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal)
     }
@@ -256,7 +257,7 @@ struct ShootingHistoryView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal)
     }
@@ -314,7 +315,7 @@ struct ShootingHistoryView: View {
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
         }
@@ -390,7 +391,7 @@ private struct SummaryCard: View {
         }
         .frame(width: 80)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -432,7 +433,7 @@ private struct SessionRow: View {
                 .foregroundStyle(.tertiary)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -468,7 +469,7 @@ struct AnalysisDetailView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Shot pattern visualization
@@ -481,7 +482,7 @@ struct AnalysisDetailView: View {
                             .frame(height: 220)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -514,7 +515,7 @@ struct AnalysisDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Grouping quality
@@ -540,7 +541,7 @@ struct AnalysisDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Detection statistics
@@ -555,7 +556,7 @@ struct AnalysisDetailView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -570,7 +571,7 @@ struct AnalysisDetailView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -762,7 +763,7 @@ private struct EnhancedPatternAnalysisView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -795,7 +796,7 @@ private struct MetricTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 

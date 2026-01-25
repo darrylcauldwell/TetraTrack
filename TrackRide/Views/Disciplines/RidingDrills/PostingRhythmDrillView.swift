@@ -34,7 +34,7 @@ struct PostingRhythmDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.indigo.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -83,7 +83,7 @@ struct PostingRhythmDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -96,7 +96,7 @@ struct PostingRhythmDrillView: View {
 
             Image(systemName: "metronome")
                 .font(.system(size: 60))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.riding)
 
             Text("Posting Rhythm Drill")
                 .font(.title2.bold())
@@ -117,7 +117,7 @@ struct PostingRhythmDrillView: View {
                     get: { Double(bpm) },
                     set: { bpm = Int($0) }
                 ), in: 50...90, step: 5)
-                .tint(.indigo)
+                .tint(AppColors.riding)
 
                 HStack {
                     Text("Slower")
@@ -150,7 +150,7 @@ struct PostingRhythmDrillView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.indigo)
+                    .background(AppColors.riding)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -167,7 +167,7 @@ struct PostingRhythmDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.riding)
             Text("Rise and sit with the beat")
                 .font(.headline)
             Spacer()
@@ -189,7 +189,7 @@ struct PostingRhythmDrillView: View {
                     .frame(width: 150, height: 150)
 
                 Circle()
-                    .fill(isOnBeat ? Color.indigo : Color.gray.opacity(0.3))
+                    .fill(isOnBeat ? AppColors.riding : Color.gray.opacity(0.3))
                     .frame(width: 120, height: 120)
                     .scaleEffect(isOnBeat ? 1.1 : 1.0)
                     .animation(.easeOut(duration: 0.1), value: isOnBeat)
@@ -219,11 +219,11 @@ struct PostingRhythmDrillView: View {
                         // Beat zones
                         VStack {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.indigo.opacity(0.3))
+                                .fill(AppColors.riding.opacity(0.3))
                                 .frame(height: 30)
                             Spacer()
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.indigo.opacity(0.3))
+                                .fill(AppColors.riding.opacity(0.3))
                                 .frame(height: 30)
                         }
                         .padding(4)
@@ -276,7 +276,7 @@ struct PostingRhythmDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -286,7 +286,7 @@ struct PostingRhythmDrillView: View {
             VStack {
                 Text("\(Int(avgAccuracy))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(AppColors.riding)
                 Text("Rhythm Accuracy")
                     .foregroundStyle(.secondary)
             }
@@ -314,7 +314,7 @@ struct PostingRhythmDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -339,7 +339,7 @@ struct PostingRhythmDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -351,7 +351,7 @@ struct PostingRhythmDrillView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.indigo)
+                        .background(AppColors.riding)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -366,9 +366,9 @@ struct PostingRhythmDrillView: View {
     }
 
     private var timingColor: Color {
-        if currentAccuracy >= 80 { return .green }
-        if currentAccuracy >= 60 { return .yellow }
-        return .orange
+        if currentAccuracy >= 80 { return AppColors.active }
+        if currentAccuracy >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var rhythmFeedback: String {
@@ -397,9 +397,9 @@ struct PostingRhythmDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        if score >= 80 { return AppColors.active }
+        if score >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func configureAudio() {

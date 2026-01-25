@@ -86,6 +86,11 @@ final class ArtifactSyncService {
         startNetworkMonitoring()
     }
 
+    deinit {
+        // Cancel network monitor to prevent memory leak
+        networkMonitor.cancel()
+    }
+
     // MARK: - Network Monitoring
 
     private func startNetworkMonitoring() {

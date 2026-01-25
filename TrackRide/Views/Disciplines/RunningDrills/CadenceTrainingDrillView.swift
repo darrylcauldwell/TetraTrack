@@ -30,7 +30,7 @@ struct CadenceTrainingDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.green.opacity(0.1).ignoresSafeArea()
+                AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -70,7 +70,7 @@ struct CadenceTrainingDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -83,7 +83,7 @@ struct CadenceTrainingDrillView: View {
 
             Image(systemName: "metronome")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.running)
 
             Text("Cadence Training")
                 .font(.title2.bold())
@@ -107,7 +107,7 @@ struct CadenceTrainingDrillView: View {
                     get: { Double(targetSPM) },
                     set: { targetSPM = Int($0) }
                 ), in: 150...200, step: 5)
-                .tint(.green)
+                .tint(AppColors.running)
 
                 HStack {
                     Text("150")
@@ -132,19 +132,14 @@ struct CadenceTrainingDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.running))
+            .accessibilityLabel("Start Cadence Training")
+            .accessibilityHint("Begins the metronome-guided running cadence exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -157,7 +152,7 @@ struct CadenceTrainingDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.running)
             Text("Step with each beat")
                 .font(.headline)
             Spacer()
@@ -179,7 +174,7 @@ struct CadenceTrainingDrillView: View {
                     .frame(width: 150, height: 150)
 
                 Circle()
-                    .fill(isOnBeat ? Color.green : Color.gray.opacity(0.3))
+                    .fill(isOnBeat ? AppColors.running : Color.gray.opacity(0.3))
                     .frame(width: 120, height: 120)
                     .scaleEffect(isOnBeat ? 1.1 : 1.0)
                     .animation(.easeOut(duration: 0.1), value: isOnBeat)
@@ -234,7 +229,7 @@ struct CadenceTrainingDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -245,7 +240,7 @@ struct CadenceTrainingDrillView: View {
             VStack {
                 Text("\(avgCadence)")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.running)
                 Text("Average SPM")
                     .foregroundStyle(.secondary)
             }
@@ -253,7 +248,7 @@ struct CadenceTrainingDrillView: View {
             VStack {
                 Text("\(Int(accuracy))%")
                     .font(.title.bold())
-                    .foregroundStyle(accuracy >= 80 ? .green : .orange)
+                    .foregroundStyle(accuracy >= 80 ? AppColors.active : AppColors.running)
                 Text("Accuracy")
                     .foregroundStyle(.secondary)
             }
@@ -274,45 +269,36 @@ struct CadenceTrainingDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(accuracy))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(accuracy >= 80 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(accuracy >= 80 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(accuracy >= 80 ? AppColors.active.opacity(0.2) : AppColors.running.opacity(0.2))
+                .foregroundStyle(accuracy >= 80 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the cadence training drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.running))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -324,9 +310,9 @@ struct CadenceTrainingDrillView: View {
 
     private var cadenceColor: Color {
         let diff = abs(currentCadence - targetSPM)
-        if diff <= 5 { return .green }
-        if diff <= 15 { return .yellow }
-        return .orange
+        if diff <= 5 { return AppColors.active }
+        if diff <= 15 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var cadenceFeedback: String {

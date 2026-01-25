@@ -45,7 +45,7 @@ struct SwimTypeButton: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 28)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
         .buttonStyle(.plain)
@@ -82,7 +82,7 @@ struct SwimTypeCard: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 100)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
@@ -196,6 +196,7 @@ struct SwimmingLiveView: View {
     @State private var watchUpdateTimer: Timer?
 
     private let watchManager = WatchConnectivityManager.shared
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     // Calculate SWOLF score (strokes + time per length)
     private var averageSWOLF: Double {
@@ -305,7 +306,7 @@ struct SwimmingLiveView: View {
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Circle())
                 }
             }
@@ -331,6 +332,18 @@ struct SwimmingLiveView: View {
             // Pace display (only for timed test)
             if isThreeMinuteTest && hasStarted && totalDistance > 0 {
                 paceDisplay
+            }
+
+            // Water detection and SpO2 sensor metrics
+            if hasStarted && (sensorAnalyzer.isSubmerged || sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.totalSubmergedTime > 0) {
+                SwimmingSensorMetricsView(
+                    isSubmerged: sensorAnalyzer.isSubmerged,
+                    submergedTime: sensorAnalyzer.totalSubmergedTime,
+                    submersionCount: sensorAnalyzer.submersionCount,
+                    spo2: sensorAnalyzer.oxygenSaturation,
+                    minSpo2: sensorAnalyzer.minSpO2,
+                    recoveryQuality: sensorAnalyzer.recoveryQuality
+                )
             }
 
             // Lap button
@@ -387,7 +400,7 @@ struct SwimmingLiveView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -426,7 +439,7 @@ struct SwimmingLiveView: View {
             }
         }
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -453,7 +466,7 @@ struct SwimmingLiveView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -655,12 +668,14 @@ struct SwimmingLiveView: View {
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
         watchManager.startMotionTracking(mode: .swimming)
+        sensorAnalyzer.startSession()
         startWatchStatusUpdates()
     }
 
     private func stopMotionTracking() {
         watchManager.stopMotionTracking()
         watchManager.onMotionUpdate = nil
+        sensorAnalyzer.stopSession()
         watchManager.onStrokeDetected = nil
         stopWatchStatusUpdates()
 
@@ -745,7 +760,7 @@ struct SwimmingSessionDetailView: View {
                     .padding(.horizontal)
 
                     // Lap breakdown
-                    if !session.laps.isEmpty {
+                    if !(session.laps ?? []).isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Laps")
                                 .font(.headline)
@@ -784,7 +799,7 @@ struct SwimmingSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -821,7 +836,7 @@ struct SwimmingSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
                 }
@@ -854,7 +869,7 @@ struct SwimMiniStat: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -873,7 +888,7 @@ struct LapRow: View {
                 .font(.caption)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
                 .clipShape(Capsule())
 
             Spacer()
@@ -888,7 +903,7 @@ struct LapRow: View {
                 .frame(width: 70, alignment: .trailing)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal)
     }

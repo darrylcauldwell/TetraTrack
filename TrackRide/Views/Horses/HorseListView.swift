@@ -9,75 +9,152 @@ import SwiftData
 
 struct HorseListView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(filter: #Predicate<Horse> { !$0.isArchived }, sort: \Horse.name)
     private var horses: [Horse]
 
     @State private var showingAddHorse = false
     @State private var horseToDelete: Horse?
     @State private var showingDeleteConfirmation = false
+    @State private var selectedHorse: Horse?
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(horses) { horse in
-                    NavigationLink(destination: HorseDetailView(horse: horse)) {
-                        HorseRowView(horse: horse)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            horseToDelete = horse
-                            showingDeleteConfirmation = true
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
+            }
+        }
+    }
 
-                        Button {
-                            archiveHorse(horse)
-                        } label: {
-                            Label("Archive", systemImage: "archivebox")
+    // MARK: - iPad Layout (Split View)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            horseListContent
+                .navigationTitle("Horses")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { showingAddHorse = true }) {
+                            Image(systemName: "plus")
                         }
-                        .tint(.orange)
                     }
                 }
+        } detail: {
+            if let horse = selectedHorse {
+                HorseDetailView(horse: horse)
+            } else {
+                ContentUnavailableView(
+                    "Select a Horse",
+                    systemImage: "figure.equestrian.sports",
+                    description: Text("Choose a horse to view details")
+                )
             }
-            .navigationTitle("Horses")
-            .overlay {
-                if horses.isEmpty {
-                    ContentUnavailableView(
-                        "No Horses Yet",
-                        systemImage: "figure.equestrian.sports",
-                        description: Text("Add your first horse to track their rides and fitness")
-                    )
+        }
+        .sheet(isPresented: $showingAddHorse) {
+            HorseEditView(horse: nil)
+        }
+        .confirmationDialog(
+            "Delete \(horseToDelete?.name ?? "Horse")?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Permanently", role: .destructive) {
+                if let horse = horseToDelete {
+                    deleteHorse(horse)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showingAddHorse = true }) {
-                        Image(systemName: "plus")
+            Button("Archive Instead") {
+                if let horse = horseToDelete {
+                    archiveHorse(horse)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete the horse and remove it from all ride history. Archive instead to hide the horse but keep historical data.")
+        }
+    }
+
+    // MARK: - iPhone Layout (Stack)
+
+    private var iPhoneLayout: some View {
+        NavigationStack {
+            horseListContent
+                .navigationTitle("Horses")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { showingAddHorse = true }) {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
-            }
-            .sheet(isPresented: $showingAddHorse) {
-                HorseEditView(horse: nil)
-            }
-            .confirmationDialog(
-                "Delete \(horseToDelete?.name ?? "Horse")?",
-                isPresented: $showingDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete Permanently", role: .destructive) {
-                    if let horse = horseToDelete {
-                        deleteHorse(horse)
+                .sheet(isPresented: $showingAddHorse) {
+                    HorseEditView(horse: nil)
+                }
+                .confirmationDialog(
+                    "Delete \(horseToDelete?.name ?? "Horse")?",
+                    isPresented: $showingDeleteConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete Permanently", role: .destructive) {
+                        if let horse = horseToDelete {
+                            deleteHorse(horse)
+                        }
+                    }
+                    Button("Archive Instead") {
+                        if let horse = horseToDelete {
+                            archiveHorse(horse)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will permanently delete the horse and remove it from all ride history. Archive instead to hide the horse but keep historical data.")
+                }
+                .presentationBackground(Color.black)
+        }
+    }
+
+    // MARK: - Shared List Content
+
+    private var horseListContent: some View {
+        List(selection: horizontalSizeClass == .regular ? $selectedHorse : .constant(nil)) {
+            ForEach(horses) { horse in
+                Group {
+                    if horizontalSizeClass == .regular {
+                        HorseRowView(horse: horse)
+                            .tag(horse)
+                    } else {
+                        NavigationLink(destination: HorseDetailView(horse: horse)) {
+                            HorseRowView(horse: horse)
+                        }
                     }
                 }
-                Button("Archive Instead") {
-                    if let horse = horseToDelete {
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        horseToDelete = horse
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Button {
                         archiveHorse(horse)
+                    } label: {
+                        Label("Archive", systemImage: "archivebox")
                     }
+                    .tint(.orange)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete the horse and remove it from all ride history. Archive instead to hide the horse but keep historical data.")
+            }
+        }
+        .listStyle(.sidebar)
+        .overlay {
+            if horses.isEmpty {
+                ContentUnavailableView(
+                    "No Horses Yet",
+                    systemImage: "figure.equestrian.sports",
+                    description: Text("Add your first horse to track their rides and fitness")
+                )
             }
         }
     }

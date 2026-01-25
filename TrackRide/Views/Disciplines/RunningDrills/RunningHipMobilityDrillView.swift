@@ -31,7 +31,7 @@ struct RunningHipMobilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.pink.opacity(0.1).ignoresSafeArea()
+                AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -71,7 +71,7 @@ struct RunningHipMobilityDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -84,7 +84,7 @@ struct RunningHipMobilityDrillView: View {
 
             Image(systemName: "figure.flexibility")
                 .font(.system(size: 60))
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.running)
 
             Text("Hip Mobility for Runners")
                 .font(.title2.bold())
@@ -134,7 +134,7 @@ struct RunningHipMobilityDrillView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.pink)
+                    .background(AppColors.running)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -149,10 +149,10 @@ struct RunningHipMobilityDrillView: View {
             Text("\(currentLeg.rawValue) Leg")
                 .font(.title)
                 .bold()
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.running)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.running)
             Text("Circle with your \(currentLeg.rawValue.lowercased()) leg")
                 .font(.headline)
             Spacer()
@@ -166,7 +166,7 @@ struct RunningHipMobilityDrillView: View {
                 .font(.title2.bold())
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
-                .background(Color.pink.opacity(0.2))
+                .background(AppColors.running.opacity(0.2))
                 .clipShape(Capsule())
 
             // Timer
@@ -184,13 +184,13 @@ struct RunningHipMobilityDrillView: View {
                 // Motion trace
                 Circle()
                     .trim(from: 0, to: CGFloat(motionAnalyzer.dominantFrequency * 0.2))
-                    .stroke(Color.pink, lineWidth: 8)
+                    .stroke(AppColors.running, lineWidth: 8)
                     .frame(width: 160, height: 160)
                     .rotationEffect(.degrees(-90))
 
                 // Position indicator
                 Circle()
-                    .fill(Color.pink)
+                    .fill(AppColors.running)
                     .frame(width: 20, height: 20)
                     .offset(
                         x: CGFloat(motionAnalyzer.roll * 60),
@@ -240,7 +240,7 @@ struct RunningHipMobilityDrillView: View {
             VStack {
                 Text("\(Int(score))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(AppColors.running)
                 Text("Mobility Score")
                     .foregroundStyle(.secondary)
             }
@@ -261,7 +261,7 @@ struct RunningHipMobilityDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -283,7 +283,7 @@ struct RunningHipMobilityDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -295,7 +295,7 @@ struct RunningHipMobilityDrillView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.pink)
+                        .background(AppColors.running)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -305,9 +305,9 @@ struct RunningHipMobilityDrillView: View {
     }
 
     private var mobilityColor: Color {
-        if motionAnalyzer.dominantFrequency > 0.5 { return .green }
-        if motionAnalyzer.dominantFrequency > 0.2 { return .yellow }
-        return .orange
+        if motionAnalyzer.dominantFrequency > 0.5 { return AppColors.active }
+        if motionAnalyzer.dominantFrequency > 0.2 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var mobilityFeedback: String {

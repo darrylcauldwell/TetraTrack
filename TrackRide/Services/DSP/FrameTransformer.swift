@@ -55,6 +55,31 @@ final class FrameTransformer {
     /// Whether calibration has been performed
     var isCalibrated: Bool = false
 
+    // MARK: - Calibration Drift Detection
+
+    /// Running average of gravity direction in calibrated frame
+    /// If this drifts significantly from (0, 0, -1), the phone has moved
+    private var gravityRunningAvg: (x: Double, y: Double, z: Double) = (0, 0, -1)
+
+    /// EMA alpha for gravity tracking (slow adaptation to avoid reacting to motion)
+    private let gravityAlpha: Double = 0.01
+
+    /// Threshold for detecting significant calibration drift (radians)
+    /// About 20 degrees of tilt indicates phone has moved
+    private let driftThreshold: Double = 0.35
+
+    /// Number of samples since last drift check
+    private var samplesSinceDriftCheck: Int = 0
+
+    /// Check interval (every 100 samples = ~1 second at 100Hz)
+    private let driftCheckInterval: Int = 100
+
+    /// Whether calibration drift has been detected
+    private(set) var calibrationDriftDetected: Bool = false
+
+    /// Callback when calibration drift is detected
+    var onCalibrationDrift: (() -> Void)?
+
     // MARK: - Initialization
 
     init() {}
@@ -75,6 +100,9 @@ final class FrameTransformer {
     func resetCalibration() {
         calibrationQuaternion = (1, 0, 0, 0)
         isCalibrated = false
+        calibrationDriftDetected = false
+        gravityRunningAvg = (0, 0, -1)
+        samplesSinceDriftCheck = 0
     }
 
     // MARK: - Frame Transformation
@@ -221,25 +249,92 @@ final class FrameTransformer {
 
 extension FrameTransformer {
 
-    /// Transform a complete MotionSample to horse frame
+    /// Transform a complete MotionSample to horse frame using quaternion data
     /// - Parameter sample: Raw motion sample from MotionManager
     /// - Returns: Tuple of (acceleration, rotation) in horse frame
     func transform(_ sample: MotionSample) -> (accel: HorseFrameAcceleration, rotation: HorseFrameRotation) {
-        let accel = toHorseFrame(
-            acceleration: (sample.accelerationX, sample.accelerationY, sample.accelerationZ),
-            pitch: sample.pitch,
-            roll: sample.roll,
-            yaw: sample.yaw
+        // Use quaternion for proper frame transformation with calibration
+        let deviceQ = (w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ)
+
+        // Apply calibration offset if set
+        let q: (w: Double, x: Double, y: Double, z: Double)
+        if isCalibrated {
+            q = multiplyQuaternions(calibrationQuaternion, deviceQ)
+        } else {
+            q = deviceQ
+        }
+
+        // Rotate acceleration vector by quaternion
+        let accelVec = (x: sample.accelerationX, y: sample.accelerationY, z: sample.accelerationZ)
+        let rotatedAccel = rotateVector(accelVec, by: q)
+
+        let accel = HorseFrameAcceleration(
+            forward: rotatedAccel.y,
+            lateral: rotatedAccel.x,
+            vertical: rotatedAccel.z
         )
 
-        // For rotation, we don't need attitude-based transformation
-        // as rotation rates are already in device frame and we just need axis mapping
+        // Rotate rotation rates as well for consistent frame
+        let rotVec = (x: sample.rotationX, y: sample.rotationY, z: sample.rotationZ)
+        let rotatedRot = rotateVector(rotVec, by: q)
+
         let rotation = HorseFrameRotation(
-            pitch: sample.rotationX,
-            roll: sample.rotationY,
-            yaw: sample.rotationZ
+            pitch: rotatedRot.x,
+            roll: rotatedRot.y,
+            yaw: rotatedRot.z
         )
+
+        // Check for calibration drift (phone has moved since calibration)
+        if isCalibrated && !calibrationDriftDetected {
+            checkCalibrationDrift(accel: accel)
+        }
 
         return (accel, rotation)
+    }
+
+    // MARK: - Drift Detection
+
+    /// Check if the phone has moved significantly since calibration
+    /// Uses gravity direction: in a well-calibrated system at rest, vertical should be ~-1g
+    private func checkCalibrationDrift(accel: HorseFrameAcceleration) {
+        // Update running average of gravity direction
+        // During motion, instantaneous values vary, but the average should stay near (0, 0, -1)
+        gravityRunningAvg.x = (1 - gravityAlpha) * gravityRunningAvg.x + gravityAlpha * accel.lateral
+        gravityRunningAvg.y = (1 - gravityAlpha) * gravityRunningAvg.y + gravityAlpha * accel.forward
+        gravityRunningAvg.z = (1 - gravityAlpha) * gravityRunningAvg.z + gravityAlpha * accel.vertical
+
+        samplesSinceDriftCheck += 1
+
+        // Only check periodically to avoid excessive computation
+        guard samplesSinceDriftCheck >= driftCheckInterval else { return }
+        samplesSinceDriftCheck = 0
+
+        // Calculate angle between current gravity direction and expected (0, 0, -1)
+        // Using dot product: cos(angle) = a·b / (|a||b|)
+        // Expected gravity in calibrated frame: (0, 0, -1)
+        let gravMag = sqrt(gravityRunningAvg.x * gravityRunningAvg.x +
+                          gravityRunningAvg.y * gravityRunningAvg.y +
+                          gravityRunningAvg.z * gravityRunningAvg.z)
+
+        guard gravMag > 0.5 else { return }  // Need reasonable gravity to measure
+
+        // Dot product with (0, 0, -1) is just -z
+        let cosAngle = -gravityRunningAvg.z / gravMag
+        let angle = acos(max(-1.0, min(1.0, cosAngle)))
+
+        // If angle exceeds threshold, phone has moved significantly
+        if angle > driftThreshold {
+            calibrationDriftDetected = true
+            onCalibrationDrift?()
+        }
+    }
+
+    /// Auto-calibrate using a motion sample
+    /// Call this when rider is sitting upright on stationary horse
+    func calibrate(with sample: MotionSample) {
+        let q = (w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ)
+        // Store inverse of calibration quaternion
+        calibrationQuaternion = conjugate(q)
+        isCalibrated = true
     }
 }

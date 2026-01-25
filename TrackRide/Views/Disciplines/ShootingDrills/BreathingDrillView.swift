@@ -62,7 +62,7 @@ struct BreathingDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.white)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -137,19 +137,19 @@ struct BreathingDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Begin") {
                 startBreathing()
-            } label: {
-                Text("Begin")
-                    .font(.title3.bold())
-                    .foregroundStyle(.blue)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .font(.title3.bold())
+            .foregroundStyle(AppColors.swimming)
+            .frame(maxWidth: .infinity)
+            .padding(Spacing.lg)
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg, style: .continuous))
+            .accessibilityLabel("Begin Box Breathing")
+            .accessibilityHint("Starts the breathing exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -262,11 +262,11 @@ struct BreathingDrillView: View {
 
     private var phaseColors: [Color] {
         switch phase {
-        case .ready: return [.blue.opacity(0.8), .cyan.opacity(0.6)]
-        case .inhale: return [.green.opacity(0.8), .mint.opacity(0.6)]
-        case .hold1, .hold2: return [.purple.opacity(0.8), .indigo.opacity(0.6)]
-        case .exhale: return [.orange.opacity(0.8), .yellow.opacity(0.6)]
-        case .complete: return [.green.opacity(0.8), .mint.opacity(0.6)]
+        case .ready: return [AppColors.swimming.opacity(0.8), AppColors.cyan.opacity(0.6)]
+        case .inhale: return [AppColors.active.opacity(0.8), AppColors.mint.opacity(0.6)]
+        case .hold1, .hold2: return [AppColors.drillBalance.opacity(0.8), AppColors.deep.opacity(0.6)]
+        case .exhale: return [AppColors.running.opacity(0.8), AppColors.warning.opacity(0.6)]
+        case .complete: return [AppColors.active.opacity(0.8), AppColors.mint.opacity(0.6)]
         }
     }
 
@@ -298,6 +298,10 @@ struct BreathingDrillView: View {
     }
 
     private func runPhase(_ newPhase: BreathPhase) {
+        // Invalidate any existing timer to prevent accumulation
+        timer?.invalidate()
+        timer = nil
+
         phase = newPhase
         phaseProgress = 0
         phaseTimeLeft = Int(currentPhaseDuration)

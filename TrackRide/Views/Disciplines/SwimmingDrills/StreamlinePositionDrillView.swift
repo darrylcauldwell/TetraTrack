@@ -28,7 +28,7 @@ struct StreamlinePositionDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.indigo.opacity(0.1).ignoresSafeArea()
+                AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -68,7 +68,7 @@ struct StreamlinePositionDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -81,7 +81,7 @@ struct StreamlinePositionDrillView: View {
 
             Image(systemName: "arrow.up.to.line")
                 .font(.system(size: 60))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.swimming)
 
             Text("Streamline Position")
                 .font(.title2.bold())
@@ -115,19 +115,14 @@ struct StreamlinePositionDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.indigo)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.swimming))
+            .accessibilityLabel("Start Streamline Position Drill")
+            .accessibilityHint("Begins the swimming posture hold exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -140,7 +135,7 @@ struct StreamlinePositionDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.indigo)
+                .foregroundStyle(AppColors.swimming)
             Text("Arms up, phone between palms")
                 .font(.headline)
             Spacer()
@@ -159,7 +154,7 @@ struct StreamlinePositionDrillView: View {
             ZStack {
                 // Target zone (vertical rectangle)
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.indigo.opacity(0.1))
+                    .fill(AppColors.swimming.opacity(0.1))
                     .frame(width: 60, height: 200)
 
                 // Perfect zone
@@ -182,7 +177,7 @@ struct StreamlinePositionDrillView: View {
                 VStack {
                     ForEach(0..<5) { i in
                         Rectangle()
-                            .fill(Color.indigo.opacity(0.3))
+                            .fill(AppColors.swimming.opacity(0.3))
                             .frame(width: 70, height: 1)
                         if i < 4 { Spacer() }
                     }
@@ -207,7 +202,7 @@ struct StreamlinePositionDrillView: View {
                 VStack {
                     Text(String(format: "%.1fs", bestHoldTime))
                         .font(.title2.bold().monospacedDigit())
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                     Text("Best Hold")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -227,7 +222,7 @@ struct StreamlinePositionDrillView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.2))
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.indigo)
+                        .fill(AppColors.swimming)
                         .frame(width: geo.size.width * (elapsedTime / targetDuration))
                 }
             }
@@ -242,7 +237,7 @@ struct StreamlinePositionDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -252,7 +247,7 @@ struct StreamlinePositionDrillView: View {
             VStack {
                 Text("\(Int(avgPosition))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(AppColors.swimming)
                 Text("Streamline Score")
                     .foregroundStyle(.secondary)
             }
@@ -269,7 +264,7 @@ struct StreamlinePositionDrillView: View {
                     Spacer()
                     Text(String(format: "%.1fs", bestHoldTime))
                         .bold()
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                 }
                 HStack {
                     Text("Average Motion")
@@ -280,45 +275,36 @@ struct StreamlinePositionDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(avgPosition))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(avgPosition >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(avgPosition >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(avgPosition >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(avgPosition >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the streamline position drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.indigo)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.swimming))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -329,9 +315,9 @@ struct StreamlinePositionDrillView: View {
     }
 
     private var positionColor: Color {
-        if currentPositionScore >= 90 { return .green }
-        if currentPositionScore >= 70 { return .yellow }
-        return .orange
+        if currentPositionScore >= 90 { return AppColors.active }
+        if currentPositionScore >= 70 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var positionFeedback: String {

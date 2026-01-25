@@ -14,7 +14,48 @@ import os
 import UIKit
 #endif
 
+// MARK: - Coach Language
+
+/// Supported languages for voice coaching
+enum CoachLanguage: String, CaseIterable, Identifiable {
+    case english = "en"
+    case german = "de"
+    case french = "fr"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .english: return "English"
+        case .german: return "Deutsch"
+        case .french: return "Français"
+        }
+    }
+
+    var flag: String {
+        switch self {
+        case .english: return "🇬🇧"
+        case .german: return "🇩🇪"
+        case .french: return "🇫🇷"
+        }
+    }
+
+    var voiceLanguageCode: String {
+        switch self {
+        case .english: return "en-GB"
+        case .german: return "de-DE"
+        case .french: return "fr-FR"
+        }
+    }
+
+    /// Get localized string for a voice cue key
+    func localizedCue(_ key: VoiceCueKey) -> String {
+        VoiceCueStrings.string(for: key, language: self)
+    }
+}
+
 @Observable
+@MainActor
 final class AudioCoachManager: AudioCoaching {
     // MARK: - Settings
 
@@ -22,8 +63,11 @@ final class AudioCoachManager: AudioCoaching {
     var volume: Float = 0.8
     var speechRate: Float = 0.5 // 0.0-1.0, default is 0.5
 
-    // Voice selection
-    var selectedVoiceIdentifier: String = "" // Empty = default en-GB voice
+    // Language selection for voice cues
+    var coachLanguage: CoachLanguage = .english
+
+    // Voice selection (within the selected language)
+    var selectedVoiceIdentifier: String = "" // Empty = default voice for language
 
     // MARK: - Riding Announcements
     var announceGaitChanges: Bool = true
@@ -84,22 +128,26 @@ final class AudioCoachManager: AudioCoaching {
     // Queue for announcements to avoid overlapping
     private var announcementQueue: [String] = []
     private var isProcessingQueue: Bool = false
+    private let maxQueueSize: Int = 10  // Prevent unbounded queue growth
 
     // MARK: - Voice Selection
 
-    /// Get the selected voice, or default to en-GB
+    /// Get the selected voice, or default to the coach language's default voice
     var selectedVoice: AVSpeechSynthesisVoice? {
+        // First try the explicitly selected voice (if it matches the current language)
         if !selectedVoiceIdentifier.isEmpty,
-           let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceIdentifier) {
+           let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceIdentifier),
+           voice.language.hasPrefix(coachLanguage.rawValue) {
             return voice
         }
-        return AVSpeechSynthesisVoice(language: "en-GB")
+        // Fall back to default voice for the coach language
+        return AVSpeechSynthesisVoice(language: coachLanguage.voiceLanguageCode)
     }
 
-    /// Get all available English voices for selection
-    static var availableVoices: [AVSpeechSynthesisVoice] {
+    /// Get all available voices for a specific language
+    static func availableVoices(for language: CoachLanguage) -> [AVSpeechSynthesisVoice] {
         AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("en") }
+            .filter { $0.language.hasPrefix(language.rawValue) }
             .sorted { voice1, voice2 in
                 // Sort by quality (enhanced first), then by name
                 if voice1.quality != voice2.quality {
@@ -107,6 +155,11 @@ final class AudioCoachManager: AudioCoaching {
                 }
                 return voice1.name < voice2.name
             }
+    }
+
+    /// Get all available English voices for selection (legacy compatibility)
+    static var availableVoices: [AVSpeechSynthesisVoice] {
+        availableVoices(for: .english)
     }
 
     /// Get display name for a voice
@@ -130,6 +183,13 @@ final class AudioCoachManager: AudioCoaching {
         case "en-IE": country = "🇮🇪"
         case "en-ZA": country = "🇿🇦"
         case "en-IN": country = "🇮🇳"
+        case "de-DE": country = "🇩🇪"
+        case "de-AT": country = "🇦🇹"
+        case "de-CH": country = "🇨🇭"
+        case "fr-FR": country = "🇫🇷"
+        case "fr-CA": country = "🇨🇦"
+        case "fr-BE": country = "🇧🇪"
+        case "fr-CH": country = "🇨🇭"
         default: country = "🌐"
         }
 
@@ -413,6 +473,11 @@ final class AudioCoachManager: AudioCoaching {
     func announce(_ message: String) {
         guard isEnabled else { return }
 
+        // Prevent unbounded queue growth - drop old announcements if queue is full
+        if announcementQueue.count >= maxQueueSize {
+            announcementQueue.removeFirst()
+        }
+
         announcementQueue.append(message)
         processQueue()
     }
@@ -472,6 +537,7 @@ extension AudioCoachManager {
         static let isEnabled = "audioCoach.isEnabled"
         static let volume = "audioCoach.volume"
         static let speechRate = "audioCoach.speechRate"
+        static let coachLanguage = "audioCoach.coachLanguage"
         static let selectedVoiceIdentifier = "audioCoach.selectedVoiceIdentifier"
 
         // Riding
@@ -527,6 +593,10 @@ extension AudioCoachManager {
         }
         if defaults.object(forKey: Keys.speechRate) != nil {
             speechRate = defaults.float(forKey: Keys.speechRate)
+        }
+        if let languageCode = defaults.string(forKey: Keys.coachLanguage),
+           let language = CoachLanguage(rawValue: languageCode) {
+            coachLanguage = language
         }
         if let voiceId = defaults.string(forKey: Keys.selectedVoiceIdentifier) {
             selectedVoiceIdentifier = voiceId
@@ -629,6 +699,7 @@ extension AudioCoachManager {
         defaults.set(isEnabled, forKey: Keys.isEnabled)
         defaults.set(volume, forKey: Keys.volume)
         defaults.set(speechRate, forKey: Keys.speechRate)
+        defaults.set(coachLanguage.rawValue, forKey: Keys.coachLanguage)
         defaults.set(selectedVoiceIdentifier, forKey: Keys.selectedVoiceIdentifier)
 
         // Riding

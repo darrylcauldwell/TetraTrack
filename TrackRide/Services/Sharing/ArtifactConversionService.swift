@@ -114,7 +114,7 @@ final class ArtifactConversionService {
         }
 
         // Running-specific data
-        let splits = session.splits.map { split in
+        let splits = (session.splits ?? []).map { split in
             SplitSummary(
                 distance: split.distance,
                 duration: split.duration,
@@ -211,7 +211,7 @@ final class ArtifactConversionService {
         artifact.distance = nil
 
         // Count total shots from ends
-        let totalShots = session.ends.flatMap { $0.shots }.count
+        let totalShots = (session.ends ?? []).flatMap { $0.shots ?? [] }.count
 
         // Shooting-specific data
         let shootingData = ShootingArtifactData(

@@ -2,8 +2,9 @@
 //  WidgetDataSyncService.swift
 //  TrackRide
 //
-//  Service to sync data from the main app to widgets via App Groups
-//  Call methods on this service when data changes to update widgets
+//  Service to sync data from the main app to widgets via App Groups.
+//  Uses ArtifactStatisticsService as the primary source for cross-device session data.
+//  Competitions and tasks use SwiftData directly since they are iPhone-only.
 //
 
 import Foundation
@@ -24,22 +25,60 @@ final class WidgetDataSyncService {
     private let tasksKey = "widget_tasks"
     private let recentSessionsKey = "widget_recent_sessions"
 
+    /// Reference to ArtifactStatisticsService for cross-device session statistics.
+    /// This is the single source of truth for training session data across devices.
+    private var artifactStatisticsService: ArtifactStatisticsService?
+
+    /// Cached UserDefaults instance for App Group (avoids creating new instance on each access)
+    private var _sharedDefaults: UserDefaults?
     private var sharedDefaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupIdentifier)
+        if _sharedDefaults == nil {
+            _sharedDefaults = UserDefaults(suiteName: appGroupIdentifier)
+        }
+        return _sharedDefaults
     }
 
     private init() {}
 
+    /// Configures the service with an ArtifactStatisticsService instance.
+    /// Call this during app initialization to enable artifact-based session sync.
+    func configure(with artifactService: ArtifactStatisticsService) {
+        self.artifactStatisticsService = artifactService
+    }
+
     // MARK: - Sync All Data
 
-    /// Syncs all widget data from the model context
+    /// Syncs all widget data from the model context.
+    /// Uses ArtifactStatisticsService for sessions when available (cross-device compatible).
+    /// Falls back to SwiftData for sessions if artifact service not configured.
     func syncAllWidgetData(context: ModelContext) {
+        // Competitions and tasks are iPhone-only, so SwiftData access is appropriate
         syncCompetitions(context: context)
         syncTasks(context: context)
-        syncRecentSessions(context: context)
+
+        // Sessions: prefer ArtifactStatisticsService for cross-device consistency
+        if let artifactService = artifactStatisticsService, artifactService.hasDataForWidgets {
+            syncRecentSessionsFromArtifacts()
+        } else {
+            // Fallback to SwiftData when artifacts not available
+            syncRecentSessions(context: context)
+        }
 
         // Reload all widget timelines
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Syncs recent sessions using ArtifactStatisticsService as the source of truth.
+    /// This ensures widget data is consistent across iPhone, iPad, and Watch.
+    func syncRecentSessionsFromArtifacts() {
+        guard let artifactService = artifactStatisticsService else {
+            Log.widgets.warning("ArtifactStatisticsService not configured, skipping artifact-based sync")
+            return
+        }
+
+        let sessions = artifactService.getWidgetRecentSessions(limit: 5)
+        saveSessions(sessions)
+        WidgetCenter.shared.reloadTimelines(ofKind: "RecentHistoryWidget")
     }
 
     // MARK: - Competition Sync
@@ -120,9 +159,11 @@ final class WidgetDataSyncService {
         defaults.set(data, forKey: tasksKey)
     }
 
-    // MARK: - Recent Sessions Sync
+    // MARK: - Recent Sessions Sync (SwiftData Fallback)
 
-    /// Syncs recent sessions (rides, runs, swims) to the widget
+    /// Syncs recent sessions (rides, runs, swims) to the widget using SwiftData.
+    /// This is the fallback path when ArtifactStatisticsService is not available.
+    /// Prefer using syncRecentSessionsFromArtifacts() for cross-device consistency.
     func syncRecentSessions(context: ModelContext) {
         var sessions: [WidgetSessionData] = []
 

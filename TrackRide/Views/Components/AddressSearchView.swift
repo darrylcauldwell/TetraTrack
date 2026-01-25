@@ -171,7 +171,7 @@ struct AddressSearchView: View {
                 if isLoading {
                     ProgressView("Getting address...")
                         .padding()
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        .background(AppColors.cardBackground, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
         }

@@ -10,6 +10,7 @@ import SwiftData
 import Charts
 
 struct CompetitionStatsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Competition.date, order: .reverse) private var competitions: [Competition]
     @State private var selectedPeriod: StatisticsPeriod = .allTime
     @State private var selectedType: CompetitionTypeFilter = .all
@@ -33,17 +34,9 @@ struct CompetitionStatsView: View {
 
     var body: some View {
         ZStack {
-            // Glass background
-            LinearGradient(
-                colors: [
-                    AppColors.light,
-                    AppColors.primary.opacity(0.03),
-                    AppColors.light.opacity(0.5)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Pure black background
+            Color(.systemBackground)
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -60,39 +53,11 @@ struct CompetitionStatsView: View {
                     CompetitionTypeFilterView(selectedType: $selectedType)
 
                     if statistics.completedCompetitions == 0 {
-                        ContentUnavailableView(
-                            "No Completed Competitions",
-                            systemImage: "chart.bar",
-                            description: Text("Complete some triathlon or tetrathlon competitions to see your statistics")
-                        )
-                        .glassCard(material: .ultraThin, cornerRadius: 20, padding: 40)
-                        .padding()
+                        emptyStateView
+                    } else if horizontalSizeClass == .regular {
+                        iPadContent
                     } else {
-                        // Apple Intelligence Insights Section - only show if available
-                        if #available(iOS 26.0, *), isAppleIntelligenceAvailable {
-                            CompetitionInsightsSection(
-                                performanceSummary: performanceSummary,
-                                trendAnalysis: trendAnalysis,
-                                weatherAnalysis: weatherAnalysis,
-                                isLoading: isLoadingInsights,
-                                error: insightsError,
-                                onRefresh: { await loadInsights() }
-                            )
-                        }
-
-                        // Overview Cards
-                        CompetitionOverviewCards(statistics: statistics)
-
-                        // Personal Bests Section
-                        CompetitionPersonalBestsView(statistics: statistics)
-
-                        // Points Trend Chart
-                        if statistics.trendPoints.count >= 2 {
-                            CompetitionTrendChart(trendPoints: statistics.trendPoints)
-                        }
-
-                        // Discipline Breakdown
-                        DisciplineBreakdownChart(statistics: statistics)
+                        iPhoneContent
                     }
                 }
                 .padding(.vertical)
@@ -120,6 +85,88 @@ struct CompetitionStatsView: View {
         }
         .onChange(of: competitions.count) { _, _ in
             refreshStatistics()
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "No Completed Competitions",
+            systemImage: "chart.bar",
+            description: Text("Complete some triathlon or tetrathlon competitions to see your statistics")
+        )
+        .glassCard(material: .ultraThin, cornerRadius: 20, padding: 40)
+        .padding()
+    }
+
+    // MARK: - iPad Layout (Side-by-Side)
+
+    private var iPadContent: some View {
+        VStack(spacing: Spacing.xl) {
+            // Apple Intelligence Insights Section (full width)
+            if #available(iOS 26.0, *), isAppleIntelligenceAvailable {
+                CompetitionInsightsSection(
+                    performanceSummary: performanceSummary,
+                    trendAnalysis: trendAnalysis,
+                    weatherAnalysis: weatherAnalysis,
+                    isLoading: isLoadingInsights,
+                    error: insightsError,
+                    onRefresh: { await loadInsights() }
+                )
+            }
+
+            // Side-by-side layout: Overview + Personal Bests | Charts
+            HStack(alignment: .top, spacing: Spacing.xl) {
+                // Left column: Overview and Personal Bests
+                VStack(spacing: Spacing.lg) {
+                    CompetitionOverviewCards(statistics: statistics)
+                    CompetitionPersonalBestsView(statistics: statistics)
+                }
+                .frame(width: 380)
+
+                // Right column: Charts
+                VStack(spacing: Spacing.lg) {
+                    if statistics.trendPoints.count >= 2 {
+                        CompetitionTrendChart(trendPoints: statistics.trendPoints)
+                    }
+                    DisciplineBreakdownChart(statistics: statistics)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, Spacing.lg)
+        }
+    }
+
+    // MARK: - iPhone Layout (Vertical)
+
+    private var iPhoneContent: some View {
+        VStack(spacing: 24) {
+            // Apple Intelligence Insights Section - only show if available
+            if #available(iOS 26.0, *), isAppleIntelligenceAvailable {
+                CompetitionInsightsSection(
+                    performanceSummary: performanceSummary,
+                    trendAnalysis: trendAnalysis,
+                    weatherAnalysis: weatherAnalysis,
+                    isLoading: isLoadingInsights,
+                    error: insightsError,
+                    onRefresh: { await loadInsights() }
+                )
+            }
+
+            // Overview Cards
+            CompetitionOverviewCards(statistics: statistics)
+
+            // Personal Bests Section
+            CompetitionPersonalBestsView(statistics: statistics)
+
+            // Points Trend Chart
+            if statistics.trendPoints.count >= 2 {
+                CompetitionTrendChart(trendPoints: statistics.trendPoints)
+            }
+
+            // Discipline Breakdown
+            DisciplineBreakdownChart(statistics: statistics)
         }
     }
 

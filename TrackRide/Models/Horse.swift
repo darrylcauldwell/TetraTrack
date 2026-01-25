@@ -291,6 +291,38 @@ final class Horse {
     @Attribute(.spotlight)
     var isArchived: Bool = false  // Soft delete to preserve history
 
+    // MARK: - Gait Detection Tuning Parameters
+    // User-adjustable parameters to fine-tune gait detection for this specific horse
+
+    /// Frequency offset for gait detection (-0.5 to +0.5 Hz)
+    /// Positive = horse has higher stride frequency than breed average
+    /// Negative = horse has lower stride frequency than breed average
+    var gaitFrequencyOffset: Double = 0.0
+
+    /// Speed sensitivity adjustment (-0.5 to +0.5)
+    /// Positive = horse transitions to faster gaits at lower speeds
+    /// Negative = horse transitions to faster gaits at higher speeds
+    var gaitSpeedSensitivity: Double = 0.0
+
+    /// Transition responsiveness (0.5 to 1.5, default 1.0)
+    /// Higher = faster gait transitions, Lower = more stable/slower transitions
+    var gaitTransitionSpeed: Double = 1.0
+
+    /// Canter detection sensitivity (0.5 to 1.5, default 1.0)
+    /// Higher = more likely to detect canter, Lower = requires clearer canter signal
+    var canterSensitivity: Double = 1.0
+
+    /// Walk/Trot threshold adjustment (-1.0 to +1.0 m/s)
+    /// Positive = higher speed needed to transition from walk to trot
+    var walkTrotThreshold: Double = 0.0
+
+    /// Trot/Canter threshold adjustment (-1.0 to +1.0 m/s)
+    /// Positive = higher speed needed to transition from trot to canter
+    var trotCanterThreshold: Double = 0.0
+
+    /// Whether user has customized gait detection for this horse
+    var hasCustomGaitSettings: Bool = false
+
     // Cached transient property (not persisted, avoids repeated UIImage creation)
     @Transient private var _cachedPhoto: UIImage??
 
@@ -364,6 +396,70 @@ final class Horse {
     /// Biomechanical priors based on breed
     var biomechanicalPriors: BiomechanicalPriors {
         typedBreed.biomechanicalPriors
+    }
+
+    /// Adjusted biomechanical priors incorporating user tuning
+    var adjustedBiomechanicalPriors: BiomechanicalPriors {
+        guard hasCustomGaitSettings else { return biomechanicalPriors }
+
+        let base = biomechanicalPriors
+        let offset = gaitFrequencyOffset
+
+        // Apply frequency offset to all gait ranges
+        return BiomechanicalPriors(
+            walkFrequencyRange: (base.walkFrequencyRange.lowerBound + offset)...(base.walkFrequencyRange.upperBound + offset),
+            trotFrequencyRange: (base.trotFrequencyRange.lowerBound + offset)...(base.trotFrequencyRange.upperBound + offset),
+            canterFrequencyRange: (base.canterFrequencyRange.lowerBound + offset)...(base.canterFrequencyRange.upperBound + offset),
+            gallopFrequencyRange: (base.gallopFrequencyRange.lowerBound + offset)...(base.gallopFrequencyRange.upperBound + offset),
+            strideCoefficients: base.strideCoefficients,
+            typicalWeight: weight ?? base.typicalWeight,
+            typicalHeight: heightHands ?? base.typicalHeight
+        )
+    }
+
+    /// Get adjusted speed bounds for gait detection
+    /// Returns (min, max) speed in m/s for each gait
+    func adjustedSpeedBounds() -> [(min: Double, max: Double)] {
+        let speedAdj = gaitSpeedSensitivity
+        let wtAdj = walkTrotThreshold
+        let tcAdj = trotCanterThreshold
+
+        // Base speed bounds (m/s): stationary, walk, trot, canter, gallop
+        // Adjusted by user preferences
+        return [
+            (0, 0.8),                                     // Stationary
+            (0.2, 2.8 + wtAdj),                           // Walk
+            (1.2 + wtAdj - speedAdj, 5.5 + tcAdj),        // Trot
+            (2.5 + tcAdj - speedAdj, 9.0),                // Canter
+            (5.0 - speedAdj, 25.0)                        // Gallop
+        ]
+    }
+
+    /// Get adjusted HMM self-transition probability
+    /// Based on transition speed preference
+    var adjustedTransitionProbability: Double {
+        // Base: 0.90, adjusted by transitionSpeed (0.5-1.5)
+        // Higher transitionSpeed = lower self-prob = faster transitions
+        let baseSelfProb = 0.90
+        let adjustment = (1.0 - gaitTransitionSpeed) * 0.05  // ±0.025
+        return max(0.80, min(0.95, baseSelfProb + adjustment))
+    }
+
+    /// Get canter detection adjustment factor
+    var canterDetectionMultiplier: Double {
+        return canterSensitivity
+    }
+
+    /// Reset all gait tuning to defaults
+    func resetGaitTuning() {
+        gaitFrequencyOffset = 0.0
+        gaitSpeedSensitivity = 0.0
+        gaitTransitionSpeed = 1.0
+        canterSensitivity = 1.0
+        walkTrotThreshold = 0.0
+        trotCanterThreshold = 0.0
+        hasCustomGaitSettings = false
+        updatedAt = Date()
     }
 
     /// Age-based adjustment factor for gait thresholds

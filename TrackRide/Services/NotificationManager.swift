@@ -29,6 +29,14 @@ final class NotificationManager: NSObject {
         return CKContainer.default()
     }
 
+    // FamilySharing zone - MUST match the zone used by ShareConnectionService and LiveTrackingService
+    // All shared records (LiveTrackingSession, SafetyAlert, ShareConnection) must be in this zone
+    private let familySharingZoneName = "FamilySharing"
+
+    private var familySharingZoneID: CKRecordZone.ID {
+        CKRecordZone.ID(zoneName: familySharingZoneName, ownerName: CKCurrentUserDefaultName)
+    }
+
     // Alert thresholds
     static let stationaryWarningThreshold: TimeInterval = 120  // 2 minutes - warning
     static let stationaryAlertThreshold: TimeInterval = 300    // 5 minutes - urgent alert
@@ -359,9 +367,18 @@ final class NotificationManager: NSObject {
     func setupCloudKitSubscriptions() async {
         guard isAuthorized, let container = container else { return }
 
+        // Setup subscriptions for private database (own records)
+        await setupPrivateDatabaseSubscriptions(container: container)
+
+        // Setup subscriptions for shared database (family members' records)
+        await setupSharedDatabaseSubscriptions(container: container)
+    }
+
+    /// Setup subscriptions for the private database (own safety alerts)
+    private func setupPrivateDatabaseSubscriptions(container: CKContainer) async {
         let privateDB = container.privateCloudDatabase
 
-        // Subscribe to safety alerts
+        // Subscribe to safety alerts in private database
         let alertSubscription = CKQuerySubscription(
             recordType: "SafetyAlert",
             predicate: NSPredicate(value: true),
@@ -382,10 +399,444 @@ final class NotificationManager: NSObject {
 
         do {
             _ = try await privateDB.save(alertSubscription)
-            Log.notifications.info("Safety alert subscription created")
+            Log.notifications.info("Private database safety alert subscription created")
         } catch {
             // Subscription may already exist
-            Log.notifications.debug("Subscription setup: \(error.localizedDescription)")
+            Log.notifications.debug("Private subscription setup: \(error.localizedDescription)")
+        }
+    }
+
+    /// Setup subscriptions for the shared database (family members' safety alerts)
+    /// CRITICAL: This enables receiving push notifications when family members have falls or stationary alerts
+    private func setupSharedDatabaseSubscriptions(container: CKContainer) async {
+        let sharedDB = container.sharedCloudDatabase
+
+        // Subscribe to ALL changes in the shared database
+        // This catches SafetyAlert records from family members
+        let databaseSubscription = CKDatabaseSubscription(subscriptionID: "shared-database-subscription")
+
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true  // Silent push to wake app
+        notificationInfo.shouldBadge = false  // We'll badge after processing
+
+        databaseSubscription.notificationInfo = notificationInfo
+
+        do {
+            _ = try await sharedDB.save(databaseSubscription)
+            Log.notifications.info("Shared database subscription created - will receive family safety alerts")
+        } catch let error as CKError {
+            if error.code == .serverRejectedRequest {
+                // Subscription already exists - this is fine
+                Log.notifications.debug("Shared database subscription already exists")
+            } else {
+                Log.notifications.error("Shared database subscription failed: \(error.localizedDescription)")
+            }
+        } catch {
+            Log.notifications.error("Shared database subscription failed: \(error.localizedDescription)")
+        }
+
+        // Also subscribe specifically to SafetyAlert records in shared zones
+        await setupSharedSafetyAlertSubscriptions(container: container)
+    }
+
+    /// Subscribe to SafetyAlert records in all shared zones
+    private func setupSharedSafetyAlertSubscriptions(container: CKContainer) async {
+        let sharedDB = container.sharedCloudDatabase
+
+        do {
+            // Get all shared zones (from family members who share with us)
+            let zones = try await sharedDB.allRecordZones()
+
+            for zone in zones {
+                // Subscribe to SafetyAlerts
+                let alertSubscriptionID = "safety-alert-\(zone.zoneID.zoneName)"
+                let alertSubscription = CKQuerySubscription(
+                    recordType: "SafetyAlert",
+                    predicate: NSPredicate(value: true),
+                    subscriptionID: alertSubscriptionID,
+                    options: [.firesOnRecordCreation, .firesOnRecordUpdate]
+                )
+                alertSubscription.zoneID = zone.zoneID
+
+                let alertNotificationInfo = CKSubscription.NotificationInfo()
+                alertNotificationInfo.titleLocalizationKey = "%1$@"
+                alertNotificationInfo.titleLocalizationArgs = ["title"]
+                alertNotificationInfo.alertLocalizationKey = "%1$@"
+                alertNotificationInfo.alertLocalizationArgs = ["message"]
+                alertNotificationInfo.soundName = "default"
+                alertNotificationInfo.shouldBadge = true
+                alertNotificationInfo.shouldSendContentAvailable = true
+
+                alertSubscription.notificationInfo = alertNotificationInfo
+
+                do {
+                    _ = try await sharedDB.save(alertSubscription)
+                    Log.notifications.info("Subscribed to SafetyAlert in zone: \(zone.zoneID.zoneName)")
+                } catch {
+                    Log.notifications.debug("Zone subscription \(alertSubscriptionID): \(error.localizedDescription)")
+                }
+
+                // Also subscribe to LiveTrackingSession updates for real-time location
+                await setupLiveTrackingSubscription(for: zone.zoneID, in: sharedDB)
+            }
+        } catch {
+            Log.notifications.error("Failed to enumerate shared zones: \(error.localizedDescription)")
+        }
+    }
+
+    /// Setup real-time push subscription for live tracking updates
+    /// Uses silent push to wake app when family member location updates
+    private func setupLiveTrackingSubscription(for zoneID: CKRecordZone.ID, in database: CKDatabase) async {
+        let subscriptionID = "live-tracking-\(zoneID.zoneName)"
+
+        // Subscribe to active LiveTrackingSession records
+        let predicate = NSPredicate(format: "isActive == YES")
+        let subscription = CKQuerySubscription(
+            recordType: "LiveTrackingSession",
+            predicate: predicate,
+            subscriptionID: subscriptionID,
+            options: [.firesOnRecordCreation, .firesOnRecordUpdate]
+        )
+        subscription.zoneID = zoneID
+
+        // Use silent push to avoid overwhelming user with notifications
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true  // Silent push to wake app
+        notificationInfo.shouldBadge = false
+        notificationInfo.soundName = nil  // Silent
+
+        subscription.notificationInfo = notificationInfo
+
+        do {
+            _ = try await database.save(subscription)
+            Log.notifications.info("Subscribed to LiveTrackingSession in zone: \(zoneID.zoneName)")
+        } catch {
+            Log.notifications.debug("Live tracking subscription \(subscriptionID): \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Remote Notification Handling
+
+    /// Handle incoming remote notifications from CloudKit
+    /// - Parameter userInfo: The notification payload
+    /// - Returns: Background fetch result indicating success/failure
+    func handleRemoteNotification(_ userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
+        Log.notifications.info("Processing remote notification payload")
+
+        // Parse the CloudKit notification
+        guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) else {
+            Log.notifications.warning("Could not parse CKNotification from payload")
+            return .noData
+        }
+
+        switch notification.notificationType {
+        case .query:
+            // Query subscription notification - likely a SafetyAlert
+            if let queryNotification = notification as? CKQueryNotification {
+                return await handleQueryNotification(queryNotification)
+            }
+
+        case .database:
+            // Database subscription notification - fetch changes
+            if let databaseNotification = notification as? CKDatabaseNotification {
+                return await handleDatabaseNotification(databaseNotification)
+            }
+
+        case .recordZone:
+            // Zone changes - refresh data
+            Log.notifications.debug("Received zone change notification")
+            await refreshFamilyData()
+            return .newData
+
+        case .readNotification:
+            // Read notification - no action needed
+            return .noData
+
+        @unknown default:
+            Log.notifications.warning("Unknown notification type: \(notification.notificationType.rawValue)")
+            return .noData
+        }
+
+        return .noData
+    }
+
+    /// Handle query subscription notifications (SafetyAlert records)
+    private func handleQueryNotification(_ notification: CKQueryNotification) async -> UIBackgroundFetchResult {
+        guard let recordID = notification.recordID else {
+            Log.notifications.warning("Query notification missing recordID")
+            return .noData
+        }
+
+        Log.notifications.info("Query notification for record: \(recordID.recordName)")
+
+        // Check if this is a SafetyAlert
+        if recordID.recordName.contains("SafetyAlert") || notification.subscriptionID?.contains("safety-alert") == true {
+            await handleSafetyAlertNotification(recordID: recordID, notification: notification)
+            return .newData
+        }
+
+        // Check if this is a LiveTrackingSession
+        if recordID.recordName.hasPrefix("live-") || notification.subscriptionID?.contains("live-tracking") == true {
+            await handleLiveTrackingNotification(recordID: recordID)
+            return .newData
+        }
+
+        return .noData
+    }
+
+    /// Handle database subscription notifications
+    private func handleDatabaseNotification(_ notification: CKDatabaseNotification) async -> UIBackgroundFetchResult {
+        let scope = notification.databaseScope
+
+        switch scope {
+        case .shared:
+            Log.notifications.info("Shared database changed - refreshing family data")
+            await refreshFamilyData()
+            // Also check for any new safety alerts
+            await fetchAndProcessNewSafetyAlerts()
+            return .newData
+
+        case .private:
+            Log.notifications.debug("Private database changed")
+            return .newData
+
+        case .public:
+            return .noData
+
+        @unknown default:
+            return .noData
+        }
+    }
+
+    /// Handle a safety alert notification - fetch the record and show local notification
+    private func handleSafetyAlertNotification(recordID: CKRecord.ID, notification: CKQueryNotification) async {
+        guard let container = container else { return }
+
+        // Determine which database to fetch from based on the zone
+        let database: CKDatabase
+        if recordID.zoneID == CKRecordZone.default().zoneID {
+            database = container.privateCloudDatabase
+        } else {
+            database = container.sharedCloudDatabase
+        }
+
+        do {
+            let record = try await database.record(for: recordID)
+
+            // Extract alert details
+            let riderName = record["riderName"] as? String ?? "Unknown Rider"
+            let alertType = record["alertType"] as? String ?? "unknown"
+            let message = record["message"] as? String ?? "Safety alert received"
+            let title = record["title"] as? String ?? "Safety Alert"
+            let latitude = record["latitude"] as? Double
+            let longitude = record["longitude"] as? Double
+
+            Log.notifications.info("Safety alert from \(riderName): \(alertType)")
+
+            // Show local notification with full details
+            await showSafetyAlertNotification(
+                title: title,
+                message: message,
+                riderName: riderName,
+                alertType: alertType,
+                latitude: latitude,
+                longitude: longitude
+            )
+
+        } catch {
+            Log.notifications.error("Failed to fetch SafetyAlert record: \(error.localizedDescription)")
+
+            // Fall back to showing notification from the push payload
+            if let title = notification.title, let body = notification.alertBody {
+                await showSafetyAlertNotification(
+                    title: title,
+                    message: body,
+                    riderName: "Family Member",
+                    alertType: "unknown",
+                    latitude: nil,
+                    longitude: nil
+                )
+            }
+        }
+    }
+
+    /// Show a local notification for a safety alert
+    private func showSafetyAlertNotification(
+        title: String,
+        message: String,
+        riderName: String,
+        alertType: String,
+        latitude: Double?,
+        longitude: Double?
+    ) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.categoryIdentifier = alertType == "fall" ? "FALL_ALERT" : "URGENT_SAFETY_ALERT"
+        content.interruptionLevel = .critical
+        content.sound = .defaultCritical
+
+        // Add location data to userInfo for handling
+        var userInfo: [String: Any] = [
+            "riderName": riderName,
+            "alertType": alertType
+        ]
+        if let lat = latitude, let lon = longitude {
+            userInfo["latitude"] = lat
+            userInfo["longitude"] = lon
+        }
+        content.userInfo = userInfo
+
+        let request = UNNotificationRequest(
+            identifier: "safety-alert-\(UUID().uuidString)",
+            content: content,
+            trigger: nil  // Deliver immediately
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            Log.notifications.info("Displayed safety alert notification for \(riderName)")
+        } catch {
+            Log.notifications.error("Failed to show safety alert notification: \(error.localizedDescription)")
+        }
+    }
+
+    /// Handle live tracking session notifications
+    private func handleLiveTrackingNotification(recordID: CKRecord.ID) async {
+        Log.notifications.debug("Live tracking update for: \(recordID.recordName)")
+        // Trigger a refresh of family locations
+        await refreshFamilyData()
+    }
+
+    /// Refresh family data (locations, sessions)
+    private func refreshFamilyData() async {
+        await MainActor.run {
+            Task {
+                await UnifiedSharingCoordinator.shared.fetchFamilyLocations()
+            }
+        }
+    }
+
+    /// Fetch and process any new safety alerts from shared database
+    private func fetchAndProcessNewSafetyAlerts() async {
+        guard let container = container else { return }
+
+        let sharedDB = container.sharedCloudDatabase
+
+        do {
+            let zones = try await sharedDB.allRecordZones()
+
+            for zone in zones {
+                // Query for unresolved safety alerts
+                let predicate = NSPredicate(format: "isResolved == NO")
+                let query = CKQuery(recordType: "SafetyAlert", predicate: predicate)
+                query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+
+                let (results, _) = try await sharedDB.records(
+                    matching: query,
+                    inZoneWith: zone.zoneID,
+                    resultsLimit: 10
+                )
+
+                for (_, result) in results {
+                    if case .success(let record) = result {
+                        // Check if this is a recent alert (within last hour)
+                        if let timestamp = record["timestamp"] as? Date,
+                           Date().timeIntervalSince(timestamp) < 3600 {
+
+                            // Process the safety alert record directly
+                            await processSafetyAlertRecord(record, database: sharedDB)
+                        }
+                    }
+                }
+            }
+        } catch {
+            Log.notifications.error("Failed to fetch safety alerts: \(error.localizedDescription)")
+        }
+    }
+
+    /// Process a safety alert record and show local notification
+    private func processSafetyAlertRecord(_ record: CKRecord, database: CKDatabase) async {
+        // Extract alert details
+        let riderName = record["riderName"] as? String ?? "Unknown Rider"
+        let alertType = record["alertType"] as? String ?? "unknown"
+        let message = record["message"] as? String ?? "Safety alert received"
+        let title = record["title"] as? String ?? "Safety Alert"
+        let latitude = record["latitude"] as? Double
+        let longitude = record["longitude"] as? Double
+
+        Log.notifications.info("Processing safety alert from \(riderName): \(alertType)")
+
+        // Show local notification with full details
+        await showSafetyAlertNotification(
+            title: title,
+            message: message,
+            riderName: riderName,
+            alertType: alertType,
+            latitude: latitude,
+            longitude: longitude
+        )
+    }
+
+    // MARK: - Pending Share Request Notifications
+
+    /// Send a local notification about a pending share request
+    func sendPendingShareRequestNotification(from senderName: String) async {
+        // Register the notification category with actions
+        await registerShareRequestCategory()
+
+        let content = UNMutableNotificationContent()
+        content.title = "Share Request"
+        content.body = "\(senderName) wants to share their rides with you"
+        content.categoryIdentifier = "SHARE_REQUEST"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        let request = UNNotificationRequest(
+            identifier: "share-request-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            Log.notifications.info("Sent pending share request notification for \(senderName)")
+        } catch {
+            Log.notifications.error("Failed to send share request notification: \(error.localizedDescription)")
+        }
+    }
+
+    /// Register the share request notification category with actions
+    private func registerShareRequestCategory() async {
+        let acceptAction = UNNotificationAction(
+            identifier: "ACCEPT_SHARE",
+            title: "Accept",
+            options: .foreground
+        )
+
+        let declineAction = UNNotificationAction(
+            identifier: "DECLINE_SHARE",
+            title: "Decline",
+            options: .destructive
+        )
+
+        let viewAction = UNNotificationAction(
+            identifier: "VIEW_REQUEST",
+            title: "View",
+            options: .foreground
+        )
+
+        let category = UNNotificationCategory(
+            identifier: "SHARE_REQUEST",
+            actions: [acceptAction, declineAction, viewAction],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+
+        // Get existing categories and add this one
+        let existingSettings = await notificationCenter.notificationSettings()
+        if existingSettings.authorizationStatus == .authorized {
+            notificationCenter.setNotificationCategories([category])
         }
     }
 
@@ -401,7 +852,14 @@ final class NotificationManager: NSObject {
         guard let container = container else { return }
         let privateDB = container.privateCloudDatabase
 
-        let record = CKRecord(recordType: "SafetyAlert")
+        // CRITICAL: Use FamilySharing zone so the alert is visible to family members
+        // who have accepted the zone-level share
+        let recordID = CKRecord.ID(
+            recordName: "alert-\(riderID)-\(Date().timeIntervalSince1970)",
+            zoneID: familySharingZoneID
+        )
+        let record = CKRecord(recordType: "SafetyAlert", recordID: recordID)
+
         record["riderName"] = riderName
         record["riderID"] = riderID
         record["alertType"] = alertType.rawValue
@@ -414,8 +872,13 @@ final class NotificationManager: NSObject {
         record["message"] = "\(riderName) has been stationary for \(Int(stationaryDuration / 60)) minutes"
 
         do {
+            // First ensure the zone exists
+            let zone = CKRecordZone(zoneID: familySharingZoneID)
+            _ = try? await privateDB.save(zone)
+
+            // Save the alert record
             _ = try await privateDB.save(record)
-            Log.notifications.info("Remote safety alert created")
+            Log.notifications.info("Remote safety alert created in FamilySharing zone")
         } catch {
             Log.notifications.error("Failed to create remote alert: \(error)")
         }
@@ -518,9 +981,25 @@ This is an automated message from TrackRide.
         guard let container = container else { return }
         let privateDB = container.privateCloudDatabase
 
-        let record = CKRecord(recordType: "SafetyAlert")
+        // Get current user ID for the rider ID
+        let riderID: String
+        do {
+            let userRecordID = try await container.userRecordID()
+            riderID = userRecordID.recordName
+        } catch {
+            riderID = UUID().uuidString
+            Log.notifications.warning("Could not get user ID for fall alert: \(error)")
+        }
+
+        // CRITICAL: Use FamilySharing zone so the alert is visible to family members
+        let recordID = CKRecord.ID(
+            recordName: "fall-\(riderID)-\(Date().timeIntervalSince1970)",
+            zoneID: familySharingZoneID
+        )
+        let record = CKRecord(recordType: "SafetyAlert", recordID: recordID)
+
         record["riderName"] = riderName
-        record["riderID"] = UUID().uuidString
+        record["riderID"] = riderID
         record["alertType"] = "fall"
         record["latitude"] = location.latitude
         record["longitude"] = location.longitude
@@ -531,10 +1010,87 @@ This is an automated message from TrackRide.
         record["message"] = "\(riderName) may have fallen. Emergency contacts notified."
 
         do {
+            // First ensure the zone exists
+            let zone = CKRecordZone(zoneID: familySharingZoneID)
+            _ = try? await privateDB.save(zone)
+
+            // Save the alert record
             _ = try await privateDB.save(record)
-            Log.notifications.info("Remote fall alert created")
+            Log.notifications.info("Remote fall alert created in FamilySharing zone")
         } catch {
             Log.notifications.error("Failed to create remote fall alert: \(error)")
+        }
+    }
+
+    // MARK: - Error Notifications
+
+    /// Send a notification when a critical sharing operation fails
+    func sendSharingErrorNotification(title: String, message: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.categoryIdentifier = "SHARING_ERROR"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        let request = UNNotificationRequest(
+            identifier: "sharing-error-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            Log.notifications.info("Sent sharing error notification: \(title)")
+        } catch {
+            Log.notifications.error("Failed to send sharing error notification: \(error.localizedDescription)")
+        }
+    }
+
+    /// Send a notification when safety alert delivery might have failed
+    func sendAlertDeliveryWarning(riderName: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Alert Delivery Uncertain"
+        content.body = "Safety alert for \(riderName) may not have reached family members. Check network connection."
+        content.categoryIdentifier = "ALERT_DELIVERY_WARNING"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        let request = UNNotificationRequest(
+            identifier: "alert-delivery-warning-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await notificationCenter.add(request)
+        } catch {
+            Log.notifications.error("Failed to send alert delivery warning: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Sync Status Notifications
+
+    /// Send a notification when CloudKit sync fails
+    func sendSyncFailureNotification(reason: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "iCloud Sync Unavailable"
+        content.body = reason
+        content.categoryIdentifier = "SYNC_STATUS"
+        content.sound = .default
+        content.interruptionLevel = .passive
+
+        let request = UNNotificationRequest(
+            identifier: "sync-failure-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            Log.notifications.info("Sent sync failure notification")
+        } catch {
+            Log.notifications.error("Failed to send sync failure notification: \(error.localizedDescription)")
         }
     }
 
@@ -609,6 +1165,7 @@ struct PendingEmergencySMS: Identifiable {
 enum SafetyAlertType: String, Codable {
     case warning = "warning"      // 2+ minutes stationary
     case urgent = "urgent"        // 5+ minutes stationary
+    case fall = "fall"            // Fall detected
     case rideStarted = "started"
     case rideEnded = "ended"
 }

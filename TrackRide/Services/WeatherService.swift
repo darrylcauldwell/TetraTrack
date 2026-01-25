@@ -9,6 +9,7 @@ import Foundation
 import WeatherKit
 import CoreLocation
 import Observation
+import os
 
 /// Weather conditions captured during an outdoor session
 struct WeatherConditions: Codable, Equatable, Sendable {
@@ -209,6 +210,7 @@ final class WeatherService: WeatherFetching {
     private let weatherService = WeatherKit.WeatherService.shared
     private var cachedWeather: (location: CLLocation, weather: WeatherConditions, time: Date)?
     private let cacheTimeout: TimeInterval = 300  // 5 minutes
+    private let fetchTimeout: TimeInterval = 15  // 15 seconds for weather fetch
 
     // MARK: - Singleton
 
@@ -233,7 +235,9 @@ final class WeatherService: WeatherFetching {
         lastError = nil
 
         do {
-            let weather = try await weatherService.weather(for: location, including: .current)
+            let weather = try await withTimeout(seconds: fetchTimeout) {
+                try await self.weatherService.weather(for: location, including: .current)
+            }
 
             let conditions = WeatherConditions(
                 timestamp: Date(),
@@ -273,7 +277,9 @@ final class WeatherService: WeatherFetching {
         lastError = nil
 
         do {
-            let weather = try await weatherService.weather(for: location, including: .current, .hourly)
+            let weather = try await withTimeout(seconds: fetchTimeout) {
+                try await self.weatherService.weather(for: location, including: .current, .hourly)
+            }
 
             // Get precipitation chance from next hour
             let nextHourPrecip = weather.1.first?.precipitationChance ?? 0.0
@@ -312,5 +318,40 @@ final class WeatherService: WeatherFetching {
     func clearCache() {
         cachedWeather = nil
         currentConditions = nil
+    }
+
+    // MARK: - Private Helpers
+
+    /// Execute an async operation with a timeout
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw WeatherServiceError.timeout
+            }
+
+            guard let result = try await group.next() else {
+                throw WeatherServiceError.timeout
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+}
+
+// MARK: - Errors
+
+enum WeatherServiceError: Error, LocalizedError {
+    case timeout
+
+    var errorDescription: String? {
+        switch self {
+        case .timeout:
+            return "Weather request timed out"
+        }
     }
 }

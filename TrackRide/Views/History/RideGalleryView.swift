@@ -94,6 +94,7 @@ struct RideGalleryView: View {
         .task {
             await loadPhotos()
         }
+        .presentationBackground(Color.black)
     }
 
     private func loadPhotos() async {
@@ -190,6 +191,7 @@ struct RideMediaGalleryView: View {
         .task {
             await loadMedia()
         }
+        .presentationBackground(Color.black)
     }
 
     private func loadMedia() async {
@@ -243,7 +245,7 @@ struct RideMediaEditorView: View {
                     Label("Add Photos", systemImage: "photo.badge.plus")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -257,7 +259,7 @@ struct RideMediaEditorView: View {
                     Label("Add Videos", systemImage: "video.badge.plus")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -317,7 +319,7 @@ struct PhotoThumbnail: View {
                         .clipped()
                 } else {
                     Rectangle()
-                        .fill(Color(.secondarySystemBackground))
+                        .fill(AppColors.cardBackground)
                         .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
                         .overlay {
                             ProgressView()
@@ -334,7 +336,7 @@ struct PhotoThumbnail: View {
                             .clipped()
                     } else {
                         Rectangle()
-                            .fill(Color(.secondarySystemBackground))
+                            .fill(AppColors.cardBackground)
                             .overlay {
                                 ProgressView()
                             }
@@ -490,7 +492,7 @@ struct VideoThumbnail: View {
                             .clipped()
                     } else {
                         Rectangle()
-                            .fill(Color(.secondarySystemBackground))
+                            .fill(AppColors.cardBackground)
                             .frame(width: maxHeight * assetAspectRatio, height: maxHeight)
                             .overlay {
                                 ProgressView()
@@ -535,7 +537,7 @@ struct VideoThumbnail: View {
                                 .clipped()
                         } else {
                             Rectangle()
-                                .fill(Color(.secondarySystemBackground))
+                                .fill(AppColors.cardBackground)
                                 .overlay {
                                     ProgressView()
                                 }

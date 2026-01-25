@@ -28,7 +28,7 @@ struct SplitTimeDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.yellow.opacity(0.1).ignoresSafeArea()
+                AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -64,7 +64,7 @@ struct SplitTimeDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -77,7 +77,7 @@ struct SplitTimeDrillView: View {
 
             Image(systemName: "timer")
                 .font(.system(size: 60))
-                .foregroundStyle(.yellow)
+                .foregroundStyle(AppColors.warning)
 
             Text("Split Time Drill")
                 .font(.title2.bold())
@@ -93,7 +93,7 @@ struct SplitTimeDrillView: View {
 
             Stepper("Targets: \(totalTargets)", value: $totalTargets, in: 3...8)
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 32)
 
@@ -107,7 +107,7 @@ struct SplitTimeDrillView: View {
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.yellow)
+                    .background(AppColors.warning)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -151,11 +151,11 @@ struct SplitTimeDrillView: View {
                 if currentTarget < totalTargets, let pos = targetPositions[safe: currentTarget] {
                     ZStack {
                         Circle()
-                            .fill(isOnTarget ? Color.green.opacity(0.3) : Color.yellow.opacity(0.3))
+                            .fill(isOnTarget ? AppColors.active.opacity(0.3) : AppColors.warning.opacity(0.3))
                             .frame(width: 60, height: 60)
 
                         Circle()
-                            .stroke(isOnTarget ? Color.green : Color.yellow, lineWidth: 4)
+                            .stroke(isOnTarget ? AppColors.active : AppColors.warning, lineWidth: 4)
                             .frame(width: 50, height: 50)
 
                         Text("\(currentTarget + 1)")
@@ -238,7 +238,7 @@ struct SplitTimeDrillView: View {
 
             Image(systemName: "flag.checkered")
                 .font(.system(size: 60))
-                .foregroundStyle(.yellow)
+                .foregroundStyle(AppColors.warning)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -249,7 +249,7 @@ struct SplitTimeDrillView: View {
             VStack(spacing: 8) {
                 Text(String(format: "%.2fs", avgSplit))
                     .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(AppColors.warning)
                 Text("Average Split Time")
                     .foregroundStyle(.secondary)
             }
@@ -277,7 +277,7 @@ struct SplitTimeDrillView: View {
                 VStack {
                     Text(String(format: "%.3fs", bestSplit))
                         .font(.title3.bold())
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                     Text("Best")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -312,7 +312,7 @@ struct SplitTimeDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -324,7 +324,7 @@ struct SplitTimeDrillView: View {
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.yellow)
+                        .background(AppColors.warning)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -340,9 +340,9 @@ struct SplitTimeDrillView: View {
     }
 
     private func splitTimeColor(_ time: TimeInterval) -> Color {
-        if time < 0.4 { return .green }
-        if time < 0.7 { return .yellow }
-        return .orange
+        if time < 0.4 { return AppColors.active }
+        if time < 0.7 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func gradeForScore(_ score: Double) -> String {
@@ -353,9 +353,9 @@ struct SplitTimeDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 70 { return .green }
-        if score >= 50 { return .yellow }
-        return .orange
+        if score >= 70 { return AppColors.active }
+        if score >= 50 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startDrill() {

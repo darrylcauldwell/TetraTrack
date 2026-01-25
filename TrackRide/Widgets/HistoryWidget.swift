@@ -363,7 +363,7 @@ struct WeeklyStatsBar: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(Color(.systemBackground).opacity(0.6))
+        .background(AppColors.cardBackground.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
@@ -449,7 +449,7 @@ struct SessionCardView: View {
             }
         }
         .padding(10)
-        .background(Color(.systemBackground).opacity(0.8))
+        .background(AppColors.cardBackground.opacity(0.8))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .frame(maxWidth: .infinity)
     }
@@ -506,7 +506,7 @@ struct SessionRowView: View {
             }
         }
         .padding(10)
-        .background(Color(.systemBackground).opacity(0.6))
+        .background(AppColors.cardBackground.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }

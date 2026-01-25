@@ -364,7 +364,7 @@ struct CompetitionSimulationView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
@@ -439,7 +439,7 @@ struct CompetitionSimulationView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Text("Transitions are timed - stay focused!")
@@ -459,7 +459,7 @@ struct CompetitionSimulationView: View {
                 warmupStat(icon: "brain.head.profile", value: "Focus", label: "Mental")
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -512,7 +512,7 @@ struct CompetitionSimulationView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -554,7 +554,7 @@ struct CompetitionSimulationView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -585,7 +585,7 @@ struct CompetitionSimulationView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -634,7 +634,7 @@ struct CompetitionSimulationView: View {
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Total time
@@ -645,7 +645,7 @@ struct CompetitionSimulationView: View {
                     .font(.headline.monospacedDigit())
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Actions
@@ -657,7 +657,7 @@ struct CompetitionSimulationView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -723,7 +723,7 @@ struct CompetitionSimulationView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
     }
 
     // MARK: - Level Badge

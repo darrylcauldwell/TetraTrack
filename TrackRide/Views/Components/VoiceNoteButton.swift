@@ -18,7 +18,7 @@ struct VoiceNoteButton: View {
             ZStack {
                 // Background circle
                 Circle()
-                    .fill(voiceService.isRecording ? Color.red : Color(.secondarySystemBackground))
+                    .fill(voiceService.isRecording ? Color.red : AppColors.cardBackground)
                     .frame(width: 56, height: 56)
 
                 // Recording level indicator
@@ -176,7 +176,7 @@ struct VoiceNoteRecordingOverlay: View {
                     .foregroundStyle(.tertiary)
             }
             .padding()
-            .background(.ultraThinMaterial)
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding()
             .transition(.move(edge: .top).combined(with: .opacity))
@@ -239,7 +239,7 @@ struct NotesSection: View {
                     TextEditor(text: $editedNotes)
                         .frame(minHeight: 100)
                         .padding(8)
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     HStack {

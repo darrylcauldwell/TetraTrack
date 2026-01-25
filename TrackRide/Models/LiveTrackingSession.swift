@@ -6,6 +6,7 @@
 import Foundation
 import SwiftData
 import CoreLocation
+import os
 
 /// A point on the route with gait information for colored polyline display
 struct RoutePoint: Codable {
@@ -57,6 +58,18 @@ final class LiveTrackingSession {
 
     // Route points (transient, decoded from routePointsData)
     @Transient var routePoints: [RoutePoint] = []
+
+    // Track if route points have changed since last encode (for efficient sync)
+    @Transient private var routePointsDirty: Bool = false
+
+    // Number of points last time we encoded (for incremental detection)
+    @Transient private var lastEncodedCount: Int = 0
+
+    // Flag indicating old route data was dropped due to buffer limit
+    @Transient var hasDroppedRouteData: Bool = false
+
+    // Timestamp of oldest dropped data (for UI notification)
+    @Transient var oldestDroppedDataTime: Date?
 
     init() {}
 
@@ -125,12 +138,25 @@ final class LiveTrackingSession {
         routePoints.append(point)
 
         // Keep last 500 points to avoid excessive data (throttled to ~10s updates = ~80min of data)
-        if routePoints.count > 500 {
-            routePoints.removeFirst(routePoints.count - 500)
+        let maxRoutePoints = 500
+        if routePoints.count > maxRoutePoints {
+            // Track that we're dropping data (for UI notification)
+            if !hasDroppedRouteData {
+                hasDroppedRouteData = true
+                oldestDroppedDataTime = routePoints.first?.timestamp
+            }
+            routePoints.removeFirst(routePoints.count - maxRoutePoints)
         }
 
-        // Encode route points to Data for persistence
-        encodeRoutePoints()
+        // Mark as dirty - will encode on next sync or when batch threshold reached
+        routePointsDirty = true
+
+        // Batch encode: only encode every 20 points to reduce CPU usage
+        // This reduces JSON encoding overhead from 500 operations to ~25
+        let encodeBatchSize = 20
+        if routePoints.count - lastEncodedCount >= encodeBatchSize || routePoints.count <= 1 {
+            encodeRoutePointsIfNeeded()
+        }
 
         // Track stationary status for safety alerts
         if speed < 0.5 {
@@ -156,6 +182,8 @@ final class LiveTrackingSession {
         stationaryDuration = 0
         routePoints = []
         routePointsData = nil
+        routePointsDirty = false
+        lastEncodedCount = 0
     }
 
     func endSession() {
@@ -164,8 +192,26 @@ final class LiveTrackingSession {
 
     // MARK: - Route Points Encoding
 
+    /// Encode route points only if they've changed since last encode
+    func encodeRoutePointsIfNeeded() {
+        guard routePointsDirty else { return }
+
+        do {
+            // Release old data before creating new to reduce peak memory usage
+            let newData = try JSONEncoder().encode(routePoints)
+            routePointsData = nil  // Explicitly release old data first
+            routePointsData = newData
+            lastEncodedCount = routePoints.count
+            routePointsDirty = false
+        } catch {
+            Log.family.error("Failed to encode route points: \(error)")
+        }
+    }
+
+    /// Force encode route points (call before CloudKit sync)
     func encodeRoutePoints() {
-        routePointsData = try? JSONEncoder().encode(routePoints)
+        routePointsDirty = true
+        encodeRoutePointsIfNeeded()
     }
 
     func decodeRoutePoints() {
@@ -173,7 +219,29 @@ final class LiveTrackingSession {
             routePoints = []
             return
         }
-        routePoints = (try? JSONDecoder().decode([RoutePoint].self, from: data)) ?? []
+
+        do {
+            routePoints = try JSONDecoder().decode([RoutePoint].self, from: data)
+            lastEncodedCount = routePoints.count
+            routePointsDirty = false
+
+            // Detect if route data was truncated by checking if first point is significantly after start
+            if let sessionStart = startTime,
+               let firstPoint = routePoints.first {
+                let gap = firstPoint.timestamp.timeIntervalSince(sessionStart)
+                // If first point is more than 2 minutes after session start, data was truncated
+                if gap > 120 {
+                    hasDroppedRouteData = true
+                    oldestDroppedDataTime = sessionStart
+                    Log.family.info("Detected truncated route data (gap: \(Int(gap))s)")
+                }
+            }
+        } catch {
+            Log.family.error("Failed to decode route points (\(data.count) bytes): \(error)")
+            // Mark that decoding failed so UI can indicate data corruption
+            hasDroppedRouteData = true
+            routePoints = []
+        }
     }
 
     /// Group route points by gait for efficient polyline rendering

@@ -205,7 +205,7 @@ struct ScoreSection<Content: View>: View {
                 content
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -287,7 +287,7 @@ struct ScoreButtons: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(value == score ? buttonColor(score) : Color(.tertiarySystemBackground))
+                        .background(value == score ? buttonColor(score) : AppColors.elevatedSurface)
                         .foregroundStyle(value == score ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -351,7 +351,7 @@ struct NoteField: View {
                 }
             }
             .padding(8)
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)

@@ -107,6 +107,7 @@ struct WorkoutListView: View {
             .onAppear {
                 initializeBuiltInWorkoutsIfNeeded()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -163,7 +164,7 @@ struct WorkoutTemplateRow: View {
                     }
                 }
 
-                Text("\(template.blocks.count) intervals • \(template.formattedTotalDuration)")
+                Text("\((template.blocks ?? []).count) intervals • \(template.formattedTotalDuration)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -183,7 +184,7 @@ struct WorkoutTemplateRow: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(12)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -223,7 +224,7 @@ struct WorkoutDetailView: View {
 
                     HStack(spacing: 16) {
                         Label(template.formattedTotalDuration, systemImage: "clock")
-                        Label("\(template.blocks.count) intervals", systemImage: "list.bullet")
+                        Label("\((template.blocks ?? []).count) intervals", systemImage: "list.bullet")
                         Label(template.difficulty.rawValue, systemImage: template.difficulty.icon)
                     }
                     .font(.caption)
@@ -426,6 +427,7 @@ struct WorkoutBuilderView: View {
                 blocks = template.sortedBlocks
             }
         }
+        .presentationBackground(Color.black)
     }
 
     private var formattedTotalDuration: String {
@@ -464,10 +466,10 @@ struct WorkoutBuilderView: View {
 
         // Clear existing blocks if editing
         if template != nil {
-            for block in workout.blocks {
+            for block in workout.blocks ?? [] {
                 modelContext.delete(block)
             }
-            workout.blocks.removeAll()
+            workout.blocks?.removeAll()
         }
 
         // Add new blocks

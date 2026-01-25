@@ -139,7 +139,7 @@ struct DisciplineScoreCardView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
 
                 // Discipline rows
                 VStack(spacing: 0) {
@@ -152,7 +152,7 @@ struct DisciplineScoreCardView: View {
                         }
                     }
                 }
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
 
                 // Placements
                 Divider()
@@ -162,13 +162,14 @@ struct DisciplineScoreCardView: View {
                     Divider().padding(.leading, 16)
                     placementRow(label: "Team Placement", text: $teamPlacementText)
                 }
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onAppear { loadExistingResults() }
             .sheet(isPresented: $showScoringInfo) {
                 ScoringInfoView()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -226,7 +227,7 @@ struct DisciplineScoreCardView: View {
                         .multilineTextAlignment(.center)
                         .frame(width: 60)
                         .padding(.vertical, 8)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(AppColors.elevatedSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .onChange(of: shootingScoreText) { _, newValue in
                             validateShootingScore(newValue)
@@ -333,7 +334,7 @@ struct DisciplineScoreCardView: View {
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -364,7 +365,7 @@ struct DisciplineScoreCardView: View {
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -394,7 +395,7 @@ struct DisciplineScoreCardView: View {
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -459,7 +460,7 @@ struct DisciplineScoreCardView: View {
                             .frame(minWidth: 32)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 8)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(AppColors.elevatedSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
 
@@ -480,7 +481,7 @@ struct DisciplineScoreCardView: View {
                             .frame(minWidth: 32)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 8)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(AppColors.elevatedSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
 
@@ -543,7 +544,7 @@ struct DisciplineScoreCardView: View {
                         .multilineTextAlignment(.center)
                         .frame(width: 60)
                         .padding(.vertical, 8)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(AppColors.elevatedSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .onChange(of: ridingPenalties) { _, _ in saveResults() }
 
@@ -580,7 +581,7 @@ struct DisciplineScoreCardView: View {
                     .multilineTextAlignment(.center)
                     .frame(width: 50)
                     .padding(.vertical, 8)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: text.wrappedValue) { _, _ in saveResults() }
 
@@ -727,7 +728,6 @@ struct DisciplineScoreCardView: View {
                 }
             } catch {
                 // Weather fetch failed silently - not critical for completion
-                print("Weather fetch failed: \(error.localizedDescription)")
             }
         }
     }

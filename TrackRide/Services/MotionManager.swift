@@ -88,10 +88,23 @@ final class MotionManager {
     private let operationQueue: OperationQueue
 
     // Signal filters for noise reduction
-    private var accelerationFilter = Vector3DFilter(alpha: 0.2)
-    private var rotationFilter = Vector3DFilter(alpha: 0.2)
+    // Alpha 0.6 provides mild smoothing without excessive lag
+    // Higher alpha = less smoothing, more responsive (better for gait detection)
+    // Lower alpha = more smoothing, more lag (can blur gait transitions)
+    private var accelerationFilter = Vector3DFilter(alpha: 0.6)
+    private var rotationFilter = Vector3DFilter(alpha: 0.6)
+
+    /// Boot time reference for accurate timestamp conversion
+    /// CoreMotion timestamps are seconds since device boot - we need this reference
+    /// to convert to Date accurately. Calculated once on init to avoid drift.
+    private let bootTimeReference: Date
 
     init() {
+        // Calculate boot time ONCE at init to avoid drift during processing
+        // This is more accurate than calculating per-sample
+        let uptime = ProcessInfo.processInfo.systemUptime
+        bootTimeReference = Date(timeIntervalSinceNow: -uptime)
+
         operationQueue = OperationQueue()
         operationQueue.name = "com.trackride.motion"
         operationQueue.maxConcurrentOperationCount = 1
@@ -128,8 +141,12 @@ final class MotionManager {
             )
 
             let quaternion = motion.attitude.quaternion
+            // Use CoreMotion's timestamp for better precision
+            // Convert from system uptime (seconds since boot) to Date
+            // Uses pre-calculated bootTimeReference to avoid per-sample drift
+            let motionDate = self.bootTimeReference.addingTimeInterval(motion.timestamp)
             let sample = MotionSample(
-                timestamp: Date(),
+                timestamp: motionDate,
                 accelerationX: filteredAccel.x,
                 accelerationY: filteredAccel.y,
                 accelerationZ: filteredAccel.z,
@@ -145,7 +162,8 @@ final class MotionManager {
                 quaternionZ: quaternion.z
             )
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.currentSample = sample
                 self.onMotionUpdate?(sample)
             }

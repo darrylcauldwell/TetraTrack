@@ -407,6 +407,7 @@ struct RiderProfileView: View {
         .sheet(isPresented: $showingShootingPBEditor) {
             ShootingPBEditorView()
         }
+        .presentationBackground(Color.black)
     }
 }
 

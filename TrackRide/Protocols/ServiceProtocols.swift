@@ -66,8 +66,52 @@ protocol FamilySharing: AnyObject {
         distance: Double,
         duration: TimeInterval
     ) async
-    func fetchFamilyLocations() async
-    func shareWithFamilyMember(email: String) async -> Bool
+    @discardableResult
+    func fetchFamilyLocations() async -> Bool
+    func shareWithFamilyMember(email: String) async -> URL?
+}
+
+// MARK: - Unified Sharing Protocol
+
+/// Protocol for the unified sharing coordinator
+/// Provides access to all sharing functionality through a single interface
+protocol UnifiedSharing: FamilySharing {
+    // Account state
+    var currentUserID: String { get }
+    var isSetupComplete: Bool { get }
+    var errorMessage: String? { get }
+
+    // Linked riders
+    var linkedRiders: [LinkedRider] { get }
+
+    // Relationship management
+    func fetchRelationships() throws -> [SharingRelationship]
+    func fetchRelationships(type: RelationshipType) throws -> [SharingRelationship]
+    func fetchFamilyMembers() throws -> [SharingRelationship]
+    func fetchEmergencyContacts() throws -> [SharingRelationship]
+    func createRelationship(
+        name: String,
+        type: RelationshipType,
+        email: String?,
+        phoneNumber: String?,
+        preset: PermissionPreset?
+    ) -> SharingRelationship?
+    func deleteRelationship(_ relationship: SharingRelationship) async
+
+    // Share link generation
+    func generateShareLink(for relationship: SharingRelationship) async -> URL?
+    func acceptShare(from url: URL) async -> Bool
+    func isCloudKitShareURL(_ url: URL) -> Bool
+
+    // Artifact sharing
+    func shareArtifact(
+        _ artifact: TrainingArtifact,
+        with relationship: SharingRelationship,
+        expiresIn: TimeInterval?
+    ) async throws -> ArtifactShare
+    func revokeArtifactShare(_ share: ArtifactShare) async throws
+    func shares(for artifactID: UUID) async -> [ArtifactShare]
+    func cleanupExpiredShares() async
 }
 
 // MARK: - Fall Detection Protocol

@@ -202,18 +202,17 @@ final class ReinAnalyzer: Resettable {
         let avgLateralAccel = lateralAccelBuffer.mean
 
         // During circular motion, centripetal acceleration points toward center
-        // Phone mounted on rider: left turn = positive X accel, right turn = negative X accel
-        // Note: This depends on phone orientation, may need calibration
+        // With phone in rider's pocket/arm: left turn creates rightward acceleration (positive)
+        // Right turn creates leftward acceleration (negative)
+        // So we negate to get: positive accel -> left rein (-1), negative accel -> right rein (+1)
 
         // Threshold for significant lateral acceleration (g-force)
         let threshold: Double = 0.05
 
-        if avgLateralAccel > threshold {
-            // Centripetal toward left = left rein
-            return min(1.0, -avgLateralAccel / 0.3)
-        } else if avgLateralAccel < -threshold {
-            // Centripetal toward right = right rein
-            return min(1.0, -avgLateralAccel / 0.3)
+        if abs(avgLateralAccel) > threshold {
+            // Scale to -1 to +1 range, negate because centripetal points outward
+            // 0.3 g is considered a strong turn
+            return max(-1.0, min(1.0, -avgLateralAccel / 0.3))
         }
 
         return 0.0

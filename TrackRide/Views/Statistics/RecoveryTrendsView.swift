@@ -70,7 +70,7 @@ struct RecoveryTrendsView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
 
@@ -188,10 +188,12 @@ struct RecoveryTrendsView: View {
                 NavigationStack {
                     AddFatigueEntryView()
                 }
+                .presentationBackground(Color.black)
             }
             .onChange(of: timeRange) { _, _ in
                 aiInsights = nil
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -350,7 +352,7 @@ struct ReadinessCard: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -380,7 +382,7 @@ struct TrendSection<Content: View>: View {
 
             content
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -583,7 +585,7 @@ struct RecoveryAIInsightsView: View {
                         .font(.caption)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     if !insights.recoveryTips.isEmpty {
@@ -627,7 +629,7 @@ struct RecoveryAIInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 

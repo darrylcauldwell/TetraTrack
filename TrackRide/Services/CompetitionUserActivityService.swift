@@ -178,30 +178,22 @@ final class CompetitionUserActivityService {
         }
 
         // Index items
-        CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
-            if let error = error {
-                print("Error indexing competitions: \(error.localizedDescription)")
-            } else {
-                print("Successfully indexed \(searchableItems.count) competitions")
-            }
+        CSSearchableIndex.default().indexSearchableItems(searchableItems) { _ in
+            // Silently handle indexing result
         }
     }
 
     /// Remove a competition from the index
     func removeFromIndex(competitionID: UUID) {
-        CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: ["competition-\(competitionID.uuidString)"]) { error in
-            if let error = error {
-                print("Error removing competition from index: \(error.localizedDescription)")
-            }
+        CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: ["competition-\(competitionID.uuidString)"]) { _ in
+            // Silently handle removal
         }
     }
 
     /// Remove all competitions from the index
     func removeAllFromIndex() {
-        CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: ["com.tetratrack.competitions"]) { error in
-            if let error = error {
-                print("Error removing competitions from index: \(error.localizedDescription)")
-            }
+        CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: ["com.tetratrack.competitions"]) { _ in
+            // Silently handle removal
         }
     }
 }

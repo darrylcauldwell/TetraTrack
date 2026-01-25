@@ -8,6 +8,7 @@
 
 import Foundation
 import Observation
+import os
 
 /// Discipline type for Watch sessions
 enum WatchSessionDiscipline: String, Codable {
@@ -108,7 +109,7 @@ final class WatchSessionStore {
     func startSession(discipline: WatchSessionDiscipline) -> WatchSession {
         let session = WatchSession(discipline: discipline)
         activeSession = session
-        print("WatchSessionStore: Started \(discipline) session")
+        Log.storage.info("Started \(discipline.rawValue) session")
         return session
     }
 
@@ -142,7 +143,7 @@ final class WatchSessionStore {
     /// Complete and save the active session
     func completeSession(locationPointsData: Data?) {
         guard var session = activeSession else {
-            print("WatchSessionStore: No active session to complete")
+            Log.storage.warning("No active session to complete")
             return
         }
 
@@ -156,14 +157,14 @@ final class WatchSessionStore {
         // Persist to disk
         savePendingSessions()
 
-        print("WatchSessionStore: Completed session - \(pendingSessions.count) pending sync")
+        Log.storage.info("Completed session - \(self.pendingSessions.count) pending sync")
     }
 
     /// Discard the active session without saving
     func discardSession() {
         guard activeSession != nil else { return }
         activeSession = nil
-        print("WatchSessionStore: Discarded active session")
+        Log.storage.info("Discarded active session")
     }
 
     // MARK: - Sync Management
@@ -180,7 +181,7 @@ final class WatchSessionStore {
             // Remove synced sessions
             pendingSessions.removeAll { $0.isSynced }
             savePendingSessions()
-            print("WatchSessionStore: Session \(id) synced and removed")
+            Log.storage.info("Session \(id) synced and removed")
         }
     }
 
@@ -199,7 +200,7 @@ final class WatchSessionStore {
         pendingSessions.removeAll { $0.syncAttempts >= maxAttempts }
         if pendingSessions.count < beforeCount {
             savePendingSessions()
-            print("WatchSessionStore: Cleaned up \(beforeCount - pendingSessions.count) failed sessions")
+            Log.storage.info("Cleaned up \(beforeCount - self.pendingSessions.count) failed sessions")
         }
     }
 
@@ -207,16 +208,16 @@ final class WatchSessionStore {
 
     private func savePendingSessions() {
         guard let url = sessionsFileURL else {
-            print("WatchSessionStore: Cannot get file URL for saving")
+            Log.storage.error("Cannot get file URL for saving")
             return
         }
 
         do {
             let data = try JSONEncoder().encode(pendingSessions)
             try data.write(to: url, options: .atomic)
-            print("WatchSessionStore: Saved \(pendingSessions.count) sessions to disk")
+            Log.storage.debug("Saved \(self.pendingSessions.count) sessions to disk")
         } catch {
-            print("WatchSessionStore: Failed to save sessions - \(error)")
+            Log.storage.error("Failed to save sessions: \(error.localizedDescription)")
         }
     }
 
@@ -229,9 +230,9 @@ final class WatchSessionStore {
         do {
             let data = try Data(contentsOf: url)
             pendingSessions = try JSONDecoder().decode([WatchSession].self, from: data)
-            print("WatchSessionStore: Loaded \(pendingSessions.count) pending sessions")
+            Log.storage.info("Loaded \(self.pendingSessions.count) pending sessions")
         } catch {
-            print("WatchSessionStore: Failed to load sessions - \(error)")
+            Log.storage.error("Failed to load sessions: \(error.localizedDescription)")
             pendingSessions = []
         }
     }
@@ -243,7 +244,7 @@ final class WatchSessionStore {
         if let url = sessionsFileURL {
             try? fileManager.removeItem(at: url)
         }
-        print("WatchSessionStore: Cleared all sessions")
+        Log.storage.info("Cleared all sessions")
     }
 
     // MARK: - Storage Info

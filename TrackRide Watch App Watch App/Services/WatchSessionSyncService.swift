@@ -9,6 +9,7 @@
 import Foundation
 import WatchConnectivity
 import Observation
+import os
 
 /// Manages syncing Watch sessions to iPhone
 @Observable
@@ -37,26 +38,26 @@ final class WatchSessionSyncService: NSObject {
     /// Attempt to sync all pending sessions to iPhone
     func syncPendingSessions() {
         guard !isSyncing else {
-            print("WatchSessionSyncService: Sync already in progress")
+            Log.sync.debug("Sync already in progress")
             return
         }
 
         guard connectivityService.isReachable else {
-            print("WatchSessionSyncService: iPhone not reachable")
+            Log.sync.debug("iPhone not reachable")
             lastSyncError = "iPhone not connected"
             return
         }
 
         let sessionsToSync = sessionStore.getSessionsForSync()
         guard !sessionsToSync.isEmpty else {
-            print("WatchSessionSyncService: No sessions to sync")
+            Log.sync.debug("No sessions to sync")
             return
         }
 
         isSyncing = true
         lastSyncError = nil
 
-        print("WatchSessionSyncService: Starting sync of \(sessionsToSync.count) sessions")
+        Log.sync.info("Starting sync of \(sessionsToSync.count) sessions")
 
         for session in sessionsToSync {
             syncSession(session)
@@ -67,7 +68,7 @@ final class WatchSessionSyncService: NSObject {
     private func syncSession(_ session: WatchSession) {
         // Encode session for transfer
         guard let sessionData = encodeSession(session) else {
-            print("WatchSessionSyncService: Failed to encode session \(session.id)")
+            Log.sync.error("Failed to encode session \(session.id)")
             sessionStore.markSyncAttemptFailed(id: session.id)
             return
         }
@@ -88,7 +89,7 @@ final class WatchSessionSyncService: NSObject {
                     DispatchQueue.main.async {
                         self?.sessionStore.markSessionSynced(id: session.id)
                         self?.lastSyncTime = Date()
-                        print("WatchSessionSyncService: Session \(session.id) synced successfully")
+                        Log.sync.info("Session \(session.id) synced successfully")
                     }
                 } else {
                     DispatchQueue.main.async {
@@ -105,14 +106,14 @@ final class WatchSessionSyncService: NSObject {
                 DispatchQueue.main.async {
                     self?.sessionStore.markSyncAttemptFailed(id: session.id)
                     self?.lastSyncError = error.localizedDescription
-                    print("WatchSessionSyncService: Sync error - \(error)")
+                    Log.sync.error("Sync error: \(error.localizedDescription)")
                     self?.checkSyncComplete()
                 }
             })
         } else {
             // Fall back to transferUserInfo for background delivery
             WCSession.default.transferUserInfo(message)
-            print("WatchSessionSyncService: Queued session \(session.id) for background transfer")
+            Log.sync.info("Queued session \(session.id) for background transfer")
             checkSyncComplete()
         }
     }
@@ -121,7 +122,7 @@ final class WatchSessionSyncService: NSObject {
         let remaining = sessionStore.getSessionsForSync().count
         if remaining == 0 {
             isSyncing = false
-            print("WatchSessionSyncService: Sync complete")
+            Log.sync.info("Sync complete")
         }
     }
 
@@ -176,7 +177,7 @@ final class WatchSessionSyncService: NSObject {
         // Auto-sync pending sessions when phone connects
         let pendingCount = sessionStore.pendingCount
         if pendingCount > 0 {
-            print("WatchSessionSyncService: iPhone connected, syncing \(pendingCount) pending sessions")
+            Log.sync.info("iPhone connected, syncing \(pendingCount) pending sessions")
             syncPendingSessions()
         }
     }

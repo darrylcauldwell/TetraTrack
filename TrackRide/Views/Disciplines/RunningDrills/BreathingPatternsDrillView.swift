@@ -62,7 +62,7 @@ struct BreathingPatternsDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.cyan.opacity(0.1).ignoresSafeArea()
+                AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -102,7 +102,7 @@ struct BreathingPatternsDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -115,7 +115,7 @@ struct BreathingPatternsDrillView: View {
 
             Image(systemName: "wind")
                 .font(.system(size: 60))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(AppColors.running)
 
             Text("Rhythmic Breathing")
                 .font(.title2.bold())
@@ -156,19 +156,14 @@ struct BreathingPatternsDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.cyan)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.running))
+            .accessibilityLabel("Start Breathing Patterns Drill")
+            .accessibilityHint("Begins the rhythmic breathing exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -181,7 +176,7 @@ struct BreathingPatternsDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(AppColors.running)
             Text("Start running in place")
                 .font(.headline)
             Spacer()
@@ -199,7 +194,7 @@ struct BreathingPatternsDrillView: View {
             // Breath phase indicator
             ZStack {
                 Circle()
-                    .fill(breathPhase == .inhale ? Color.cyan.opacity(0.3) : Color.orange.opacity(0.3))
+                    .fill(breathPhase == .inhale ? AppColors.swimming.opacity(Opacity.mediumHeavy) : AppColors.running.opacity(Opacity.mediumHeavy))
                     .frame(width: 180, height: 180)
                     .scaleEffect(breathPhase == .inhale ? 1.2 : 0.9)
                     .animation(.easeInOut(duration: 0.5), value: breathPhase)
@@ -207,11 +202,11 @@ struct BreathingPatternsDrillView: View {
                 VStack(spacing: 8) {
                     Image(systemName: breathPhase == .inhale ? "arrow.down" : "arrow.up")
                         .font(.system(size: 40))
-                        .foregroundStyle(breathPhase == .inhale ? .cyan : .orange)
+                        .foregroundStyle(breathPhase == .inhale ? AppColors.swimming : AppColors.running)
 
                     Text(breathPhase.rawValue.uppercased())
                         .font(.title.bold())
-                        .foregroundStyle(breathPhase == .inhale ? .cyan : .orange)
+                        .foregroundStyle(breathPhase == .inhale ? AppColors.swimming : AppColors.running)
                 }
             }
 
@@ -254,7 +249,7 @@ struct BreathingPatternsDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -264,7 +259,7 @@ struct BreathingPatternsDrillView: View {
             VStack {
                 Text("\(Int(avgScore))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(AppColors.running)
                 Text("Breathing Score")
                     .foregroundStyle(.secondary)
             }
@@ -291,45 +286,36 @@ struct BreathingPatternsDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(avgScore))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(avgScore >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(avgScore >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(avgScore >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(avgScore >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the breathing patterns drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.cyan)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.running))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -339,7 +325,7 @@ struct BreathingPatternsDrillView: View {
     }
 
     private var phaseColor: Color {
-        breathPhase == .inhale ? .cyan : .orange
+        breathPhase == .inhale ? AppColors.swimming : AppColors.running
     }
 
     private func gradeForScore(_ score: Double) -> String {

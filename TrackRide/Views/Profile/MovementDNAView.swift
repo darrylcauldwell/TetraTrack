@@ -60,6 +60,7 @@ struct MovementDNAView: View {
         .onAppear {
             ensureProfileExists()
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Header Section
@@ -137,7 +138,7 @@ struct MovementDNAView: View {
                 .padding(.horizontal)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -218,12 +219,12 @@ struct MovementDNAView: View {
                     }
                 }
                 .padding()
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -310,7 +311,7 @@ struct MovementDNAView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -339,7 +340,7 @@ struct MovementDNAView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 

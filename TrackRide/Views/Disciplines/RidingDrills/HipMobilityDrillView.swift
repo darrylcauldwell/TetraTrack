@@ -33,7 +33,7 @@ struct HipMobilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.pink.opacity(0.1).ignoresSafeArea()
+                AppColors.pink.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -76,7 +76,7 @@ struct HipMobilityDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -89,7 +89,7 @@ struct HipMobilityDrillView: View {
 
             Image(systemName: "figure.flexibility")
                 .font(.system(size: 60))
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.pink)
 
             Text("Hip Mobility Drill")
                 .font(.title2.bold())
@@ -122,19 +122,14 @@ struct HipMobilityDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.pink)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.pink))
+            .accessibilityLabel("Start Hip Mobility Drill")
+            .accessibilityHint("Begins the hip mobility exercise with countdown")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -147,7 +142,7 @@ struct HipMobilityDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.pink)
             Text("Begin \(circleDirection.rawValue.lowercased()) hip circles")
                 .font(.headline)
             Spacer()
@@ -185,7 +180,7 @@ struct HipMobilityDrillView: View {
                         path.addLine(to: point)
                     }
                 }
-                .stroke(Color.pink.opacity(0.5), lineWidth: 3)
+                .stroke(AppColors.pink.opacity(0.5), lineWidth: 3)
 
                 // Current position indicator
                 Circle()
@@ -198,7 +193,7 @@ struct HipMobilityDrillView: View {
 
                 // Center point
                 Circle()
-                    .fill(.pink)
+                    .fill(AppColors.pink)
                     .frame(width: 8, height: 8)
 
                 // Direction indicator
@@ -246,7 +241,7 @@ struct HipMobilityDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -254,7 +249,7 @@ struct HipMobilityDrillView: View {
             VStack {
                 Text("\(Int(motionAnalyzer.scorer.overallScore))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(AppColors.pink)
                 Text("Hip Mobility Score")
                     .foregroundStyle(.secondary)
             }
@@ -276,33 +271,24 @@ struct HipMobilityDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     hipPath = []
                     countdown = 3
                     motionAnalyzer.reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the hip mobility drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.pink)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.pink))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -317,7 +303,7 @@ struct HipMobilityDrillView: View {
         }
         .frame(width: 70)
         .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -326,9 +312,9 @@ struct HipMobilityDrillView: View {
         let targetDistance = 0.15 // Radians for target circle
         let deviation = abs(distance - targetDistance)
 
-        if deviation < 0.05 { return .green }
-        if deviation < 0.1 { return .yellow }
-        return .orange
+        if deviation < 0.05 { return AppColors.active }
+        if deviation < 0.1 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var feedbackMessage: String {
@@ -355,9 +341,7 @@ struct HipMobilityDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        StabilityColors.gradeColor(for: score / 100.0)
     }
 
     private func startCountdown() {

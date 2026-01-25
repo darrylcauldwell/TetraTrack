@@ -2,17 +2,24 @@
 //  TrainingHistoryView.swift
 //  TrackRide
 //
-//  Session History view with integrated cross-session insights
+//  Unified Training History view with integrated cross-session insights
+//  and shooting pattern history with thumbnails
 //
 
 import SwiftUI
 import SwiftData
 import WidgetKit
+import Charts
 
 // MARK: - Session History View
 
 struct SessionHistoryView: View {
+    // Optional initial values for navigation from other views
+    var initialDiscipline: DisciplineFilter?
+    var onDismiss: (() -> Void)?
+
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Ride.startDate, order: .reverse) private var rides: [Ride]
     @Query(sort: \RunningSession.startDate, order: .reverse) private var runningSessions: [RunningSession]
     @Query(sort: \SwimmingSession.startDate, order: .reverse) private var swimmingSessions: [SwimmingSession]
@@ -20,6 +27,19 @@ struct SessionHistoryView: View {
 
     @State private var selectedDiscipline: DisciplineFilter = .all
     @State private var selectedTab: HistoryTab = .sessions
+    @State private var selectedItem: SessionHistoryItem?
+    @State private var hasAppliedInitialValues = false
+
+    // Shooting history state
+    @State private var showingShootingHistory = false
+
+    init(
+        initialDiscipline: DisciplineFilter? = nil,
+        onDismiss: (() -> Void)? = nil
+    ) {
+        self.initialDiscipline = initialDiscipline
+        self.onDismiss = onDismiss
+    }
 
     enum HistoryTab: String, CaseIterable {
         case sessions = "Sessions"
@@ -81,6 +101,207 @@ struct SessionHistoryView: View {
     }
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
+            }
+        }
+        .navigationTitle("Training History")
+        .toolbar {
+            if let dismissAction = onDismiss {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismissAction() }
+                }
+            }
+            if selectedTab == .sessions && selectedDiscipline != .shooting && !allSessions.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    EditButton()
+                }
+            }
+        }
+        .onAppear {
+            // Apply initial values if provided
+            if !hasAppliedInitialValues {
+                if let discipline = initialDiscipline {
+                    selectedDiscipline = discipline
+                    // Auto-open shooting history when navigating with shooting discipline
+                    if discipline == .shooting {
+                        showingShootingHistory = true
+                    }
+                }
+                hasAppliedInitialValues = true
+            }
+        }
+        .sheet(isPresented: $showingShootingHistory) {
+            ShootingHistoryAggregateView(onDismiss: { showingShootingHistory = false })
+        }
+    }
+
+    // MARK: - iPad Layout (Split View)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            VStack(spacing: 0) {
+                // Tab picker in sidebar
+                Picker("View", selection: $selectedTab) {
+                    ForEach(HistoryTab.allCases, id: \.self) { tab in
+                        Label(tab.rawValue, systemImage: tab.icon)
+                            .tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding()
+
+                if selectedTab == .sessions {
+                    iPadSessionsList
+                } else {
+                    SessionInsightsView(
+                        rides: rides,
+                        runningSessions: runningSessions,
+                        swimmingSessions: swimmingSessions,
+                        shootingSessions: shootingSessions
+                    )
+                }
+            }
+            .navigationTitle("Session History")
+        } detail: {
+            if selectedTab == .sessions {
+                if let item = selectedItem {
+                    detailView(for: item)
+                } else {
+                    ContentUnavailableView(
+                        "Select a Session",
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text("Choose a session to view details")
+                    )
+                }
+            } else {
+                ContentUnavailableView(
+                    "Session Insights",
+                    systemImage: "chart.line.uptrend.xyaxis",
+                    description: Text("View cross-session insights in the left panel")
+                )
+            }
+        }
+    }
+
+    private var iPadSessionsList: some View {
+        VStack(spacing: 0) {
+            // Discipline filter dropdown
+            HStack {
+                Menu {
+                    ForEach(DisciplineFilter.allCases, id: \.self) { filter in
+                        Button {
+                            selectedDiscipline = filter
+                        } label: {
+                            Label(filter.rawValue, systemImage: filter.icon)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: selectedDiscipline.icon)
+                            .foregroundStyle(selectedDiscipline.color)
+                        Text(selectedDiscipline.rawValue)
+                            .fontWeight(.medium)
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding()
+
+            // Show shooting history button when Shooting is selected
+            if selectedDiscipline == .shooting {
+                shootingHistoryButton
+            } else if allSessions.isEmpty {
+                ContentUnavailableView(
+                    "No Sessions",
+                    systemImage: "clock",
+                    description: Text("Your completed sessions will appear here")
+                )
+            } else {
+                List(selection: $selectedItem) {
+                    ForEach(allSessions) { item in
+                        SessionHistoryRow(item: item)
+                            .tag(item)
+                    }
+                    .onDelete(perform: deleteSessions)
+                }
+                .listStyle(.sidebar)
+            }
+        }
+    }
+
+    // MARK: - Shooting History Button
+
+    private var shootingHistoryButton: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "target")
+                .font(.system(size: 64))
+                .foregroundStyle(.red)
+
+            Text("Shooting History")
+                .font(.title2.bold())
+
+            Text("View detailed shot patterns, trends, and insights from your shooting sessions.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Button {
+                showingShootingHistory = true
+            } label: {
+                Label("Open Shooting History", systemImage: "arrow.up.right")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(Color.red)
+                    .clipShape(Capsule())
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func detailView(for item: SessionHistoryItem) -> some View {
+        switch item.discipline {
+        case .riding:
+            if let ride = item.ride {
+                RideDetailView(ride: ride)
+            }
+        case .running:
+            if let session = item.runningSession {
+                RunningSessionDetailView(session: session)
+            }
+        case .swimming:
+            if let session = item.swimmingSession {
+                SwimmingSessionDetailView(session: session)
+            }
+        case .shooting:
+            if let session = item.shootingSession {
+                ShootingSessionDetailView(session: session)
+            }
+        case .all:
+            EmptyView()
+        }
+    }
+
+    // MARK: - iPhone Layout (Stack)
+
+    private var iPhoneLayout: some View {
         VStack(spacing: 0) {
             // Tab picker for Sessions vs Session Insights
             Picker("View", selection: $selectedTab) {
@@ -102,12 +323,6 @@ struct SessionHistoryView: View {
                     swimmingSessions: swimmingSessions,
                     shootingSessions: shootingSessions
                 )
-            }
-        }
-        .navigationTitle("Session History")
-        .toolbar {
-            if selectedTab == .sessions && !allSessions.isEmpty {
-                EditButton()
             }
         }
     }
@@ -138,7 +353,7 @@ struct SessionHistoryView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
@@ -147,7 +362,10 @@ struct SessionHistoryView: View {
             }
             .padding()
 
-            if allSessions.isEmpty {
+            // Show shooting history button when Shooting is selected
+            if selectedDiscipline == .shooting {
+                shootingHistoryButton
+            } else if allSessions.isEmpty {
                 ContentUnavailableView(
                     "No Sessions",
                     systemImage: "clock",
@@ -190,6 +408,8 @@ struct SessionHistoryView: View {
         }
     }
 
+    // MARK: - Delete Sessions
+
     private func deleteSessions(at offsets: IndexSet) {
         for index in offsets {
             let item = allSessions[index]
@@ -209,7 +429,15 @@ struct SessionHistoryView: View {
 
 // MARK: - Session History Item
 
-struct SessionHistoryItem: Identifiable {
+struct SessionHistoryItem: Identifiable, Hashable {
+    static func == (lhs: SessionHistoryItem, rhs: SessionHistoryItem) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
     let id: UUID
     let discipline: SessionHistoryView.DisciplineFilter
     let date: Date
@@ -263,7 +491,7 @@ struct SessionHistoryItem: Identifiable {
         self.name = shootingSession.name.isEmpty ? "Shooting" : shootingSession.name
         self.duration = shootingSession.totalDuration
         self.primaryMetric = "\(shootingSession.totalScore) pts"
-        self.secondaryMetric = "\(shootingSession.ends.count) ends"
+        self.secondaryMetric = "\((shootingSession.ends ?? []).count) ends"
         self.shootingSession = shootingSession
     }
 
@@ -468,7 +696,7 @@ struct SessionInsightsView: View {
             movementDomainSynthesis
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -736,7 +964,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -791,7 +1019,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1051,7 +1279,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1135,7 +1363,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1226,7 +1454,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1305,7 +1533,7 @@ struct SessionInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1386,14 +1614,14 @@ struct SessionInsightsView: View {
     }
 
     private func computeShootingDegradation() -> (degradationCount: Int, totalSessions: Int) {
-        let sessionsWithMultipleEnds = shootingSessions.filter { $0.ends.count >= 3 }
+        let sessionsWithMultipleEnds = shootingSessions.filter { ($0.ends ?? []).count >= 3 }
         guard sessionsWithMultipleEnds.count >= 2 else {
             return (0, sessionsWithMultipleEnds.count)
         }
 
         var degradationCount = 0
         for session in sessionsWithMultipleEnds {
-            let ends = session.ends.sorted(by: { $0.orderIndex < $1.orderIndex })
+            let ends = (session.ends ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
             if ends.count >= 3 {
                 let halfCount = ends.count / 2
                 let firstHalf = Array(ends.prefix(halfCount))
@@ -1645,6 +1873,408 @@ struct TransferInsightRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Shooting History Supporting Views
+
+private struct ShootingHistoryStatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(color)
+
+            Text(value)
+                .font(.title3.bold())
+                .foregroundStyle(.primary)
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppColors.elevatedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct ShootingThumbnailView: View {
+    let pattern: StoredTargetPattern
+
+    @State private var thumbnailImage: UIImage?
+    @State private var hasLoadedThumbnail = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let thumbnail = thumbnailImage {
+                ShootingImageWithHoleOverlay(
+                    image: thumbnail,
+                    normalizedShots: pattern.normalizedShots,
+                    clusterMpi: CGPoint(x: pattern.clusterMpiX, y: pattern.clusterMpiY)
+                )
+                .frame(height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else if !hasLoadedThumbnail {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray6))
+                    .frame(height: 280)
+                    .overlay {
+                        ProgressView()
+                    }
+            } else {
+                shootingPatternCanvas
+                Text("Target photo not available on this device")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() {
+        thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
+        hasLoadedThumbnail = true
+    }
+
+    private var shootingPatternCanvas: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let maxRadius = min(size.width, size.height) / 2 - 20
+
+            // Background
+            let bgCircle = Path(ellipseIn: CGRect(
+                x: center.x - maxRadius,
+                y: center.y - maxRadius,
+                width: maxRadius * 2,
+                height: maxRadius * 2
+            ))
+            context.fill(bgCircle, with: .color(Color(.systemGray5)))
+
+            // Concentric rings
+            for i in 1...5 {
+                let radius = maxRadius * CGFloat(i) / 5
+                let circle = Path(ellipseIn: CGRect(
+                    x: center.x - radius,
+                    y: center.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                ))
+                context.stroke(circle, with: .color(.gray.opacity(0.5)), lineWidth: 1)
+            }
+
+            // Crosshair
+            var hLine = Path()
+            hLine.move(to: CGPoint(x: center.x - 10, y: center.y))
+            hLine.addLine(to: CGPoint(x: center.x + 10, y: center.y))
+            context.stroke(hLine, with: .color(.gray), lineWidth: 1)
+
+            var vLine = Path()
+            vLine.move(to: CGPoint(x: center.x, y: center.y - 10))
+            vLine.addLine(to: CGPoint(x: center.x, y: center.y + 10))
+            context.stroke(vLine, with: .color(.gray), lineWidth: 1)
+
+            // Shot holes
+            for shot in pattern.normalizedShots {
+                let x = center.x + shot.x * maxRadius
+                let y = center.y + shot.y * maxRadius
+
+                let outerCircle = Path(ellipseIn: CGRect(x: x - 7, y: y - 7, width: 14, height: 14))
+                context.stroke(outerCircle, with: .color(.white), lineWidth: 2)
+
+                let innerCircle = Path(ellipseIn: CGRect(x: x - 5, y: y - 5, width: 10, height: 10))
+                context.fill(innerCircle, with: .color(.red))
+            }
+
+            // MPI marker
+            let mpiX = center.x + pattern.clusterMpiX * maxRadius
+            let mpiY = center.y + pattern.clusterMpiY * maxRadius
+
+            let mpiOuter = Path(ellipseIn: CGRect(x: mpiX - 10, y: mpiY - 10, width: 20, height: 20))
+            context.stroke(mpiOuter, with: .color(.yellow), lineWidth: 2)
+
+            let mpiCenter = Path(ellipseIn: CGRect(x: mpiX - 4, y: mpiY - 4, width: 8, height: 8))
+            context.fill(mpiCenter, with: .color(.yellow))
+        }
+        .frame(height: 280)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+}
+
+private struct ShootingImageWithHoleOverlay: View {
+    let image: UIImage
+    let normalizedShots: [CGPoint]
+    let clusterMpi: CGPoint
+
+    private func calculateLayout(frameSize: CGSize) -> (displaySize: CGSize, offset: CGSize) {
+        let imageSize = image.size
+        let imageAspect = imageSize.width / imageSize.height
+        let frameAspect = frameSize.width / frameSize.height
+
+        if imageAspect > frameAspect {
+            let width = frameSize.width
+            let height = width / imageAspect
+            return (CGSize(width: width, height: height), CGSize(width: 0, height: (frameSize.height - height) / 2))
+        } else {
+            let height = frameSize.height
+            let width = height * imageAspect
+            return (CGSize(width: width, height: height), CGSize(width: (frameSize.width - width) / 2, height: 0))
+        }
+    }
+
+    private func denormalizedPosition(_ normalized: CGPoint, displaySize: CGSize) -> CGPoint {
+        let centerX = displaySize.width / 2
+        let centerY = displaySize.height / 2
+        let maxRadius = min(displaySize.width, displaySize.height) / 2
+        return CGPoint(
+            x: centerX + (normalized.x * maxRadius),
+            y: centerY + (normalized.y * maxRadius)
+        )
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let layout = calculateLayout(frameSize: geometry.size)
+
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: layout.displaySize.width, height: layout.displaySize.height)
+
+                ForEach(Array(normalizedShots.enumerated()), id: \.offset) { _, normalizedPoint in
+                    let pos = denormalizedPosition(normalizedPoint, displaySize: layout.displaySize)
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
+                        .shadow(color: .black.opacity(0.5), radius: 1)
+                        .position(x: pos.x, y: pos.y)
+                }
+
+                let mpiPos = denormalizedPosition(clusterMpi, displaySize: layout.displaySize)
+                Circle()
+                    .stroke(Color.yellow, lineWidth: 2)
+                    .frame(width: 16, height: 16)
+                    .position(x: mpiPos.x, y: mpiPos.y)
+
+                Circle()
+                    .fill(Color.yellow)
+                    .frame(width: 6, height: 6)
+                    .position(x: mpiPos.x, y: mpiPos.y)
+            }
+            .frame(width: layout.displaySize.width, height: layout.displaySize.height)
+            .offset(x: layout.offset.width, y: layout.offset.height)
+        }
+    }
+}
+
+private struct ShootingDayGroup: View {
+    let date: Date
+    let patterns: [StoredTargetPattern]
+    let onSelectPattern: (StoredTargetPattern) -> Void
+
+    private var dateHeader: String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            formatter.dateFormat = "EEEE, MMMM d"
+            return formatter.string(from: date)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(dateHeader)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("\(patterns.count) target\(patterns.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if patterns.count == 1 {
+                ShootingSessionCard(pattern: patterns[0], onTap: { onSelectPattern(patterns[0]) })
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(patterns) { pattern in
+                            ShootingSessionCard(pattern: pattern, onTap: { onSelectPattern(pattern) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ShootingSessionCard: View {
+    let pattern: StoredTargetPattern
+    let onTap: () -> Void
+
+    @State private var thumbnailImage: UIImage?
+
+    private var sessionTypeColor: Color {
+        switch pattern.sessionType.color {
+        case "blue": return .blue
+        case "orange": return .orange
+        case "purple": return .purple
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack {
+                    if let thumbnail = thumbnailImage {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 120)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(AppColors.elevatedSurface)
+                            .frame(width: 120, height: 120)
+                            .overlay {
+                                Image(systemName: "target")
+                                    .font(.title)
+                                    .foregroundStyle(.secondary)
+                            }
+                    }
+
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Circle()
+                                .fill(sessionTypeColor)
+                                .frame(width: 10, height: 10)
+                                .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pattern.timestamp, format: .dateTime.hour().minute())
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 4) {
+                        Text("\(pattern.shotCount) shots")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 120, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
+        }
+    }
+}
+
+private struct ShootingPatternDetailView: View {
+    let pattern: StoredTargetPattern
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var thumbnailImage: UIImage?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(spacing: 8) {
+                        Text(pattern.timestamp, format: .dateTime.weekday().month().day().year())
+                            .font(.headline)
+                        Text(pattern.sessionType.displayName)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+
+                    if let thumbnail = thumbnailImage {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal)
+                    }
+
+                    HStack(spacing: 20) {
+                        VStack {
+                            Text("\(pattern.shotCount)")
+                                .font(.title2.bold())
+                            Text("Shots")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Divider()
+                            .frame(height: 40)
+
+                        VStack {
+                            Text(String(format: "%.2f", pattern.clusterRadius))
+                                .font(.title2.bold())
+                            Text("Spread")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Divider()
+                            .frame(height: 40)
+
+                        VStack {
+                            Text("\(pattern.outlierCount)")
+                                .font(.title2.bold())
+                            Text("Outliers")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
+            }
+            .navigationTitle("Session Detail")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onAppear {
+                thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
+            }
+        }
     }
 }
 

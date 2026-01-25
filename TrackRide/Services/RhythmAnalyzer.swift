@@ -2,17 +2,19 @@
 //  RhythmAnalyzer.swift
 //  TrackRide
 //
-//  Comprehensive rhythm analysis using all available sensor data:
-//  - Accelerometer (X, Y, Z axes) for stride impact and bounce detection
-//  - Gyroscope (rotation rates) for body rotation patterns
-//  - Attitude (pitch, roll) for rider movement patterns
+//  FFT-based rhythm analysis using spectral methods.
+//  Per gait-logic.md: "Never use peak detection as these fail when the rider changes seat"
 //
-//  Rhythm is calculated by analyzing the consistency of stride cycles
-//  detected across multiple sensor channels and fusing them for accuracy.
+//  Uses frequency-domain analysis of:
+//  - Vertical acceleration (primary bounce signal)
+//  - Pitch rate (gyroscope rotationX, not Euler pitch angle)
+//  - Yaw rate for rotational rhythm
+//
+//  Rhythm consistency is measured via spectral concentration at the stride frequency.
 
 import Foundation
 
-/// Analyzes motion data to calculate rhythm consistency score using all available sensors
+/// Analyzes motion data to calculate rhythm consistency score using FFT-based spectral analysis
 final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
     // MARK: - Public Properties
 
@@ -37,13 +39,22 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
 
     // MARK: - Configuration
 
-    /// Window size for rhythm analysis (samples at 50Hz)
-    private let analysisWindowSize: Int = 300  // 6 seconds
+    /// Window size for FFT analysis (256 samples at 100Hz = 2.56s)
+    private let fftWindowSize: Int = 256
 
-    /// Minimum stride cycles needed for analysis
-    private let minimumStrideCycles: Int = 4
+    /// Sample rate (Hz)
+    private let sampleRate: Double = 100.0
 
-    /// Expected stride rate ranges per gait (strides/minute)
+    /// Expected stride frequency ranges per gait (Hz)
+    /// Converted from strides/minute: divide by 60
+    private let gaitFrequencyRanges: [GaitType: ClosedRange<Double>] = [
+        .walk: 0.83...1.08,     // 50-65 strides/min
+        .trot: 1.17...1.42,     // 70-85 strides/min
+        .canter: 1.50...1.83,   // 90-110 strides/min
+        .gallop: 1.83...2.33    // 110-140 strides/min
+    ]
+
+    /// Expected stride rate ranges per gait (strides/minute) for display
     private let gaitStrideRates: [GaitType: ClosedRange<Double>] = [
         .walk: 50...65,
         .trot: 70...85,
@@ -51,36 +62,25 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
         .gallop: 110...140
     ]
 
-    // MARK: - Multi-Channel Sensor Buffers
+    // MARK: - FFT Processing
 
-    /// Vertical acceleration (primary bounce signal)
-    private var verticalAccelBuffer: TimestampedRollingBuffer<Double>
+    /// FFT processor for spectral analysis
+    private let fftProcessor: FFTProcessor
 
-    /// Combined acceleration magnitude (overall movement intensity)
-    private var accelMagnitudeBuffer: TimestampedRollingBuffer<Double>
+    /// Analysis interval (don't run FFT every sample)
+    private let analysisInterval: TimeInterval = 0.25  // 4 Hz
+    private var lastAnalysisTime: Date = .distantPast
 
-    /// Forward acceleration (forward/back motion)
-    private var forwardAccelBuffer: TimestampedRollingBuffer<Double>
+    // MARK: - Sensor Buffers (use simple arrays for FFT input)
 
-    /// Pitch rate (forward/back tilting)
-    private var pitchBuffer: TimestampedRollingBuffer<Double>
+    /// Vertical acceleration buffer for FFT
+    private var verticalBuffer: [Double] = []
 
-    /// Roll rate (side-to-side tilting)
-    private var rollBuffer: TimestampedRollingBuffer<Double>
+    /// Pitch rate buffer (gyroscope rotationX, NOT Euler pitch angle)
+    private var pitchRateBuffer: [Double] = []
 
-    /// Yaw rate (rotation around vertical axis)
-    private var yawRateBuffer: TimestampedRollingBuffer<Double>
-
-    /// Rotation magnitude (overall rotational movement)
-    private var rotationMagnitudeBuffer: TimestampedRollingBuffer<Double>
-
-    // MARK: - Stride Detection State
-
-    /// Detected stride timestamps from each channel
-    private var verticalStrideTimes: [Date] = []
-    private var magnitudeStrideTimes: [Date] = []
-    private var pitchStrideTimes: [Date] = []
-    private var rotationStrideTimes: [Date] = []
+    /// Yaw rate buffer for rotational rhythm
+    private var yawRateBuffer: [Double] = []
 
     /// Per-rein rhythm tracking
     private var reinScores = ReinScoreTracker()
@@ -89,66 +89,54 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
     private var currentRein: ReinDirection = .straight
     private var currentGait: GaitType = .stationary
 
-    /// Zero-crossing detection state for each channel
-    private var verticalLastPositive: Bool = false
-    private var magnitudeLastAboveThreshold: Bool = false
-    private var pitchLastPositive: Bool = false
-    private var rotationLastAboveThreshold: Bool = false
-
-    /// Running statistics for adaptive thresholds
-    private var verticalMean: Double = 0
-    private var verticalStdDev: Double = 0.1
-    private var magnitudeMean: Double = 0
-    private var magnitudeStdDev: Double = 0.1
+    /// Last sample timestamp for timing
+    private var lastSampleTime: Date?
 
     init() {
-        verticalAccelBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        accelMagnitudeBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        forwardAccelBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        pitchBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        rollBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        yawRateBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
-        rotationMagnitudeBuffer = TimestampedRollingBuffer(capacity: analysisWindowSize)
+        fftProcessor = FFTProcessor(windowSize: fftWindowSize, sampleRate: sampleRate)
     }
 
     // MARK: - Public Methods
 
-    /// Process a motion sample for rhythm analysis using all sensor channels
+    /// Process a motion sample for rhythm analysis using FFT-based spectral analysis
     func processMotionSample(_ sample: MotionSample, currentGait: GaitType) {
         self.currentGait = currentGait
+        let timestamp = sample.timestamp
 
         // Skip stationary
         guard currentGait != .stationary else {
             currentRhythmScore = 0.0
             currentStrideRate = 0.0
             rhythmConfidence = 0.0
+            lastSampleTime = timestamp
             return
         }
 
-        let timestamp = sample.timestamp
+        // Store sensor data for FFT
+        // Use pitch RATE (rotationX) not pitch ANGLE (Euler) - Euler angles drift and have gimbal lock
+        verticalBuffer.append(sample.verticalAcceleration)
+        pitchRateBuffer.append(sample.rotationX)  // Pitch rate from gyroscope
+        yawRateBuffer.append(sample.yawRate)
 
-        // Store all sensor channels
-        verticalAccelBuffer.append(sample.verticalAcceleration, at: timestamp)
-        accelMagnitudeBuffer.append(sample.accelerationMagnitude, at: timestamp)
-        forwardAccelBuffer.append(sample.forwardAcceleration, at: timestamp)
-        pitchBuffer.append(sample.pitch, at: timestamp)
-        rollBuffer.append(sample.roll, at: timestamp)
-        yawRateBuffer.append(sample.yawRate, at: timestamp)
-        rotationMagnitudeBuffer.append(sample.rotationMagnitude, at: timestamp)
-
-        // Update running statistics for adaptive thresholds
-        updateRunningStatistics(sample)
-
-        // Detect stride cycles from multiple channels
-        detectVerticalStride(sample.verticalAcceleration, timestamp: timestamp)
-        detectMagnitudeStride(sample.accelerationMagnitude, timestamp: timestamp)
-        detectPitchStride(sample.pitch, timestamp: timestamp)
-        detectRotationStride(sample.rotationMagnitude, timestamp: timestamp)
-
-        // Calculate fused rhythm from all channels
-        if hasEnoughData() {
-            calculateFusedRhythm()
+        // Maintain buffer sizes
+        if verticalBuffer.count > fftWindowSize {
+            verticalBuffer.removeFirst(verticalBuffer.count - fftWindowSize)
         }
+        if pitchRateBuffer.count > fftWindowSize {
+            pitchRateBuffer.removeFirst(pitchRateBuffer.count - fftWindowSize)
+        }
+        if yawRateBuffer.count > fftWindowSize {
+            yawRateBuffer.removeFirst(yawRateBuffer.count - fftWindowSize)
+        }
+
+        // Run FFT analysis at fixed rate (not every sample)
+        if timestamp.timeIntervalSince(lastAnalysisTime) >= analysisInterval &&
+           verticalBuffer.count >= fftWindowSize {
+            calculateFFTRhythm()
+            lastAnalysisTime = timestamp
+        }
+
+        lastSampleTime = timestamp
     }
 
     /// Update current rein for per-rein tracking
@@ -166,18 +154,9 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
 
     /// Reset all state
     func reset() {
-        verticalAccelBuffer.removeAll()
-        accelMagnitudeBuffer.removeAll()
-        forwardAccelBuffer.removeAll()
-        pitchBuffer.removeAll()
-        rollBuffer.removeAll()
+        verticalBuffer.removeAll()
+        pitchRateBuffer.removeAll()
         yawRateBuffer.removeAll()
-        rotationMagnitudeBuffer.removeAll()
-
-        verticalStrideTimes.removeAll()
-        magnitudeStrideTimes.removeAll()
-        pitchStrideTimes.removeAll()
-        rotationStrideTimes.removeAll()
 
         reinScores.reset()
         currentRhythmScore = 0.0
@@ -185,150 +164,48 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
         rhythmConfidence = 0.0
         currentRein = .straight
         currentGait = .stationary
-
-        verticalLastPositive = false
-        magnitudeLastAboveThreshold = false
-        pitchLastPositive = false
-        rotationLastAboveThreshold = false
-
-        verticalMean = 0
-        verticalStdDev = 0.1
-        magnitudeMean = 0
-        magnitudeStdDev = 0.1
+        lastSampleTime = nil
+        lastAnalysisTime = .distantPast
     }
 
-    // MARK: - Running Statistics
+    // MARK: - FFT-Based Rhythm Analysis
 
-    /// Update running mean and standard deviation for adaptive thresholds
-    private func updateRunningStatistics(_ sample: MotionSample) {
-        let alpha = 0.01  // Slow adaptation
+    /// Calculate rhythm using FFT spectral analysis
+    /// Rhythm consistency is measured by how concentrated the power is at the stride frequency
+    private func calculateFFTRhythm() {
+        // Get expected frequency range for current gait
+        let frequencyRange = gaitFrequencyRanges[currentGait] ?? 0.8...2.5
 
-        // Vertical acceleration statistics
-        let vertDelta = sample.verticalAcceleration - verticalMean
-        verticalMean += alpha * vertDelta
-        verticalStdDev = sqrt((1 - alpha) * verticalStdDev * verticalStdDev + alpha * vertDelta * vertDelta)
+        // Analyze each channel with FFT
+        let verticalResult = analyzeChannelFFT(verticalBuffer, frequencyRange: frequencyRange)
+        let pitchRateResult = analyzeChannelFFT(pitchRateBuffer, frequencyRange: frequencyRange)
+        let yawRateResult = analyzeChannelFFT(yawRateBuffer, frequencyRange: frequencyRange)
 
-        // Magnitude statistics
-        let magDelta = sample.accelerationMagnitude - magnitudeMean
-        magnitudeMean += alpha * magDelta
-        magnitudeStdDev = sqrt((1 - alpha) * magnitudeStdDev * magnitudeStdDev + alpha * magDelta * magDelta)
-    }
-
-    // MARK: - Multi-Channel Stride Detection
-
-    /// Detect stride from vertical acceleration (bounce pattern)
-    private func detectVerticalStride(_ value: Double, timestamp: Date) {
-        let isPositive = value > 0
-
-        // Zero-crossing from negative to positive indicates upward phase of stride
-        if isPositive && !verticalLastPositive {
-            addStrideIfValid(to: &verticalStrideTimes, timestamp: timestamp)
-        }
-        verticalLastPositive = isPositive
-    }
-
-    /// Detect stride from acceleration magnitude (impact peaks)
-    private func detectMagnitudeStride(_ value: Double, timestamp: Date) {
-        // Adaptive threshold: mean + 0.5 * stdDev
-        let threshold = max(0.15, magnitudeMean + 0.5 * magnitudeStdDev)
-        let isAbove = value > threshold
-
-        // Detect when crossing above threshold (impact moment)
-        if isAbove && !magnitudeLastAboveThreshold {
-            addStrideIfValid(to: &magnitudeStrideTimes, timestamp: timestamp)
-        }
-        magnitudeLastAboveThreshold = isAbove
-    }
-
-    /// Detect stride from pitch changes (rider tilting forward/back)
-    private func detectPitchStride(_ value: Double, timestamp: Date) {
-        let isPositive = value > 0
-
-        // Pitch oscillates with each stride
-        if isPositive && !pitchLastPositive {
-            addStrideIfValid(to: &pitchStrideTimes, timestamp: timestamp)
-        }
-        pitchLastPositive = isPositive
-    }
-
-    /// Detect stride from rotation magnitude (overall rotational movement)
-    private func detectRotationStride(_ value: Double, timestamp: Date) {
-        let threshold: Double = 0.3  // rad/s threshold for significant rotation
-        let isAbove = value > threshold
-
-        if isAbove && !rotationLastAboveThreshold {
-            addStrideIfValid(to: &rotationStrideTimes, timestamp: timestamp)
-        }
-        rotationLastAboveThreshold = isAbove
-    }
-
-    /// Add stride timestamp if interval is valid
-    private func addStrideIfValid(to strideTimes: inout [Date], timestamp: Date) {
-        let minInterval: TimeInterval = 0.25  // Max ~240 strides/min
-        let maxInterval: TimeInterval = 2.0   // Min ~30 strides/min
-
-        if let lastStride = strideTimes.last {
-            let interval = timestamp.timeIntervalSince(lastStride)
-            if interval >= minInterval && interval <= maxInterval {
-                strideTimes.append(timestamp)
-            }
-        } else {
-            strideTimes.append(timestamp)
-        }
-
-        // Keep only recent strides (6 seconds)
-        let cutoffTime = Date().addingTimeInterval(-6.0)
-        strideTimes.removeAll { $0 < cutoffTime }
-    }
-
-    // MARK: - Fused Rhythm Calculation
-
-    private func hasEnoughData() -> Bool {
-        // Need at least one channel with enough strides
-        return verticalStrideTimes.count >= minimumStrideCycles ||
-               magnitudeStrideTimes.count >= minimumStrideCycles ||
-               pitchStrideTimes.count >= minimumStrideCycles
-    }
-
-    /// Calculate rhythm by fusing data from all sensor channels
-    private func calculateFusedRhythm() {
-        // Calculate rhythm from each channel
-        let verticalRhythm = calculateChannelRhythm(strideTimes: verticalStrideTimes)
-        let magnitudeRhythm = calculateChannelRhythm(strideTimes: magnitudeStrideTimes)
-        let pitchRhythm = calculateChannelRhythm(strideTimes: pitchStrideTimes)
-        let rotationRhythm = calculateChannelRhythm(strideTimes: rotationStrideTimes)
-
-        // Weight channels by their data quality (number of detected strides)
+        // Weight channels by reliability
+        // Vertical acceleration is primary, gyroscope rates are secondary
         var totalWeight: Double = 0
         var weightedRhythm: Double = 0
-        var weightedStrideRate: Double = 0
+        var weightedFrequency: Double = 0
 
-        if verticalRhythm.isValid {
-            let weight = 2.0  // Vertical is primary signal for horse bounce
+        if verticalResult.isValid {
+            let weight = 2.0  // Vertical is primary signal
             totalWeight += weight
-            weightedRhythm += verticalRhythm.score * weight
-            weightedStrideRate += verticalRhythm.strideRate * weight
+            weightedRhythm += verticalResult.rhythmScore * weight
+            weightedFrequency += verticalResult.dominantFrequency * weight
         }
 
-        if magnitudeRhythm.isValid {
-            let weight = 1.5  // Magnitude captures overall impact
+        if pitchRateResult.isValid {
+            let weight = 1.0  // Pitch rate secondary
             totalWeight += weight
-            weightedRhythm += magnitudeRhythm.score * weight
-            weightedStrideRate += magnitudeRhythm.strideRate * weight
+            weightedRhythm += pitchRateResult.rhythmScore * weight
+            weightedFrequency += pitchRateResult.dominantFrequency * weight
         }
 
-        if pitchRhythm.isValid {
-            let weight = 1.0  // Pitch shows rider movement
+        if yawRateResult.isValid {
+            let weight = 0.5  // Yaw rate tertiary
             totalWeight += weight
-            weightedRhythm += pitchRhythm.score * weight
-            weightedStrideRate += pitchRhythm.strideRate * weight
-        }
-
-        if rotationRhythm.isValid {
-            let weight = 0.5  // Rotation is secondary signal
-            totalWeight += weight
-            weightedRhythm += rotationRhythm.score * weight
-            weightedStrideRate += rotationRhythm.strideRate * weight
+            weightedRhythm += yawRateResult.rhythmScore * weight
+            weightedFrequency += yawRateResult.dominantFrequency * weight
         }
 
         guard totalWeight > 0 else {
@@ -338,76 +215,79 @@ final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {
             return
         }
 
-        // Calculate weighted average
+        // Calculate weighted averages
         let baseRhythm = weightedRhythm / totalWeight
-        currentStrideRate = weightedStrideRate / totalWeight
+        let dominantFreq = weightedFrequency / totalWeight
+
+        // Convert frequency to stride rate (strides per minute)
+        currentStrideRate = dominantFreq * 60.0
 
         // Apply gait appropriateness bonus
         let gaitBonus = calculateGaitAppropriatenessScore()
 
-        // Combined rhythm score (80% consistency, 20% gait appropriateness)
+        // Combined rhythm score (80% spectral concentration, 20% gait appropriateness)
         currentRhythmScore = baseRhythm * 0.8 + gaitBonus * 0.2
 
-        // Confidence based on channel agreement and data quantity
-        rhythmConfidence = calculateConfidence(
-            rhythms: [verticalRhythm, magnitudeRhythm, pitchRhythm, rotationRhythm]
+        // Confidence based on channel agreement
+        rhythmConfidence = calculateFFTConfidence(
+            results: [verticalResult, pitchRateResult, yawRateResult]
         )
     }
 
-    /// Calculate rhythm score for a single channel
-    private func calculateChannelRhythm(strideTimes: [Date]) -> (score: Double, strideRate: Double, isValid: Bool) {
-        guard strideTimes.count >= minimumStrideCycles else {
+    /// Analyze a single channel using FFT
+    /// Returns rhythm score based on spectral concentration at dominant frequency
+    private func analyzeChannelFFT(
+        _ buffer: [Double],
+        frequencyRange: ClosedRange<Double>
+    ) -> (rhythmScore: Double, dominantFrequency: Double, isValid: Bool) {
+        guard buffer.count >= fftWindowSize else {
             return (0, 0, false)
         }
 
-        // Calculate stride intervals
-        var intervals: [TimeInterval] = []
-        for i in 1..<strideTimes.count {
-            let interval = strideTimes[i].timeIntervalSince(strideTimes[i - 1])
-            intervals.append(interval)
-        }
+        // Process FFT
+        let fftResult = fftProcessor.processWindow(buffer)
 
-        guard !intervals.isEmpty else {
+        // Find dominant frequency in expected gait range
+        let (dominantFreq, powerAtF0) = fftProcessor.findDominantFrequency(inRange: frequencyRange)
+
+        guard powerAtF0 > 1e-6 && dominantFreq > 0.5 else {
             return (0, 0, false)
         }
 
-        // Calculate stride rate
-        let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-        let strideRate = avgInterval > 0 ? 60.0 / avgInterval : 0.0
+        // Rhythm score based on spectral concentration
+        // Low spectral entropy = concentrated power = consistent rhythm
+        // High spectral entropy = spread power = inconsistent rhythm
+        let entropy = fftResult.spectralEntropy
 
-        // Calculate rhythm score based on interval consistency (coefficient of variation)
-        let mean = avgInterval
-        let variance = intervals.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(intervals.count)
-        let stdDev = sqrt(variance)
-        let cv = mean > 0 ? stdDev / mean : 0.0
+        // Convert entropy to rhythm score
+        // Entropy 0 = perfect rhythm (100%), Entropy 1 = random (0%)
+        // Use 1 - entropy, but weight toward middle values
+        let rhythmScore = max(0.0, min(100.0, (1.0 - entropy) * 100.0))
 
-        // Convert CV to rhythm score
-        // CV of 0 = perfect rhythm (100%)
-        // CV of 0.2 = poor rhythm (0%)
-        let score = max(0.0, (1.0 - min(1.0, cv / 0.2)) * 100)
-
-        return (score, strideRate, true)
+        return (rhythmScore, dominantFreq, true)
     }
 
-    /// Calculate confidence based on channel agreement
-    private func calculateConfidence(rhythms: [(score: Double, strideRate: Double, isValid: Bool)]) -> Double {
-        let validRhythms = rhythms.filter { $0.isValid }
-        guard validRhythms.count >= 2 else {
-            return validRhythms.isEmpty ? 0.0 : 0.5
+    /// Calculate confidence based on FFT channel agreement
+    private func calculateFFTConfidence(
+        results: [(rhythmScore: Double, dominantFrequency: Double, isValid: Bool)]
+    ) -> Double {
+        let validResults = results.filter { $0.isValid }
+        guard validResults.count >= 2 else {
+            return validResults.isEmpty ? 0.0 : 0.5
         }
 
-        // Calculate variance in stride rates across channels
-        let rates = validRhythms.map { $0.strideRate }
-        let meanRate = rates.reduce(0, +) / Double(rates.count)
-        let rateVariance = rates.reduce(0) { $0 + ($1 - meanRate) * ($1 - meanRate) } / Double(rates.count)
-        let rateStdDev = sqrt(rateVariance)
+        // Calculate frequency agreement across channels
+        let frequencies = validResults.map { $0.dominantFrequency }
+        let meanFreq = frequencies.reduce(0, +) / Double(frequencies.count)
+        let freqVariance = frequencies.reduce(0) { $0 + ($1 - meanFreq) * ($1 - meanFreq) } / Double(frequencies.count)
+        let freqStdDev = sqrt(freqVariance)
 
         // Lower variance = higher confidence
-        // If channels agree within 5 strides/min, high confidence
-        let agreement = max(0.0, 1.0 - (rateStdDev / 10.0))
+        // If channels agree within 0.1 Hz (6 strides/min), high confidence
+        let agreement = max(0.0, 1.0 - (freqStdDev / 0.2))
 
         // More valid channels = higher confidence
-        let channelBonus = Double(validRhythms.count) / 4.0
+        let channelBonus = Double(validResults.count) / 3.0
 
         return min(1.0, agreement * 0.7 + channelBonus * 0.3)
     }

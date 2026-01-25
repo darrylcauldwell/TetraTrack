@@ -67,10 +67,10 @@ struct StressInoculationDrillView: View {
 
     private var phaseBackground: Color {
         switch phase {
-        case .instructions: return Color.pink.opacity(0.1)
-        case .warmup: return Color.orange.opacity(0.2)
-        case .shooting: return Color.red.opacity(0.1)
-        case .results: return Color.green.opacity(0.1)
+        case .instructions: return AppColors.shooting.opacity(Opacity.light)
+        case .warmup: return AppColors.running.opacity(Opacity.medium)
+        case .shooting: return AppColors.error.opacity(Opacity.light)
+        case .results: return AppColors.active.opacity(Opacity.light)
         }
     }
 
@@ -88,7 +88,7 @@ struct StressInoculationDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -101,7 +101,7 @@ struct StressInoculationDrillView: View {
 
             Image(systemName: "heart.text.square")
                 .font(.system(size: 60))
-                .foregroundStyle(.pink)
+                .foregroundStyle(AppColors.shooting)
 
             Text("Stress Inoculation Drill")
                 .font(.title2.bold())
@@ -143,11 +143,13 @@ struct StressInoculationDrillView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(.pink)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .background(AppColors.shooting)
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .accessibilityLabel("Start Warm-up")
+            .accessibilityHint("Begins 30 seconds of jumping jacks before shooting")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -159,12 +161,12 @@ struct StressInoculationDrillView: View {
             // Animated jumping figure
             Image(systemName: "figure.jumprope")
                 .font(.system(size: 100))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
                 .symbolEffect(.bounce, options: .repeating)
 
             Text("JUMPING JACKS!")
                 .font(.system(size: 32, weight: .black))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
 
             Text("\(warmupCountdown)")
                 .font(.system(size: 80, weight: .bold, design: .rounded))
@@ -181,7 +183,7 @@ struct StressInoculationDrillView: View {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
                     Rectangle()
-                        .fill(Color.orange)
+                        .fill(AppColors.running)
                         .frame(width: geo.size.width * (1 - Double(warmupCountdown) / 30))
                 }
             }
@@ -193,7 +195,7 @@ struct StressInoculationDrillView: View {
 
             Text("Prepare to shoot when timer ends!")
                 .font(.headline)
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
                 .padding(.bottom, 20)
         }
     }
@@ -307,7 +309,7 @@ struct StressInoculationDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -317,7 +319,7 @@ struct StressInoculationDrillView: View {
             VStack(spacing: 8) {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 56, weight: .bold))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(AppColors.shooting)
                 Text("Stability Under Stress")
                     .foregroundStyle(.secondary)
             }
@@ -335,13 +337,13 @@ struct StressInoculationDrillView: View {
                         .foregroundStyle(.yellow)
                 } else {
                     Text("Competition stress is affecting your aim. Regular stress training will help!")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.running)
                 }
             }
             .font(.subheadline)
             .multilineTextAlignment(.center)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -355,43 +357,34 @@ struct StressInoculationDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     phase = .instructions
                     stabilityHistory = []
                     shootingTime = 0
                     warmupCountdown = 30
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the stress inoculation drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.pink)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.shooting))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
-        if currentStability >= 70 { return .green }
-        if currentStability >= 50 { return .yellow }
-        if currentStability >= 30 { return .orange }
-        return .red
+        if currentStability >= 70 { return AppColors.active }
+        if currentStability >= 50 { return AppColors.warning }
+        if currentStability >= 30 { return AppColors.running }
+        return AppColors.error
     }
 
     private var stressMessage: String {
@@ -410,9 +403,9 @@ struct StressInoculationDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 70 { return .green }
-        if score >= 50 { return .yellow }
-        return .orange
+        if score >= 70 { return AppColors.active }
+        if score >= 50 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startWarmup() {

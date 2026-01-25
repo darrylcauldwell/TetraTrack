@@ -9,6 +9,7 @@
 import Foundation
 import HealthKit
 import Observation
+import os
 
 /// Activity type for Watch workouts
 enum WatchActivityType: String {
@@ -109,7 +110,7 @@ final class WorkoutManager: NSObject {
             try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
             return true
         } catch {
-            print("WorkoutManager: Authorization failed - \(error)")
+            Log.health.error("Authorization failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -119,13 +120,13 @@ final class WorkoutManager: NSObject {
     /// Start an autonomous workout session
     func startWorkout(type: WatchActivityType) async {
         guard !isWorkoutActive else {
-            print("WorkoutManager: Workout already active")
+            Log.tracking.debug("Workout already active")
             return
         }
 
         let authorized = await requestAuthorization()
         guard authorized else {
-            print("WorkoutManager: Not authorized for workouts")
+            Log.health.warning("Not authorized for workouts")
             return
         }
 
@@ -191,10 +192,10 @@ final class WorkoutManager: NSObject {
             _ = sessionStore.startSession(discipline: type.sessionDiscipline)
 
             onWorkoutStateChanged?(true)
-            print("WorkoutManager: Started \(type) workout")
+            Log.tracking.info("Started \(type.rawValue) workout")
 
         } catch {
-            print("WorkoutManager: Failed to start workout - \(error)")
+            Log.tracking.error("Failed to start workout: \(error.localizedDescription)")
         }
     }
 
@@ -205,7 +206,7 @@ final class WorkoutManager: NSObject {
         workoutSession?.pause()
         isPaused = true
         stopElapsedTimer()
-        print("WorkoutManager: Paused workout")
+        Log.tracking.info("Paused workout")
     }
 
     /// Resume a paused workout
@@ -215,7 +216,7 @@ final class WorkoutManager: NSObject {
         workoutSession?.resume()
         isPaused = false
         startElapsedTimer()
-        print("WorkoutManager: Resumed workout")
+        Log.tracking.info("Resumed workout")
     }
 
     /// Stop and save the workout
@@ -237,10 +238,10 @@ final class WorkoutManager: NSObject {
             // Save workout to HealthKit
             if let builder = workoutBuilder {
                 try await builder.finishWorkout()
-                print("WorkoutManager: Workout saved to HealthKit")
+                Log.health.info("Workout saved to HealthKit")
             }
         } catch {
-            print("WorkoutManager: Failed to end workout - \(error)")
+            Log.tracking.error("Failed to end workout: \(error.localizedDescription)")
         }
 
         // Update session store with final metrics
@@ -267,7 +268,7 @@ final class WorkoutManager: NSObject {
         activityType = nil
 
         onWorkoutStateChanged?(false)
-        print("WorkoutManager: Workout stopped and saved")
+        Log.tracking.info("Workout stopped and saved")
     }
 
     /// Discard the current workout without saving
@@ -289,7 +290,7 @@ final class WorkoutManager: NSObject {
         activityType = nil
 
         onWorkoutStateChanged?(false)
-        print("WorkoutManager: Workout discarded")
+        Log.tracking.info("Workout discarded")
     }
 
     // MARK: - Heart Rate Monitoring (Standalone)
@@ -306,14 +307,14 @@ final class WorkoutManager: NSObject {
         // The workout session's builder handles HR when a workout is active
         isWorkoutActive = true
         heartRateSamples = []
-        print("WorkoutManager: Heart rate monitoring started (companion mode)")
+        Log.health.info("Heart rate monitoring started (companion mode)")
     }
 
     /// Stop heart rate monitoring
     func stopHeartRateMonitoring() {
         guard isWorkoutActive, workoutSession == nil else { return }
         isWorkoutActive = false
-        print("WorkoutManager: Heart rate monitoring stopped")
+        Log.health.info("Heart rate monitoring stopped")
     }
 
     // MARK: - Elapsed Timer
@@ -454,7 +455,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-        print("WorkoutManager: Workout session failed - \(error)")
+        Log.tracking.error("Workout session failed: \(error.localizedDescription)")
     }
 }
 

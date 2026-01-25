@@ -17,8 +17,7 @@ import MapKit
 struct NextCompetitionCard: View {
     let competition: Competition
     @State private var now = Date()
-
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var timerCancellable: AnyCancellable?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -65,15 +64,23 @@ struct NextCompetitionCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemBackground))
+                .fill(AppColors.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(AppColors.primary.opacity(0.3), lineWidth: 2)
         )
         .padding(.horizontal)
-        .onReceive(timer) { _ in
-            now = Date()
+        .onAppear {
+            // Start timer only when view appears
+            timerCancellable = Timer.publish(every: 1, on: .main, in: .common)
+                .autoconnect()
+                .sink { _ in now = Date() }
+        }
+        .onDisappear {
+            // Cancel timer when view disappears to prevent resource leak
+            timerCancellable?.cancel()
+            timerCancellable = nil
         }
     }
 }
@@ -107,7 +114,7 @@ struct CountdownView: View {
             CountdownUnit(value: components.seconds, label: "Secs")
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -154,7 +161,7 @@ struct CompetitionRowView: View {
             }
             .frame(width: 50)
             .padding(.vertical, 8)
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Details
@@ -196,7 +203,7 @@ struct CompetitionRowView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -277,7 +284,7 @@ struct EntryDeadlineRowView: View {
             }
         }
         .padding()
-        .background(competition.isEntered ? Color(.secondarySystemBackground) : Color.orange.opacity(0.05))
+        .background(competition.isEntered ? AppColors.cardBackground : Color.orange.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -385,7 +392,7 @@ struct StableDeadlineRowView: View {
             }
         }
         .padding()
-        .background(competition.isStableBooked ? Color(.secondarySystemBackground) : Color.purple.opacity(0.05))
+        .background(competition.isStableBooked ? AppColors.cardBackground : Color.purple.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -516,7 +523,7 @@ struct CompetitionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -565,7 +572,7 @@ struct CompetitionDetailView: View {
                             }
                         }
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal)
                     }
@@ -615,7 +622,7 @@ struct CompetitionDetailView: View {
                             }
                         }
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal)
                     }
@@ -630,7 +637,7 @@ struct CompetitionDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal)
                     }
@@ -810,6 +817,7 @@ struct CompetitionDetailView: View {
             } message: {
                 Text("Are you sure you want to delete this competition?")
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -1980,7 +1988,7 @@ struct CompetitionTodoListView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -2229,6 +2237,7 @@ struct CompetitionMediaFullGalleryView: View {
         .sheet(item: $selectedVideo) { asset in
             VideoPlayerView(asset: asset)
         }
+        .presentationBackground(Color.black)
     }
 
     private func formattedDateRange(_ start: Date, _ end: Date) -> String {
@@ -2260,7 +2269,7 @@ struct AspectRatioPhotoThumbnail: View {
                     .aspectRatio(aspectRatio, contentMode: .fit)
             } else {
                 Rectangle()
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(AppColors.cardBackground)
                     .aspectRatio(aspectRatio, contentMode: .fit)
                     .overlay {
                         ProgressView()
@@ -2320,7 +2329,7 @@ struct AspectRatioVideoThumbnail: View {
                     .aspectRatio(aspectRatio, contentMode: .fit)
             } else {
                 Rectangle()
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(AppColors.cardBackground)
                     .aspectRatio(aspectRatio, contentMode: .fit)
                     .overlay {
                         ProgressView()
@@ -2509,6 +2518,7 @@ struct ShowjumpingResultsView: View {
                 }
             )
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -2880,6 +2890,7 @@ struct DressageResultsView: View {
                 }
             )
         }
+        .presentationBackground(Color.black)
     }
 }
 

@@ -58,7 +58,7 @@ struct KickEfficiencyDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.cyan.opacity(0.1).ignoresSafeArea()
+                AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -98,7 +98,7 @@ struct KickEfficiencyDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -111,7 +111,7 @@ struct KickEfficiencyDrillView: View {
 
             Image(systemName: "figure.pool.swim")
                 .font(.system(size: 60))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(AppColors.swimming)
 
             Text("Kick Rhythm Training")
                 .font(.title2.bold())
@@ -157,19 +157,14 @@ struct KickEfficiencyDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.cyan)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.swimming))
+            .accessibilityLabel("Start Kick Efficiency Drill")
+            .accessibilityHint("Begins the swimming kick rhythm exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -182,7 +177,7 @@ struct KickEfficiencyDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(AppColors.swimming)
             Text("Phone on ankle, prepare to kick")
                 .font(.headline)
             Spacer()
@@ -204,10 +199,10 @@ struct KickEfficiencyDrillView: View {
                 Text(kickStyle.rawValue)
                     .font(.title3.bold())
             }
-            .foregroundStyle(.cyan)
+            .foregroundStyle(AppColors.swimming)
             .padding(.horizontal, 24)
             .padding(.vertical, 8)
-            .background(Color.cyan.opacity(0.2))
+            .background(AppColors.swimming.opacity(Opacity.medium))
             .clipShape(Capsule())
 
             // Rhythm visualizer
@@ -263,7 +258,7 @@ struct KickEfficiencyDrillView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.2))
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.cyan)
+                        .fill(AppColors.swimming)
                         .frame(width: geo.size.width * (elapsedTime / targetDuration))
                 }
             }
@@ -278,7 +273,7 @@ struct KickEfficiencyDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -289,7 +284,7 @@ struct KickEfficiencyDrillView: View {
             VStack {
                 Text("\(Int(avgEfficiency))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(AppColors.swimming)
                 Text("Kick Efficiency")
                     .foregroundStyle(.secondary)
             }
@@ -312,7 +307,7 @@ struct KickEfficiencyDrillView: View {
                     Spacer()
                     Text(String(format: "%.1f Hz", kickStyle.targetFrequency))
                         .bold()
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(AppColors.swimming)
                 }
                 HStack {
                     Text("Rhythm Consistency")
@@ -323,45 +318,36 @@ struct KickEfficiencyDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(avgEfficiency))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(avgEfficiency >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(avgEfficiency >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(avgEfficiency >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(avgEfficiency >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the kick efficiency drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.cyan)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.swimming))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -387,9 +373,9 @@ struct KickEfficiencyDrillView: View {
     }
 
     private var rhythmColor: Color {
-        if currentEfficiency >= 80 { return .green }
-        if currentEfficiency >= 60 { return .yellow }
-        return .orange
+        if currentEfficiency >= 80 { return AppColors.active }
+        if currentEfficiency >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var rhythmFeedback: String {

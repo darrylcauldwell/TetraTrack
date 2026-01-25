@@ -10,14 +10,10 @@ import UIKit
 import CoreImage
 import PhotosUI
 
-// MARK: - Interaction Mode (Simplified)
+// MARK: - Interaction Mode
 
 /// Interaction mode for target marking.
-///
-/// **Auto-Center Design**: The `.center` mode has been removed. With perspective-corrected crops,
-/// the target center is automatically calculated as the geometric center of the crop image.
-/// This eliminates the need for manual center placement, simplifying the athlete workflow
-/// and reducing potential errors.
+/// With perspective-corrected crops, the center is auto-calculated as the geometric center.
 enum MarkingMode: String, CaseIterable {
     case holes = "Mark Holes"
 
@@ -29,7 +25,7 @@ enum MarkingMode: String, CaseIterable {
 
     var hint: String {
         switch self {
-        case .holes: return "Tap to add, tap hole to select, long-press to drag"
+        case .holes: return "Tap to add hole, tap hole to select, long-press to drag"
         }
     }
 }
@@ -83,13 +79,11 @@ struct MarkedHole: Identifiable, Equatable {
 
 // MARK: - Undo Action
 
-/// Actions that can be undone.
-/// Note: setCenter is deprecated since center is now auto-calculated.
+/// Actions that can be undone during target marking.
 enum UndoAction {
     case addHole(UUID)
     case deleteHole(MarkedHole)
     case moveHole(UUID, from: ImagePoint)
-    /// Deprecated: Center is now auto-calculated. This case is kept for backward compatibility.
     case setCenter(ImagePoint?)
 }
 
@@ -130,8 +124,8 @@ struct TargetMarkingView: View {
     // Image dimensions
     @State private var imageSize: CGSize = .zero
 
-    // Submission state
-    @State private var showingAnalysis: Bool = false
+    // History manager for saving patterns
+    @State private var historyManager = ShotPatternHistoryManager()
 
     // Haptic feedback
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -189,21 +183,27 @@ struct TargetMarkingView: View {
         .onAppear {
             imageSize = image.size
         }
-        .fullScreenCover(isPresented: $showingAnalysis) {
-            // Use auto-calculated center - no manual center input needed
-            TargetAnalysisResultView(
-                image: image,
-                holes: holes,
-                center: autoCalculatedCenter,  // Auto-calculated: imageWidth/2, imageHeight/2
-                onDone: {
-                    showingAnalysis = false
-                    onComplete()
-                },
-                onEdit: {
-                    showingAnalysis = false
-                }
-            )
+    }
+
+    // MARK: - Save and Complete
+
+    /// Save pattern and thumbnail, then complete
+    private func saveAndComplete() {
+        let shots = holes.map { $0.position.cgPoint }
+        let centerPoint = autoCalculatedCenter.cgPoint
+
+        if let pattern = ShotPatternAnalyzer.createStoredPattern(
+            shots: shots,
+            centerPoint: centerPoint,
+            imageWidth: image.size.width,
+            imageHeight: image.size.height
+        ) {
+            historyManager.addPattern(pattern)
+            // Save thumbnail for persistent visual record
+            TargetThumbnailService.shared.saveThumbnail(image, forPatternId: pattern.id)
         }
+
+        onComplete()
     }
 
     // MARK: - Header
@@ -508,15 +508,15 @@ struct TargetMarkingView: View {
                 .padding(.horizontal)
             }
 
-            // Submit button
+            // Submit button - saves pattern and navigates to history
             Button {
                 if canSubmit {
-                    showingAnalysis = true
+                    saveAndComplete()
                 }
             } label: {
                 HStack {
                     Image(systemName: canSubmit ? "checkmark.circle.fill" : "exclamationmark.circle")
-                    Text("Submit for Analysis")
+                    Text("Save & View Insights")
                         .font(.headline)
                 }
                 .foregroundStyle(.white)
@@ -1007,7 +1007,7 @@ struct TargetAnalysisResultView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1024,7 +1024,7 @@ struct TargetAnalysisResultView: View {
             )
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1042,7 +1042,7 @@ struct TargetAnalysisResultView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1104,7 +1104,7 @@ struct TargetAnalysisResultView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1168,6 +1168,8 @@ struct TargetAnalysisResultView: View {
             imageHeight: image.size.height
         ) {
             historyManager.addPattern(pattern)
+            // Save thumbnail for persistent visual record
+            TargetThumbnailService.shared.saveThumbnail(image, forPatternId: pattern.id)
         }
     }
 }

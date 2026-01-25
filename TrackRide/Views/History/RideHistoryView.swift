@@ -175,7 +175,7 @@ struct RideHistoryView: View {
                                 .padding(.horizontal)
                             }
                             .padding(.vertical, 8)
-                            .background(Color(.secondarySystemBackground))
+                            .background(AppColors.cardBackground)
                         }
 
                         HStack {
@@ -194,7 +194,7 @@ struct RideHistoryView: View {
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 8)
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                     }
                 }
 
@@ -266,7 +266,7 @@ struct RideHistoryView: View {
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                 }
             }
             .toolbar {
@@ -317,6 +317,7 @@ struct RideHistoryView: View {
             .onChange(of: aiSearchResults) { _, _ in updateFilterCache() }
             .onChange(of: rides.count) { _, _ in updateFilterCache() }
             .onAppear { updateFilterCache() }
+            .presentationBackground(Color.black)
         }
     }
 

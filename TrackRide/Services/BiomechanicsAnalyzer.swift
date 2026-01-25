@@ -81,6 +81,12 @@ final class BiomechanicsAnalyzer: Resettable {
     private var strideStartTime: Date?
     private let sampleInterval: TimeInterval = 0.01  // 100Hz
 
+    // High-pass filter state for drift compensation (2nd order Butterworth at 0.1 Hz)
+    private var hpfStateX: (x1: Double, x2: Double, y1: Double, y2: Double) = (0, 0, 0, 0)
+    // Filter coefficients for 0.1 Hz high-pass at 100 Hz sample rate
+    private let hpfB: [Double] = [0.9911, -1.9822, 0.9911]  // Numerator coefficients
+    private let hpfA: [Double] = [1.0, -1.9821, 0.9823]     // Denominator coefficients
+
     init() {}
 
     // MARK: - Configuration
@@ -115,6 +121,7 @@ final class BiomechanicsAnalyzer: Resettable {
         integratedDisplacement = 0
         strideStartTime = nil
         lastUpdateTime = .distantPast
+        hpfStateX = (0, 0, 0, 0)  // Reset high-pass filter state
     }
 
     // MARK: - Update Methods
@@ -274,20 +281,44 @@ final class BiomechanicsAnalyzer: Resettable {
     /// Add a forward acceleration sample for IMU displacement integration
     /// Used to refine stride length estimate (70% bio + 30% IMU blend)
     func addForwardAccelSample(_ forward: Double) {
-        // Double integration: accel → velocity → displacement
-        // Apply high-pass filter to reduce drift
-        let filteredAccel = forward - forwardAccelSamples.suffix(10).reduce(0, +) / max(1, Double(forwardAccelSamples.suffix(10).count))
+        // Apply 2nd-order Butterworth high-pass filter to remove DC drift and low-frequency noise
+        // This is more robust than simple exponential decay for IMU drift compensation
+        let filteredAccel = applyHighPassFilter(forward)
 
         forwardAccelSamples.append(forward)
         if forwardAccelSamples.count > maxLateralSamples {
             forwardAccelSamples.removeFirst()
         }
 
-        // Integrate acceleration to velocity (with decay to reduce drift)
-        forwardVelocity = forwardVelocity * 0.99 + filteredAccel * sampleInterval * 9.81  // Convert g to m/s²
+        // Integrate filtered acceleration to velocity
+        // The high-pass filter removes DC offset that would cause velocity drift
+        forwardVelocity += filteredAccel * sampleInterval * 9.81  // Convert g to m/s²
+
+        // Apply mild velocity decay to prevent unbounded growth from residual drift
+        // This is much gentler than before (0.999 vs 0.99) since HPF handles most drift
+        forwardVelocity *= 0.999
 
         // Integrate velocity to displacement
         integratedDisplacement += abs(forwardVelocity) * sampleInterval
+    }
+
+    /// Apply 2nd-order Butterworth high-pass filter
+    /// Removes DC offset and very low frequency drift from accelerometer
+    private func applyHighPassFilter(_ input: Double) -> Double {
+        // 2nd-order IIR filter: y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+        let output = hpfB[0] * input +
+                     hpfB[1] * hpfStateX.x1 +
+                     hpfB[2] * hpfStateX.x2 -
+                     hpfA[1] * hpfStateX.y1 -
+                     hpfA[2] * hpfStateX.y2
+
+        // Update state
+        hpfStateX.x2 = hpfStateX.x1
+        hpfStateX.x1 = input
+        hpfStateX.y2 = hpfStateX.y1
+        hpfStateX.y1 = output
+
+        return output
     }
 
     /// Reset IMU integration at start of new stride

@@ -24,7 +24,7 @@ struct RunningCoreStabilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.green.opacity(0.1).ignoresSafeArea()
+                AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -64,7 +64,7 @@ struct RunningCoreStabilityDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -77,7 +77,7 @@ struct RunningCoreStabilityDrillView: View {
 
             Image(systemName: "figure.core.training")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Core Stability for Runners")
                 .font(.title2.bold())
@@ -116,7 +116,7 @@ struct RunningCoreStabilityDrillView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.green)
+                    .background(AppColors.running)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -133,7 +133,7 @@ struct RunningCoreStabilityDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
             Text("Plank position, phone on back")
                 .font(.headline)
             Spacer()
@@ -171,7 +171,7 @@ struct RunningCoreStabilityDrillView: View {
 
                 // Target zone
                 Circle()
-                    .strokeBorder(Color.green, lineWidth: 2)
+                    .strokeBorder(AppColors.running, lineWidth: 2)
                     .frame(width: 60, height: 60)
             }
 
@@ -205,7 +205,7 @@ struct RunningCoreStabilityDrillView: View {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Color.gray.opacity(0.2))
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.green)
+                            .fill(AppColors.running)
                             .frame(width: geo.size.width * (elapsedTime / targetDuration))
                     }
                 }
@@ -229,7 +229,7 @@ struct RunningCoreStabilityDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -239,7 +239,7 @@ struct RunningCoreStabilityDrillView: View {
             VStack {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColors.active)
                 Text("Core Stability Score")
                     .foregroundStyle(.secondary)
             }
@@ -260,7 +260,7 @@ struct RunningCoreStabilityDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -268,7 +268,7 @@ struct RunningCoreStabilityDrillView: View {
                 .font(.title2.bold())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
-                .background(avgStability >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                .background(avgStability >= 70 ? AppColors.running.opacity(0.2) : Color.orange.opacity(0.2))
                 .foregroundStyle(avgStability >= 70 ? .green : .orange)
                 .clipShape(Capsule())
 
@@ -282,7 +282,7 @@ struct RunningCoreStabilityDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -294,7 +294,7 @@ struct RunningCoreStabilityDrillView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.green)
+                        .background(AppColors.running)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -308,9 +308,9 @@ struct RunningCoreStabilityDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if currentStability >= 80 { return .green }
-        if currentStability >= 60 { return .yellow }
-        return .orange
+        if currentStability >= 80 { return AppColors.active }
+        if currentStability >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func gradeForScore(_ score: Double) -> String {

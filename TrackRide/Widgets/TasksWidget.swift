@@ -368,7 +368,7 @@ struct TaskRowDetailedView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color(.systemBackground).opacity(0.6))
+        .background(AppColors.cardBackground.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

@@ -13,6 +13,15 @@ import PhotosUI
 
 // MARK: - Target Scanner View
 
+/// Target scanning view with manual center calibration.
+///
+/// **Flow**:
+/// 1. Capture: Camera/photo capture
+/// 2. Crop: Perspective crop (drag corners to match target card edges)
+/// 3. Center: Set target center point manually for accurate scoring
+/// 4. Mark: Mark holes and review scores
+///
+/// Manual center placement ensures accurate scoring for any target orientation.
 struct TargetScannerView: View {
     let expectedShots: Int // 0 = unlimited
     let onScanned: ([Int]) -> Void
@@ -20,11 +29,12 @@ struct TargetScannerView: View {
 
     @Environment(\.modelContext) private var modelContext
 
-    // Flow states: sourceSelect -> camera -> crop -> analysis
+    // Flow states: sourceSelect -> camera -> crop -> center -> mark -> review
     @State private var showingSourceSelector = false
     @State private var rawCapturedImage: UIImage?  // Original image before cropping
     @State private var capturedImage: UIImage?      // Cropped image for analysis
     @State private var showingCropView = false
+    @State private var showingCenterConfirmation = false  // Center calibration step
     @State private var detectedHoles: [DetectedHole] = []
     @State private var detectedTargetCenter: CGPoint?
     @State private var detectedTargetSize: CGSize?
@@ -33,6 +43,11 @@ struct TargetScannerView: View {
     @State private var aiCoachingInsights: ShootingCoachingInsights?
     @State private var isLoadingAICoaching = false
     @State private var saveAnalysis = true  // Option to save for historical tracking
+
+    // Optional auto-detection (can be disabled)
+    @State private var isAutoDetecting = false
+    @State private var autoDetectionComplete = false
+    @State private var useAutoDetection = false  // User preference
 
     // ML Training Data Collection
     @State private var markingEvents: [HoleMarkingEvent] = []
@@ -52,16 +67,17 @@ struct TargetScannerView: View {
     var body: some View {
         ZStack {
             if showingCropView, let rawImage = rawCapturedImage {
-                // Manual cropping step
+                // Perspective crop step
                 ManualCropView(
                     image: rawImage,
                     onCropped: { croppedImage in
                         capturedImage = croppedImage
                         showingCropView = false
-                        // Skip auto-detection - go straight to manual marking
+                        // Initialize with geometric center (user can adjust using Set Center mode)
                         detectedTargetCenter = CGPoint(x: 0.5, y: 0.5)
-                        detectedTargetSize = CGSize(width: 0.7, height: 0.9)
+                        detectedTargetSize = CGSize(width: 0.8, height: 0.9)
                         detectedHoles = []
+                        // Go directly to analysis - user can adjust center in marking view
                     },
                     onCancel: {
                         rawCapturedImage = nil
@@ -121,14 +137,14 @@ struct TargetScannerView: View {
                     Button("Cancel") { onCancel() }
                         .foregroundStyle(.white)
                         .padding(8)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Capsule())
                     Spacer()
                     Text("Scan Target")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .padding(8)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Capsule())
                     Spacer()
                     Button {
@@ -137,7 +153,7 @@ struct TargetScannerView: View {
                         Image(systemName: "photo.on.rectangle")
                             .foregroundStyle(.white)
                             .padding(8)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Circle())
                     }
                 }
@@ -158,7 +174,7 @@ struct TargetScannerView: View {
                     if alignmentQuality == .good {
                         Capsule().fill(.green.opacity(0.4))
                     } else {
-                        Capsule().fill(.ultraThinMaterial)
+                        Capsule().fill(AppColors.cardBackground)
                     }
                 }
                 .animation(.easeInOut(duration: 0.2), value: alignmentQuality)
@@ -232,12 +248,79 @@ struct TargetScannerView: View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
 
-            if showingReview {
+            if isAutoDetecting {
+                // Auto-detection in progress
+                autoDetectionLoadingView
+            } else if showingReview {
                 reviewView(image: image)
             } else {
                 markingView(image: image)
             }
         }
+    }
+
+    // MARK: - Auto-Detection
+
+    /// Run auto-detection on the cropped image
+    private func runAutoDetection(on image: UIImage) async {
+        await MainActor.run {
+            isAutoDetecting = true
+        }
+
+        do {
+            let pipeline = HoleDetectionPipeline()
+            let result = try await pipeline.detect(image: image)
+
+            // Calculate scores for detected holes based on distance from center
+            let targetCenter = CGPoint(x: 0.5, y: 0.5)
+            let targetSize = CGSize(width: 0.8, height: 0.9)
+
+            let scoredHoles = result.allHoles.map { hole -> DetectedHole in
+                let score = calculateScore(for: hole.position, center: targetCenter, size: targetSize)
+                return DetectedHole(
+                    id: hole.id,
+                    position: hole.position,
+                    score: score,
+                    confidence: hole.confidence,
+                    radius: hole.radius,
+                    needsReview: hole.needsReview,
+                    reviewReason: hole.reviewReason
+                )
+            }
+
+            await MainActor.run {
+                detectedHoles = scoredHoles
+                isAutoDetecting = false
+                autoDetectionComplete = true
+                // Go straight to review if holes were detected
+                if !scoredHoles.isEmpty {
+                    showingReview = true
+                }
+            }
+        } catch {
+            // Detection failed - go to manual marking
+            await MainActor.run {
+                isAutoDetecting = false
+                autoDetectionComplete = true
+            }
+        }
+    }
+
+    /// Loading view shown during auto-detection
+    private var autoDetectionLoadingView: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Detecting holes...")
+                .font(.headline)
+
+            Text("Auto-scoring based on target position")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Step 1: Marking View (Full screen for marking)
@@ -326,7 +409,7 @@ struct TargetScannerView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(detectedHoles.isEmpty ? Color(.tertiarySystemBackground) : Color.orange.opacity(0.15))
+                    .background(detectedHoles.isEmpty ? AppColors.elevatedSurface : Color.orange.opacity(0.15))
                     .clipShape(Capsule())
 
                     // Clear All button
@@ -375,25 +458,32 @@ struct TargetScannerView: View {
         }
     }
 
-    // MARK: - Step 2: Review View (Shows analysis after marking)
+    // State for adding missed holes in review mode
+    @State private var isAddingMissedHole = false
+
+    // MARK: - Step 2: Review View (Shows analysis after auto-detection)
 
     private func reviewView(image: UIImage) -> some View {
         VStack(spacing: 0) {
             // Header with back button
             HStack {
                 Button {
-                    showingReview = false
+                    if isAddingMissedHole {
+                        isAddingMissedHole = false
+                    } else {
+                        showingReview = false
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("Edit")
+                        Text(isAddingMissedHole ? "Back" : "Edit")
                     }
                     .font(.subheadline)
                 }
 
                 Spacer()
 
-                Text("Analysis")
+                Text(isAddingMissedHole ? "Add Missed Hole" : "Analysis")
                     .font(.headline)
 
                 Spacer()
@@ -404,105 +494,257 @@ struct TargetScannerView: View {
             .padding(.horizontal)
             .padding(.vertical, 10)
 
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Small thumbnail of marked target
-                    HStack(spacing: 16) {
-                        // Mini target preview
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                            )
+            if isAddingMissedHole {
+                // Add missed hole view - simple tap to add
+                addMissedHoleView(image: image)
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Target preview with detected holes overlay
+                        targetPreviewWithHoles(image: image)
 
                         // Summary stats
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("\(detectedHoles.count) Shots Marked")
-                                .font(.title3.bold())
+                        scoreSummaryCard
 
-                            let totalScore = detectedHoles.reduce(0) { $0 + $1.score }
+                        // Add missed hole button
+                        addMissedHoleButton
+
+                        // Pattern Analysis
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Pattern Analysis")
+                                .font(.headline)
+
+                            patternFeedbackView
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                        // Visual pattern indicator
+                        patternVisualization
+
+                        // Apple Intelligence Coaching
+                        aiCoachingSection
+
+                        // Save for history toggle
+                        Toggle(isOn: $saveAnalysis) {
                             HStack {
-                                Text("Total Score:")
-                                Text("\(totalScore)")
-                                    .font(.headline)
-                                    .foregroundStyle(.orange)
-                            }
-
-                            if !detectedHoles.isEmpty {
-                                let avgScore = Double(totalScore) / Double(detectedHoles.count)
-                                HStack {
-                                    Text("Average:")
-                                    Text(String(format: "%.1f", avgScore))
-                                        .font(.headline)
-                                        .foregroundStyle(.blue)
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(.blue)
+                                VStack(alignment: .leading) {
+                                    Text("Save to History")
+                                        .font(.subheadline)
+                                    Text("Track patterns over time")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
-
-                        Spacer()
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
 
-                    // Pattern Analysis
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Pattern Analysis")
-                            .font(.headline)
-
-                        patternFeedbackView
+                // Done button
+                Button {
+                    if saveAnalysis && !detectedHoles.isEmpty {
+                        saveTargetAnalysis()
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    onScanned(detectedHoles.map { $0.score })
+                } label: {
+                    Label("Done", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.green)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding()
+            }
+        }
+    }
 
-                    // Visual pattern indicator
-                    patternVisualization
+    /// Target preview with detected holes overlaid
+    private func targetPreviewWithHoles(image: UIImage) -> some View {
+        GeometryReader { geo in
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
 
-                    // Apple Intelligence Coaching
-                    aiCoachingSection
+                // Overlay detected holes with scores
+                ForEach(detectedHoles) { hole in
+                    ZStack {
+                        Circle()
+                            .fill(scoreColor(for: hole.score).opacity(0.6))
+                            .frame(width: 24, height: 24)
+                        Circle()
+                            .stroke(scoreColor(for: hole.score), lineWidth: 2)
+                            .frame(width: 24, height: 24)
+                        Text("\(hole.score)")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+                    }
+                    .position(
+                        x: hole.position.x * geo.size.width,
+                        y: hole.position.y * geo.size.height
+                    )
+                }
+            }
+        }
+        .aspectRatio(contentMode: .fit)
+        .frame(height: 200)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+        )
+    }
 
-                    // Save for history toggle
-                    Toggle(isOn: $saveAnalysis) {
-                        HStack {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(.blue)
-                            VStack(alignment: .leading) {
-                                Text("Save to History")
-                                    .font(.subheadline)
-                                Text("Track patterns over time")
+    /// Score summary card
+    private var scoreSummaryCard: some View {
+        VStack(spacing: 12) {
+            let totalScore = detectedHoles.reduce(0) { $0 + $1.score }
+
+            HStack(spacing: 24) {
+                VStack {
+                    Text("\(detectedHoles.count)")
+                        .font(.title.bold())
+                    Text("Shots")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack {
+                    Text("\(totalScore)")
+                        .font(.title.bold())
+                        .foregroundStyle(.orange)
+                    Text("Total")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !detectedHoles.isEmpty {
+                    VStack {
+                        let avgScore = Double(totalScore) / Double(detectedHoles.count)
+                        Text(String(format: "%.1f", avgScore))
+                            .font(.title.bold())
+                            .foregroundStyle(.blue)
+                        Text("Average")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            // Score breakdown by ring
+            if !detectedHoles.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach([10, 8, 6, 4, 2, 0], id: \.self) { score in
+                        let count = detectedHoles.filter { $0.score == score }.count
+                        if count > 0 {
+                            HStack(spacing: 2) {
+                                Text(score == 10 ? "X" : "\(score)")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(scoreColor(for: score))
+                                Text("x\(count)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding()
             }
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
 
-            // Done button
-            Button {
-                if saveAnalysis && !detectedHoles.isEmpty {
-                    saveTargetAnalysis()
-                }
-                onScanned(detectedHoles.map { $0.score })
-            } label: {
-                Label("Done", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+    /// Add missed hole button
+    private var addMissedHoleButton: some View {
+        Button {
+            isAddingMissedHole = true
+        } label: {
+            HStack {
+                Image(systemName: "plus.circle")
+                Text("Add Missed Hole")
             }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.blue)
+            .frame(maxWidth: .infinity)
             .padding()
+            .background(Color.blue.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    /// View for adding a missed hole - simple tap to add
+    private func addMissedHoleView(image: UIImage) -> some View {
+        VStack(spacing: 0) {
+            // Instructions
+            Text("Tap on the target to add a missed hole")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding()
+
+            // Target image with tap to add
+            GeometryReader { geo in
+                ZStack {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+
+                    // Show existing holes
+                    ForEach(detectedHoles) { hole in
+                        Circle()
+                            .fill(scoreColor(for: hole.score).opacity(0.6))
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Circle()
+                                    .stroke(scoreColor(for: hole.score), lineWidth: 2)
+                            )
+                            .position(
+                                x: hole.position.x * geo.size.width,
+                                y: hole.position.y * geo.size.height
+                            )
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    // Convert tap to normalized coordinates
+                    let normalizedX = location.x / geo.size.width
+                    let normalizedY = location.y / geo.size.height
+                    let position = CGPoint(x: normalizedX, y: normalizedY)
+
+                    // Add the hole
+                    addHole(at: position)
+
+                    // Return to review
+                    isAddingMissedHole = false
+                }
+            }
+            .aspectRatio(contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding()
+
+            Spacer()
+        }
+    }
+
+    /// Get color for score value
+    private func scoreColor(for score: Int) -> Color {
+        switch score {
+        case 10: return .yellow
+        case 8: return .orange
+        case 6: return .red
+        case 4: return .blue
+        case 2: return .cyan
+        default: return .gray
         }
     }
 
@@ -670,7 +912,7 @@ struct TargetScannerView: View {
                     targetType: .tetrathlon
                 )
             } catch {
-                print("Failed to save ML training data: \(error)")
+                // ML training data save failed silently
             }
         }
     }
@@ -748,7 +990,7 @@ struct TargetScannerView: View {
             }
             .frame(height: 180)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Text("Red dots = shots, Orange circle = average position")
@@ -945,7 +1187,7 @@ struct TargetScannerView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 

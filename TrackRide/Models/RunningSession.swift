@@ -51,10 +51,10 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
 
     // Relationships
     @Relationship(deleteRule: .cascade, inverse: \RunningSplit.session)
-    var splits: [RunningSplit] = []
+    var splits: [RunningSplit]? = []
 
     @Relationship(deleteRule: .cascade, inverse: \RunningInterval.session)
-    var intervals: [RunningInterval] = []
+    var intervals: [RunningInterval]? = []
 
     // GPS location points for route display and trim capability
     @Relationship(deleteRule: .cascade, inverse: \RunningLocationPoint.session)
@@ -98,7 +98,7 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     }
 
     var sortedSplits: [RunningSplit] {
-        splits.sorted { $0.orderIndex < $1.orderIndex }
+        (splits ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     var formattedPace: String {

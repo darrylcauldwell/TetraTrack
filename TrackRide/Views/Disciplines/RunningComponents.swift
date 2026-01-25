@@ -85,7 +85,7 @@ struct RunTypeButton: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
@@ -122,7 +122,7 @@ struct RunTypeCard: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 100)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
@@ -834,6 +834,7 @@ struct RunningSettingsView: View {
                     onLevelChange(level)
                     showingLevelPicker = false
                 })
+                .presentationBackground(Color.black)
             }
         }
     }
@@ -1003,7 +1004,7 @@ struct RunningPauseStopButton: View {
                 Button(action: onPauseResume) {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(AppColors.cardBackground)
                             .frame(width: buttonSize, height: buttonSize)
                             .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.15), radius: 10, y: 5)
 
@@ -1127,7 +1128,7 @@ struct RunningSessionDetailView: View {
                     }
 
                     // Splits
-                    if !session.splits.isEmpty {
+                    if !(session.splits ?? []).isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Splits")
                                 .font(.headline)
@@ -1168,7 +1169,7 @@ struct RunningSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -1288,7 +1289,7 @@ struct RunningSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -1300,7 +1301,7 @@ struct RunningSessionDetailView: View {
                             Label("Trim Run", systemImage: "scissors")
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(.secondarySystemBackground))
+                                .background(AppColors.cardBackground)
                                 .foregroundStyle(.primary)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
@@ -1318,6 +1319,7 @@ struct RunningSessionDetailView: View {
             }
             .sheet(isPresented: $showingTrimView) {
                 RunningSessionTrimView(session: session)
+                    .presentationBackground(Color.black)
             }
             .sheet(isPresented: $showingMediaEditor) {
                 RunningMediaEditorView(session: session) {
@@ -1326,13 +1328,16 @@ struct RunningSessionDetailView: View {
                         await loadMedia()
                     }
                 }
+                .presentationBackground(Color.black)
             }
             .sheet(item: $selectedVideo) { video in
                 VideoPlayerView(asset: video)
+                    .presentationBackground(Color.black)
             }
             .task {
                 await loadMedia()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -1430,13 +1435,16 @@ struct RunningMediaGalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedPhoto) { asset in
             PhotoDetailView(asset: asset)
+                .presentationBackground(Color.black)
         }
         .sheet(item: $selectedVideo) { asset in
             VideoPlayerView(asset: asset)
+                .presentationBackground(Color.black)
         }
         .task {
             await loadMedia()
         }
+        .presentationBackground(Color.black)
     }
 
     private func loadMedia() async {
@@ -1488,7 +1496,7 @@ struct RunningMediaEditorView: View {
                     Label("Add Photos", systemImage: "photo.badge.plus")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -1501,7 +1509,7 @@ struct RunningMediaEditorView: View {
                     Label("Add Videos", systemImage: "video.badge.plus")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -1550,7 +1558,7 @@ struct RunMiniStat: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -1590,7 +1598,7 @@ struct SplitRow: View {
                 .frame(width: 60, alignment: .trailing)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal)
     }

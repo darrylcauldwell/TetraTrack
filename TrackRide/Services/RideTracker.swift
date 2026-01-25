@@ -184,6 +184,51 @@ final class RideTracker {
     var currentGradient: Double = 0.0
     private var recentAltitudes: [(altitude: Double, distance: Double)] = []
 
+    // MARK: - Watch Sensor Metrics (from WatchSensorAnalyzer)
+
+    /// Jump count from altitude detection
+    var jumpCount: Int { watchSensorAnalyzer.jumpCount }
+
+    /// Rider posture stability (0-100)
+    var postureStability: Double { watchSensorAnalyzer.postureStability }
+
+    /// Current fatigue score (0-100)
+    var fatigueScore: Double { watchSensorAnalyzer.fatigueScore }
+
+    /// Current breathing rate (breaths per minute)
+    var breathingRate: Double { watchSensorAnalyzer.breathingRate }
+
+    /// Tremor level (0-100)
+    var tremorLevel: Double { watchSensorAnalyzer.tremorLevel }
+
+    /// Movement intensity (0-100)
+    var movementIntensity: Double { watchSensorAnalyzer.movementIntensity }
+
+    /// Active riding time (high intensity)
+    var activeRidingTime: TimeInterval { watchSensorAnalyzer.activeTime }
+
+    /// Passive riding time (low intensity)
+    var passiveRidingTime: TimeInterval { watchSensorAnalyzer.passiveTime }
+
+    /// Active riding percentage
+    var activeRidingPercent: Double {
+        let total = activeRidingTime + passiveRidingTime
+        guard total > 0 else { return 50 }
+        return (activeRidingTime / total) * 100
+    }
+
+    /// Compass-detected turns
+    var compassTurnCount: Int { watchSensorAnalyzer.compassTurns.count }
+
+    /// Relative altitude from session start
+    var sensorRelativeAltitude: Double { watchSensorAnalyzer.relativeAltitude }
+
+    /// Sensor-based elevation gain
+    var sensorElevationGain: Double { watchSensorAnalyzer.totalElevationGain }
+
+    /// Sensor-based elevation loss
+    var sensorElevationLoss: Double { watchSensorAnalyzer.totalElevationLoss }
+
     // Family sharing
     var isSharingWithFamily: Bool = false
 
@@ -215,6 +260,7 @@ final class RideTracker {
     private let symmetryAnalyzer = SymmetryAnalyzer()
     private let rhythmAnalyzer = RhythmAnalyzer()
     private let biomechanicsAnalyzer = BiomechanicsAnalyzer()
+    private let watchSensorAnalyzer = WatchSensorAnalyzer.shared
 
     // Extracted coordinators
     private let healthCoordinator = RideHealthCoordinator()
@@ -222,7 +268,7 @@ final class RideTracker {
     private let liveWorkoutManager = LiveWorkoutManager.shared
 
     // Injected services (concrete types for full API access, injectable for testing)
-    private let familySharing: FamilySharingManager
+    private let sharingCoordinator: UnifiedSharingCoordinator
     private let fallDetectionManager: FallDetectionManager
     private let audioCoach: AudioCoachManager
     private let weatherService: WeatherService
@@ -239,7 +285,7 @@ final class RideTracker {
     convenience init(locationManager: LocationManager) {
         self.init(
             locationManager: locationManager,
-            familySharing: .shared,
+            sharingCoordinator: .shared,
             fallDetection: .shared,
             audioCoach: .shared,
             weatherService: .shared
@@ -249,13 +295,13 @@ final class RideTracker {
     /// Initialize with dependency injection (for testing)
     init(
         locationManager: LocationManager,
-        familySharing: FamilySharingManager,
+        sharingCoordinator: UnifiedSharingCoordinator,
         fallDetection: FallDetectionManager,
         audioCoach: AudioCoachManager,
         weatherService: WeatherService
     ) {
         self.locationManager = locationManager
-        self.familySharing = familySharing
+        self.sharingCoordinator = sharingCoordinator
         self.fallDetectionManager = fallDetection
         self.audioCoach = audioCoach
         self.weatherService = weatherService
@@ -458,6 +504,7 @@ final class RideTracker {
         symmetryAnalyzer.reset()
         rhythmAnalyzer.reset()
         biomechanicsAnalyzer.reset()
+        watchSensorAnalyzer.startSession()
 
         // Configure analyzers with horse profile for breed-specific priors
         if let horse = selectedHorse {
@@ -482,7 +529,7 @@ final class RideTracker {
         // Start family sharing if enabled
         if isSharingWithFamily {
             Log.tracking.debug("Starting family sharing...")
-            await familySharing.startSharingLocation()
+            await sharingCoordinator.startSharingLocation()
         }
 
         // Start elapsed time timer
@@ -511,6 +558,9 @@ final class RideTracker {
         Log.tracking.debug("Starting fall detection...")
         fallDetectionManager.startMonitoring()
 
+        // Subscribe to Watch sensor updates for gait detection enhancement
+        setupWatchGaitEnhancement()
+
         // Fetch weather for outdoor ride
         Log.tracking.debug("Fetching weather...")
         await fetchWeatherForRide()
@@ -526,14 +576,24 @@ final class RideTracker {
     private func fetchWeatherForRide() async {
         guard let location = locationManager.currentLocation else {
             weatherError = "Location not available"
+            Log.services.warning("Weather fetch skipped: no location available")
             return
         }
 
         do {
             let weather = try await weatherService.fetchWeather(for: location)
+
+            // Validate weather data before assignment
+            guard weather.temperature != 0 || weather.humidity != 0 else {
+                weatherError = "Invalid weather data received"
+                Log.services.warning("Weather fetch returned invalid/empty data")
+                return
+            }
+
             currentWeather = weather
             currentRide?.startWeather = weather
             weatherError = nil
+            Log.services.info("Weather fetched: \(weather.temperature)°C, \(weather.condition)")
         } catch {
             weatherError = error.localizedDescription
             Log.services.error("Failed to fetch weather: \(error)")
@@ -594,6 +654,7 @@ final class RideTracker {
 
         // Stop analyzers
         gaitAnalyzer.stopAnalyzing()
+        watchSensorAnalyzer.stopSession()
 
         // Finalize symmetry/rhythm for last rein segment
         symmetryAnalyzer.finalizeReinSegment()
@@ -608,21 +669,27 @@ final class RideTracker {
             await liveWorkoutManager.endWorkout()
         }
 
-        // Capture end weather
-        if let location = locationManager.currentLocation {
-            Task {
+        // Finalize ride - capture reference BEFORE any async tasks
+        let completedRide = currentRide
+
+        // Capture end weather (use captured ride reference to avoid race)
+        if let location = locationManager.currentLocation, let ride = completedRide {
+            Task { [modelContext] in
                 do {
-                    let endWeather = try await weatherService.fetchWeather(for: location)
-                    currentRide?.endWeather = endWeather
-                    try? modelContext?.save()
+                    let endWeather = try await self.weatherService.fetchWeather(for: location)
+                    await MainActor.run {
+                        ride.endWeather = endWeather
+                        do {
+                            try modelContext?.save()
+                        } catch {
+                            Log.services.error("Failed to save end weather: \(error)")
+                        }
+                    }
                 } catch {
                     Log.services.error("Failed to fetch end weather: \(error)")
                 }
             }
         }
-
-        // Finalize ride
-        let completedRide = currentRide
         if let ride = completedRide {
             ride.endDate = Date()
             ride.totalDistance = totalDistance
@@ -691,7 +758,11 @@ final class RideTracker {
                 }
             }
 
-            try? modelContext?.save()
+            do {
+                try modelContext?.save()
+            } catch {
+                Log.tracking.error("Failed to save ride data: \(error)")
+            }
 
             // Compute and save skill domain scores
             if let context = modelContext {
@@ -700,7 +771,11 @@ final class RideTracker {
                 for score in scores {
                     context.insert(score)
                 }
-                try? context.save()
+                do {
+                    try context.save()
+                } catch {
+                    Log.tracking.error("Failed to save skill domain scores: \(error)")
+                }
             }
 
             // Save to HealthKit
@@ -711,7 +786,7 @@ final class RideTracker {
             // Stop family sharing
             if isSharingWithFamily {
                 Task {
-                    await familySharing.stopSharingLocation()
+                    await sharingCoordinator.stopSharingLocation()
                 }
             }
 
@@ -783,13 +858,17 @@ final class RideTracker {
         // Delete the current ride without saving
         if let ride = currentRide {
             modelContext?.delete(ride)
-            try? modelContext?.save()
+            do {
+                try modelContext?.save()
+            } catch {
+                Log.tracking.error("Failed to save after discarding ride: \(error)")
+            }
         }
 
         // Stop family sharing
         if isSharingWithFamily {
             Task {
-                await familySharing.stopSharingLocation()
+                await sharingCoordinator.stopSharingLocation()
             }
         }
 
@@ -849,7 +928,11 @@ final class RideTracker {
             // Store summary in ride
             await MainActor.run {
                 ride.aiSummary = summary
-                try? modelContext?.save()
+                do {
+                    try modelContext?.save()
+                } catch {
+                    Log.services.error("Failed to save AI summary: \(error)")
+                }
             }
 
             // Read summary aloud via AirPods
@@ -955,8 +1038,8 @@ final class RideTracker {
         }
         lastCoordinate = location.coordinate
 
-        // Gait analysis
-        gaitAnalyzer.processLocation(speed: currentSpeed, distance: distanceDelta)
+        // Gait analysis (pass GPS accuracy for weighted speed constraints)
+        gaitAnalyzer.processLocation(speed: currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy)
         let newGait = gaitAnalyzer.currentGait
 
         // Track time in each gait
@@ -1107,7 +1190,7 @@ final class RideTracker {
         }
         lastFamilyUpdateTime = Date()
 
-        await familySharing.updateSharedLocation(
+        await sharingCoordinator.updateSharedLocation(
             location: location,
             gait: currentGait,
             distance: totalDistance,
@@ -1118,6 +1201,8 @@ final class RideTracker {
     // MARK: - Timer
 
     private func startTimer() {
+        // Ensure any existing timer is invalidated first to prevent leaks
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self, let start = self.startTime else { return }
             self.elapsedTime = Date().timeIntervalSince(start)
@@ -1178,6 +1263,42 @@ final class RideTracker {
         currentHeartRateZone = healthCoordinator.currentZone
         averageHeartRate = healthCoordinator.averageHeartRate
         maxHeartRate = healthCoordinator.maxHeartRate
+    }
+
+    // MARK: - Watch Gait Enhancement
+
+    /// Subscribe to Watch sensor updates to enhance gait detection
+    /// Watch provides posture and movement data that improves gait classification accuracy
+    private func setupWatchGaitEnhancement() {
+        let watchManager = WatchConnectivityManager.shared
+
+        // Store existing callback (if any) to chain with our enhancement
+        let existingCallback = watchManager.onEnhancedSensorUpdate
+
+        watchManager.onEnhancedSensorUpdate = { [weak self] in
+            // Call existing callback first
+            existingCallback?()
+
+            // Compute arm symmetry and yaw energy from Watch sensor data
+            guard let self = self else { return }
+
+            // Arm symmetry: computed from posture roll consistency
+            // Low roll variance = good arm symmetry (arms moving evenly)
+            // Roll is in degrees from WatchConnectivityManager
+            let rollVariance = self.watchSensorAnalyzer.postureStability / 100.0
+            let armSymmetry = 1.0 - min(1.0, abs(watchManager.postureRoll) / 30.0)
+
+            // Yaw energy: computed from movement intensity and tremor
+            // Higher intensity with low tremor indicates purposeful rotation
+            let yawEnergy = (self.watchSensorAnalyzer.movementIntensity / 100.0) *
+                            (1.0 - self.watchSensorAnalyzer.tremorLevel / 100.0)
+
+            // Feed Watch data to gait analyzer for enhanced classification
+            self.gaitAnalyzer.updateWatchData(
+                armSymmetry: max(0, min(1, armSymmetry * rollVariance)),
+                yawEnergy: max(0, min(1, yawEnergy))
+            )
+        }
     }
 
     // MARK: - Watch Communication

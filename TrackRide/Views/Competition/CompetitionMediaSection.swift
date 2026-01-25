@@ -92,7 +92,7 @@ struct CompetitionMediaSection: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .foregroundStyle(.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -172,7 +172,7 @@ struct CompetitionMediaSection: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .foregroundStyle(.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }

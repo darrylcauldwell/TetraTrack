@@ -89,6 +89,13 @@ final class FFTProcessor {
         // Convert to Float and take last windowSize samples
         var floatSamples = samples.suffix(windowSize).map { Float($0) }
 
+        // Remove DC component (mean) before windowing
+        // This prevents DC leakage into low-frequency bins which can affect gait detection
+        var mean: Float = 0
+        vDSP_meanv(floatSamples, 1, &mean, vDSP_Length(windowSize))
+        var negativeMean = -mean
+        vDSP_vsadd(floatSamples, 1, &negativeMean, &floatSamples, 1, vDSP_Length(windowSize))
+
         // Apply Hanning window
         vDSP_vmul(floatSamples, 1, window, 1, &floatSamples, 1, vDSP_Length(windowSize))
 
@@ -166,6 +173,7 @@ final class FFTProcessor {
     }
 
     /// Compute harmonic ratio (power at n*f0 / power at f0)
+    /// Uses a small band around each frequency for robustness
     /// - Parameters:
     ///   - fundamental: Fundamental frequency f0
     ///   - harmonic: Harmonic number (2 for H2, 3 for H3)
@@ -181,8 +189,21 @@ final class FFTProcessor {
             return 0
         }
 
-        let fundamentalPower = Double(magnitudes[fundamentalBin])
-        let harmonicPower = Double(magnitudes[harmonicBin])
+        // Use ±1 bin around the target frequency for robustness
+        // This helps when the frequency doesn't fall exactly on a bin center
+        let bandWidth = 1
+
+        // Sum power in fundamental band
+        var fundamentalPower: Double = 0
+        for i in max(0, fundamentalBin - bandWidth)...min(magnitudes.count - 1, fundamentalBin + bandWidth) {
+            fundamentalPower += Double(magnitudes[i])
+        }
+
+        // Sum power in harmonic band
+        var harmonicPower: Double = 0
+        for i in max(0, harmonicBin - bandWidth)...min(magnitudes.count - 1, harmonicBin + bandWidth) {
+            harmonicPower += Double(magnitudes[i])
+        }
 
         guard fundamentalPower > 1e-10 else { return 0 }
 
@@ -190,26 +211,39 @@ final class FFTProcessor {
     }
 
     /// Compute spectral entropy (measure of signal complexity)
+    /// - Parameters:
+    ///   - minFreq: Minimum frequency for entropy calculation (default 0.5 Hz)
+    ///   - maxFreq: Maximum frequency for entropy calculation (default 6.0 Hz)
     /// - Returns: Normalized entropy (0 = pure tone, 1 = white noise)
-    func computeSpectralEntropy() -> Double {
-        // Compute probability distribution from power spectrum
+    func computeSpectralEntropy(minFreq: Double = 0.5, maxFreq: Double = 6.0) -> Double {
+        // Only consider gait-relevant frequency band (0.5-6 Hz)
+        // This prevents noise outside the gait band from affecting the entropy measure
+        let minBin = max(1, Int(minFreq / frequencyResolution))
+        let maxBin = min(magnitudes.count - 1, Int(maxFreq / frequencyResolution))
+
+        guard minBin < maxBin else { return 0 }
+
+        // Compute total power in the gait-relevant band
         var totalPower: Float = 0
-        vDSP_sve(magnitudes, 1, &totalPower, vDSP_Length(magnitudes.count))
+        for i in minBin...maxBin {
+            totalPower += magnitudes[i]
+        }
 
         guard totalPower > 1e-10 else { return 0 }
 
-        // Compute entropy: -sum(p * log(p))
+        // Compute entropy: -sum(p * log(p)) only for gait-relevant frequencies
         var entropy: Double = 0
-        for magnitude in magnitudes {
-            let p = Double(magnitude) / Double(totalPower)
+        for i in minBin...maxBin {
+            let p = Double(magnitudes[i]) / Double(totalPower)
             if p > 1e-10 {
                 entropy -= p * log2(p)
             }
         }
 
-        // Normalize by maximum entropy (log2(N))
-        let maxEntropy = log2(Double(magnitudes.count))
-        return entropy / maxEntropy
+        // Normalize by maximum entropy for this band (log2(number of bins))
+        let numBins = maxBin - minBin + 1
+        let maxEntropy = log2(Double(numBins))
+        return maxEntropy > 0 ? entropy / maxEntropy : 0
     }
 
     /// Get power spectrum as array of (frequency, power) pairs

@@ -10,11 +10,15 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(RideTracker.self) private var rideTracker: RideTracker?
+    @Environment(\.viewContext) private var viewContext
 
     var body: some View {
         Group {
-            // If there's an active ride session, show TrackingView directly
-            if let tracker = rideTracker, tracker.rideState.isActive {
+            // iPad review-only mode: always show DisciplinesView (no tracking)
+            // iPhone: show TrackingView if there's an active ride session
+            if viewContext.canCapture,
+               let tracker = rideTracker,
+               tracker.rideState.isActive {
                 TrackingView()
             } else {
                 DisciplinesView()

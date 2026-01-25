@@ -324,7 +324,7 @@ final class SkillDomainService {
                 discipline: .shooting,
                 sourceSessionId: session.id,
                 contributingMetrics: [
-                    "endCount": Double(session.ends.count),
+                    "endCount": Double((session.ends ?? []).count),
                     "averagePerEnd": session.averageScorePerEnd
                 ]
             ))
@@ -480,7 +480,7 @@ final class SkillDomainService {
 
     private func computeCadenceCV(_ session: RunningSession) -> Double {
         // Use split-level cadence data if available
-        let splits = session.splits
+        let splits = session.splits ?? []
         guard splits.count >= 3 else { return 0.1 }  // Default moderate variance
 
         let cadences = splits.compactMap { split -> Double? in
@@ -914,7 +914,7 @@ final class SkillDomainService {
 
     private func computeShootingCalmness(_ session: ShootingSession) -> Double {
         // X-count and 10s ratio indicates steadiness
-        let totalShots = session.ends.flatMap { $0.shots }.count
+        let totalShots = (session.ends ?? []).flatMap { $0.shots ?? [] }.count
         guard totalShots > 0 else { return 50 }
 
         let xRatio = Double(session.xCount) / Double(totalShots)

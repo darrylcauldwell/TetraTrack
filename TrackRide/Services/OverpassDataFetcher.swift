@@ -80,7 +80,9 @@ actor OverpassDataFetcher {
         }
 
         defer {
-            Task { @MainActor in
+            // Use DispatchQueue.main.async for cleanup to ensure it completes
+            // even during process termination (unlike Task which may be cancelled)
+            DispatchQueue.main.async {
                 UIApplication.shared.isIdleTimerDisabled = false
                 if backgroundTaskId != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)
@@ -208,7 +210,9 @@ actor OverpassDataFetcher {
             UIApplication.shared.beginBackgroundTask(withName: "OSMDataProcessing") {}
         }
         defer {
-            Task { @MainActor in
+            // Use DispatchQueue.main.async for cleanup to ensure it completes
+            // even during process termination (unlike Task which may be cancelled)
+            DispatchQueue.main.async {
                 UIApplication.shared.isIdleTimerDisabled = false
                 if backgroundTaskId != .invalid {
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)

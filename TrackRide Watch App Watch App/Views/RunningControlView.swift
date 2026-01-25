@@ -10,8 +10,9 @@ import SwiftUI
 
 struct RunningControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
-    @State private var workoutManager = WorkoutManager.shared
+    @Environment(WorkoutManager.self) private var workoutManager
     @State private var showingStopConfirmation = false
+    @State private var showingAuthError = false
 
     var body: some View {
         Group {
@@ -49,6 +50,10 @@ struct RunningControlView: View {
             Button {
                 Task {
                     await workoutManager.startWorkout(type: .running)
+                    // Check if workout actually started
+                    if !workoutManager.isWorkoutActive {
+                        showingAuthError = true
+                    }
                 }
             } label: {
                 HStack {
@@ -61,6 +66,11 @@ struct RunningControlView: View {
             .buttonStyle(.borderedProminent)
             .tint(WatchAppColors.running)
             .padding(.bottom, 8)
+            .alert("Unable to Start", isPresented: $showingAuthError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Please ensure Health permissions are granted in the Watch Settings app.")
+            }
         }
         .padding(.horizontal)
     }

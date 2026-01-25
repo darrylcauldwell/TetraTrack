@@ -144,6 +144,7 @@ struct ImageSourceSelectorView: View {
                 })
             }
             #endif
+            .presentationBackground(Color.black)
         }
     }
 }
@@ -183,7 +184,7 @@ private struct SourceOptionButton: View {
                     .foregroundStyle(.tertiary)
             }
             .padding()
-            .background(isPrimary ? color.opacity(0.1) : Color(.secondarySystemBackground))
+            .background(isPrimary ? color.opacity(0.1) : AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -242,6 +243,7 @@ private struct DebugFolderSelectorSheet: View {
             .sheet(item: $selectedFolder) { folder in
                 FolderImageListSheet(folder: folder, onImageSelected: onImageSelected)
             }
+            .presentationBackground(Color.black)
         }
     }
 }

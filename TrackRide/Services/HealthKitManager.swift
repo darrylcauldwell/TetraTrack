@@ -9,6 +9,7 @@ import CoreLocation
 import os
 
 @Observable
+@MainActor
 final class HealthKitManager {
     static let shared = HealthKitManager()
 

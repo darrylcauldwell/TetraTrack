@@ -27,7 +27,7 @@ struct PlyometricsDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.red.opacity(0.1).ignoresSafeArea()
+                AppColors.error.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -67,7 +67,7 @@ struct PlyometricsDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -80,7 +80,7 @@ struct PlyometricsDrillView: View {
 
             Image(systemName: "figure.jumprope")
                 .font(.system(size: 60))
-                .foregroundStyle(.red)
+                .foregroundStyle(AppColors.error)
 
             Text("Plyometric Jumps")
                 .font(.title2.bold())
@@ -118,19 +118,14 @@ struct PlyometricsDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.red)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.running))
+            .accessibilityLabel("Start Plyometrics Drill")
+            .accessibilityHint("Begins the jump power training exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -143,7 +138,7 @@ struct PlyometricsDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.red)
+                .foregroundStyle(AppColors.error)
             Text("Prepare to jump!")
                 .font(.headline)
             Spacer()
@@ -159,7 +154,7 @@ struct PlyometricsDrillView: View {
                     .foregroundStyle(.secondary)
                 Text("\(jumpCount)")
                     .font(.system(size: 60, weight: .bold, design: .rounded))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.error)
                 Text("/ \(targetReps)")
                     .font(.title2)
                     .foregroundStyle(.secondary)
@@ -214,13 +209,13 @@ struct PlyometricsDrillView: View {
                         Spacer()
                         Text(String(format: "%.0f", (jumpHeights.max() ?? 0) * 100) + " pts")
                             .bold()
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.active)
                     }
                 }
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
         }
@@ -232,7 +227,7 @@ struct PlyometricsDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -243,7 +238,7 @@ struct PlyometricsDrillView: View {
             VStack {
                 Text("\(Int(score))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.error)
                 Text("Power Score")
                     .foregroundStyle(.secondary)
             }
@@ -260,7 +255,7 @@ struct PlyometricsDrillView: View {
                     Spacer()
                     Text(String(format: "%.0f pts", (jumpHeights.max() ?? 0) * 100))
                         .bold()
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                 }
                 HStack {
                     Text("Average Power")
@@ -271,45 +266,36 @@ struct PlyometricsDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(score))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(score >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(score >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(score >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(score >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the plyometrics drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.running))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }

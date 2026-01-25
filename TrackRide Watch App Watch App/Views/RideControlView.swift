@@ -10,7 +10,7 @@ import SwiftUI
 
 struct RideControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
-    @State private var workoutManager = WorkoutManager.shared
+    @Environment(WorkoutManager.self) private var workoutManager
     @State private var showingStopConfirmation = false
 
     var body: some View {

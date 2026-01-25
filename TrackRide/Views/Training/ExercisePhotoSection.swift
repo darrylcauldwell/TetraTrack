@@ -93,7 +93,7 @@ struct ExercisePhotoSection: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
                 .foregroundStyle(.primary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
@@ -244,7 +244,7 @@ struct ExerciseMediaSection: View {
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .foregroundStyle(.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -327,7 +327,7 @@ struct ExerciseMediaSection: View {
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(.tertiarySystemBackground))
+                    .background(AppColors.elevatedSurface)
                     .foregroundStyle(.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }

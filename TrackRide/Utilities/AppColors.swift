@@ -177,6 +177,100 @@ struct AppColors {
 
     /// Stop button - keep red for safety recognition
     static var stopButton: Color { error }
+
+    // MARK: - Discipline Colors
+
+    /// Riding discipline - green (nature/outdoors)
+    static var riding: Color {
+        Color(light: .init(red: 0.2, green: 0.7, blue: 0.4),
+              dark: .init(red: 0.35, green: 0.85, blue: 0.5))
+    }
+
+    /// Running discipline - orange (energy/speed)
+    static var running: Color {
+        Color(light: .init(red: 0.95, green: 0.55, blue: 0.2),
+              dark: .init(red: 1.0, green: 0.65, blue: 0.35))
+    }
+
+    /// Swimming discipline - cyan (water)
+    static var swimming: Color {
+        Color(light: .init(red: 0.0, green: 0.7, blue: 0.85),
+              dark: .init(red: 0.3, green: 0.85, blue: 0.95))
+    }
+
+    /// Shooting discipline - red/maroon (target)
+    static var shooting: Color {
+        Color(light: .init(red: 0.75, green: 0.2, blue: 0.25),
+              dark: .init(red: 0.9, green: 0.35, blue: 0.4))
+    }
+
+    // MARK: - Drill Background Colors
+
+    /// Returns the appropriate color for a discipline's drill background
+    static func drillBackground(for discipline: String) -> Color {
+        switch discipline.lowercased() {
+        case "riding": return riding
+        case "running": return running
+        case "swimming": return swimming
+        case "shooting": return shooting
+        default: return primary
+        }
+    }
+
+    /// Core stability drill - blue
+    static var drillCore: Color { primary }
+
+    /// Balance drill - purple
+    static var drillBalance: Color { cardPurple }
+
+    /// Breathing drill - cyan/teal
+    static var drillBreathing: Color { swimming }
+
+    /// Reaction drill - orange
+    static var drillReaction: Color { running }
+
+    /// Strength drill - green
+    static var drillStrength: Color { riding }
+
+    // MARK: - Additional Semantic Colors
+
+    /// Tip/hint indicator - amber (replaces yellow for WCAG compliance)
+    static var tipIndicator: Color { warning }
+
+    /// Cyan for swimming-related UI elements
+    static var cyan: Color { swimming }
+
+    /// Purple for shooting drills and special UI
+    static var purple: Color { cardPurple }
+
+    /// Mint for skills/training
+    static var mint: Color {
+        Color(light: .init(red: 0.2, green: 0.78, blue: 0.65),
+              dark: .init(red: 0.4, green: 0.9, blue: 0.75))
+    }
+
+    /// Pink for mobility/flexibility drills
+    static var pink: Color {
+        Color(light: .init(red: 0.9, green: 0.45, blue: 0.6),
+              dark: .init(red: 1.0, green: 0.55, blue: 0.7))
+    }
+
+    /// Gray for history/neutral items
+    static var neutralGray: Color {
+        Color(light: .init(red: 0.55, green: 0.55, blue: 0.6),
+              dark: .init(red: 0.5, green: 0.5, blue: 0.55))
+    }
+
+    // MARK: - Watch-Specific Colors
+
+    /// Connection status - connected (green)
+    static var watchConnected: Color { active }
+
+    /// Connection status - disconnected
+    static var watchDisconnected: Color { inactive }
+
+    /// Connection status - partial/pending
+    static var watchPending: Color { warning }
 }
 
 // MARK: - Color Extension for Light/Dark

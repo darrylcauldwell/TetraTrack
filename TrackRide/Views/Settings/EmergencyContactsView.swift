@@ -126,6 +126,7 @@ struct EmergencyContactsView: View {
                 EmergencyContactEditView(contact: contact) { _ in }
             }
         }
+        .presentationBackground(Color.black)
     }
 
     private func deleteContacts(at offsets: IndexSet) {

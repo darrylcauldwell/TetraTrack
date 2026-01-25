@@ -28,7 +28,7 @@ struct StirrupPressureDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.mint.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -71,7 +71,7 @@ struct StirrupPressureDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -84,7 +84,7 @@ struct StirrupPressureDrillView: View {
 
             Image(systemName: "arrow.down.to.line")
                 .font(.system(size: 60))
-                .foregroundStyle(.mint)
+                .foregroundStyle(AppColors.riding)
 
             Text("Stirrup Pressure Drill")
                 .font(.title2.bold())
@@ -115,19 +115,14 @@ struct StirrupPressureDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.mint)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.riding))
+            .accessibilityLabel("Start Stirrup Pressure Drill")
+            .accessibilityHint("Begins the heel-down pressure drill")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -140,7 +135,7 @@ struct StirrupPressureDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.mint)
+                .foregroundStyle(AppColors.riding)
             Text("Heels down, weight through stirrups")
                 .font(.headline)
             Spacer()
@@ -167,7 +162,7 @@ struct StirrupPressureDrillView: View {
                 // Optimal zone
                 Circle()
                     .trim(from: 0.4, to: 0.6) // Optimal range
-                    .stroke(Color.mint.opacity(0.3), lineWidth: 22)
+                    .stroke(AppColors.riding.opacity(0.3), lineWidth: 22)
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(180))
 
@@ -277,7 +272,7 @@ struct StirrupPressureDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -285,7 +280,7 @@ struct StirrupPressureDrillView: View {
             VStack {
                 Text("\(Int(timeInZone))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.mint)
+                    .foregroundStyle(AppColors.riding)
                 Text("Time in Optimal Zone")
                     .foregroundStyle(.secondary)
             }
@@ -297,7 +292,7 @@ struct StirrupPressureDrillView: View {
                 resultRow(label: "Avg Angle", value: String(format: "%.1f°", averagePitch * 57.3))
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -311,33 +306,24 @@ struct StirrupPressureDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     pitchHistory = []
                     countdown = 3
                     motionAnalyzer.reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the stirrup pressure drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.mint)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.riding))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -370,13 +356,13 @@ struct StirrupPressureDrillView: View {
 
     private var pressureColor: Color {
         if optimalPitchRange.contains(motionAnalyzer.pitch) {
-            return .green
+            return AppColors.active
         } else if motionAnalyzer.pitch < optimalPitchRange.lowerBound - 0.1 {
-            return .orange // Too much forward lean
+            return AppColors.running // Too much forward lean
         } else if motionAnalyzer.pitch > optimalPitchRange.upperBound + 0.1 {
-            return .red // Leaning back, toes down
+            return AppColors.error // Leaning back, toes down
         }
-        return .yellow
+        return AppColors.warning
     }
 
     private var pressureLabel: String {
@@ -423,9 +409,9 @@ struct StirrupPressureDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 70 { return .green }
-        if score >= 50 { return .yellow }
-        return .orange
+        if score >= 70 { return AppColors.active }
+        if score >= 50 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startCountdown() {

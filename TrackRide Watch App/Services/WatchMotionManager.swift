@@ -8,6 +8,7 @@
 import Foundation
 import CoreMotion
 import Observation
+import os
 
 /// Motion data sample from Watch sensors
 struct WatchMotionSample: Codable {
@@ -85,7 +86,7 @@ final class WatchMotionManager {
     func startTracking(mode: WatchMotionMode) {
         guard !isTracking else { return }
         guard motionManager.isDeviceMotionAvailable else {
-            print("WatchMotionManager: Device motion not available")
+            Log.location.warning("Device motion not available")
             return
         }
 
@@ -105,7 +106,7 @@ final class WatchMotionManager {
         motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
             guard let self = self, let motion = motion else {
                 if let error = error {
-                    print("WatchMotionManager: Error - \(error)")
+                    Log.location.error("Motion update error: \(error.localizedDescription)")
                 }
                 return
             }
@@ -114,7 +115,7 @@ final class WatchMotionManager {
         }
 
         isTracking = true
-        print("WatchMotionManager: Started tracking - mode: \(mode)")
+        Log.location.info("Started tracking - mode: \(mode.rawValue)")
     }
 
     func stopTracking() {
@@ -124,7 +125,7 @@ final class WatchMotionManager {
         isTracking = false
         currentMode = .idle
 
-        print("WatchMotionManager: Stopped tracking")
+        Log.location.info("Stopped tracking")
     }
 
     // MARK: - Private Methods

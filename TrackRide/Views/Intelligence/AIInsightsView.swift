@@ -430,7 +430,7 @@ struct RecommendationCard: View {
             }
         }
         .padding(10)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 

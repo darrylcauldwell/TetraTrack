@@ -38,7 +38,7 @@ struct DebugThresholdControlsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
             }
             .buttonStyle(.plain)
 
@@ -155,7 +155,7 @@ struct DebugThresholdControlsView: View {
             presetButtons
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
     }
 
     private var presetButtons: some View {
@@ -325,7 +325,7 @@ struct DebugQualityThresholdControls: View {
             .buttonStyle(.bordered)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

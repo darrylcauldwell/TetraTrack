@@ -80,7 +80,7 @@ struct ShootingCompetitionView: View {
                             .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
                             .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Circle())
                     }
                 }
@@ -120,7 +120,7 @@ struct ShootingCompetitionView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Submit button - enabled when all scores entered
@@ -160,7 +160,7 @@ struct ShootingCompetitionView: View {
                              (scores.wrappedValue[shotIndex] == 10 ? "X" : "\(scores.wrappedValue[shotIndex])") : "-")
                             .font(.title3.bold())
                             .frame(width: 50, height: 50)
-                            .background(scores.wrappedValue[shotIndex] > 0 ? Color.orange.opacity(0.2) : Color(.secondarySystemBackground))
+                            .background(scores.wrappedValue[shotIndex] > 0 ? Color.orange.opacity(0.2) : AppColors.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)
@@ -174,7 +174,7 @@ struct ShootingCompetitionView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -253,19 +253,22 @@ struct ShootingCompetitionView: View {
 
         // Create End 1 with shots
         let end1 = ShootingEnd(orderIndex: 0)
+        end1.shots = []
         for (index, score) in card1Scores.enumerated() {
             let shot = Shot(orderIndex: index, score: score, isX: score == 10)
-            end1.shots.append(shot)
+            end1.shots?.append(shot)
         }
-        session.ends.append(end1)
+        if session.ends == nil { session.ends = [] }
+        session.ends?.append(end1)
 
         // Create End 2 with shots
         let end2 = ShootingEnd(orderIndex: 1)
+        end2.shots = []
         for (index, score) in card2Scores.enumerated() {
             let shot = Shot(orderIndex: index, score: score, isX: score == 10)
-            end2.shots.append(shot)
+            end2.shots?.append(shot)
         }
-        session.ends.append(end2)
+        session.ends?.append(end2)
 
         // Insert into model context
         modelContext.insert(session)
@@ -298,6 +301,7 @@ private class FreePracticeImageHolder {
 struct FreePracticeView: View {
     let onEnd: () -> Void
     var onAnalysisComplete: (() -> Void)? = nil  // Called when analysis is saved
+    var onNavigateToHistory: ((DateFilterOption) -> Void)? = nil  // Navigate to history with pre-selected filter
 
     @State private var showingCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -334,7 +338,7 @@ struct FreePracticeView: View {
                             .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
                             .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Circle())
                     }
                 }
@@ -435,7 +439,6 @@ struct FreePracticeView: View {
                         await MainActor.run { isLoadingImage = false }
                     }
                 } catch {
-                    print("[FreePractice] Error loading image: \(error)")
                     await MainActor.run { isLoadingImage = false }
                 }
             }
@@ -469,12 +472,10 @@ struct FreePracticeView: View {
                 ManualCropView(
                     image: image,
                     onCropped: { croppedResult in
-                        print("[FreePractice] Crop completed, setting croppedImage")
                         imageHolder.croppedImage = croppedResult
                         showingCropView = false
                         // Delay presentation to allow dismiss animation to complete
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            print("[FreePractice] Presenting analysis view, croppedImage is \(imageHolder.croppedImage == nil ? "nil" : "valid")")
                             showingAnalysis = true
                         }
                     },
@@ -487,9 +488,13 @@ struct FreePracticeView: View {
             }
         }
         .fullScreenCover(isPresented: $showingAnalysis) {
+            #if DEBUG
             let _ = print("[FreePractice] fullScreenCover body - croppedImage is \(imageHolder.croppedImage == nil ? "nil" : "valid")")
+            #endif
             if let image = imageHolder.croppedImage {
+                #if DEBUG
                 let _ = print("[FreePractice] Rendering TargetMarkingView")
+                #endif
                 TargetMarkingView(
                     image: image,
                     onComplete: {
@@ -497,8 +502,12 @@ struct FreePracticeView: View {
                         imageHolder.croppedImage = nil
                         imageHolder.rawImage = nil
                         selectedPhotoItem = nil
-                        // Notify that analysis was completed and saved
-                        onAnalysisComplete?()
+                        // Navigate to history with "Last Target" filter, or fallback to legacy callback
+                        if let navigateToHistory = onNavigateToHistory {
+                            navigateToHistory(.lastTarget)
+                        } else {
+                            onAnalysisComplete?()
+                        }
                     },
                     onCancel: {
                         showingAnalysis = false
@@ -530,7 +539,7 @@ struct CameraOnlyView: View {
                             .font(.body.weight(.medium))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Circle())
                     }
                 }
@@ -637,7 +646,7 @@ struct ScannedTargetRow: View {
                 .frame(width: 40, alignment: .trailing)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -693,7 +702,7 @@ struct TargetAnalysisView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     // Pattern analysis
@@ -739,7 +748,7 @@ struct TargetAnalysisView: View {
                         .frame(height: 80)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     // Tips based on pattern
@@ -753,7 +762,7 @@ struct TargetAnalysisView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding()

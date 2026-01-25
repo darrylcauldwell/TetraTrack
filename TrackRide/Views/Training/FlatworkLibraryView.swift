@@ -112,6 +112,7 @@ struct FlatworkLibraryView: View {
             .onAppear {
                 initializeBuiltInExercisesIfNeeded()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -177,7 +178,7 @@ struct FlatworkLibraryView: View {
             .padding(.horizontal)
             .padding(.vertical, 12)
         }
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
     }
 
     // MARK: - Exercise List
@@ -314,7 +315,7 @@ struct FlatworkFilterChip: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(isActive ? AppColors.primary : Color(.tertiarySystemBackground))
+        .background(isActive ? AppColors.primary : AppColors.elevatedSurface)
         .foregroundStyle(isActive ? .white : .primary)
         .clipShape(Capsule())
     }

@@ -193,6 +193,7 @@ struct HorseEditView: View {
                     videoThumbnails = horse.videoThumbnails
                 }
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -444,7 +445,7 @@ struct HorseProfilePhotoSection: View {
                 } else {
                     ZStack {
                         Circle()
-                            .fill(AppColors.light)
+                            .fill(AppColors.primary.opacity(0.15))
                             .frame(width: 100, height: 100)
 
                         Image(systemName: "figure.equestrian.sports")
@@ -472,6 +473,7 @@ struct HorseProfilePhotoSection: View {
                 photoThumbnail: $photoThumbnail,
                 legacyPhotoData: $legacyPhotoData
             )
+            .presentationBackground(Color.black)
         }
         .confirmationDialog("Photo", isPresented: $showingActionSheet) {
             Button("Choose New Photo") {
@@ -484,6 +486,7 @@ struct HorseProfilePhotoSection: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -658,6 +661,7 @@ struct HorseVideoSection: View {
                 HorseVideoPlayer(assetIdentifier: videoAssetIdentifiers[index])
             }
         }
+        .presentationBackground(Color.black)
     }
 
     private func removeVideo(at index: Int) {

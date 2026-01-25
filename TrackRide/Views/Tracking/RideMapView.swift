@@ -60,7 +60,7 @@ struct RideMapView: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                            .background(.ultraThinMaterial)
+                            .background(AppColors.cardBackground)
                             .clipShape(Capsule())
                         }
 
@@ -147,7 +147,7 @@ struct MiniStatsCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding()
     }

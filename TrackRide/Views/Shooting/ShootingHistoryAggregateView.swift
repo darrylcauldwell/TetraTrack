@@ -8,10 +8,24 @@
 import SwiftUI
 import Charts
 
+// MARK: - Navigation Wrapper
+
+/// Wrapper view for use in NavigationLink (uses dismiss instead of callback)
+struct ShootingHistoryWrapperView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ShootingHistoryAggregateView(onDismiss: { dismiss() })
+            .navigationTitle("Shooting History")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 // MARK: - Main Aggregate View
 
 struct ShootingHistoryAggregateView: View {
     let onDismiss: () -> Void
+    var initialDateFilter: DateFilterOption? = nil
 
     @State private var historyManager = ShotPatternHistoryManager()
     @State private var historyService: ShootingHistoryService?
@@ -88,10 +102,15 @@ struct ShootingHistoryAggregateView: View {
             }
             .onAppear {
                 historyService = ShootingHistoryService(historyManager: historyManager)
+                // Apply initial date filter if provided (e.g., from post-practice navigation)
+                if let initialFilter = initialDateFilter {
+                    selectedDateFilter = initialFilter
+                }
             }
             .sheet(item: $selectedPattern) { pattern in
                 PatternDetailView(pattern: pattern)
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -133,14 +152,19 @@ struct ShootingHistoryAggregateView: View {
                 // Filters Section
                 filterSection
 
+                // Target Thumbnail (shown prominently for Last Target)
+                if selectedDateFilter == .lastTarget, let pattern = filteredPatterns.first {
+                    lastTargetThumbnailSection(pattern: pattern)
+                }
+
                 // Scope and Confidence Header
                 scopeHeaderSection
 
                 // Statistics Summary
                 statisticsSection
 
-                // Visualization Section
-                if let data = visualData {
+                // Visualization Section (hidden for Last Target - shown in thumbnail overlay)
+                if selectedDateFilter != .lastTarget, let data = visualData {
                     visualizationSection(data: data)
                 }
 
@@ -152,11 +176,46 @@ struct ShootingHistoryAggregateView: View {
                 // Insights Section
                 insightsSection
 
-                // Sessions List Section
-                sessionsListSection
+                // Sessions List Section (hidden for Last Target since we show it above)
+                if selectedDateFilter != .lastTarget {
+                    sessionsListSection
+                }
             }
             .padding()
         }
+    }
+
+    // MARK: - Last Target Thumbnail Section
+
+    private func lastTargetThumbnailSection(pattern: StoredTargetPattern) -> some View {
+        VStack(spacing: 12) {
+            // Thumbnail image with hole markers overlaid
+            LastTargetThumbnailView(pattern: pattern)
+
+            // Session info
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pattern.timestamp, format: .dateTime.weekday().month().day().hour().minute())
+                        .font(.subheadline.weight(.medium))
+                    Text(pattern.sessionType.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    selectedPattern = pattern
+                } label: {
+                    Text("View Details")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.blue)
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Scope Header Section
@@ -210,7 +269,7 @@ struct ShootingHistoryAggregateView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -291,7 +350,7 @@ struct ShootingHistoryAggregateView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -331,7 +390,7 @@ struct ShootingHistoryAggregateView: View {
             .frame(height: 320)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -373,7 +432,7 @@ struct ShootingHistoryAggregateView: View {
             .frame(height: 150)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -450,11 +509,27 @@ struct ShootingHistoryAggregateView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Sessions List Section
+    // MARK: - Sessions List Section (Day-Grouped)
+
+    /// Group patterns by day for display
+    private var patternsByDay: [(date: Date, patterns: [StoredTargetPattern])] {
+        let calendar = Calendar.current
+        var grouped: [Date: [StoredTargetPattern]] = [:]
+
+        for pattern in filteredPatterns {
+            let day = calendar.startOfDay(for: pattern.timestamp)
+            grouped[day, default: []].append(pattern)
+        }
+
+        // Sort days descending, patterns within each day by timestamp descending
+        return grouped
+            .map { (date: $0.key, patterns: $0.value.sorted { $0.timestamp > $1.timestamp }) }
+            .sorted { $0.date > $1.date }
+    }
 
     private var sessionsListSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -462,7 +537,7 @@ struct ShootingHistoryAggregateView: View {
                 showingSessionList.toggle()
             } label: {
                 HStack {
-                    Text("Recent Sessions")
+                    Text("Sessions by Day")
                         .font(.headline)
                         .foregroundStyle(.primary)
                     Spacer()
@@ -472,15 +547,19 @@ struct ShootingHistoryAggregateView: View {
             }
 
             if showingSessionList {
-                LazyVStack(spacing: 8) {
-                    ForEach(filteredPatterns.prefix(10)) { pattern in
-                        HistorySessionRowView(pattern: pattern) {
-                            selectedPattern = pattern
-                        }
+                LazyVStack(spacing: 16) {
+                    ForEach(patternsByDay.prefix(10), id: \.date) { dayGroup in
+                        DaySessionGroup(
+                            date: dayGroup.date,
+                            patterns: dayGroup.patterns,
+                            onSelectPattern: { pattern in
+                                selectedPattern = pattern
+                            }
+                        )
                     }
 
-                    if filteredPatterns.count > 10 {
-                        Text("+ \(filteredPatterns.count - 10) more sessions")
+                    if patternsByDay.count > 10 {
+                        Text("+ \(patternsByDay.count - 10) more days")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.top, 4)
@@ -489,8 +568,202 @@ struct ShootingHistoryAggregateView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Last Target Thumbnail View with Overlay
+
+private struct LastTargetThumbnailView: View {
+    let pattern: StoredTargetPattern
+
+    @State private var thumbnailImage: UIImage?
+    @State private var hasLoadedThumbnail = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let thumbnail = thumbnailImage {
+                // Show thumbnail with hole markers overlaid
+                TargetImageWithHoleOverlay(
+                    image: thumbnail,
+                    normalizedShots: pattern.normalizedShots,
+                    clusterMpi: CGPoint(x: pattern.clusterMpiX, y: pattern.clusterMpiY)
+                )
+                .frame(height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else if !hasLoadedThumbnail {
+                // Loading state
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray6))
+                    .frame(height: 280)
+                    .overlay {
+                        ProgressView()
+                    }
+            } else {
+                // No thumbnail available - show Canvas-based shot pattern
+                shotPatternCanvas
+
+                Text("Target photo not available on this device")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() {
+        thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
+        hasLoadedThumbnail = true
+    }
+
+    /// Canvas-based shot pattern visualization - self-contained fallback
+    private var shotPatternCanvas: some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let maxRadius = min(size.width, size.height) / 2 - 20
+
+            // Draw target background
+            let bgCircle = Path(ellipseIn: CGRect(
+                x: center.x - maxRadius,
+                y: center.y - maxRadius,
+                width: maxRadius * 2,
+                height: maxRadius * 2
+            ))
+            context.fill(bgCircle, with: .color(Color(.systemGray5)))
+
+            // Draw concentric scoring rings
+            for i in 1...5 {
+                let radius = maxRadius * CGFloat(i) / 5
+                let circle = Path(ellipseIn: CGRect(
+                    x: center.x - radius,
+                    y: center.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                ))
+                context.stroke(circle, with: .color(.gray.opacity(0.5)), lineWidth: 1)
+            }
+
+            // Draw center crosshair
+            var hLine = Path()
+            hLine.move(to: CGPoint(x: center.x - 10, y: center.y))
+            hLine.addLine(to: CGPoint(x: center.x + 10, y: center.y))
+            context.stroke(hLine, with: .color(.gray), lineWidth: 1)
+
+            var vLine = Path()
+            vLine.move(to: CGPoint(x: center.x, y: center.y - 10))
+            vLine.addLine(to: CGPoint(x: center.x, y: center.y + 10))
+            context.stroke(vLine, with: .color(.gray), lineWidth: 1)
+
+            // Draw shot holes
+            for shot in pattern.normalizedShots {
+                let x = center.x + shot.x * maxRadius
+                let y = center.y + shot.y * maxRadius
+
+                // Outer ring
+                let outerCircle = Path(ellipseIn: CGRect(x: x - 7, y: y - 7, width: 14, height: 14))
+                context.stroke(outerCircle, with: .color(.white), lineWidth: 2)
+
+                // Inner fill
+                let innerCircle = Path(ellipseIn: CGRect(x: x - 5, y: y - 5, width: 10, height: 10))
+                context.fill(innerCircle, with: .color(.red))
+            }
+
+            // Draw MPI (Mean Point of Impact) marker
+            let mpiX = center.x + pattern.clusterMpiX * maxRadius
+            let mpiY = center.y + pattern.clusterMpiY * maxRadius
+
+            // MPI outer ring
+            let mpiOuter = Path(ellipseIn: CGRect(x: mpiX - 10, y: mpiY - 10, width: 20, height: 20))
+            context.stroke(mpiOuter, with: .color(.yellow), lineWidth: 2)
+
+            // MPI center dot
+            let mpiCenter = Path(ellipseIn: CGRect(x: mpiX - 4, y: mpiY - 4, width: 8, height: 8))
+            context.fill(mpiCenter, with: .color(.yellow))
+        }
+        .frame(height: 280)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Target Image with Hole Overlay
+
+private struct TargetImageWithHoleOverlay: View {
+    let image: UIImage
+    let normalizedShots: [CGPoint]
+    let clusterMpi: CGPoint
+
+    private func calculateLayout(frameSize: CGSize) -> (displaySize: CGSize, offset: CGSize) {
+        let imageSize = image.size
+        let imageAspect = imageSize.width / imageSize.height
+        let frameAspect = frameSize.width / frameSize.height
+
+        if imageAspect > frameAspect {
+            // Image is wider - fit to width
+            let width = frameSize.width
+            let height = width / imageAspect
+            return (CGSize(width: width, height: height), CGSize(width: 0, height: (frameSize.height - height) / 2))
+        } else {
+            // Image is taller - fit to height
+            let height = frameSize.height
+            let width = height * imageAspect
+            return (CGSize(width: width, height: height), CGSize(width: (frameSize.width - width) / 2, height: 0))
+        }
+    }
+
+    private func denormalizedPosition(_ normalized: CGPoint, displaySize: CGSize) -> CGPoint {
+        let centerX = displaySize.width / 2
+        let centerY = displaySize.height / 2
+        let maxRadius = min(displaySize.width, displaySize.height) / 2
+        return CGPoint(
+            x: centerX + (normalized.x * maxRadius),
+            y: centerY + (normalized.y * maxRadius)
+        )
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let layout = calculateLayout(frameSize: geometry.size)
+
+            ZStack {
+                // Background image
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: layout.displaySize.width, height: layout.displaySize.height)
+
+                // Hole markers overlay
+                ForEach(Array(normalizedShots.enumerated()), id: \.offset) { _, normalizedPoint in
+                    let pos = denormalizedPosition(normalizedPoint, displaySize: layout.displaySize)
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
+                        .shadow(color: .black.opacity(0.5), radius: 1)
+                        .position(x: pos.x, y: pos.y)
+                }
+
+                // MPI marker (cluster center)
+                let mpiPos = denormalizedPosition(clusterMpi, displaySize: layout.displaySize)
+                Circle()
+                    .stroke(Color.yellow, lineWidth: 2)
+                    .frame(width: 16, height: 16)
+                    .position(x: mpiPos.x, y: mpiPos.y)
+
+                Circle()
+                    .fill(Color.yellow)
+                    .frame(width: 6, height: 6)
+                    .position(x: mpiPos.x, y: mpiPos.y)
+            }
+            .frame(width: layout.displaySize.width, height: layout.displaySize.height)
+            .offset(x: layout.offset.width, y: layout.offset.height)
+        }
     }
 }
 
@@ -508,7 +781,7 @@ private struct DateFilterChip: View {
                 .foregroundStyle(isSelected ? .white : .primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.blue : Color(.tertiarySystemBackground))
+                .background(isSelected ? Color.blue : AppColors.elevatedSurface)
                 .clipShape(Capsule())
         }
     }
@@ -539,7 +812,7 @@ private struct SessionTypeChip: View {
             .foregroundStyle(isSelected ? .white : .primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isSelected ? chipColor : Color(.tertiarySystemBackground))
+            .background(isSelected ? chipColor : AppColors.elevatedSurface)
             .clipShape(Capsule())
         }
     }
@@ -569,12 +842,148 @@ private struct HistoryStatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
-// MARK: - Session Row View
+// MARK: - Day Session Group
+
+private struct DaySessionGroup: View {
+    let date: Date
+    let patterns: [StoredTargetPattern]
+    let onSelectPattern: (StoredTargetPattern) -> Void
+
+    private var dateHeader: String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            formatter.dateFormat = "EEEE, MMMM d"
+            return formatter.string(from: date)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Day header
+            HStack {
+                Text(dateHeader)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("\(patterns.count) target\(patterns.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Sessions for this day - horizontal scroll if multiple, single card if one
+            if patterns.count == 1 {
+                SessionThumbnailCard(pattern: patterns[0], onTap: { onSelectPattern(patterns[0]) })
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(patterns) { pattern in
+                            SessionThumbnailCard(pattern: pattern, onTap: { onSelectPattern(pattern) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Session Thumbnail Card
+
+private struct SessionThumbnailCard: View {
+    let pattern: StoredTargetPattern
+    let onTap: () -> Void
+
+    @State private var thumbnailImage: UIImage?
+
+    private var sessionTypeColor: Color {
+        switch pattern.sessionType.color {
+        case "blue": return .blue
+        case "orange": return .orange
+        case "purple": return .purple
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Thumbnail or placeholder
+                ZStack {
+                    if let thumbnail = thumbnailImage {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 120)
+                            .clipped()
+                    } else {
+                        // Placeholder with target icon
+                        Rectangle()
+                            .fill(AppColors.elevatedSurface)
+                            .frame(width: 120, height: 120)
+                            .overlay {
+                                Image(systemName: "target")
+                                    .font(.title)
+                                    .foregroundStyle(.secondary)
+                            }
+                    }
+
+                    // Session type badge
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Circle()
+                                .fill(sessionTypeColor)
+                                .frame(width: 10, height: 10)
+                                .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Session info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pattern.timestamp, format: .dateTime.hour().minute())
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 4) {
+                        Text("\(pattern.shotCount) shots")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+
+                        Text(String(format: "%.2f", pattern.clusterRadius))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 120, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
+        }
+    }
+}
+
+// MARK: - Session Row View (Legacy - kept for compatibility)
 
 private struct HistorySessionRowView: View {
     let pattern: StoredTargetPattern
@@ -625,7 +1034,7 @@ private struct HistorySessionRowView: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
@@ -637,6 +1046,7 @@ private struct PatternDetailView: View {
     let pattern: StoredTargetPattern
 
     @Environment(\.dismiss) private var dismiss
+    @State private var thumbnailImage: UIImage?
 
     private var visualData: VisualPatternData {
         let shots = pattern.normalizedShots.map { shot in
@@ -672,6 +1082,16 @@ private struct PatternDetailView: View {
                     }
                     .padding()
 
+                    // Target thumbnail (if available)
+                    if let thumbnail = thumbnailImage {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal)
+                    }
+
                     // Stats
                     HStack(spacing: 20) {
                         VStack {
@@ -705,7 +1125,7 @@ private struct PatternDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     // Visualization
@@ -715,7 +1135,7 @@ private struct PatternDetailView: View {
                     )
                     .frame(height: 320)
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding()
@@ -726,6 +1146,10 @@ private struct PatternDetailView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .onAppear {
+                // Load thumbnail from persistent storage
+                thumbnailImage = TargetThumbnailService.shared.loadThumbnail(forPatternId: pattern.id)
             }
         }
     }

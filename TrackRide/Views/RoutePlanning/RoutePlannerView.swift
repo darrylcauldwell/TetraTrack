@@ -95,20 +95,24 @@ struct RoutePlannerView: View {
             }
             .sheet(isPresented: $showingRegionDownload) {
                 RegionDownloadView()
+                    .presentationBackground(Color.black)
             }
             .sheet(isPresented: $showingSavedRoutes) {
                 SavedRoutesView { route in
                     loadSavedRoute(route)
                 }
+                .presentationBackground(Color.black)
             }
             .sheet(isPresented: $showingPreferences) {
                 RoutingPreferencesView(preferences: $preferences)
+                    .presentationBackground(Color.black)
             }
             .sheet(isPresented: $showingRouteDetails) {
                 if let route = calculatedRoute {
                     RouteDetailsView(route: route) {
                         showingSaveDialog = true
                     }
+                    .presentationBackground(Color.black)
                 }
             }
             .alert("Save Route", isPresented: $showingSaveDialog) {
@@ -147,6 +151,7 @@ struct RoutePlannerView: View {
                     Text("Route planning requires map data. Please download map data for your area to plan bridleway and trail routes.")
                 }
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -268,7 +273,7 @@ struct RoutePlannerView: View {
             }
         }
         .padding(.vertical)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
     }
 
     private func routeSummaryCard(_ route: CalculatedRoute) -> some View {
@@ -295,7 +300,7 @@ struct RoutePlannerView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .cornerRadius(12)
         .padding(.horizontal)
     }
@@ -564,7 +569,7 @@ struct RoutePlannerView: View {
                 .padding(.top, 8)
             }
             .padding(24)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(AppColors.cardBackground, in: RoundedRectangle(cornerRadius: 16))
         }
     }
 

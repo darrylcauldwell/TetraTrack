@@ -51,6 +51,7 @@ struct DebugFixtureSelectorView: View {
                     }
                 )
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -78,7 +79,7 @@ struct DebugFixtureSelectorView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
     }
 
     // MARK: - Fixture List
@@ -126,7 +127,7 @@ private struct CategoryChip: View {
                 .fontWeight(isSelected ? .semibold : .regular)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.blue : Color(.tertiarySystemBackground))
+                .background(isSelected ? Color.blue : AppColors.elevatedSurface)
                 .foregroundStyle(isSelected ? .white : .primary)
                 .clipShape(Capsule())
         }
@@ -143,7 +144,7 @@ private struct FixtureRow: View {
             // Thumbnail placeholder
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(AppColors.elevatedSurface)
 
                 if let image = fixture.loadImage() {
                     Image(uiImage: image)
@@ -245,7 +246,7 @@ private struct FixtureDetailSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(AppColors.elevatedSurface)
                     .frame(height: 200)
                     .overlay {
                         VStack {
@@ -282,7 +283,7 @@ private struct FixtureDetailSheet: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -308,7 +309,7 @@ private struct FixtureDetailSheet: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -346,7 +347,7 @@ private struct FixtureDetailSheet: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -427,7 +428,7 @@ struct InlineFixturePicker: View {
                     }
                 }
                 .padding(8)
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
@@ -439,6 +440,7 @@ struct InlineFixturePicker: View {
                 selectedFixture = fixture
             }
         }
+        .presentationBackground(Color.black)
     }
 }
 

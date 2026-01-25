@@ -25,20 +25,11 @@ struct TrackingView: View {
     var body: some View {
         ZStack {
             if let tracker = rideTracker {
-                // Active ride - show swipeable stats/map
-                let _ = print("TrackingView: rideState = \(tracker.rideState), rideType = \(tracker.selectedRideType)")
                 if tracker.rideState == .tracking || tracker.rideState == .paused {
-                    // Glass background gradient for active ride
-                    LinearGradient(
-                        colors: [
-                            AppColors.light,
-                            AppColors.primary.opacity(0.05),
-                            AppColors.light.opacity(0.5)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .ignoresSafeArea()
+                    // Pure black background
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+
                     VStack(spacing: 0) {
                         // Top bar with controls
                         HStack(spacing: 12) {
@@ -79,7 +70,7 @@ struct TrackingView: View {
                                         .font(.body.weight(.medium))
                                         .foregroundStyle(.primary)
                                         .frame(width: 44, height: 44)
-                                        .background(.ultraThinMaterial)
+                                        .background(AppColors.cardBackground)
                                         .clipShape(Circle())
                                 }
                             }

@@ -13,7 +13,7 @@ import MapKit
 struct ParentDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var familySharing = FamilySharingManager.shared
+    @State private var sharingCoordinator = UnifiedSharingCoordinator.shared
     @State private var statisticsService = ArtifactStatisticsService()
 
     @State private var artifacts: [TrainingArtifact] = []
@@ -40,8 +40,9 @@ struct ParentDashboardView: View {
     }
 
     init() {
-        let familySharing = FamilySharingManager.shared
-        _viewContext = State(initialValue: familySharing.createViewContext())
+        // Create view context based on current role
+        // Child name will be updated when data loads
+        _viewContext = State(initialValue: ViewContext.parentReview(childName: "Family"))
     }
 
     var body: some View {
@@ -68,7 +69,7 @@ struct ParentDashboardView: View {
             // Sidebar with tabs and live session
             List {
                 // Live session section
-                if let activeSession = familySharing.sharedWithMe.first(where: { $0.isActive }) {
+                if let activeSession = sharingCoordinator.sharedWithMe.first(where: { $0.isActive }) {
                     Section {
                         Button {
                             // Navigate to live tracking
@@ -163,7 +164,7 @@ struct ParentDashboardView: View {
                 AthleteHeaderView()
 
                 // Active session card (if any child is currently training)
-                if let activeSession = familySharing.sharedWithMe.first(where: { $0.isActive }) {
+                if let activeSession = sharingCoordinator.sharedWithMe.first(where: { $0.isActive }) {
                     LiveTrackingCard(session: activeSession)
                         .padding()
                 }
@@ -430,8 +431,8 @@ struct ParentDashboardView: View {
         viewContext.beginSync()
 
         // Fetch from CloudKit
-        artifacts = await familySharing.fetchFamilyArtifacts()
-        competitions = await familySharing.fetchFamilyCompetitions()
+        artifacts = await sharingCoordinator.fetchFamilyArtifacts()
+        competitions = await sharingCoordinator.fetchFamilyCompetitions()
 
         // Update statistics service
         statisticsService.updateStatistics(from: artifacts)
@@ -573,7 +574,7 @@ struct StatisticsCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -631,7 +632,7 @@ struct DisciplineStatisticsGrid: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -667,7 +668,7 @@ struct DisciplineStatCard: View {
             Spacer()
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -719,7 +720,7 @@ struct ArtifactDetailView: View {
                     }
                 }
                 .padding()
-                .background(.ultraThinMaterial)
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Core metrics
@@ -754,7 +755,7 @@ struct ArtifactDetailView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -817,7 +818,7 @@ struct MetricCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
@@ -854,7 +855,7 @@ struct RidingDetailCard: View {
             .foregroundStyle(.secondary)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -874,7 +875,7 @@ struct GaitDurationPill: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(Capsule())
     }
 }
@@ -895,7 +896,7 @@ struct RunningDetailCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -916,7 +917,7 @@ struct SwimmingDetailCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -937,7 +938,7 @@ struct ShootingDetailCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -996,7 +997,7 @@ struct LiveTrackingCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -1035,7 +1036,7 @@ struct WeekSummaryCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1117,7 +1118,7 @@ struct ArtifactSummaryRow: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -1173,7 +1174,7 @@ struct CompetitionCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
@@ -1194,7 +1195,7 @@ struct StatPill: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(Capsule())
     }
 }
@@ -1232,7 +1233,7 @@ struct FamilyDisciplineBreakdownChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1276,7 +1277,7 @@ struct FamilyWeeklyActivityChart: View {
             .frame(height: 100)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1329,7 +1330,7 @@ struct PersonalBestsCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

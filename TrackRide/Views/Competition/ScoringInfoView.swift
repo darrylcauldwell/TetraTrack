@@ -191,7 +191,7 @@ struct ScoringInfoView: View {
             Text(formula)
                 .font(.system(.caption, design: .monospaced))
                 .padding(8)
-                .background(Color(.tertiarySystemBackground))
+                .background(AppColors.elevatedSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         }
     }
@@ -216,7 +216,7 @@ struct ScoringInfoView: View {
                 }
             }
             .padding(8)
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
     }

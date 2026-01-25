@@ -24,6 +24,7 @@ import Foundation
 import CoreMotion
 import CoreLocation
 import Observation
+import os
 
 /// Motion data sample from Watch sensors
 struct WatchMotionSample: Codable {
@@ -137,7 +138,7 @@ final class WatchMotionManager: NSObject {
     func startTracking(mode: WatchMotionMode) {
         guard !isTracking else { return }
         guard motionManager.isDeviceMotionAvailable else {
-            print("WatchMotionManager: Device motion not available")
+            Log.location.warning("Device motion not available")
             return
         }
 
@@ -158,7 +159,7 @@ final class WatchMotionManager: NSObject {
         motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
             guard let self = self, let motion = motion else {
                 if let error = error {
-                    print("WatchMotionManager: Error - \(error)")
+                    Log.location.error("Motion update error: \(error.localizedDescription)")
                 }
                 return
             }
@@ -176,7 +177,7 @@ final class WatchMotionManager: NSObject {
         startWaterDetection()
 
         isTracking = true
-        print("WatchMotionManager: Started tracking - mode: \(mode)")
+        Log.location.info("Started tracking - mode: \(mode.rawValue)")
     }
 
     func stopTracking() {
@@ -190,7 +191,7 @@ final class WatchMotionManager: NSObject {
         isTracking = false
         currentMode = .idle
 
-        print("WatchMotionManager: Stopped tracking")
+        Log.location.info("Stopped tracking")
     }
 
     // MARK: - Private Methods
@@ -431,14 +432,14 @@ final class WatchMotionManager: NSObject {
 
     private func startAltimeter() {
         guard CMAltimeter.isRelativeAltitudeAvailable() else {
-            print("WatchMotionManager: Altimeter not available")
+            Log.location.warning("Altimeter not available")
             return
         }
 
         altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
             guard let self = self, let data = data else {
                 if let error = error {
-                    print("WatchMotionManager: Altimeter error - \(error)")
+                    Log.location.error("Altimeter error: \(error.localizedDescription)")
                 }
                 return
             }
@@ -469,7 +470,7 @@ final class WatchMotionManager: NSObject {
             self.lastAltitudeTime = now
         }
 
-        print("WatchMotionManager: Altimeter started")
+        Log.location.info("Altimeter started")
     }
 
     private func stopAltimeter() {
@@ -480,13 +481,13 @@ final class WatchMotionManager: NSObject {
 
     private func startCompass() {
         guard CLLocationManager.headingAvailable() else {
-            print("WatchMotionManager: Compass not available")
+            Log.location.warning("Compass not available")
             return
         }
 
         locationManager.delegate = self
         locationManager.startUpdatingHeading()
-        print("WatchMotionManager: Compass started")
+        Log.location.info("Compass started")
     }
 
     private func stopCompass() {
@@ -501,7 +502,7 @@ final class WatchMotionManager: NSObject {
         if #available(watchOS 10.0, *) {
             // Water submersion detection would be implemented here
             // For now, we use accelerometer patterns to detect water entry
-            print("WatchMotionManager: Water detection available (watchOS 10+)")
+            Log.location.info("Water detection available (watchOS 10+)")
         }
         #endif
     }

@@ -16,6 +16,7 @@ import SwiftUI
 // MARK: - Glass Material Levels
 
 /// Defines the intensity of glass effect
+/// Uses AppColors for consistent theming across the app
 enum GlassMaterial {
     case ultraThin    // Subtle, barely visible
     case thin         // Light translucency
@@ -23,13 +24,13 @@ enum GlassMaterial {
     case thick        // More opaque
     case chromatic    // Color-tinted glass
 
-    var material: Material {
+    var color: Color {
         switch self {
-        case .ultraThin: return .ultraThinMaterial
-        case .thin: return .thinMaterial
-        case .regular: return .regularMaterial
-        case .thick: return .thickMaterial
-        case .chromatic: return .ultraThinMaterial
+        case .ultraThin: return AppColors.cardBackground
+        case .thin: return AppColors.cardBackground
+        case .regular: return AppColors.elevatedSurface
+        case .thick: return AppColors.elevatedSurface
+        case .chromatic: return AppColors.cardBackground
         }
     }
 }
@@ -60,7 +61,7 @@ struct GlassCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(material.material)
+            .background(material.color)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -99,7 +100,7 @@ struct GlassButtonStyle: ButtonStyle {
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(material.material)
+                        .fill(material.color)
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(tint.opacity(configuration.isPressed ? 0.2 : 0.1))
                 }
@@ -146,7 +147,7 @@ struct GlassFloatingButton: View {
 
                 // Glass background
                 Circle()
-                    .fill(.ultraThinMaterial)
+                    .fill(AppColors.cardBackground)
                     .frame(width: size, height: size)
 
                 // Color fill
@@ -280,7 +281,7 @@ struct GlassProgressBar: View {
             ZStack {
                 // Background
                 RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(AppColors.cardBackground)
 
                 // Progress bars
                 HStack(spacing: 0) {
@@ -353,7 +354,7 @@ struct GlassChip: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(color.opacity(0.12))
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(Capsule())
         .overlay(
             Capsule()
@@ -426,13 +427,13 @@ extension View {
     func glassList() -> some View {
         self
             .scrollContentBackground(.hidden)
-            .background(.ultraThinMaterial)
+            .background(AppColors.cardBackground)
     }
 
     /// Apply floating glass panel style
     func glassPanel() -> some View {
         self
-            .background(.regularMaterial)
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
     }
@@ -443,7 +444,7 @@ extension View {
 struct GlassNavigationStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(AppColors.cardBackground, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
     }
 }
@@ -476,11 +477,5 @@ extension View {
         }
         .padding(.vertical)
     }
-    .background(
-        LinearGradient(
-            colors: [AppColors.light, AppColors.primary.opacity(0.1)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    )
+    .background(Color.black)
 }

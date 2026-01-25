@@ -59,7 +59,7 @@ struct ReactionDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -88,17 +88,17 @@ struct ReactionDrillView: View {
         Group {
             switch phase {
             case .idle, .complete:
-                Color.orange.opacity(0.1)
+                AppColors.drillReaction.opacity(Opacity.light)
             case .load, .ready:
-                Color.yellow.opacity(0.2)
+                AppColors.warning.opacity(Opacity.medium)
             case .watch:
-                Color.orange.opacity(0.3)
+                AppColors.drillReaction.opacity(Opacity.mediumHeavy)
             case .shoot:
-                Color.red.opacity(0.4)
+                AppColors.error.opacity(Opacity.heavy)
             case .hit:
-                Color.green.opacity(0.4)
+                AppColors.active.opacity(Opacity.heavy)
             case .miss:
-                Color.red.opacity(0.3)
+                AppColors.error.opacity(Opacity.mediumHeavy)
             }
         }
     }
@@ -109,7 +109,7 @@ struct ReactionDrillView: View {
 
             Image(systemName: "speaker.wave.3.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.drillReaction)
 
             Text("Range Commands")
                 .font(.title2.bold())
@@ -120,7 +120,7 @@ struct ReactionDrillView: View {
                 commandRow(command: "\"Watch and shoot\"", description: "Target appears - TAP!")
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             Text("Tap the target as fast as possible\nwhen it appears after the command!")
@@ -130,19 +130,14 @@ struct ReactionDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start Session") {
                 startSession()
-            } label: {
-                Text("Start Session")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.drillReaction))
+            .accessibilityLabel("Start Range Commands Session")
+            .accessibilityHint("Begins the reaction time drill with voice commands")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -151,7 +146,7 @@ struct ReactionDrillView: View {
         HStack {
             Text(command)
                 .font(.headline)
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.drillReaction)
                 .frame(width: 160, alignment: .leading)
             Text(description)
                 .font(.subheadline)
@@ -167,11 +162,11 @@ struct ReactionDrillView: View {
                     Text("Round \(currentRound)/\(totalRounds)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    HStack(spacing: 16) {
+                    HStack(spacing: Spacing.lg) {
                         Label("\(hits)", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.active)
                         Label("\(misses)", systemImage: "xmark.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.error)
                     }
                 }
                 Spacer()
@@ -237,7 +232,7 @@ struct ReactionDrillView: View {
                 Text(String(format: "Last: %.3fs", lastTime))
                     .font(.title3.bold())
                     .monospacedDigit()
-                    .foregroundStyle(lastTime < 0.3 ? .green : (lastTime < 0.5 ? .orange : .red))
+                    .foregroundStyle(lastTime < 0.3 ? AppColors.active : (lastTime < 0.5 ? AppColors.drillReaction : AppColors.error))
             }
 
             Spacer()
@@ -258,24 +253,24 @@ struct ReactionDrillView: View {
 
             Image(systemName: "flag.checkered")
                 .font(.system(size: 60))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.drillReaction)
 
             Text("Session Complete!")
                 .font(.title.bold())
 
             VStack(spacing: 16) {
-                HStack(spacing: 32) {
+                HStack(spacing: Spacing.jumbo) {
                     VStack {
                         Text("\(hits)")
                             .font(.system(size: 48, weight: .bold))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.active)
                         Text("Hits")
                             .foregroundStyle(.secondary)
                     }
                     VStack {
                         Text("\(misses)")
                             .font(.system(size: 48, weight: .bold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColors.error)
                         Text("Misses")
                             .foregroundStyle(.secondary)
                     }
@@ -290,7 +285,7 @@ struct ReactionDrillView: View {
                             .font(.headline)
                         Text(String(format: "Best: %.3fs", bestReaction))
                             .font(.headline)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.active)
                     }
                 }
 
@@ -298,40 +293,31 @@ struct ReactionDrillView: View {
                 let accuracy = hits + misses > 0 ? Double(hits) / Double(hits + misses) : 0
                 Text(accuracyRating(accuracy))
                     .font(.title2.bold())
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.drillReaction)
                     .padding(.top)
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     resetSession()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the reaction drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.drillReaction))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }

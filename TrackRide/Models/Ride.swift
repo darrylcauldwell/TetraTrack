@@ -6,6 +6,7 @@
 import Foundation
 import SwiftData
 import CoreLocation
+import os
 
 @Model
 final class Ride: GaitTimeTracking {
@@ -424,9 +425,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedHeartRateSamples { return cached }
             guard let data = heartRateSamplesData else { return [] }
-            let decoded = (try? JSONDecoder().decode([HeartRateSample].self, from: data)) ?? []
-            _cachedHeartRateSamples = decoded
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode([HeartRateSample].self, from: data)
+                _cachedHeartRateSamples = decoded
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode heartRateSamples: \(error)")
+                _cachedHeartRateSamples = []
+                return []
+            }
         }
         set {
             heartRateSamplesData = try? JSONEncoder().encode(newValue)
@@ -439,9 +446,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedRecoveryMetrics { return cached }
             guard let data = recoveryMetricsData else { return nil }
-            let decoded = try? JSONDecoder().decode(RecoveryMetrics.self, from: data)
-            _cachedRecoveryMetrics = .some(decoded)
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode(RecoveryMetrics.self, from: data)
+                _cachedRecoveryMetrics = .some(decoded)
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode recoveryMetrics: \(error)")
+                _cachedRecoveryMetrics = .some(nil)
+                return nil
+            }
         }
         set {
             recoveryMetricsData = try? JSONEncoder().encode(newValue)
@@ -484,9 +497,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedStartWeather { return cached }
             guard let data = startWeatherData else { return nil }
-            let decoded = try? JSONDecoder().decode(WeatherConditions.self, from: data)
-            _cachedStartWeather = .some(decoded)
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode(WeatherConditions.self, from: data)
+                _cachedStartWeather = .some(decoded)
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode startWeather: \(error)")
+                _cachedStartWeather = .some(nil)
+                return nil
+            }
         }
         set {
             startWeatherData = try? JSONEncoder().encode(newValue)
@@ -499,9 +518,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedEndWeather { return cached }
             guard let data = endWeatherData else { return nil }
-            let decoded = try? JSONDecoder().decode(WeatherConditions.self, from: data)
-            _cachedEndWeather = .some(decoded)
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode(WeatherConditions.self, from: data)
+                _cachedEndWeather = .some(decoded)
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode endWeather: \(error)")
+                _cachedEndWeather = .some(nil)
+                return nil
+            }
         }
         set {
             endWeatherData = try? JSONEncoder().encode(newValue)
@@ -536,9 +561,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedAISummary { return cached }
             guard let data = aiSummaryData else { return nil }
-            let decoded = try? JSONDecoder().decode(SessionSummary.self, from: data)
-            _cachedAISummary = .some(decoded)
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode(SessionSummary.self, from: data)
+                _cachedAISummary = .some(decoded)
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode aiSummary: \(error)")
+                _cachedAISummary = .some(nil)
+                return nil
+            }
         }
         set {
             aiSummaryData = try? JSONEncoder().encode(newValue)
@@ -551,9 +582,15 @@ final class Ride: GaitTimeTracking {
         get {
             if let cached = _cachedVoiceNotes { return cached }
             guard let data = voiceNotesData else { return [] }
-            let decoded = (try? JSONDecoder().decode([String].self, from: data)) ?? []
-            _cachedVoiceNotes = decoded
-            return decoded
+            do {
+                let decoded = try JSONDecoder().decode([String].self, from: data)
+                _cachedVoiceNotes = decoded
+                return decoded
+            } catch {
+                Log.app.error("Failed to decode voiceNotes: \(error)")
+                _cachedVoiceNotes = []
+                return []
+            }
         }
         set {
             voiceNotesData = try? JSONEncoder().encode(newValue)

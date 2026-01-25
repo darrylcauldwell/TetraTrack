@@ -77,7 +77,7 @@ struct UnifiedStreakBanner: View {
             .frame(maxWidth: .infinity)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -164,7 +164,7 @@ struct MovementPatternTransferCard: View {
             }
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -197,7 +197,7 @@ struct EmptyTrainingState: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -269,7 +269,7 @@ struct QuickStatsRow: View {
             )
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 

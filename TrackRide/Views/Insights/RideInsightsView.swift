@@ -13,6 +13,8 @@ import Charts
 struct RideInsightsView: View {
     let ride: Ride
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     // Shared coordinator for cross-chart interaction
     @State private var coordinator = InsightsCoordinator()
 
@@ -35,36 +37,60 @@ struct RideInsightsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // 1. Header Summary Row
-                headerSummaryRow
+            if horizontalSizeClass == .regular {
+                iPadContent
+            } else {
+                iPhoneContent
+            }
+        }
+        .navigationTitle("Ride Insights")
+        .navigationBarTitleDisplayMode(.inline)
+        .glassNavigation()
+        .sheet(isPresented: $showingInsightPopup) {
+            InsightPopupView(insight: currentInsight)
+                .presentationDetents([.medium])
+        }
+        .presentationBackground(Color.black)
+    }
 
-                // Expanded detail view (shown when a score card is tapped)
-                if let section = expandedSection {
-                    ExpandedMetricDetailView(
-                        metricType: section,
-                        segments: ride.sortedGaitSegments,
-                        rideDuration: ride.totalDuration,
-                        rideStart: ride.startDate,
-                        selectedTimestamp: $coordinator.selectedTimestamp
-                    )
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.95).combined(with: .opacity),
-                        removal: .opacity
-                    ))
-                }
+    // MARK: - iPad Layout (Multi-Column Grid)
 
-                // 2. Gait Timeline Strip
-                gaitTimelineSection
+    private var iPadContent: some View {
+        VStack(spacing: Spacing.xl) {
+            // 1. Header Summary Row (full width)
+            headerSummaryRow
 
-                // Zoom controls and comparison toggle
-                interactiveControlsRow
+            // Expanded detail view (shown when a score card is tapped)
+            if let section = expandedSection {
+                ExpandedMetricDetailView(
+                    metricType: section,
+                    segments: ride.sortedGaitSegments,
+                    rideDuration: ride.totalDuration,
+                    rideStart: ride.startDate,
+                    selectedTimestamp: $coordinator.selectedTimestamp
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            }
 
-                // Comparison stats (when comparison mode active)
-                if coordinator.comparisonMode {
-                    comparisonStatsSection
-                }
+            // 2. Gait Timeline Strip (full width - anchor)
+            gaitTimelineSection
 
+            // Zoom controls and comparison toggle
+            interactiveControlsRow
+
+            // Comparison stats (when comparison mode active)
+            if coordinator.comparisonMode {
+                comparisonStatsSection
+            }
+
+            // Two-column grid for analysis sections
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: Spacing.lg),
+                GridItem(.flexible(), spacing: Spacing.lg)
+            ], spacing: Spacing.lg) {
                 // 3. Rein and Turn Balance Graphs
                 balanceGraphsSection
 
@@ -74,33 +100,90 @@ struct RideInsightsView: View {
                 // 5. Rhythm and Stability View
                 rhythmStabilitySection
 
-                // 6. Transition Quality Strip
-                transitionQualitySection
-
                 // 7. Lead Consistency & Canter Quality
                 leadConsistencySection
 
                 // 8. Impulsion / Engagement
                 impulsionEngagementSection
 
-                // 9. Training Load Timeline
-                trainingLoadSection
-
                 // 10. Mental State / Tension Proxy
                 mentalStateSection
-
-                // Coach Insights Summary
-                coachInsightsSection
             }
-            .padding()
+
+            // Full-width timeline sections
+            // 6. Transition Quality Strip
+            transitionQualitySection
+
+            // 9. Training Load Timeline
+            trainingLoadSection
+
+            // Coach Insights Summary (full width)
+            coachInsightsSection
         }
-        .navigationTitle("Ride Insights")
-        .navigationBarTitleDisplayMode(.inline)
-        .glassNavigation()
-        .sheet(isPresented: $showingInsightPopup) {
-            InsightPopupView(insight: currentInsight)
-                .presentationDetents([.medium])
+        .padding(Spacing.xl)
+    }
+
+    // MARK: - iPhone Layout (Vertical)
+
+    private var iPhoneContent: some View {
+        VStack(spacing: 20) {
+            // 1. Header Summary Row
+            headerSummaryRow
+
+            // Expanded detail view (shown when a score card is tapped)
+            if let section = expandedSection {
+                ExpandedMetricDetailView(
+                    metricType: section,
+                    segments: ride.sortedGaitSegments,
+                    rideDuration: ride.totalDuration,
+                    rideStart: ride.startDate,
+                    selectedTimestamp: $coordinator.selectedTimestamp
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            }
+
+            // 2. Gait Timeline Strip
+            gaitTimelineSection
+
+            // Zoom controls and comparison toggle
+            interactiveControlsRow
+
+            // Comparison stats (when comparison mode active)
+            if coordinator.comparisonMode {
+                comparisonStatsSection
+            }
+
+            // 3. Rein and Turn Balance Graphs
+            balanceGraphsSection
+
+            // 4. Straightness and Rider Symmetry
+            symmetrySection
+
+            // 5. Rhythm and Stability View
+            rhythmStabilitySection
+
+            // 6. Transition Quality Strip
+            transitionQualitySection
+
+            // 7. Lead Consistency & Canter Quality
+            leadConsistencySection
+
+            // 8. Impulsion / Engagement
+            impulsionEngagementSection
+
+            // 9. Training Load Timeline
+            trainingLoadSection
+
+            // 10. Mental State / Tension Proxy
+            mentalStateSection
+
+            // Coach Insights Summary
+            coachInsightsSection
         }
+        .padding()
     }
 
     // MARK: - 1. Header Summary Row

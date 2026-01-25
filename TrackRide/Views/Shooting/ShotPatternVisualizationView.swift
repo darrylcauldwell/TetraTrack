@@ -83,7 +83,7 @@ struct ShotPatternVisualizationView: View {
                 }
             }
         }
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -634,7 +634,7 @@ struct ShotPatternVisualizationView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -872,7 +872,7 @@ struct HistoricalAggregationView: View {
                     )
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Visualization

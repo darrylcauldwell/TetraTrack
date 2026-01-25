@@ -304,7 +304,7 @@ private struct GuidanceSection<Content: View>: View {
                 content()
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -429,7 +429,7 @@ struct CaptureGuidanceBanner: View {
             .font(.caption.bold())
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

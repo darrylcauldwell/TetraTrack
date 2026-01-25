@@ -8,6 +8,7 @@
 import Foundation
 import WatchConnectivity
 import Observation
+import os
 
 @Observable
 final class WatchConnectivityService: NSObject {
@@ -62,7 +63,7 @@ final class WatchConnectivityService: NSObject {
 
     func activate() {
         guard WCSession.isSupported() else {
-            print("WatchConnectivityService: WCSession not supported")
+            Log.watch.warning("WCSession not supported")
             return
         }
 
@@ -125,27 +126,27 @@ final class WatchConnectivityService: NSObject {
     private func sendMessage(_ message: WatchMessage) {
         guard let session = session,
               session.activationState == .activated else {
-            print("WatchConnectivityService: Session not active")
+            Log.watch.debug("Session not active")
             return
         }
 
         if session.isReachable {
             session.sendMessage(message.toDictionary(), replyHandler: nil) { error in
-                print("WatchConnectivityService: Send error - \(error)")
+                Log.watch.error("Send error: \(error.localizedDescription)")
             }
         } else {
             // Use application context for background updates
             do {
                 try session.updateApplicationContext(message.toDictionary())
             } catch {
-                print("WatchConnectivityService: Context update error - \(error)")
+                Log.watch.error("Context update error: \(error.localizedDescription)")
             }
         }
     }
 
     private func handleReceivedMessage(_ message: [String: Any]) {
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
-            print("WatchConnectivityService: Failed to parse message")
+            Log.watch.warning("Failed to parse message")
             return
         }
 
@@ -309,7 +310,7 @@ extension WatchConnectivityService: WCSessionDelegate {
         error: Error?
     ) {
         if let error = error {
-            print("WatchConnectivityService: Activation error - \(error)")
+            Log.watch.error("Activation error: \(error.localizedDescription)")
             return
         }
 
@@ -317,7 +318,7 @@ extension WatchConnectivityService: WCSessionDelegate {
             self.isReachable = session.isReachable
         }
 
-        print("WatchConnectivityService: Activated - reachable: \(session.isReachable)")
+        Log.watch.info("Activated - reachable: \(session.isReachable)")
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {

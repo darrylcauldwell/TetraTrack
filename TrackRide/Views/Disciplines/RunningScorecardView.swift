@@ -283,7 +283,7 @@ struct RunningCoachingCard: View {
             }
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 

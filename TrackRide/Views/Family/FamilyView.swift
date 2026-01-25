@@ -6,13 +6,15 @@
 //
 
 import SwiftUI
+import os
 
 struct FamilyView: View {
     @Environment(RideTracker.self) private var rideTracker: RideTracker?
-    @State private var familySharing = FamilySharingManager.shared
+    @State private var sharingCoordinator = UnifiedSharingCoordinator.shared
     @State private var notificationManager = NotificationManager.shared
+    @State private var syncMonitor = SyncStatusMonitor.shared
     @State private var showingAddMember = false
-    @State private var refreshTimer: Timer?
+    @State private var trustedContacts: [SharingRelationship] = []
 
     var body: some View {
         NavigationStack {
@@ -20,77 +22,81 @@ struct FamilyView: View {
                 VStack(spacing: 20) {
                     // Pending Requests Section (always visible)
                     PendingRequestsSection(
-                        pendingRequests: familySharing.pendingRequests,
-                        familySharing: familySharing
+                        pendingRequests: sharingCoordinator.pendingRequests,
+                        sharingCoordinator: sharingCoordinator
                     )
 
                     // Shared With Me Section (always visible)
-                    SharedWithMeSection(linkedRiders: familySharing.linkedRiders)
+                    SharedWithMeSection(linkedRiders: sharingCoordinator.linkedRiders)
 
                     // My Sharing Card
                     MySharingCard(
                         rideTracker: rideTracker,
-                        notificationManager: notificationManager
+                        notificationManager: notificationManager,
+                        sharingCoordinator: sharingCoordinator
                     )
 
                     // Show either the contacts list OR the get started card (not both)
-                    if familySharing.trustedContacts.isEmpty {
+                    if trustedContacts.isEmpty {
                         // No contacts yet - show onboarding card with safety info
                         GetStartedCard(onAddMember: { showingAddMember = true })
                     } else {
                         // Has contacts - show the list
                         TrustedContactsCard(
-                            familySharing: familySharing,
+                            contacts: trustedContacts,
+                            sharingCoordinator: sharingCoordinator,
                             onAddMember: { showingAddMember = true }
                         )
                     }
                 }
                 .padding()
             }
-            .background(
-                LinearGradient(
-                    colors: [
-                        AppColors.light,
-                        AppColors.primary.opacity(0.05),
-                        AppColors.light.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            )
+            .background(Color(.systemBackground).ignoresSafeArea())
             .navigationTitle("Live Sharing")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 12) {
+                        SyncStatusIndicator()
+
+                        NavigationLink(destination: SharingDiagnosticsView()) {
+                            Image(systemName: "wrench.and.screwdriver")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
             .refreshable {
-                await familySharing.fetchFamilyLocations()
+                await sharingCoordinator.fetchFamilyLocations()
+                loadContacts()
             }
             .onAppear {
-                startRefreshing()
+                sharingCoordinator.startWatchingLocations()
+                syncMonitor.startMonitoring()
             }
             .onDisappear {
-                stopRefreshing()
+                sharingCoordinator.stopWatchingLocations()
+                syncMonitor.stopMonitoring()
             }
             .sheet(isPresented: $showingAddMember) {
                 AddFamilyMemberView()
+                    .presentationBackground(Color.black)
             }
             .task {
-                familySharing.loadContacts()
-                await familySharing.setup()
-                await familySharing.fetchFamilyLocations()
+                sharingCoordinator.loadLinkedRiders()
+                await sharingCoordinator.setup()
+                await sharingCoordinator.fetchFamilyLocations()
+                loadContacts()
             }
+            .presentationBackground(Color.black)
         }
     }
 
-    private func startRefreshing() {
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in
-            Task {
-                await familySharing.fetchFamilyLocations()
-            }
+    private func loadContacts() {
+        do {
+            trustedContacts = try sharingCoordinator.fetchFamilyMembers()
+        } catch {
+            Log.family.error("Failed to load contacts: \(error)")
         }
-    }
-
-    private func stopRefreshing() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }
 
@@ -141,22 +147,24 @@ struct SharedWithMeSection: View {
                 .padding(.vertical, 16)
             } else {
                 // Show all linked riders
+                // Navigation depends solely on currentSession to avoid race between
+                // isCurrentlyRiding and currentSession properties
                 ForEach(linkedRiders) { rider in
-                    if rider.isCurrentlyRiding, let session = rider.currentSession {
-                        // Rider is active - show with navigation to live map
+                    if let session = rider.currentSession, session.isActive {
+                        // Rider has active session - show with navigation to live map
                         NavigationLink(destination: LiveTrackingMapView(session: session)) {
                             LinkedRiderCard(rider: rider)
                         }
                         .buttonStyle(.plain)
                     } else {
-                        // Rider is not active - show status only
+                        // Rider is not active or no session data - show status only
                         LinkedRiderCard(rider: rider)
                     }
                 }
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -165,7 +173,7 @@ struct SharedWithMeSection: View {
 
 struct PendingRequestsSection: View {
     let pendingRequests: [PendingShareRequest]
-    let familySharing: FamilySharingManager
+    let sharingCoordinator: UnifiedSharingCoordinator
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -213,14 +221,14 @@ struct PendingRequestsSection: View {
                     .foregroundStyle(.secondary)
 
                 ForEach(pendingRequests) { request in
-                    PendingRequestCard(request: request, familySharing: familySharing)
+                    PendingRequestCard(request: request, sharingCoordinator: sharingCoordinator)
                 }
             }
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(pendingRequests.isEmpty ? Color(.systemGray6).opacity(0.5) : .orange.opacity(0.1))
+                .fill(pendingRequests.isEmpty ? AppColors.cardBackground.opacity(0.5) : .orange.opacity(0.1))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(pendingRequests.isEmpty ? Color(.systemGray4).opacity(0.3) : .orange.opacity(0.3), lineWidth: 1)
@@ -233,7 +241,7 @@ struct PendingRequestsSection: View {
 
 struct PendingRequestCard: View {
     let request: PendingShareRequest
-    let familySharing: FamilySharingManager
+    let sharingCoordinator: UnifiedSharingCoordinator
     @State private var isAccepting = false
     @State private var showingDeclineConfirmation = false
 
@@ -303,7 +311,10 @@ struct PendingRequestCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .confirmationDialog("Decline request from \(request.ownerName)?", isPresented: $showingDeclineConfirmation, titleVisibility: .visible) {
             Button("Decline", role: .destructive) {
-                familySharing.declinePendingRequest(request)
+                // Decline the pending request (does NOT accept the CKShare)
+                Task {
+                    await sharingCoordinator.declinePendingRequest(request)
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -314,7 +325,8 @@ struct PendingRequestCard: View {
     private func acceptRequest() {
         isAccepting = true
         Task {
-            _ = await familySharing.acceptPendingRequest(request)
+            // Use the proper accept method that accepts the CKShare and removes from pending
+            _ = await sharingCoordinator.acceptPendingRequest(request)
             await MainActor.run {
                 isAccepting = false
             }
@@ -496,6 +508,7 @@ struct ActiveRideCard: View {
 struct MySharingCard: View {
     let rideTracker: RideTracker?
     let notificationManager: NotificationManager
+    let sharingCoordinator: UnifiedSharingCoordinator
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -515,6 +528,30 @@ struct MySharingCard: View {
                     Text(tracker.rideState == .tracking ? "Currently sharing your ride" : "Not riding - live sharing inactive")
                         .font(.subheadline)
                         .foregroundStyle(tracker.rideState == .tracking ? AppColors.active : .secondary)
+                }
+
+                // Show error indicator when location updates are failing
+                if tracker.rideState == .tracking && sharingCoordinator.hasLocationUpdateError {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(sharingCoordinator.locationErrorDescription ?? "Location updates failing")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.orange)
+                        }
+                        if let errorTime = sharingCoordinator.locationErrorStartTime {
+                            Text("Family may not see updates since \(errorTime.formatted(date: .omitted, time: .shortened))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
 
@@ -547,7 +584,7 @@ struct MySharingCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -555,7 +592,8 @@ struct MySharingCard: View {
 // MARK: - Trusted Contacts Card
 
 struct TrustedContactsCard: View {
-    let familySharing: FamilySharingManager
+    let contacts: [SharingRelationship]
+    let sharingCoordinator: UnifiedSharingCoordinator
     let onAddMember: () -> Void
 
     var body: some View {
@@ -578,16 +616,16 @@ struct TrustedContactsCard: View {
             .padding(.bottom, 16)
 
             // Contact list with dividers
-            ForEach(Array(familySharing.trustedContacts.enumerated()), id: \.element.id) { index, contact in
+            ForEach(Array(contacts.enumerated()), id: \.element.id) { index, contact in
                 if index > 0 {
                     Divider()
                         .padding(.vertical, 4)
                 }
-                ContactRow(contact: contact, familySharing: familySharing)
+                ContactRow(contact: contact, sharingCoordinator: sharingCoordinator)
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -595,8 +633,8 @@ struct TrustedContactsCard: View {
 // MARK: - Contact Row
 
 struct ContactRow: View {
-    let contact: TrustedContact
-    let familySharing: FamilySharingManager
+    let contact: SharingRelationship
+    let sharingCoordinator: UnifiedSharingCoordinator
     @State private var liveTracking: Bool
     @State private var fallAlerts: Bool
     @State private var stationaryAlerts: Bool
@@ -604,11 +642,14 @@ struct ContactRow: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingShareSheet = false
     @State private var isExpanded = false
+    @State private var isGeneratingShare = false
+    @State private var currentShareURL: URL?
+    @State private var showingShareError = false
 
-    init(contact: TrustedContact, familySharing: FamilySharingManager) {
+    init(contact: SharingRelationship, sharingCoordinator: UnifiedSharingCoordinator) {
         self.contact = contact
-        self.familySharing = familySharing
-        self._liveTracking = State(initialValue: contact.canViewLiveTracking)
+        self.sharingCoordinator = sharingCoordinator
+        self._liveTracking = State(initialValue: contact.canViewLiveRiding)
         self._fallAlerts = State(initialValue: contact.receiveFallAlerts)
         self._stationaryAlerts = State(initialValue: contact.receiveStationaryAlerts)
         self._emergencySOS = State(initialValue: contact.isEmergencyContact)
@@ -716,22 +757,48 @@ struct ContactRow: View {
                                 }
 
                                 Button {
-                                    showingShareSheet = true
+                                    // Generate share URL if needed before showing sheet
+                                    if contact.shareURLValue == nil && currentShareURL == nil {
+                                        isGeneratingShare = true
+                                        Task {
+                                            let url = await sharingCoordinator.generateShareLink(for: contact)
+                                            await MainActor.run {
+                                                isGeneratingShare = false
+                                                guard let url = url else {
+                                                    // Show error - share link is required
+                                                    showingShareError = true
+                                                    return
+                                                }
+                                                currentShareURL = url
+                                                showingShareSheet = true
+                                            }
+                                        }
+                                    } else {
+                                        currentShareURL = contact.shareURLValue
+                                        showingShareSheet = true
+                                    }
                                 } label: {
-                                    Label(
-                                        contact.inviteStatus == .pending ? "Send reminder" : "Send invite",
-                                        systemImage: contact.inviteStatus == .pending ? "arrow.clockwise" : "paperplane"
-                                    )
-                                    .font(.body)
-                                    .fontWeight(.medium)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 14)
+                                    if isGeneratingShare {
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 14)
+                                    } else {
+                                        Label(
+                                            contact.inviteStatus == .pending ? "Send reminder" : "Send invite",
+                                            systemImage: contact.inviteStatus == .pending ? "arrow.clockwise" : "paperplane"
+                                        )
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                    }
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .tint(contact.inviteStatus == .pending ? .orange : AppColors.primary)
+                                .disabled(isGeneratingShare)
                             }
                             .padding(16)
-                            .background(Color(.systemGray6).opacity(0.5))
+                            .background(AppColors.cardBackground.opacity(0.5))
                             .clipShape(RoundedRectangle(cornerRadius: 14))
 
                             Divider()
@@ -755,9 +822,8 @@ struct ContactRow: View {
                                 color: AppColors.primary,
                                 isOn: $liveTracking
                             ) { newValue in
-                                var updated = contact
-                                updated.canViewLiveTracking = newValue
-                                familySharing.updateContact(updated)
+                                contact.canViewLiveRiding = newValue
+                                sharingCoordinator.repository?.update(contact)
                             }
 
                             // Fall Detection toggle
@@ -768,9 +834,8 @@ struct ContactRow: View {
                                 color: AppColors.error,
                                 isOn: $fallAlerts
                             ) { newValue in
-                                var updated = contact
-                                updated.receiveFallAlerts = newValue
-                                familySharing.updateContact(updated)
+                                contact.receiveFallAlerts = newValue
+                                sharingCoordinator.repository?.update(contact)
                             }
 
                             // Stationary Alerts toggle
@@ -781,9 +846,8 @@ struct ContactRow: View {
                                 color: AppColors.warning,
                                 isOn: $stationaryAlerts
                             ) { newValue in
-                                var updated = contact
-                                updated.receiveStationaryAlerts = newValue
-                                familySharing.updateContact(updated)
+                                contact.receiveStationaryAlerts = newValue
+                                sharingCoordinator.repository?.update(contact)
                             }
 
                             // Emergency SOS toggle
@@ -794,9 +858,8 @@ struct ContactRow: View {
                                 color: .red,
                                 isOn: $emergencySOS
                             ) { newValue in
-                                var updated = contact
-                                updated.isEmergencyContact = newValue
-                                familySharing.updateContact(updated)
+                                contact.isEmergencyContact = newValue
+                                sharingCoordinator.repository?.update(contact)
                             }
                         }
 
@@ -823,7 +886,9 @@ struct ContactRow: View {
         .padding(.vertical, 14)
         .confirmationDialog("Remove \(contact.name)?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Remove Contact", role: .destructive) {
-                familySharing.removeContact(id: contact.id)
+                Task {
+                    await sharingCoordinator.deleteRelationship(contact)
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -831,13 +896,23 @@ struct ContactRow: View {
         }
         .sheet(isPresented: $showingShareSheet, onDismiss: {
             if contact.inviteStatus == .notSent {
-                familySharing.markInviteSent(contactID: contact.id)
+                contact.inviteStatus = .pending
+                contact.inviteSentDate = Date()
+                sharingCoordinator.repository?.update(contact)
             } else if contact.inviteStatus == .pending {
-                familySharing.markReminderSent(contactID: contact.id)
+                contact.lastReminderDate = Date()
+                contact.reminderCount += 1
+                sharingCoordinator.repository?.update(contact)
             }
         }) {
-            ShareSheet(items: [contact.inviteMessage(isReminder: contact.inviteStatus == .pending)])
+            ShareSheet(items: [contact.generateInviteMessage(isReminder: contact.inviteStatus == .pending)])
         }
+        .alert("Unable to Generate Invite Link", isPresented: $showingShareError) {
+            Button("OK") { }
+        } message: {
+            Text("Please make sure you're signed into iCloud in Settings. The invite link requires iCloud to work.")
+        }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -890,7 +965,7 @@ struct FeatureToggleRow: View {
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 16)
-        .background(Color(.systemGray6).opacity(0.6))
+        .background(AppColors.cardBackground.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
@@ -958,7 +1033,7 @@ struct GetStartedCard: View {
             .controlSize(.large)
         }
         .padding(24)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -993,6 +1068,8 @@ struct AddFamilyMemberView: View {
     @State private var isLoading = false
     @State private var showingShareSheet = false
     @State private var shareItems: [Any] = []
+    @State private var showingError = false
+    @State private var errorMessage = ""
     @FocusState private var isNameFieldFocused: Bool
 
     var body: some View {
@@ -1027,7 +1104,7 @@ struct AddFamilyMemberView: View {
                         .textContentType(.name)
                         .font(.title3)
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .focused($isNameFieldFocused)
                         .submitLabel(.done)
@@ -1078,42 +1155,49 @@ struct AddFamilyMemberView: View {
             .sheet(isPresented: $showingShareSheet) {
                 ShareSheet(items: shareItems)
             }
+            .alert("Unable to Generate Invite Link", isPresented: $showingError) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
+            }
+            .presentationBackground(Color.black)
         }
     }
 
     private func addAndInvite() {
         isLoading = true
+        let sharingCoordinator = UnifiedSharingCoordinator.shared
 
         Task {
+            // Create the relationship first
+            guard let relationship = sharingCoordinator.createRelationship(
+                name: name,
+                type: .familyMember,
+                preset: .fullAccess
+            ) else {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to create contact."
+                    showingError = true
+                }
+                return
+            }
+
             // Generate CloudKit share URL
-            let shareURL = await FamilySharingManager.shared.generateShareLink()
+            let shareURL = await sharingCoordinator.generateShareLink(for: relationship)
 
             await MainActor.run {
-                // Add the contact with pending invite status
-                FamilySharingManager.shared.addContact(
-                    name: name,
-                    phoneNumber: "",
-                    email: nil,
-                    isEmergencyContact: true,
-                    inviteStatus: .pending,
-                    inviteSentDate: Date()
-                )
-
-                // Generate share content with the CloudKit URL
-                let firstName = name.split(separator: " ").first.map(String.init) ?? "there"
-                var message = """
-                Hi \(firstName)! I've added you as a trusted contact on TetraTrack.
-
-                You can follow my horse rides live and receive safety alerts if I need help.
-
-                Download TetraTrack: https://apps.apple.com/app/tetratrack
-                """
-
-                if let url = shareURL {
-                    message += "\n\nTap to connect: \(url.absoluteString)"
+                // Check if we got a share URL
+                guard let url = shareURL else {
+                    // Show error to user - the share link is critical for the invite
+                    isLoading = false
+                    errorMessage = "Please make sure you're signed into iCloud in Settings. The invite link requires iCloud to work."
+                    showingError = true
+                    return
                 }
 
-                shareItems = [message]
+                // Generate share content with the CloudKit URL
+                shareItems = [relationship.generateInviteMessage()]
                 isLoading = false
                 showingShareSheet = true
             }

@@ -10,7 +10,67 @@ import WatchConnectivity
 import Observation
 import os
 
+// MARK: - Watch Synced Session
+
+/// Represents a session recorded on Apple Watch and synced to iPhone
+struct WatchSyncedSession {
+    let id: UUID
+    let discipline: String  // "riding", "running", "swimming"
+    let startDate: Date
+    let endDate: Date?
+    let duration: TimeInterval
+    let distance: Double
+    let elevationGain: Double
+    let elevationLoss: Double
+    let averageSpeed: Double
+    let maxSpeed: Double
+    let averageHeartRate: Int?
+    let maxHeartRate: Int?
+    let minHeartRate: Int?
+    let locationPointsData: Data?
+
+    /// Decode from JSON string received from Watch
+    static func from(jsonString: String) -> WatchSyncedSession? {
+        guard let data = jsonString.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let idString = dict["id"] as? String,
+              let id = UUID(uuidString: idString),
+              let discipline = dict["discipline"] as? String,
+              let startTimestamp = dict["startDate"] as? TimeInterval,
+              let duration = dict["duration"] as? Double,
+              let distance = dict["distance"] as? Double else {
+            return nil
+        }
+
+        let endDate: Date? = (dict["endDate"] as? TimeInterval).map { Date(timeIntervalSince1970: $0) }
+
+        // Decode location points from base64
+        var locationData: Data?
+        if let base64String = dict["locationPoints"] as? String {
+            locationData = Data(base64Encoded: base64String)
+        }
+
+        return WatchSyncedSession(
+            id: id,
+            discipline: discipline,
+            startDate: Date(timeIntervalSince1970: startTimestamp),
+            endDate: endDate,
+            duration: duration,
+            distance: distance,
+            elevationGain: dict["elevationGain"] as? Double ?? 0,
+            elevationLoss: dict["elevationLoss"] as? Double ?? 0,
+            averageSpeed: dict["averageSpeed"] as? Double ?? 0,
+            maxSpeed: dict["maxSpeed"] as? Double ?? 0,
+            averageHeartRate: dict["averageHeartRate"] as? Int,
+            maxHeartRate: dict["maxHeartRate"] as? Int,
+            minHeartRate: dict["minHeartRate"] as? Int,
+            locationPointsData: locationData
+        )
+    }
+}
+
 @Observable
+@MainActor
 final class WatchConnectivityManager: NSObject, WatchConnecting {
     // MARK: - State
 
@@ -36,6 +96,30 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     private(set) var groundContactTime: Double = 0.0  // ms
     private(set) var cadence: Int = 0  // steps per minute
 
+    // MARK: - Enhanced Sensor Data (Phase 3)
+
+    // Altimeter metrics
+    private(set) var relativeAltitude: Double = 0.0  // meters from start
+    private(set) var altitudeChangeRate: Double = 0.0  // m/s (positive = ascending)
+    private(set) var barometricPressure: Double = 0.0  // kPa
+
+    // Water detection
+    private(set) var isSubmerged: Bool = false
+    private(set) var waterDepth: Double = 0.0  // meters
+
+    // Health metrics
+    private(set) var oxygenSaturation: Double = 0.0  // 0-100%
+    private(set) var breathingRate: Double = 0.0  // breaths per minute
+
+    // Orientation & navigation
+    private(set) var compassHeading: Double = 0.0  // degrees (0-360)
+    private(set) var posturePitch: Double = 0.0  // degrees (-90 to 90)
+    private(set) var postureRoll: Double = 0.0  // degrees (-180 to 180)
+
+    // Motion analysis
+    private(set) var tremorLevel: Double = 0.0  // 0-100 (higher = more tremor)
+    private(set) var movementIntensity: Double = 0.0  // 0-100 (overall activity level)
+
     // MARK: - Callbacks
 
     var onCommandReceived: ((WatchCommand) -> Void)?
@@ -44,10 +128,16 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     var onMotionUpdate: ((WatchMotionModeShared, Double?, Int?, Double?, Double?, Double?, Int?) -> Void)?
     var onStrokeDetected: (() -> Void)?
 
+    // Enhanced sensor callback (fired when new sensor data received)
+    var onEnhancedSensorUpdate: (() -> Void)?
+
     // Fall detection callbacks
     var onWatchFallDetected: ((Double, Double, Double) -> Void)?  // confidence, impact, rotation
     var onWatchFallConfirmedOK: (() -> Void)?
     var onWatchFallEmergency: (() -> Void)?
+
+    // Watch autonomous session sync callback
+    var onWatchSessionReceived: ((WatchSyncedSession) -> Void)?
 
     // MARK: - Private
 
@@ -173,6 +263,20 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             self.verticalOscillation = 0.0
             self.groundContactTime = 0.0
             self.cadence = 0
+
+            // Reset enhanced sensor data
+            self.relativeAltitude = 0.0
+            self.altitudeChangeRate = 0.0
+            self.barometricPressure = 0.0
+            self.isSubmerged = false
+            self.waterDepth = 0.0
+            self.oxygenSaturation = 0.0
+            self.breathingRate = 0.0
+            self.compassHeading = 0.0
+            self.posturePitch = 0.0
+            self.postureRoll = 0.0
+            self.tremorLevel = 0.0
+            self.movementIntensity = 0.0
         }
     }
 
@@ -185,17 +289,26 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
+        let dict = message.toDictionary()
+
+        // Always try sendMessage first for real-time updates
+        // It will fail gracefully if not reachable
         if session.isReachable {
-            // Use sendMessage for real-time updates
             Log.watch.debug("Sending real-time message to Watch (reachable)")
-            session.sendMessage(message.toDictionary(), replyHandler: nil) { error in
+            session.sendMessage(dict, replyHandler: nil) { error in
                 Log.watch.error("Send error: \(error)")
             }
         } else {
-            // Use application context for non-urgent updates
-            Log.watch.debug("Watch not reachable, using application context")
-            updateApplicationContext(message)
+            // Try sendMessage anyway - sometimes isReachable is stale
+            Log.watch.debug("Watch not reachable, trying sendMessage then context")
+            session.sendMessage(dict, replyHandler: nil) { [weak self] _ in
+                // If sendMessage fails, fall back to application context
+                self?.updateApplicationContext(message)
+            }
         }
+
+        // Always update application context as backup for when Watch wakes
+        updateApplicationContext(message)
     }
 
     private func updateApplicationContext(_ message: WatchMessage) {
@@ -212,6 +325,12 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     }
 
     private func handleReceivedMessage(_ message: [String: Any]) {
+        // Check for Watch session sync message (autonomous session from Watch)
+        if let type = message["type"] as? String, type == "watchSessionSync" {
+            handleWatchSessionSync(message)
+            return
+        }
+
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
             Log.watch.warning("Failed to parse message")
             return
@@ -277,6 +396,44 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
                         self.cadence = cad
                     }
 
+                    // Update enhanced sensor data
+                    if let altitude = watchMessage.relativeAltitude {
+                        self.relativeAltitude = altitude
+                    }
+                    if let altRate = watchMessage.altitudeChangeRate {
+                        self.altitudeChangeRate = altRate
+                    }
+                    if let pressure = watchMessage.barometricPressure {
+                        self.barometricPressure = pressure
+                    }
+                    if let submerged = watchMessage.isSubmerged {
+                        self.isSubmerged = submerged
+                    }
+                    if let depth = watchMessage.waterDepth {
+                        self.waterDepth = depth
+                    }
+                    if let spo2 = watchMessage.oxygenSaturation {
+                        self.oxygenSaturation = spo2
+                    }
+                    if let heading = watchMessage.compassHeading {
+                        self.compassHeading = heading
+                    }
+                    if let breathing = watchMessage.breathingRate {
+                        self.breathingRate = breathing
+                    }
+                    if let pitch = watchMessage.posturePitch {
+                        self.posturePitch = pitch
+                    }
+                    if let roll = watchMessage.postureRoll {
+                        self.postureRoll = roll
+                    }
+                    if let tremor = watchMessage.tremorLevel {
+                        self.tremorLevel = tremor
+                    }
+                    if let intensity = watchMessage.movementIntensity {
+                        self.movementIntensity = intensity
+                    }
+
                     // Fire motion update callback
                     self.onMotionUpdate?(
                         self.currentMotionMode,
@@ -287,6 +444,9 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
                         watchMessage.groundContactTime,
                         watchMessage.cadence
                     )
+
+                    // Fire enhanced sensor callback if set
+                    self.onEnhancedSensorUpdate?()
                 }
             }
 
@@ -365,8 +525,36 @@ extension WatchConnectivityManager: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
+        // Check for Watch session sync message
+        if let type = message["type"] as? String, type == "watchSessionSync" {
+            let success = handleWatchSessionSync(message)
+            replyHandler(["success": success])
+            return
+        }
+
         handleReceivedMessage(message)
         replyHandler(["status": "received"])
+    }
+
+    // MARK: - Watch Session Sync Handling
+
+    /// Handle session data synced from Watch autonomous mode
+    @discardableResult
+    private func handleWatchSessionSync(_ message: [String: Any]) -> Bool {
+        guard let sessionData = message["sessionData"] as? String,
+              let session = WatchSyncedSession.from(jsonString: sessionData) else {
+            Log.watch.error("Failed to parse Watch session sync message")
+            return false
+        }
+
+        Log.watch.info("Received Watch session: \(session.discipline) - \(session.duration)s")
+
+        // Notify callback to handle the synced session
+        DispatchQueue.main.async {
+            self.onWatchSessionReceived?(session)
+        }
+
+        return true
     }
 
     func session(
@@ -374,6 +562,15 @@ extension WatchConnectivityManager: WCSessionDelegate {
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
         handleReceivedMessage(applicationContext)
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        // Handle Watch session sync via background transfer
+        if let type = userInfo["type"] as? String, type == "watchSessionSync" {
+            handleWatchSessionSync(userInfo)
+            return
+        }
+        handleReceivedMessage(userInfo)
     }
 
     #if os(iOS)

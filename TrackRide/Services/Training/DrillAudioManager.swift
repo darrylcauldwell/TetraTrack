@@ -38,7 +38,7 @@ final class DrillAudioManager {
             try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try audioSession.setActive(true)
         } catch {
-            print("Failed to configure audio session: \(error)")
+            // Audio session configuration failed silently
         }
     }
 
@@ -47,7 +47,7 @@ final class DrillAudioManager {
         do {
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
-            print("Failed to deactivate audio session: \(error)")
+            // Audio session deactivation failed silently
         }
     }
 

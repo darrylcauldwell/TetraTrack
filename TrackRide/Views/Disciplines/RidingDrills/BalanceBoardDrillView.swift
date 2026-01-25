@@ -30,7 +30,7 @@ struct BalanceBoardDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.purple.opacity(0.1).ignoresSafeArea()
+                AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -46,7 +46,7 @@ struct BalanceBoardDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -82,7 +82,7 @@ struct BalanceBoardDrillView: View {
 
             Image(systemName: "figure.surfing")
                 .font(.system(size: 60))
-                .foregroundStyle(.purple)
+                .foregroundStyle(AppColors.riding)
 
             Text("Balance Board Drill")
                 .font(.title2.bold())
@@ -110,19 +110,14 @@ struct BalanceBoardDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.purple)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.riding))
+            .accessibilityLabel("Start Balance Board Drill")
+            .accessibilityHint("Begins the movement absorption practice")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -135,7 +130,7 @@ struct BalanceBoardDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.purple)
+                .foregroundStyle(AppColors.riding)
             Text("Step onto your balance board")
                 .font(.headline)
             Spacer()
@@ -201,7 +196,7 @@ struct BalanceBoardDrillView: View {
 
                     // Center target
                     Circle()
-                        .fill(.purple)
+                        .fill(AppColors.riding)
                         .frame(width: 8, height: 8)
                 }
 
@@ -257,7 +252,7 @@ struct BalanceBoardDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -266,7 +261,7 @@ struct BalanceBoardDrillView: View {
             VStack {
                 Text("\(Int(avgAbsorption * 100))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(AppColors.riding)
                 Text("Movement Absorption")
                     .foregroundStyle(.secondary)
             }
@@ -281,40 +276,31 @@ struct BalanceBoardDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     results = []
                     countdown = 3
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the balance board drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.purple)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.riding))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
-        if motionManager.absorptionScore > 0.8 { return .green }
-        if motionManager.absorptionScore > 0.5 { return .yellow }
-        return .red
+        if motionManager.absorptionScore > 0.8 { return AppColors.active }
+        if motionManager.absorptionScore > 0.5 { return AppColors.warning }
+        return AppColors.error
     }
 
     private var stabilityMessage: String {
@@ -333,9 +319,9 @@ struct BalanceBoardDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score > 0.8 { return .green }
-        if score > 0.6 { return .yellow }
-        return .orange
+        if score > 0.8 { return AppColors.active }
+        if score > 0.6 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startCountdown() {

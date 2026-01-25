@@ -98,6 +98,7 @@ struct PoleworkLibraryView: View {
             .onAppear {
                 initializeBuiltInExercisesIfNeeded()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -205,7 +206,7 @@ struct PoleworkLibraryView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
     }
 
     // MARK: - Exercise List
@@ -536,7 +537,7 @@ struct PoleworkFilterChip: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(isActive ? Color.orange : Color(.tertiarySystemBackground))
+        .background(isActive ? Color.orange : AppColors.elevatedSurface)
         .foregroundStyle(isActive ? .white : .primary)
         .clipShape(Capsule())
     }

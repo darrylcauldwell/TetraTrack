@@ -37,7 +37,7 @@ struct CoreStabilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.blue.opacity(0.1).ignoresSafeArea()
+                AppColors.drillCore.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Header
@@ -53,7 +53,7 @@ struct CoreStabilityDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -87,54 +87,52 @@ struct CoreStabilityDrillView: View {
     }
 
     private var instructionsView: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    Image(systemName: "figure.core.training")
+                        .font(.system(size: 60))
+                        .foregroundStyle(AppColors.drillCore)
+                        .padding(.top, Spacing.xl)
 
-            Image(systemName: "figure.core.training")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
+                    Text("Core Stability Drill")
+                        .font(.title2.bold())
 
-            Text("Core Stability Drill")
-                .font(.title2.bold())
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Sit on exercise ball or unstable surface", systemImage: "circle.fill")
+                        Label("Hold phone at chest/core level", systemImage: "iphone")
+                        Label("Keep core engaged and steady", systemImage: "figure.core.training")
+                        Label("Minimize all rotation", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Sit on exercise ball or unstable surface", systemImage: "circle.fill")
-                Label("Hold phone at chest/core level", systemImage: "iphone")
-                Label("Keep core engaged and steady", systemImage: "figure.core.training")
-                Label("Minimize all rotation", systemImage: "arrow.triangle.2.circlepath")
+                    PhonePlacementGuidanceView(placement: .chestHeld)
+                        .padding(.horizontal, 32)
+
+                    Picker("Duration", selection: $targetDuration) {
+                        Text("15s").tag(TimeInterval(15))
+                        Text("30s").tag(TimeInterval(30))
+                        Text("45s").tag(TimeInterval(45))
+                        Text("60s").tag(TimeInterval(60))
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 20)
+                }
+                .padding(.horizontal)
             }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
 
-            PhonePlacementGuidanceView(placement: .chestHeld)
-                .padding(.horizontal, 32)
-
-            Picker("Duration", selection: $targetDuration) {
-                Text("15s").tag(TimeInterval(15))
-                Text("30s").tag(TimeInterval(30))
-                Text("45s").tag(TimeInterval(45))
-                Text("60s").tag(TimeInterval(60))
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 32)
-
-            Spacer()
-
-            Button {
+            Button("Start Drill") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.drillCore))
+            .accessibilityLabel("Start Core Stability Drill")
+            .accessibilityHint("Begins the core stability exercise with countdown")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
+            .background(AppColors.drillCore.opacity(Opacity.light).ignoresSafeArea(edges: .bottom))
         }
-        .padding(.horizontal)
     }
 
     private var countdownView: some View {
@@ -145,7 +143,7 @@ struct CoreStabilityDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.drillCore)
             Text("Engage your core")
                 .font(.headline)
             Spacer()
@@ -189,7 +187,7 @@ struct CoreStabilityDrillView: View {
 
                 // Center target
                 Circle()
-                    .fill(.blue)
+                    .fill(AppColors.drillCore)
                     .frame(width: 10, height: 10)
 
                 // Stability score
@@ -274,7 +272,7 @@ struct CoreStabilityDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -283,7 +281,7 @@ struct CoreStabilityDrillView: View {
             VStack {
                 Text("\(Int(avgStability * 100))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppColors.drillCore)
                 Text("Core Stability Score")
                     .foregroundStyle(.secondary)
             }
@@ -298,41 +296,29 @@ struct CoreStabilityDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     results = []
                     countdown = 3
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the core stability drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.drillCore))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
-        let score = motionAnalyzer.stabilityScore
-        if score > 0.8 { return .green }
-        if score > 0.5 { return .yellow }
-        return .red
+        StabilityColors.color(for: motionAnalyzer.stabilityScore)
     }
 
     private var stabilityMessage: String {
@@ -352,9 +338,7 @@ struct CoreStabilityDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score > 0.8 { return .green }
-        if score > 0.6 { return .yellow }
-        return .orange
+        StabilityColors.gradeColor(for: score)
     }
 
     private func startCountdown() {

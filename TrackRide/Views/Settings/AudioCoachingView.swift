@@ -54,7 +54,7 @@ struct AudioCoachingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             audioCoach.loadSettings()
-            availableVoices = AudioCoachManager.availableVoices
+            availableVoices = AudioCoachManager.availableVoices(for: audioCoach.coachLanguage)
         }
     }
 
@@ -62,9 +62,26 @@ struct AudioCoachingView: View {
 
     private var voiceSettingsSection: some View {
         Section("Voice Settings") {
-            // Voice Selection
+            // Coach Language Selection
+            Picker("Coach Language", selection: $audioCoach.coachLanguage) {
+                ForEach(CoachLanguage.allCases) { language in
+                    HStack {
+                        Text(language.flag)
+                        Text(language.displayName)
+                    }
+                    .tag(language)
+                }
+            }
+            .onChange(of: audioCoach.coachLanguage) { _, newLanguage in
+                // Reset voice selection when language changes
+                audioCoach.selectedVoiceIdentifier = ""
+                availableVoices = AudioCoachManager.availableVoices(for: newLanguage)
+                audioCoach.saveSettings()
+            }
+
+            // Voice Selection (filtered by language)
             Picker("Voice", selection: $audioCoach.selectedVoiceIdentifier) {
-                Text("Default (British English)").tag("")
+                Text(defaultVoiceLabel).tag("")
                 ForEach(availableVoices, id: \.identifier) { voice in
                     Text(AudioCoachManager.displayName(for: voice))
                         .tag(voice.identifier)
@@ -104,8 +121,30 @@ struct AudioCoachingView: View {
 
             // Test Button
             Button("Test Voice") {
-                audioCoach.announce("This is how your voice coaching will sound during sessions.")
+                let testMessage = testVoiceMessage
+                audioCoach.announce(testMessage)
             }
+        }
+    }
+
+    /// Default voice label based on selected language
+    private var defaultVoiceLabel: String {
+        switch audioCoach.coachLanguage {
+        case .english: return "Default (British English)"
+        case .german: return "Standard (Deutsch)"
+        case .french: return "Par défaut (Français)"
+        }
+    }
+
+    /// Test message in the selected language
+    private var testVoiceMessage: String {
+        switch audioCoach.coachLanguage {
+        case .english:
+            return "This is how your voice coaching will sound during sessions."
+        case .german:
+            return "So wird dein Sprachcoaching während der Trainingseinheiten klingen."
+        case .french:
+            return "Voici comment sonnera votre coaching vocal pendant les séances."
         }
     }
 

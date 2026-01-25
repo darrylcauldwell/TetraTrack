@@ -6,7 +6,55 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Settings Section Enum
+
+enum SettingsSection: String, CaseIterable, Identifiable {
+    case horses = "Horses"
+    case profile = "Rider Profile"
+    case health = "Apple Health"
+    case watch = "Apple Watch"
+    case coaching = "Voice Coaching"
+    case training = "Training"
+    case maps = "Offline Maps"
+    case shooting = "Shooting Development"
+    case data = "Data Management"
+    case demo = "Demonstration Data"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .horses: return "figure.equestrian.sports"
+        case .profile: return "person.circle.fill"
+        case .health: return "heart.fill"
+        case .watch: return "applewatch"
+        case .coaching: return "speaker.wave.3.fill"
+        case .training: return "timer"
+        case .maps: return "map.fill"
+        case .shooting: return "brain"
+        case .data: return "externaldrive.fill"
+        case .demo: return "sparkles.rectangle.stack"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .horses: return AppColors.primary
+        case .profile: return AppColors.primary
+        case .health: return .red
+        case .watch: return AppColors.primary
+        case .coaching: return AppColors.primary
+        case .training: return AppColors.primary
+        case .maps: return AppColors.primary
+        case .shooting: return .purple
+        case .data: return .red
+        case .demo: return .orange
+        }
+    }
+}
+
 struct SettingsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query private var profiles: [RiderProfile]
     @Query private var rides: [Ride]
     @Query private var horses: [Horse]
@@ -27,6 +75,9 @@ struct SettingsView: View {
     @State private var showingClearCompetitionsConfirmation = false
     @State private var showingClearAllConfirmation = false
     @State private var hasDownloadedRegions = false
+
+    // iPad navigation state
+    @State private var selectedSection: SettingsSection? = .horses
 
     private var profile: RiderProfile {
         if let existing = profiles.first {
@@ -88,10 +139,144 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
+            }
+        }
+        .task {
+            healthKit.checkAuthorizationStatus()
+            if healthKit.isAuthorized {
+                await healthKit.updateProfileFromHealthKit(profile)
+            }
+            checkDownloadedRegions()
+        }
+        .confirmationDialog(
+            "Clear Session History",
+            isPresented: $showingClearTrainingConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \(trainingSessionCount) Sessions", role: .destructive) {
+                clearTrainingHistory()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all your rides, runs, swims, and shooting sessions. This action cannot be undone.")
+        }
+        .confirmationDialog(
+            "Clear Tasks",
+            isPresented: $showingClearTasksConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \(competitionTasks.count) Tasks", role: .destructive) {
+                clearTasks()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all your competition tasks. This action cannot be undone.")
+        }
+        .confirmationDialog(
+            "Clear Competitions",
+            isPresented: $showingClearCompetitionsConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \(competitions.count) Competitions", role: .destructive) {
+                clearCompetitions()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all your competitions and their associated tasks. This action cannot be undone.")
+        }
+        .confirmationDialog(
+            "Clear All Data",
+            isPresented: $showingClearAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete All Data", role: .destructive) {
+                clearAllData()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete ALL your training history, horses, tasks, competitions, and downloaded map data. This action cannot be undone.")
+        }
+    }
+
+    // MARK: - iPad Layout (Split View)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            List(selection: $selectedSection) {
+                ForEach(SettingsSection.allCases.filter { section in
+                    // Filter out demo section if not applicable
+                    section != .demo || shouldShowDemoOption
+                }) { section in
+                    Label(section.rawValue, systemImage: section.icon)
+                        .foregroundStyle(section.color)
+                        .tag(section)
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("Settings")
+        } detail: {
+            if let section = selectedSection {
+                settingsSectionDetail(for: section)
+            } else {
+                ContentUnavailableView(
+                    "Select a Section",
+                    systemImage: "gear",
+                    description: Text("Choose a settings category from the sidebar")
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func settingsSectionDetail(for section: SettingsSection) -> some View {
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                switch section {
+                case .horses:
+                    horsesContent
+                case .profile:
+                    profileContent
+                case .health:
+                    healthContent
+                case .watch:
+                    watchContent
+                case .coaching:
+                    coachingContent
+                case .training:
+                    trainingContent
+                case .maps:
+                    mapsContent
+                case .shooting:
+                    shootingContent
+                case .data:
+                    dataManagementContent
+                case .demo:
+                    demoContent
+                }
+            }
+            .padding(Spacing.xl)
+        }
+        .navigationTitle(section.rawValue)
+    }
+
+    // MARK: - iPhone Layout (Standard List)
+
+    private var iPhoneLayout: some View {
         NavigationStack {
-            List {
-                // Horses Section
-                Section("Horses") {
+            settingsList
+                .navigationTitle("Settings")
+        }
+    }
+
+    private var settingsList: some View {
+        List {
+            // Horses Section
+            Section("Horses") {
                     NavigationLink(destination: HorseListView()) {
                         HStack(spacing: 12) {
                             Image(systemName: "figure.equestrian.sports")
@@ -583,63 +768,431 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
-            .task {
-                healthKit.checkAuthorizationStatus()
+        }
+
+    // MARK: - iPad Section Content Views
+
+    private var horsesContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: HorseListView()) {
+                SettingsRowContent(
+                    icon: "figure.equestrian.sports",
+                    iconColor: AppColors.primary,
+                    title: "My Horses",
+                    subtitle: "Manage your horses"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var profileContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: RiderProfileView(profile: profile)) {
+                HStack {
+                    Image(systemName: "person.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(AppColors.primary)
+
+                    VStack(alignment: .leading) {
+                        Text("Your Profile")
+                            .font(.headline)
+                        Text("\(profile.formattedWeight) | \(profile.formattedHeight)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var healthContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            if healthKit.isAvailable {
                 if healthKit.isAuthorized {
-                    await healthKit.updateProfileFromHealthKit(profile)
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                        Text("Connected to Apple Health")
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(AppColors.success)
+                    }
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    if let lastSync = profile.lastUpdatedFromHealthKit {
+                        HStack {
+                            Text("Last synced")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(lastSync.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    Button(action: syncFromHealthKit) {
+                        Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button(action: requestHealthKitAccess) {
+                        HStack {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            Text("Connect to Apple Health")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    Text("Sync your weight and height for accurate calorie calculations. Workouts will be saved to Apple Health.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                // Check if there are downloaded regions
-                checkDownloadedRegions()
+            } else {
+                Label("Apple Health not available", systemImage: "xmark.circle")
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .confirmationDialog(
-                "Clear Session History",
-                isPresented: $showingClearTrainingConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete \(trainingSessionCount) Sessions", role: .destructive) {
-                    clearTrainingHistory()
+        }
+    }
+
+    private var watchContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "applewatch")
+                    .font(.title2)
+                    .foregroundStyle(watchConnectivity.isPaired ? AppColors.primary : .secondary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Watch Status")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    watchStatusIndicator
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all your rides, runs, swims, and shooting sessions. This action cannot be undone.")
-            }
-            .confirmationDialog(
-                "Clear Tasks",
-                isPresented: $showingClearTasksConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete \(competitionTasks.count) Tasks", role: .destructive) {
-                    clearTasks()
+
+                Spacer()
+
+                if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled && watchConnectivity.isReachable {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(AppColors.success)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all your competition tasks. This action cannot be undone.")
             }
-            .confirmationDialog(
-                "Clear Competitions",
-                isPresented: $showingClearCompetitionsConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete \(competitions.count) Competitions", role: .destructive) {
-                    clearCompetitions()
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Watch Features")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    WatchFeatureRow(icon: "play.fill", title: "Start/Stop sessions from Watch")
+                    WatchFeatureRow(icon: "heart.fill", title: "Live heart rate streaming")
+                    WatchFeatureRow(icon: "figure.equestrian.sports", title: "View stats on wrist")
+                    WatchFeatureRow(icon: "hand.tap.fill", title: "Haptic feedback for events")
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all your competitions and their associated tasks. This action cannot be undone.")
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .confirmationDialog(
-                "Clear All Data",
-                isPresented: $showingClearAllConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete All Data", role: .destructive) {
-                    clearAllData()
+        }
+    }
+
+    @ViewBuilder
+    private var watchStatusIndicator: some View {
+        if watchConnectivity.isPaired {
+            if watchConnectivity.isWatchAppInstalled {
+                if watchConnectivity.isReachable {
+                    HStack(spacing: 4) {
+                        Circle().fill(.green).frame(width: 8, height: 8)
+                        Text("Connected").font(.caption).foregroundStyle(.green)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Circle().fill(.orange).frame(width: 8, height: 8)
+                        Text("App not active").font(.caption).foregroundStyle(.orange)
+                    }
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete ALL your training history, horses, tasks, competitions, and downloaded map data. This action cannot be undone.")
+            } else {
+                HStack(spacing: 4) {
+                    Circle().fill(.red).frame(width: 8, height: 8)
+                    Text("App not installed").font(.caption).foregroundStyle(.red)
+                }
             }
+        } else {
+            HStack(spacing: 4) {
+                Circle().fill(.secondary).frame(width: 8, height: 8)
+                Text("No Watch paired").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var coachingContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: AudioCoachingView()) {
+                SettingsRowContent(
+                    icon: "speaker.wave.3.fill",
+                    iconColor: AppColors.primary,
+                    title: "Voice Coaching",
+                    subtitle: "Spoken cues for gaits, milestones, and intervals"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var trainingContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: WorkoutListView()) {
+                SettingsRowContent(
+                    icon: "timer",
+                    iconColor: AppColors.primary,
+                    title: "Structured Workouts",
+                    subtitle: "Build and run interval training sessions"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            NavigationLink(destination: ExerciseLibraryView()) {
+                SettingsRowContent(
+                    icon: "book.fill",
+                    iconColor: AppColors.primary,
+                    title: "Exercise Library",
+                    subtitle: "Arena exercises and schooling figures"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            NavigationLink(destination: RecoveryTrendsView()) {
+                SettingsRowContent(
+                    icon: "heart.text.square.fill",
+                    iconColor: AppColors.error,
+                    title: "Recovery Trends",
+                    subtitle: "Track HRV and readiness over time"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var mapsContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: 12) {
+                Image(systemName: "map.fill")
+                    .font(.title2)
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 32)
+
+                Text("Prepare for No Signal Areas")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Text("Many riding trails have limited or no mobile coverage. Download your planned riding area in Apple Maps before you start to ensure the map displays correctly during your ride.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("How to download offline maps:")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                OfflineMapStep(number: 1, text: "Open the Apple Maps app")
+                OfflineMapStep(number: 2, text: "Tap your profile picture (bottom right)")
+                OfflineMapStep(number: 3, text: "Select \"Offline Maps\"")
+                OfflineMapStep(number: 4, text: "Tap \"Download New Map\"")
+                OfflineMapStep(number: 5, text: "Navigate to your riding area and adjust the region")
+                OfflineMapStep(number: 6, text: "Tap \"Download\"")
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Button(action: openAppleMaps) {
+                Label("Open Apple Maps", systemImage: "arrow.up.forward.app")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var shootingContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: MLTrainingDashboardView()) {
+                SettingsRowContent(
+                    icon: "brain",
+                    iconColor: .purple,
+                    title: "ML Training Data",
+                    subtitle: "View collection progress for hole detection"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var dataManagementContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Button(role: .destructive) {
+                showingClearTrainingConfirmation = true
+            } label: {
+                SettingsRowContent(
+                    icon: "clock.arrow.circlepath",
+                    iconColor: .red,
+                    title: "Clear Session History",
+                    subtitle: "\(trainingSessionCount) sessions"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(trainingSessionCount == 0)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Button(role: .destructive) {
+                showingClearTasksConfirmation = true
+            } label: {
+                SettingsRowContent(
+                    icon: "checklist",
+                    iconColor: .red,
+                    title: "Clear Tasks",
+                    subtitle: "\(competitionTasks.count) tasks"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(competitionTasks.isEmpty)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Button(role: .destructive) {
+                showingClearCompetitionsConfirmation = true
+            } label: {
+                SettingsRowContent(
+                    icon: "calendar",
+                    iconColor: .red,
+                    title: "Clear Competitions",
+                    subtitle: "\(competitions.count) competitions"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(competitions.isEmpty)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Button(role: .destructive) {
+                showingClearAllConfirmation = true
+            } label: {
+                SettingsRowContent(
+                    icon: "trash.fill",
+                    iconColor: .red,
+                    title: "Clear All Data",
+                    subtitle: "Remove all training, tasks, competitions, and map data"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(trainingSessionCount == 0 && competitionTasks.isEmpty && competitions.isEmpty && horses.isEmpty && !hasDownloadedRegions)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Text("Data is synced to iCloud. Clearing data will remove it from all your devices.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let blocking = blockingDataInfo {
+                Text("Existing data: \(blocking)")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    private var demoContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Toggle(isOn: $demonstrationDataEnabled) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles.rectangle.stack")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Demonstration Data")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Text(demonstrationDataEnabled ? "Sample training history is shown" : "Add sample data to explore the app")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .onChange(of: demonstrationDataEnabled) { _, newValue in
+                if newValue {
+                    generateDemonstrationData()
+                } else {
+                    clearDemonstrationData()
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            Text("Toggle on to see example training history, horses, and competitions. Toggle off to remove all demonstration data.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -817,6 +1370,41 @@ struct SettingsView: View {
 // - WeightPickerView
 // - HeightPickerView
 // - DateOfBirthPickerView
+
+// MARK: - Settings Row Content (iPad)
+
+struct SettingsRowContent: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(iconColor)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
 
 // MARK: - Route Data Regions List
 

@@ -49,6 +49,9 @@ struct RunningLiveView: View {
     @State private var maxHeartRate: Int = 0
     @State private var heartRateReadings: [Int] = []
 
+    // Enhanced sensor data from Watch
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
+
     // Weather tracking
     @State private var currentWeather: WeatherConditions?
 
@@ -208,7 +211,7 @@ struct RunningLiveView: View {
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Circle())
                 }
             }
@@ -318,7 +321,7 @@ struct RunningLiveView: View {
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(Capsule())
                     }
 
@@ -421,6 +424,7 @@ struct RunningLiveView: View {
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
         watchManager.startMotionTracking(mode: .running)
+        sensorAnalyzer.startSession()
         startWatchStatusUpdates()
     }
 
@@ -428,6 +432,7 @@ struct RunningLiveView: View {
         watchManager.stopMotionTracking()
         watchManager.onMotionUpdate = nil
         watchManager.onHeartRateReceived = nil
+        sensorAnalyzer.stopSession()
         stopWatchStatusUpdates()
 
         // Send idle state to Watch
@@ -614,7 +619,7 @@ struct RunningLiveView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
@@ -668,8 +673,25 @@ struct RunningLiveView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            // Enhanced sensor metrics (SpO2, breathing, fatigue)
+            if sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.breathingRate > 0 || sensorAnalyzer.fatigueScore > 0 {
+                Divider()
+                    .padding(.vertical, 8)
+
+                RunningSensorMetricsView(
+                    elevationGain: sensorAnalyzer.totalElevationGain,
+                    elevationLoss: sensorAnalyzer.totalElevationLoss,
+                    breathingRate: sensorAnalyzer.breathingRate,
+                    breathingTrend: sensorAnalyzer.breathingRateTrend,
+                    spo2: sensorAnalyzer.oxygenSaturation,
+                    minSpo2: sensorAnalyzer.minSpO2,
+                    postureStability: sensorAnalyzer.postureStability,
+                    fatigueScore: sensorAnalyzer.fatigueScore
+                )
             }
         }
     }
@@ -788,7 +810,7 @@ struct RunningLiveView: View {
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
         }
@@ -1255,6 +1277,7 @@ struct TreadmillLiveView: View {
                 }
             )
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Treadmill Metrics View
@@ -1341,7 +1364,7 @@ struct TreadmillLiveView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 

@@ -29,11 +29,12 @@ struct DryFireDrillView: View {
     @State private var shotStabilities: [Double] = []
     @State private var watchConnected = false
     private let watchManager = WatchConnectivityManager.shared
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                (showFire ? Color.red : Color.green.opacity(0.1))
+                (showFire ? AppColors.error : AppColors.riding.opacity(Opacity.light))
                     .ignoresSafeArea()
                     .animation(.easeInOut(duration: 0.1), value: showFire)
 
@@ -63,7 +64,7 @@ struct DryFireDrillView: View {
                                 .font(.body.weight(.medium))
                                 .foregroundStyle(showFire ? .white : .primary)
                                 .frame(width: 36, height: 36)
-                                .background(.ultraThinMaterial)
+                                .background(AppColors.cardBackground)
                                 .clipShape(Circle())
                         }
                     }
@@ -103,7 +104,7 @@ struct DryFireDrillView: View {
 
             Image(systemName: "hand.point.up.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.riding)
 
             Text("Dry Fire Drill")
                 .font(.title2.bold())
@@ -122,24 +123,19 @@ struct DryFireDrillView: View {
 
             Stepper("Shots: \(totalShots)", value: $totalShots, in: 5...20, step: 5)
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startDrill()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.riding))
+            .accessibilityLabel("Start Dry Fire Drill")
+            .accessibilityHint("Begins the reaction time exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -166,7 +162,7 @@ struct DryFireDrillView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "scope")
                         .font(.system(size: 80))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.riding)
                     Text("Ready...")
                         .font(.title)
                     Text("Aim and wait for RED")
@@ -204,6 +200,19 @@ struct DryFireDrillView: View {
                                 .foregroundStyle(stabilityColor)
                         }
                         .padding(.top, 8)
+
+                        // Enhanced shooting sensor metrics
+                        if sensorAnalyzer.tremorLevel > 0 || sensorAnalyzer.breathingRate > 0 {
+                            ShootingSensorMetricsView(
+                                tremorLevel: sensorAnalyzer.tremorLevel,
+                                breathingRate: sensorAnalyzer.breathingRate,
+                                posturePitch: sensorAnalyzer.posturePitch,
+                                postureRoll: sensorAnalyzer.postureRoll,
+                                postureStability: sensorAnalyzer.postureStability,
+                                stillnessScore: max(0, 100 - sensorAnalyzer.movementIntensity)
+                            )
+                            .padding(.top, 8)
+                        }
                     }
                 }
             }
@@ -234,9 +243,9 @@ struct DryFireDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if stanceStability >= 80 { return .green }
-        if stanceStability >= 60 { return .yellow }
-        return .orange
+        if stanceStability >= 80 { return AppColors.active }
+        if stanceStability >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var stabilityFeedback: String {
@@ -252,7 +261,7 @@ struct DryFireDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Drill Complete!")
                 .font(.title.bold())
@@ -274,7 +283,7 @@ struct DryFireDrillView: View {
                     VStack {
                         Text(String(format: "%.3fs", bestTime))
                             .font(.title.bold())
-                            .foregroundStyle(.green)
+                            .foregroundStyle(AppColors.active)
                         Text("Best")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -298,7 +307,7 @@ struct DryFireDrillView: View {
                         VStack {
                             Text("\(Int(shotStabilities.max() ?? 0))%")
                                 .font(.title.bold())
-                                .foregroundStyle(.green)
+                                .foregroundStyle(AppColors.active)
                             Text("Best")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -326,43 +335,34 @@ struct DryFireDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reactionTimes = []
                     shotStabilities = []
                     stabilityReadings = []
                     shotCount = 0
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the dry fire drill")
 
-                Button {
+                Button("Done") {
                     stopMotionTracking()
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.riding))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private func stabilityGradeColor(_ stability: Double) -> Color {
-        if stability >= 80 { return .green }
-        if stability >= 60 { return .yellow }
-        return .orange
+        if stability >= 80 { return AppColors.active }
+        if stability >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func stabilityGrade(_ stability: Double) -> String {
@@ -381,9 +381,9 @@ struct DryFireDrillView: View {
     }
 
     private func gradeColor(_ time: TimeInterval) -> Color {
-        if time < 0.3 { return .green }
-        if time < 0.45 { return .yellow }
-        return .orange
+        if time < 0.3 { return AppColors.active }
+        if time < 0.45 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startDrill() {
@@ -489,10 +489,12 @@ struct DryFireDrillView: View {
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
         watchManager.startMotionTracking(mode: .shooting)
+        sensorAnalyzer.startSession()
     }
 
     private func stopMotionTracking() {
         watchManager.stopMotionTracking()
         watchManager.onMotionUpdate = nil
+        sensorAnalyzer.stopSession()
     }
 }

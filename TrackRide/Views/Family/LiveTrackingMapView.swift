@@ -11,19 +11,11 @@ import MapKit
 
 struct LiveTrackingMapView: View {
     let session: LiveTrackingSession
-    @State private var position: MapCameraPosition
-    @State private var refreshTimer: Timer?
-    @State private var familySharing = FamilySharingManager.shared
+    @State private var position: MapCameraPosition = .automatic
+    @State private var sharingCoordinator = UnifiedSharingCoordinator.shared
     @State private var showRouteOverlay = true
     @State private var showingExerciseLibrary = false
-
-    init(session: LiveTrackingSession) {
-        self.session = session
-        self._position = State(initialValue: .region(MKCoordinateRegion(
-            center: session.currentCoordinate,
-            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        )))
-    }
+    @State private var hasSetInitialPosition = false
 
     var body: some View {
         ZStack {
@@ -66,7 +58,7 @@ struct LiveTrackingMapView: View {
                                 .font(.caption2)
                         }
                         .padding()
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
 
@@ -81,7 +73,7 @@ struct LiveTrackingMapView: View {
                                 .font(.caption2)
                         }
                         .padding()
-                        .background(.ultraThinMaterial)
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
@@ -121,11 +113,28 @@ struct LiveTrackingMapView: View {
             }
         }
         .onAppear {
-            startRefreshing()
+            sharingCoordinator.startWatchingLocations()
+
+            // Set initial position only once to avoid resetting user's pan/zoom
+            // Validate coordinates are reasonable (not 0,0 which is null island)
+            if !hasSetInitialPosition {
+                let coord = session.currentCoordinate
+                let isValidCoordinate = abs(coord.latitude) > 0.0001 || abs(coord.longitude) > 0.0001
+
+                if isValidCoordinate {
+                    hasSetInitialPosition = true
+                    position = .region(MKCoordinateRegion(
+                        center: coord,
+                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                    ))
+                }
+                // If invalid, leave position as .automatic and it will update when valid data arrives
+            }
         }
         .onDisappear {
-            stopRefreshing()
+            sharingCoordinator.stopWatchingLocations()
         }
+        .presentationBackground(Color.black)
     }
 
     private func centerOnRider() {
@@ -135,19 +144,6 @@ struct LiveTrackingMapView: View {
                 span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
             ))
         }
-    }
-
-    private func startRefreshing() {
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
-            Task {
-                await familySharing.fetchFamilyLocations()
-            }
-        }
-    }
-
-    private func stopRefreshing() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }
 
@@ -272,7 +268,7 @@ struct LiveStatsCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding()
     }
@@ -283,13 +279,38 @@ struct LiveStatsCard: View {
 
     private func timeAgo(_ date: Date) -> String {
         let seconds = Date().timeIntervalSince(date)
+
+        // Handle future dates (clock skew)
+        if seconds < 0 {
+            return "just now"
+        }
+
+        // Under a minute
         if seconds < 60 {
             return "just now"
-        } else if seconds < 3600 {
-            return "\(Int(seconds / 60)) min ago"
-        } else {
-            return "\(Int(seconds / 3600)) hr ago"
         }
+
+        // Minutes (1-59)
+        let minutes = Int(seconds / 60)
+        if minutes < 60 {
+            return minutes == 1 ? "1 min ago" : "\(minutes) mins ago"
+        }
+
+        // Hours (1-23)
+        let hours = Int(seconds / 3600)
+        if hours < 24 {
+            return hours == 1 ? "1 hr ago" : "\(hours) hrs ago"
+        }
+
+        // Days (1-6)
+        let days = Int(seconds / 86400)
+        if days < 7 {
+            return days == 1 ? "1 day ago" : "\(days) days ago"
+        }
+
+        // Weeks
+        let weeks = Int(seconds / 604800)
+        return weeks == 1 ? "1 week ago" : "\(weeks) weeks ago"
     }
 }
 
@@ -328,7 +349,7 @@ struct GaitLegend: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(Capsule())
     }
 }
@@ -417,7 +438,7 @@ struct SpectatorFlatworkList: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             }
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
 
             // Exercise list
             List(filteredExercises) { exercise in
@@ -463,6 +484,7 @@ struct SpectatorFlatworkList: View {
                     }
             }
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -519,7 +541,7 @@ struct SpectatorPoleworkList: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             }
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
 
             // Exercise list
             List(filteredExercises) { exercise in
@@ -566,6 +588,7 @@ struct SpectatorPoleworkList: View {
                     }
             }
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -649,7 +672,7 @@ struct SpectatorFilterChip: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isActive ? color : Color(.tertiarySystemBackground))
+                .background(isActive ? color : AppColors.elevatedSurface)
                 .foregroundStyle(isActive ? .white : .primary)
                 .clipShape(Capsule())
         }

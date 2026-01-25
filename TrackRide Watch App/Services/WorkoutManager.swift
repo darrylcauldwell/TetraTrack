@@ -8,6 +8,7 @@
 import Foundation
 import HealthKit
 import Observation
+import os
 
 @Observable
 final class WorkoutManager: NSObject {
@@ -55,7 +56,7 @@ final class WorkoutManager: NSObject {
             try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
             return true
         } catch {
-            print("WorkoutManager: Authorization failed - \(error)")
+            Log.health.error("Authorization failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -102,7 +103,7 @@ final class WorkoutManager: NSObject {
             HapticManager.shared.playStartHaptic()
 
         } catch {
-            print("WorkoutManager: Failed to start workout - \(error)")
+            Log.health.error("Failed to start workout: \(error.localizedDescription)")
         }
     }
 
@@ -127,7 +128,7 @@ final class WorkoutManager: NSObject {
             try await workoutBuilder?.endCollection(at: Date())
             try await workoutBuilder?.finishWorkout()
         } catch {
-            print("WorkoutManager: Failed to end workout - \(error)")
+            Log.health.error("Failed to end workout: \(error.localizedDescription)")
         }
 
         isWorkoutActive = false
@@ -172,14 +173,14 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         from fromState: HKWorkoutSessionState,
         date: Date
     ) {
-        print("WorkoutManager: State changed from \(fromState.rawValue) to \(toState.rawValue)")
+        Log.health.info("State changed from \(fromState.rawValue) to \(toState.rawValue)")
     }
 
     func workoutSession(
         _ workoutSession: HKWorkoutSession,
         didFailWithError error: Error
     ) {
-        print("WorkoutManager: Session error - \(error)")
+        Log.health.error("Session error: \(error.localizedDescription)")
     }
 }
 

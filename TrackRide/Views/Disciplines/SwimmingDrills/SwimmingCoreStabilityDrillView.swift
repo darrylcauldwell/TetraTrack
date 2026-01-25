@@ -24,7 +24,7 @@ struct SwimmingCoreStabilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.blue.opacity(0.1).ignoresSafeArea()
+                AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -64,7 +64,7 @@ struct SwimmingCoreStabilityDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -77,7 +77,7 @@ struct SwimmingCoreStabilityDrillView: View {
 
             Image(systemName: "figure.core.training")
                 .font(.system(size: 60))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.swimming)
 
             Text("Prone Streamline Hold")
                 .font(.title2.bold())
@@ -119,7 +119,7 @@ struct SwimmingCoreStabilityDrillView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(.blue)
+                    .background(AppColors.swimming)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .padding(.horizontal, 32)
@@ -136,7 +136,7 @@ struct SwimmingCoreStabilityDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.swimming)
             Text("Streamline position, phone on back")
                 .font(.headline)
             Spacer()
@@ -174,7 +174,7 @@ struct SwimmingCoreStabilityDrillView: View {
 
                 // Target zone
                 Circle()
-                    .strokeBorder(Color.blue, lineWidth: 2)
+                    .strokeBorder(AppColors.swimming, lineWidth: 2)
                     .frame(width: 60, height: 60)
             }
 
@@ -208,7 +208,7 @@ struct SwimmingCoreStabilityDrillView: View {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Color.gray.opacity(0.2))
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.blue)
+                            .fill(AppColors.swimming)
                             .frame(width: geo.size.width * (elapsedTime / targetDuration))
                     }
                 }
@@ -224,7 +224,7 @@ struct SwimmingCoreStabilityDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -234,7 +234,7 @@ struct SwimmingCoreStabilityDrillView: View {
             VStack {
                 Text("\(Int(avgStability))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppColors.swimming)
                 Text("Streamline Score")
                     .foregroundStyle(.secondary)
             }
@@ -255,7 +255,7 @@ struct SwimmingCoreStabilityDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
@@ -277,7 +277,7 @@ struct SwimmingCoreStabilityDrillView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
@@ -289,7 +289,7 @@ struct SwimmingCoreStabilityDrillView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(.blue)
+                        .background(AppColors.swimming)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
@@ -303,9 +303,9 @@ struct SwimmingCoreStabilityDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if currentStability >= 80 { return .green }
-        if currentStability >= 60 { return .yellow }
-        return .orange
+        if currentStability >= 80 { return AppColors.active }
+        if currentStability >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func gradeForScore(_ score: Double) -> String {

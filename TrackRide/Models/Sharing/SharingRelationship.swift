@@ -8,6 +8,63 @@
 import Foundation
 import SwiftData
 
+// MARK: - Invite Status
+
+/// Status of share invitation
+enum InviteStatus: String, Codable, Equatable {
+    case notSent = "not_sent"
+    case pending = "pending"
+    case accepted = "accepted"
+
+    var displayText: String {
+        switch self {
+        case .notSent: return "Invite not sent"
+        case .pending: return "Invite pending"
+        case .accepted: return "Connected"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .notSent: return "envelope"
+        case .pending: return "clock"
+        case .accepted: return "checkmark.circle.fill"
+        }
+    }
+}
+
+// MARK: - Permission Preset
+
+/// Preset permission configurations for quick setup
+enum PermissionPreset: String, CaseIterable {
+    case fullAccess       // Everything - typical for parents/guardians
+    case liveTrackingOnly // Just live location - safety-focused contact
+    case summariesOnly    // Just completed sessions - friends
+    case coachMode        // Summaries + specific disciplines
+
+    var displayName: String {
+        switch self {
+        case .fullAccess: return "Full Access"
+        case .liveTrackingOnly: return "Live Tracking Only"
+        case .summariesOnly: return "Summaries Only"
+        case .coachMode: return "Coach Mode"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .fullAccess:
+            return "Live tracking, all summaries, all alerts"
+        case .liveTrackingOnly:
+            return "Real-time location only, safety alerts"
+        case .summariesOnly:
+            return "Completed session summaries, no live tracking"
+        case .coachMode:
+            return "Summaries for selected disciplines"
+        }
+    }
+}
+
 // MARK: - Relationship Type
 
 /// Type of sharing relationship
@@ -64,6 +121,47 @@ final class SharingRelationship {
     // MARK: Active Shares
     var activeShareIDsData: Data?       // JSON-encoded [String] CKShare record IDs
 
+    // MARK: Family-Specific Fields (unified from TrustedContact)
+
+    /// Whether this contact should receive emergency alerts
+    var isEmergencyContact: Bool = false
+
+    /// Whether this is the primary emergency contact (first to be called)
+    var isPrimaryEmergency: Bool = false
+
+    /// Receives fall detection notifications
+    var receiveFallAlerts: Bool = true
+
+    /// Receives stationary/stopped alerts
+    var receiveStationaryAlerts: Bool = true
+
+    // MARK: Invite Tracking
+
+    /// Current invite status (notSent, pending, accepted)
+    var inviteStatusRaw: String = InviteStatus.notSent.rawValue
+
+    /// When the invite was sent
+    var inviteSentDate: Date?
+
+    /// When the last reminder was sent
+    var lastReminderDate: Date?
+
+    /// Number of reminders sent
+    var reminderCount: Int = 0
+
+    // MARK: CloudKit Connection
+
+    /// CKRecord.ID.recordName of the ShareConnection record
+    var connectionRecordID: String?
+
+    /// The CloudKit share URL for this relationship
+    var shareURL: String?
+
+    // MARK: Medical Information (for emergency contacts)
+
+    /// Medical notes to share with emergency contacts
+    var medicalNotes: String?
+
     // MARK: - Initializers
 
     init() {
@@ -112,6 +210,131 @@ final class SharingRelationship {
         set {
             activeShareIDsData = try? JSONEncoder().encode(newValue)
         }
+    }
+
+    var inviteStatus: InviteStatus {
+        get { InviteStatus(rawValue: inviteStatusRaw) ?? .notSent }
+        set { inviteStatusRaw = newValue.rawValue }
+    }
+
+    var shareURLValue: URL? {
+        get {
+            guard let urlString = shareURL else { return nil }
+            return URL(string: urlString)
+        }
+        set {
+            shareURL = newValue?.absoluteString
+        }
+    }
+
+    /// Time since invite was sent (for display)
+    var timeSinceInvite: String? {
+        guard let sentDate = inviteSentDate else { return nil }
+        let interval = Date().timeIntervalSince(sentDate)
+
+        if interval < 60 {
+            return "Just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return days == 1 ? "Yesterday" : "\(days) days ago"
+        }
+    }
+
+    /// Display initials for avatar
+    var initials: String {
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return name.prefix(2).uppercased()
+    }
+
+    /// Whether this contact has connection information
+    var isConnected: Bool {
+        inviteStatus == .accepted && connectionRecordID != nil
+    }
+
+    // MARK: - Permission Preset Application
+
+    /// Apply a permission preset to this relationship
+    func applyPreset(_ preset: PermissionPreset) {
+        switch preset {
+        case .fullAccess:
+            canViewLiveRiding = true
+            canViewTrainingSummaries = true
+            canViewCompetitions = true
+            receiveCompletionAlerts = true
+            receiveCompetitionReminders = true
+            isEmergencyContact = true
+            receiveFallAlerts = true
+            receiveStationaryAlerts = true
+
+        case .liveTrackingOnly:
+            canViewLiveRiding = true
+            canViewTrainingSummaries = false
+            canViewCompetitions = false
+            receiveCompletionAlerts = false
+            receiveCompetitionReminders = false
+            isEmergencyContact = false
+            receiveFallAlerts = true
+            receiveStationaryAlerts = true
+
+        case .summariesOnly:
+            canViewLiveRiding = false
+            canViewTrainingSummaries = true
+            canViewCompetitions = true
+            receiveCompletionAlerts = true
+            receiveCompetitionReminders = false
+            isEmergencyContact = false
+            receiveFallAlerts = false
+            receiveStationaryAlerts = false
+
+        case .coachMode:
+            canViewLiveRiding = false
+            canViewTrainingSummaries = true
+            canViewCompetitions = true
+            receiveCompletionAlerts = true
+            receiveCompetitionReminders = true
+            isEmergencyContact = false
+            receiveFallAlerts = false
+            receiveStationaryAlerts = false
+        }
+    }
+
+    // MARK: - Invite Message Generation
+
+    /// Generate an invite message with optional share link
+    func generateInviteMessage(isReminder: Bool = false) -> String {
+        let greeting = isReminder ? "Reminder: " : ""
+        let firstName = name.split(separator: " ").first.map(String.init) ?? "there"
+
+        var message = """
+        \(greeting)Hi \(firstName)! I've added you as a trusted contact on TetraTrack.
+
+        You can follow my training sessions and receive safety alerts if I need help.
+
+        Download TetraTrack: https://apps.apple.com/app/tetratrack
+        """
+
+        if let url = shareURLValue {
+            message += "\n\nTap to connect: \(url.absoluteString)"
+        }
+
+        return message
+    }
+
+    /// Count of enabled features (for display)
+    var enabledFeatureCount: Int {
+        [canViewLiveRiding, canViewTrainingSummaries, canViewCompetitions,
+         receiveCompletionAlerts, receiveCompetitionReminders,
+         receiveFallAlerts, receiveStationaryAlerts, isEmergencyContact]
+            .filter { $0 }.count
     }
 
     // MARK: - Notification Helpers

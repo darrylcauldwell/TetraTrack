@@ -617,6 +617,112 @@ struct ShootingStatisticsSummary: Sendable {
     }
 }
 
+// MARK: - Widget Data Support
+
+extension ArtifactStatisticsService {
+
+    /// Returns recent sessions in widget-ready format.
+    /// This is the primary method for WidgetDataSyncService to get session data.
+    func getWidgetRecentSessions(limit: Int = 5) -> [WidgetSessionData] {
+        artifacts
+            .sorted { $0.startTime > $1.startTime }
+            .prefix(limit)
+            .map { artifact in
+                let sessionType: WidgetSessionData.WidgetSessionType = {
+                    switch artifact.discipline {
+                    case .riding: return .ride
+                    case .running: return .run
+                    case .swimming: return .swim
+                    case .shooting: return .shoot
+                    }
+                }()
+
+                let horseName: String? = {
+                    if artifact.discipline == .riding,
+                       let ridingData = artifact.getRidingData() {
+                        return ridingData.horseName
+                    }
+                    return nil
+                }()
+
+                return WidgetSessionData(
+                    id: artifact.id,
+                    name: artifact.name.isEmpty ? artifact.discipline.rawValue : artifact.name,
+                    date: artifact.startTime,
+                    sessionType: sessionType,
+                    duration: artifact.duration,
+                    distance: artifact.distance ?? 0,
+                    horseName: horseName
+                )
+            }
+    }
+
+    /// Returns sessions for a specific discipline in widget-ready format.
+    func getWidgetSessions(for discipline: TrainingDiscipline, limit: Int = 5) -> [WidgetSessionData] {
+        artifacts
+            .filter { $0.discipline == discipline }
+            .sorted { $0.startTime > $1.startTime }
+            .prefix(limit)
+            .map { artifact in
+                let sessionType: WidgetSessionData.WidgetSessionType = {
+                    switch artifact.discipline {
+                    case .riding: return .ride
+                    case .running: return .run
+                    case .swimming: return .swim
+                    case .shooting: return .shoot
+                    }
+                }()
+
+                let horseName: String? = {
+                    if artifact.discipline == .riding,
+                       let ridingData = artifact.getRidingData() {
+                        return ridingData.horseName
+                    }
+                    return nil
+                }()
+
+                return WidgetSessionData(
+                    id: artifact.id,
+                    name: artifact.name.isEmpty ? artifact.discipline.rawValue : artifact.name,
+                    date: artifact.startTime,
+                    sessionType: sessionType,
+                    duration: artifact.duration,
+                    distance: artifact.distance ?? 0,
+                    horseName: horseName
+                )
+            }
+    }
+
+    /// Returns a summary suitable for widget display.
+    struct WidgetStatsSummary {
+        let totalSessions: Int
+        let sessionsThisWeek: Int
+        let currentStreak: Int
+        let mostActiveDiscipline: TrainingDiscipline?
+        let totalDurationThisWeek: TimeInterval
+    }
+
+    func getWidgetStatsSummary() -> WidgetStatsSummary {
+        WidgetStatsSummary(
+            totalSessions: statistics.totalSessions,
+            sessionsThisWeek: statistics.sessionsThisWeek,
+            currentStreak: statistics.currentStreak,
+            mostActiveDiscipline: statistics.mostActiveDiscipline,
+            totalDurationThisWeek: statistics.durationThisWeek
+        )
+    }
+
+    /// Checks if cached data is available for widget use.
+    var hasDataForWidgets: Bool {
+        !artifacts.isEmpty
+    }
+
+    /// Returns the count of sessions by discipline for widget charts.
+    var widgetDisciplineBreakdown: [TrainingDiscipline: Int] {
+        statistics.sessionsByDiscipline
+    }
+}
+
 // MARK: - Cached Artifact for Offline Storage
 
 /// Lightweight Codable representation of TrainingArtifact for offline caching.

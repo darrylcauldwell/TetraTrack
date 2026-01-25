@@ -28,7 +28,7 @@ struct RecoilControlDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.red.opacity(0.1).ignoresSafeArea()
+                AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -66,7 +66,7 @@ struct RecoilControlDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -79,7 +79,7 @@ struct RecoilControlDrillView: View {
 
             Image(systemName: "arrow.uturn.backward")
                 .font(.system(size: 60))
-                .foregroundStyle(.red)
+                .foregroundStyle(AppColors.shooting)
 
             Text("Recoil Control Drill")
                 .font(.title2.bold())
@@ -95,25 +95,20 @@ struct RecoilControlDrillView: View {
 
             Stepper("Rounds: \(totalRounds)", value: $totalRounds, in: 5...20, step: 5)
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 32)
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startDrill()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.red)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.shooting))
+            .accessibilityLabel("Start Recoil Control Drill")
+            .accessibilityHint("Begins the recoil recovery practice")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -210,7 +205,7 @@ struct RecoilControlDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -221,7 +216,7 @@ struct RecoilControlDrillView: View {
             VStack(spacing: 8) {
                 Text(String(format: "%.3fs", avgRecovery))
                     .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.shooting)
                 Text("Average Recovery")
                     .foregroundStyle(.secondary)
             }
@@ -230,7 +225,7 @@ struct RecoilControlDrillView: View {
                 VStack {
                     Text(String(format: "%.3fs", bestRecovery))
                         .font(.title2.bold())
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                     Text("Best")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -239,7 +234,7 @@ struct RecoilControlDrillView: View {
                     let worstRecovery = recoveryTimes.max() ?? 0
                     Text(String(format: "%.3fs", worstRecovery))
                         .font(.title2.bold())
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColors.running)
                     Text("Slowest")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -261,41 +256,32 @@ struct RecoilControlDrillView: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     recoveryTimes = []
                     currentRound = 0
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the recoil control drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.shooting))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var aimColor: Color {
         let distance = sqrt(pow(motionManager.pitch, 2) + pow(motionManager.roll, 2))
-        if distance < 0.05 { return .green }
-        if distance < 0.1 { return .yellow }
-        return .red
+        if distance < 0.05 { return AppColors.active }
+        if distance < 0.1 { return AppColors.warning }
+        return AppColors.error
     }
 
     private var statusMessage: String {
@@ -311,15 +297,15 @@ struct RecoilControlDrillView: View {
     }
 
     private var statusColor: Color {
-        if showRecoil { return .red }
-        if isRecovered { return .green }
+        if showRecoil { return AppColors.error }
+        if isRecovered { return AppColors.active }
         return .primary
     }
 
     private func timeColor(_ time: TimeInterval) -> Color {
-        if time < 0.3 { return .green }
-        if time < 0.5 { return .yellow }
-        return .orange
+        if time < 0.3 { return AppColors.active }
+        if time < 0.5 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func gradeForScore(_ score: Double) -> String {
@@ -330,9 +316,9 @@ struct RecoilControlDrillView: View {
     }
 
     private func gradeColor(_ score: Double) -> Color {
-        if score >= 70 { return .green }
-        if score >= 50 { return .yellow }
-        return .orange
+        if score >= 70 { return AppColors.active }
+        if score >= 50 { return AppColors.warning }
+        return AppColors.running
     }
 
     private func startDrill() {

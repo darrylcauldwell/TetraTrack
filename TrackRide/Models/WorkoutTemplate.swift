@@ -112,7 +112,7 @@ final class WorkoutTemplate {
 
     // Relationship
     @Relationship(deleteRule: .cascade, inverse: \WorkoutBlock.template)
-    var blocks: [WorkoutBlock] = []
+    var blocks: [WorkoutBlock]? = []
 
     var discipline: RideType {
         get { RideType(rawValue: disciplineRaw) ?? .schooling }
@@ -142,12 +142,12 @@ final class WorkoutTemplate {
 
     /// Blocks sorted by order index
     var sortedBlocks: [WorkoutBlock] {
-        blocks.sorted { $0.orderIndex < $1.orderIndex }
+        (blocks ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     /// Total duration in seconds
     var totalDuration: Int {
-        blocks.reduce(0) { $0 + $1.durationSeconds }
+        (blocks ?? []).reduce(0) { $0 + $1.durationSeconds }
     }
 
     /// Formatted total duration
@@ -164,15 +164,16 @@ final class WorkoutTemplate {
 
     /// Add a block to this template
     func addBlock(_ block: WorkoutBlock) {
-        block.orderIndex = blocks.count
+        block.orderIndex = (blocks ?? []).count
         block.template = self
-        blocks.append(block)
+        if blocks == nil { blocks = [] }
+        blocks?.append(block)
         estimatedDuration = totalDuration
     }
 
     /// Remove a block from this template
     func removeBlock(_ block: WorkoutBlock) {
-        blocks.removeAll { $0.id == block.id }
+        blocks?.removeAll { $0.id == block.id }
         // Reorder remaining blocks
         for (index, b) in sortedBlocks.enumerated() {
             b.orderIndex = index

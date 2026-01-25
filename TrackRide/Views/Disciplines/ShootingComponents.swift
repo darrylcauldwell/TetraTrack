@@ -46,7 +46,7 @@ struct ShootTypeButton: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 28)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
         .buttonStyle(.plain)
@@ -83,7 +83,7 @@ struct ShootTypeCard: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 100)
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
@@ -311,7 +311,7 @@ struct ShootingSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
 
@@ -348,7 +348,7 @@ struct ShootingSessionDetailView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
                 }
@@ -381,7 +381,7 @@ struct MiniStatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -407,7 +407,7 @@ struct EndRow: View {
                 .frame(width: 50, alignment: .trailing)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal)
     }

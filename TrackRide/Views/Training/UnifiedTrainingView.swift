@@ -104,6 +104,7 @@ struct UnifiedTrainingView: View {
             .sheet(isPresented: $showChallenges) {
                 CrossDisciplineChallengeView()
             }
+            .presentationBackground(Color.black)
         }
     }
 
@@ -136,7 +137,7 @@ struct UnifiedTrainingView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(uiColor: .secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
@@ -161,7 +162,7 @@ struct UnifiedTrainingView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(uiColor: .secondarySystemBackground))
+                    .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
@@ -217,7 +218,7 @@ private struct DisciplineChip: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isSelected ? discipline.color : Color(.tertiarySystemBackground))
+            .background(isSelected ? discipline.color : AppColors.elevatedSurface)
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(Capsule())
         }
@@ -268,13 +269,12 @@ struct DrillCategorySection: View {
                     // Add divider between cards (not after the last one)
                     if index < drills.count - 1 {
                         Divider()
-                            .padding(.leading, 62) // Align with text, past the icon
                     }
                 }
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -286,84 +286,43 @@ private struct DrillCard: View {
     let sessions: [UnifiedDrillSession]
     let onTap: () -> Void
 
-    private var lastSession: UnifiedDrillSession? {
-        sessions.first
-    }
-
     private var averageScore: Double? {
         guard !sessions.isEmpty else { return nil }
         return sessions.map(\.score).reduce(0, +) / Double(sessions.count)
     }
 
+    private var subtitle: String {
+        if let avg = averageScore {
+            return "\(sessions.count) sessions · \(Int(avg))% avg"
+        } else {
+            return drill.primaryCategory.displayName
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(drill.color.opacity(0.2))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: drill.icon)
-                        .font(.title3)
-                        .foregroundStyle(drill.color)
-                }
-
-                // Info
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(drill.displayName)
-                        .font(.subheadline.weight(.medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
 
-                    Text(drill.description)
-                        .font(.caption)
+                    Text(subtitle)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    // Discipline badges on their own row
-                    DisciplineBadges(
-                        disciplines: drill.benefitsDisciplines,
-                        primaryDiscipline: drill.primaryDiscipline
-                    )
+                        .lineLimit(1)
                 }
 
                 Spacer(minLength: 8)
 
-                // Stats
-                VStack(alignment: .trailing, spacing: 4) {
-                    if let avg = averageScore {
-                        Text("\(Int(avg))%")
-                            .font(.headline)
-                            .foregroundStyle(scoreColor(avg))
-                    } else {
-                        Text("New")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
-                            .clipShape(Capsule())
-                    }
-
-                    Text("\(sessions.count) sessions")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(.vertical, 12)
-            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private func scoreColor(_ score: Double) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .orange }
-        return .red
     }
 }
 
@@ -391,7 +350,7 @@ private struct DisciplineBadges: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
-        .background(Color(.tertiarySystemBackground))
+        .background(AppColors.elevatedSurface)
         .clipShape(Capsule())
     }
 
@@ -498,7 +457,7 @@ struct UnifiedCoachingDashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -532,7 +491,7 @@ struct UnifiedCoachingDashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -563,7 +522,7 @@ struct UnifiedCoachingDashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -610,7 +569,7 @@ struct UnifiedCoachingDashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -631,7 +590,7 @@ struct UnifiedCoachingDashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -696,7 +655,7 @@ private struct UnifiedWorkoutDrillCard: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(AppColors.elevatedSurface)
                         .clipShape(Capsule())
 
                     if recommendation.isCrossTraining {
@@ -1058,7 +1017,7 @@ struct TrainingInsightsView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -1143,7 +1102,7 @@ struct TrainingInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1208,7 +1167,7 @@ struct TrainingInsightsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1360,7 +1319,7 @@ struct TrainingInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1472,7 +1431,7 @@ struct TrainingInsightsView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -1671,7 +1630,7 @@ private struct AIInsightsCard: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onAppear {
             if isAppleIntelligenceAvailable && insights == nil && hasData && !isLoading {

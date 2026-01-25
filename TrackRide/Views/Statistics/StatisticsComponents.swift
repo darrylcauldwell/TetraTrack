@@ -451,7 +451,7 @@ struct GaitAnalysisView: View {
                 HStack(spacing: 24) {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(AppColors.cardBackground)
                             .frame(width: 130, height: 130)
 
                         Chart(statistics.gaitBreakdown, id: \.gait) { item in

@@ -40,7 +40,7 @@ struct ShoulderMobilityDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.teal.opacity(0.1).ignoresSafeArea()
+                AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -80,7 +80,7 @@ struct ShoulderMobilityDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -93,7 +93,7 @@ struct ShoulderMobilityDrillView: View {
 
             Image(systemName: "figure.arms.open")
                 .font(.system(size: 60))
-                .foregroundStyle(.teal)
+                .foregroundStyle(AppColors.swimming)
 
             Text("Shoulder Circles")
                 .font(.title2.bold())
@@ -139,19 +139,14 @@ struct ShoulderMobilityDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown()
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.teal)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.swimming))
+            .accessibilityLabel("Start Shoulder Mobility Drill")
+            .accessibilityHint("Begins the shoulder circles warm-up exercise")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -164,7 +159,7 @@ struct ShoulderMobilityDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.teal)
+                .foregroundStyle(AppColors.swimming)
             Text("Arms out to sides")
                 .font(.headline)
             Spacer()
@@ -184,7 +179,7 @@ struct ShoulderMobilityDrillView: View {
                 .font(.title3.bold())
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
-                .background(Color.teal.opacity(0.2))
+                .background(AppColors.swimming.opacity(0.2))
                 .clipShape(Capsule())
 
             // Motion visualization
@@ -197,7 +192,7 @@ struct ShoulderMobilityDrillView: View {
                 // Motion arc
                 Circle()
                     .trim(from: 0, to: CGFloat(min(1, motionAnalyzer.dominantFrequency)))
-                    .stroke(Color.teal, lineWidth: 8)
+                    .stroke(AppColors.swimming, lineWidth: 8)
                     .frame(width: 160, height: 160)
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.2), value: motionAnalyzer.dominantFrequency)
@@ -246,7 +241,7 @@ struct ShoulderMobilityDrillView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.2))
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.teal)
+                        .fill(AppColors.swimming)
                         .frame(width: geo.size.width * (elapsedTime / targetDuration))
                 }
             }
@@ -261,7 +256,7 @@ struct ShoulderMobilityDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -272,7 +267,7 @@ struct ShoulderMobilityDrillView: View {
             VStack {
                 Text("\(Int(score))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(AppColors.swimming)
                 Text("Mobility Score")
                     .foregroundStyle(.secondary)
             }
@@ -299,45 +294,36 @@ struct ShoulderMobilityDrillView: View {
             }
             .font(.subheadline)
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
             Text(gradeForScore(score))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(score >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(score >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(score >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(score >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the shoulder mobility drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.teal)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.swimming))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
@@ -359,9 +345,9 @@ struct ShoulderMobilityDrillView: View {
     }
 
     private var mobilityColor: Color {
-        if motionAnalyzer.dominantFrequency > 0.5 { return .green }
-        if motionAnalyzer.dominantFrequency > 0.25 { return .yellow }
-        return .orange
+        if motionAnalyzer.dominantFrequency > 0.5 { return AppColors.active }
+        if motionAnalyzer.dominantFrequency > 0.25 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var mobilityFeedback: String {

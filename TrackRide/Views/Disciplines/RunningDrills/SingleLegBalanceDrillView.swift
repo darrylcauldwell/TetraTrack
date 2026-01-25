@@ -44,7 +44,7 @@ struct SingleLegBalanceDrillView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.orange.opacity(0.1).ignoresSafeArea()
+                AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     header
@@ -83,7 +83,7 @@ struct SingleLegBalanceDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
@@ -96,7 +96,7 @@ struct SingleLegBalanceDrillView: View {
 
             Image(systemName: "figure.stand.line.dotted.figure.stand")
                 .font(.system(size: 60))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
 
             Text("Single-Leg Balance")
                 .font(.title2.bold())
@@ -130,19 +130,14 @@ struct SingleLegBalanceDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Start") {
                 startCountdown(for: .left)
-            } label: {
-                Text("Start")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.running))
+            .accessibilityLabel("Start Single-Leg Balance Drill")
+            .accessibilityHint("Begins the balance exercise on each leg")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
         .padding(.horizontal)
     }
@@ -155,7 +150,7 @@ struct SingleLegBalanceDrillView: View {
                 .foregroundStyle(.secondary)
             Text("\(countdown)")
                 .font(.system(size: 120, weight: .bold, design: .rounded))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
             Text("Stand on \(currentLeg.rawValue) leg")
                 .font(.headline)
             Spacer()
@@ -169,7 +164,7 @@ struct SingleLegBalanceDrillView: View {
                 .font(.title3.bold())
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
-                .background(currentLeg == .left ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                .background(currentLeg == .left ? AppColors.riding.opacity(Opacity.medium) : AppColors.active.opacity(Opacity.medium))
                 .clipShape(Capsule())
 
             // Timer
@@ -189,7 +184,7 @@ struct SingleLegBalanceDrillView: View {
 
                 // Target zone
                 Circle()
-                    .fill(Color.green.opacity(0.2))
+                    .fill(AppColors.active.opacity(Opacity.medium))
                     .frame(width: 60, height: 60)
 
                 // Balance indicator
@@ -204,7 +199,7 @@ struct SingleLegBalanceDrillView: View {
 
                 // Center point
                 Circle()
-                    .fill(.orange)
+                    .fill(AppColors.running)
                     .frame(width: 8, height: 8)
             }
             .frame(width: 200, height: 200)
@@ -238,7 +233,7 @@ struct SingleLegBalanceDrillView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.2))
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.orange)
+                        .fill(AppColors.running)
                         .frame(width: geo.size.width * (elapsedTime / targetDuration))
                 }
             }
@@ -253,14 +248,14 @@ struct SingleLegBalanceDrillView: View {
 
             Image(systemName: "arrow.left.arrow.right.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.orange)
+                .foregroundStyle(AppColors.running)
 
             Text("Switch Legs!")
                 .font(.title.bold())
 
             Text("Left leg score: \(Int(leftLegScore))%")
                 .font(.headline)
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.riding)
 
             Text("Now balance on your Right leg")
                 .font(.subheadline)
@@ -268,19 +263,14 @@ struct SingleLegBalanceDrillView: View {
 
             Spacer()
 
-            Button {
+            Button("Continue") {
                 startCountdown(for: .right)
-            } label: {
-                Text("Continue")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
+            .buttonStyle(DrillStartButtonStyle(color: AppColors.running))
+            .accessibilityLabel("Continue to Right Leg")
+            .accessibilityHint("Begins the balance exercise on your right leg")
+            .padding(.horizontal, Spacing.jumbo)
+            .padding(.bottom, Spacing.xl)
         }
     }
 
@@ -290,7 +280,7 @@ struct SingleLegBalanceDrillView: View {
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppColors.active)
 
             Text("Complete!")
                 .font(.title.bold())
@@ -301,7 +291,7 @@ struct SingleLegBalanceDrillView: View {
             VStack {
                 Text("\(Int(overallScore))%")
                     .font(.system(size: 60, weight: .bold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.running)
                 Text("Balance Score")
                     .foregroundStyle(.secondary)
             }
@@ -311,7 +301,7 @@ struct SingleLegBalanceDrillView: View {
                 VStack {
                     Text("\(Int(leftLegScore))%")
                         .font(.title2.bold())
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(AppColors.riding)
                     Text("Left")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -319,7 +309,7 @@ struct SingleLegBalanceDrillView: View {
                 VStack {
                     Text("\(Int(rightLegScore))%")
                         .font(.title2.bold())
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.active)
                     Text("Right")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -327,60 +317,51 @@ struct SingleLegBalanceDrillView: View {
                 VStack {
                     Text("\(Int(symmetryScore))%")
                         .font(.title2.bold())
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(AppColors.purple)
                     Text("Symmetry")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
 
             Text(gradeForScore(overallScore))
                 .font(.title2.bold())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(overallScore >= 70 ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundStyle(overallScore >= 70 ? .green : .orange)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.sm)
+                .background(overallScore >= 70 ? AppColors.active.opacity(Opacity.medium) : AppColors.running.opacity(Opacity.medium))
+                .foregroundStyle(overallScore >= 70 ? AppColors.active : AppColors.running)
                 .clipShape(Capsule())
 
             Spacer()
 
-            HStack(spacing: 16) {
-                Button {
+            HStack(spacing: Spacing.lg) {
+                Button("Try Again") {
                     reset()
-                } label: {
-                    Text("Try Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillSecondaryButtonStyle())
+                .accessibilityLabel("Try Again")
+                .accessibilityHint("Restart the single-leg balance drill")
 
-                Button {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(DrillDoneButtonStyle(color: AppColors.running))
+                .accessibilityLabel("Done")
+                .accessibilityHint("Close the drill and return to training")
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Spacing.lg)
         }
         .padding()
     }
 
     private var stabilityColor: Color {
         let score = motionAnalyzer.scorer.stability
-        if score >= 80 { return .green }
-        if score >= 60 { return .yellow }
-        return .orange
+        if score >= 80 { return AppColors.active }
+        if score >= 60 { return AppColors.warning }
+        return AppColors.running
     }
 
     private var feedbackMessage: String {

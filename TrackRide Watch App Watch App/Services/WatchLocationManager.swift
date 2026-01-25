@@ -9,6 +9,7 @@
 import Foundation
 import CoreLocation
 import Observation
+import os
 
 /// Location point captured during a Watch session
 struct WatchLocationPoint: Codable, Identifiable {
@@ -114,7 +115,7 @@ final class WatchLocationManager: NSObject {
 
     func startTracking() {
         guard hasPermission else {
-            print("WatchLocationManager: No permission to track location")
+            Log.location.warning("No permission to track location")
             requestPermission()
             return
         }
@@ -136,7 +137,7 @@ final class WatchLocationManager: NSObject {
         locationManager.startUpdatingLocation()
         isTracking = true
 
-        print("WatchLocationManager: Started tracking")
+        Log.location.info("Started tracking")
     }
 
     func stopTracking() {
@@ -145,7 +146,7 @@ final class WatchLocationManager: NSObject {
         locationManager.stopUpdatingLocation()
         isTracking = false
 
-        print("WatchLocationManager: Stopped tracking - \(locationPoints.count) points captured")
+        Log.location.info("Stopped tracking - \(self.locationPoints.count) points captured")
     }
 
     // MARK: - Adaptive Sampling Logic
@@ -288,11 +289,11 @@ extension WatchLocationManager: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("WatchLocationManager: Location error - \(error.localizedDescription)")
+        Log.location.error("Location error: \(error.localizedDescription)")
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         updateAuthorizationStatus()
-        print("WatchLocationManager: Authorization changed to \(authorizationStatus.rawValue)")
+        Log.location.info("Authorization changed to \(self.authorizationStatus.rawValue)")
     }
 }

@@ -61,7 +61,7 @@ struct AudioServicesView: View {
             PlaybackControlsView()
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onAppear {
             // Enable notifications from the music player
@@ -235,7 +235,7 @@ struct CompactMusicButton: View {
                 .font(.body.weight(.medium))
                 .foregroundStyle(isPlaying ? AppColors.primary : .primary)
                 .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial)
+                .background(AppColors.cardBackground)
                 .clipShape(Circle())
                 .overlay {
                     if isPlaying {
@@ -258,6 +258,7 @@ struct CompactMusicButton: View {
         .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in
             isPlaying = player.playbackState == .playing
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -290,7 +291,7 @@ struct CompactAudioControls: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+            .background(AppColors.cardBackground)
             .clipShape(Capsule())
         }
         .sheet(isPresented: $showingFullControls) {
@@ -308,6 +309,7 @@ struct CompactAudioControls: View {
         .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in
             isPlaying = player.playbackState == .playing
         }
+        .presentationBackground(Color.black)
     }
 }
 

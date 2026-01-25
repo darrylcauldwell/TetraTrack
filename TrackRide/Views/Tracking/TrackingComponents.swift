@@ -53,7 +53,7 @@ struct IdleSetupView: View {
                             Spacer()
                         }
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
@@ -74,9 +74,11 @@ struct IdleSetupView: View {
             .sheet(isPresented: $showingSettings) {
                 RidingSettingsView()
             }
+            .presentationBackground(Color.black)
         }
         .sheet(item: $showingDisciplineSetup) { rideType in
             DisciplineSetupSheet(rideType: rideType, tracker: tracker)
+                .presentationBackground(Color.black)
                 .onAppear {
                     Log.ui.info("Sheet presenting for rideType: \(rideType.rawValue)")
                 }
@@ -84,6 +86,7 @@ struct IdleSetupView: View {
         .onChange(of: showingDisciplineSetup) { oldValue, newValue in
             Log.ui.info("showingDisciplineSetup changed: \(oldValue?.rawValue ?? "nil") -> \(newValue?.rawValue ?? "nil")")
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -147,7 +150,7 @@ struct DisciplineSelectionView: View {
                         .padding(.vertical, 16)
                         .background {
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(.ultraThinMaterial)
+                                .fill(AppColors.cardBackground)
                         }
                     }
                     .buttonStyle(.plain)
@@ -176,22 +179,59 @@ struct DisciplineSetupSheet: View {
 
     var body: some View {
         let _ = Log.ui.debug("DisciplineSetupSheet body rendering for \(rideType.rawValue)")
-        NavigationStack {
-            ZStack {
-                // Glass background gradient
-                LinearGradient(
-                    colors: [
-                        AppColors.light,
-                        rideType.color.opacity(0.1),
-                        AppColors.light.opacity(0.5)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        ZStack {
+            // True black background
+            Color.black
                 .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 20) {
+            VStack(spacing: 0) {
+                // Header with close button
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
+                            .background(AppColors.cardBackground)
+                            .clipShape(Circle())
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 32) {
+                        // Discipline header
+                        VStack(spacing: 16) {
+                            // Icon
+                            ZStack {
+                                Circle()
+                                    .fill(rideType.color.opacity(0.15))
+                                    .frame(width: 80, height: 80)
+
+                                Image(systemName: rideType.icon)
+                                    .font(.system(size: 36))
+                                    .foregroundStyle(rideType.color)
+                            }
+
+                            // Title and description
+                            VStack(spacing: 8) {
+                                Text(rideType.rawValue)
+                                    .font(.title.weight(.bold))
+
+                                Text(rideType.description)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 32)
+                            }
+                        }
+                        .padding(.top, 20)
+
                         // Discipline-specific setup
                         if rideType == .crossCountry {
                             XCSetupView(
@@ -204,7 +244,10 @@ struct DisciplineSetupSheet: View {
                                     set: { tracker.xcCourseDistance = $0 }
                                 )
                             )
-                            .padding(.horizontal)
+                            .padding(16)
+                            .background(AppColors.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 20)
                         }
 
                         if rideType == .schooling {
@@ -212,60 +255,59 @@ struct DisciplineSetupSheet: View {
                                 selectedExercise: $selectedExercise,
                                 showingExerciseLibrary: $showingExerciseLibrary
                             )
-                            .padding(.horizontal)
+                            .padding(16)
+                            .background(AppColors.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 20)
                         }
 
-                        // Horse selection
-                        HorseSelectionView(selectedHorse: Binding(
-                            get: { tracker.selectedHorse },
-                            set: { tracker.selectedHorse = $0 }
-                        ))
-                        .padding(.horizontal)
+                        // Horse selection card
+                        VStack(alignment: .leading, spacing: 12) {
+                            HorseSelectionView(selectedHorse: Binding(
+                                get: { tracker.selectedHorse },
+                                set: { tracker.selectedHorse = $0 }
+                            ))
+                        }
+                        .padding(16)
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 20)
 
-                        Spacer(minLength: 40)
+                        // Phone placement tips
+                        PhonePlacementTipView()
+                            .padding(.horizontal, 20)
 
-                        // Start button
-                        GlassFloatingButton(
-                            icon: "play.fill",
-                            color: AppColors.startButton,
-                            size: 80,
-                            action: {
-                                Log.ui.info("Start button tapped for \(rideType.rawValue)")
-                                tracker.selectedRideType = rideType
-                                Task {
-                                    Log.ui.info("Starting ride task...")
-                                    await tracker.startRide()
-                                    Log.ui.info("Ride started, rideState = \(String(describing: tracker.rideState))")
-                                    // Dismiss after ride starts to avoid UI issues
-                                    await MainActor.run {
-                                        Log.ui.info("Dismissing sheet...")
-                                        dismiss()
-                                    }
+                        Spacer(minLength: 20)
+                    }
+                }
+
+                // Bottom section with start button
+                VStack(spacing: 12) {
+                    GlassFloatingButton(
+                        icon: "play.fill",
+                        color: AppColors.startButton,
+                        size: 80,
+                        action: {
+                            Log.ui.info("Start button tapped for \(rideType.rawValue)")
+                            tracker.selectedRideType = rideType
+                            Task {
+                                Log.ui.info("Starting ride task...")
+                                await tracker.startRide()
+                                Log.ui.info("Ride started, rideState = \(String(describing: tracker.rideState))")
+                                await MainActor.run {
+                                    Log.ui.info("Dismissing sheet...")
+                                    dismiss()
                                 }
                             }
-                        )
-                        .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.rideState)
+                        }
+                    )
+                    .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.rideState)
 
-                        Text("Tap to Start")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        Spacer(minLength: 40)
-                    }
-                    .padding(.top, 16)
+                    Text("Tap to Start")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                    }
-                }
+                .padding(.bottom, 40)
             }
         }
         .sheet(isPresented: $showingExerciseLibrary) {
@@ -277,6 +319,7 @@ struct DisciplineSetupSheet: View {
         .onAppear {
             Log.ui.info("DisciplineSetupSheet appeared for \(rideType.rawValue)")
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -325,6 +368,7 @@ struct FlatworkSetupView: View {
                     }
             }
         }
+        .presentationBackground(Color.black)
     }
 
     // MARK: - Flatwork Content
@@ -388,7 +432,7 @@ struct FlatworkSetupView: View {
                 }
             }
             .padding()
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
 
@@ -472,7 +516,7 @@ struct FlatworkSetupView: View {
                 }
             }
             .padding()
-            .background(Color(.tertiarySystemBackground))
+            .background(AppColors.elevatedSurface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
 
@@ -541,41 +585,58 @@ struct StatsContentView: View {
 
             // Stats - scrollable if needed
             ScrollView(showsIndicators: false) {
-                LiveStatsView(
-                    duration: tracker.formattedElapsedTime,
-                    distance: tracker.formattedDistance,
-                    speed: tracker.formattedSpeed,
-                    gait: tracker.currentGait,
-                    isPaused: tracker.rideState == .paused,
-                    lead: tracker.currentLead,
-                    rein: tracker.currentRein,
-                    symmetry: tracker.currentSymmetry,
-                    rhythm: tracker.currentRhythm,
-                    rideType: tracker.selectedRideType,
-                    averageSpeed: tracker.formattedAverageSpeed,
-                    elevation: tracker.formattedElevation,
-                    elevationGain: tracker.formattedElevationGain,
-                    walkPercent: tracker.walkPercent,
-                    trotPercent: tracker.trotPercent,
-                    canterPercent: tracker.canterPercent,
-                    gallopPercent: tracker.gallopPercent,
-                    heartRate: tracker.currentHeartRate,
-                    heartRateZone: tracker.currentHeartRateZone,
-                    averageHeartRate: tracker.averageHeartRate,
-                    maxHeartRate: tracker.maxHeartRate,
-                    leftReinPercent: tracker.leftReinPercent,
-                    rightReinPercent: tracker.rightReinPercent,
-                    leftTurnPercent: tracker.leftTurnPercent,
-                    rightTurnPercent: tracker.rightTurnPercent,
-                    totalTurns: tracker.totalTurns,
-                    leftLeadPercent: tracker.leftLeadPercent,
-                    rightLeadPercent: tracker.rightLeadPercent,
-                    xcTimeDifference: tracker.xcTimeDifferenceFormatted,
-                    xcIsAheadOfTime: tracker.xcIsAheadOfTime,
-                    xcOptimumTime: tracker.xcOptimumTime,
-                    currentSpeedFormatted: tracker.formattedSpeed,
-                    currentGradient: tracker.currentGradientFormatted
-                )
+                VStack(spacing: 24) {
+                    LiveStatsView(
+                        duration: tracker.formattedElapsedTime,
+                        distance: tracker.formattedDistance,
+                        speed: tracker.formattedSpeed,
+                        gait: tracker.currentGait,
+                        isPaused: tracker.rideState == .paused,
+                        lead: tracker.currentLead,
+                        rein: tracker.currentRein,
+                        symmetry: tracker.currentSymmetry,
+                        rhythm: tracker.currentRhythm,
+                        rideType: tracker.selectedRideType,
+                        averageSpeed: tracker.formattedAverageSpeed,
+                        elevation: tracker.formattedElevation,
+                        elevationGain: tracker.formattedElevationGain,
+                        walkPercent: tracker.walkPercent,
+                        trotPercent: tracker.trotPercent,
+                        canterPercent: tracker.canterPercent,
+                        gallopPercent: tracker.gallopPercent,
+                        heartRate: tracker.currentHeartRate,
+                        heartRateZone: tracker.currentHeartRateZone,
+                        averageHeartRate: tracker.averageHeartRate,
+                        maxHeartRate: tracker.maxHeartRate,
+                        leftReinPercent: tracker.leftReinPercent,
+                        rightReinPercent: tracker.rightReinPercent,
+                        leftTurnPercent: tracker.leftTurnPercent,
+                        rightTurnPercent: tracker.rightTurnPercent,
+                        totalTurns: tracker.totalTurns,
+                        leftLeadPercent: tracker.leftLeadPercent,
+                        rightLeadPercent: tracker.rightLeadPercent,
+                        xcTimeDifference: tracker.xcTimeDifferenceFormatted,
+                        xcIsAheadOfTime: tracker.xcIsAheadOfTime,
+                        xcOptimumTime: tracker.xcOptimumTime,
+                        currentSpeedFormatted: tracker.formattedSpeed,
+                        currentGradient: tracker.currentGradientFormatted
+                    )
+
+                    // Watch sensor metrics
+                    if tracker.fatigueScore > 0 || tracker.postureStability > 0 || tracker.jumpCount > 0 {
+                        Divider()
+                            .padding(.horizontal)
+
+                        RiderSensorMetricsView(
+                            fatigueScore: tracker.fatigueScore,
+                            postureStability: tracker.postureStability,
+                            breathingRate: tracker.breathingRate,
+                            jumpCount: tracker.jumpCount,
+                            activePercent: tracker.activeRidingPercent,
+                            rideType: tracker.selectedRideType
+                        )
+                    }
+                }
                 .padding(.horizontal)
             }
 
@@ -616,7 +677,7 @@ struct PauseResumeButton: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(AppColors.cardBackground)
                             .frame(width: stopButtonSize, height: stopButtonSize)
                             .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.1), radius: 6, y: 3)
 
@@ -636,7 +697,7 @@ struct PauseResumeButton: View {
             Button(action: onTap) {
                 ZStack {
                     Circle()
-                        .fill(.ultraThinMaterial)
+                        .fill(AppColors.cardBackground)
                         .frame(width: buttonSize, height: buttonSize)
                         .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.15), radius: 10, y: 5)
 
@@ -701,7 +762,7 @@ struct PauseStopButton: View {
                 Button(action: onPauseResume) {
                     ZStack {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(AppColors.cardBackground)
                             .frame(width: buttonSize, height: buttonSize)
                             .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.15), radius: 10, y: 5)
 
@@ -782,7 +843,7 @@ struct XCSetupView: View {
                             .frame(width: 50)
                             .multilineTextAlignment(.center)
                             .padding(8)
-                            .background(Color(.systemGray6))
+                            .background(AppColors.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         Text("min")
                             .font(.caption)
@@ -795,7 +856,7 @@ struct XCSetupView: View {
                             .frame(width: 50)
                             .multilineTextAlignment(.center)
                             .padding(8)
-                            .background(Color(.systemGray6))
+                            .background(AppColors.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         Text("sec")
                             .font(.caption)
@@ -816,7 +877,7 @@ struct XCSetupView: View {
                         .frame(width: 80)
                         .multilineTextAlignment(.center)
                         .padding(8)
-                        .background(Color(.systemGray6))
+                        .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     Text("meters")
                         .font(.caption)
@@ -921,6 +982,7 @@ struct ActiveExerciseView: View {
                     }
             }
         }
+        .presentationBackground(Color.black)
     }
 }
 
@@ -989,7 +1051,7 @@ struct FlatworkQuickList: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(AppColors.elevatedSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                     }
@@ -1066,7 +1128,7 @@ struct PoleworkQuickList: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(AppColors.elevatedSurface)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                     }
@@ -1097,9 +1159,132 @@ struct CategoryFilterButton: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isActive ? AppColors.primary : Color(.tertiarySystemBackground))
+            .background(isActive ? AppColors.primary : AppColors.elevatedSurface)
             .foregroundStyle(isActive ? .white : .primary)
             .clipShape(Capsule())
+        }
+    }
+}
+
+// MARK: - Phone Placement Tips
+
+/// Shows tips for optimal phone placement during riding
+/// Phone position significantly affects gait detection accuracy
+struct PhonePlacementTipView: View {
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header - tap to expand
+            Button {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "iphone")
+                        .font(.title3)
+                        .foregroundStyle(AppColors.primary)
+                        .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Phone Placement")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text("For accurate gait detection")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Best option
+                    PlacementOptionRow(
+                        icon: "checkmark.circle.fill",
+                        iconColor: .green,
+                        title: "Jacket pocket (chest)",
+                        subtitle: "Best accuracy - torso stays stable relative to horse",
+                        isRecommended: true
+                    )
+
+                    // Acceptable option
+                    PlacementOptionRow(
+                        icon: "checkmark.circle",
+                        iconColor: .yellow,
+                        title: "Jodhpur pocket (thigh)",
+                        subtitle: "Good if secured tightly - some leg movement noise",
+                        isRecommended: false
+                    )
+
+                    // Not recommended
+                    PlacementOptionRow(
+                        icon: "xmark.circle",
+                        iconColor: .red,
+                        title: "Arm band or loose pocket",
+                        subtitle: "Not recommended - arm swing or bouncing corrupts data",
+                        isRecommended: false
+                    )
+
+                    // Security tip
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .foregroundStyle(AppColors.primary)
+                        Text("Secure the phone firmly - loose phones add noise that affects detection accuracy")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding(16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+/// Row showing a phone placement option
+private struct PlacementOptionRow: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+    let subtitle: String
+    let isRecommended: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(iconColor)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                    if isRecommended {
+                        Text("Recommended")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green)
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

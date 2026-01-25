@@ -101,7 +101,7 @@ struct MountedBreathingDrillView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.cardBackground)
                     .clipShape(Circle())
             }
         }
