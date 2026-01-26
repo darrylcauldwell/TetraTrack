@@ -65,6 +65,10 @@ final class LocationManager: NSObject {
     var isTracking: Bool = false
     var locationError: Error?
 
+    // GPS Signal Quality (updated with each location update)
+    var gpsSignalQuality: GPSSignalQuality = .none
+    var gpsHorizontalAccuracy: Double = -1  // Raw accuracy in meters (-1 = no signal)
+
     // Tracked points for gait-colored map display (circular buffer for O(1) appends)
     private var _trackedPointsBuffer = CircularBuffer<TrackedPoint>(capacity: 1000)
     var trackedPoints: [TrackedPoint] { _trackedPointsBuffer.elements }
@@ -145,6 +149,9 @@ final class LocationManager: NSObject {
                     if let location = update.location {
                         await MainActor.run {
                             self.currentLocation = location
+                            // Update GPS signal quality
+                            self.gpsHorizontalAccuracy = location.horizontalAccuracy
+                            self.gpsSignalQuality = GPSSignalQuality(horizontalAccuracy: location.horizontalAccuracy)
                             self.onLocationUpdate?(location)
                         }
                     }

@@ -44,6 +44,12 @@ struct TrackingView: View {
                                 }
                             }
 
+                            // GPS signal indicator
+                            if let locManager = locationManager {
+                                GPSSignalIndicator(quality: locManager.gpsSignalQuality, showLabel: false)
+                                    .help(locManager.gpsSignalQuality.impactDescription)
+                            }
+
                             Spacer()
 
                             // Right side controls: Music, Mic (when paused), X

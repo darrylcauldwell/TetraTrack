@@ -184,6 +184,10 @@ final class RideTracker {
     var currentGradient: Double = 0.0
     private var recentAltitudes: [(altitude: Double, distance: Double)] = []
 
+    // GPS Signal Quality
+    var gpsSignalQuality: GPSSignalQuality = .none
+    var gpsHorizontalAccuracy: Double = -1  // Raw accuracy in meters (-1 = no signal)
+
     // MARK: - Watch Sensor Metrics (from WatchSensorAnalyzer)
 
     /// Jump count from altitude detection
@@ -1037,6 +1041,10 @@ final class RideTracker {
             currentRein = reinAnalyzer.currentRein
         }
         lastCoordinate = location.coordinate
+
+        // Update GPS signal quality
+        gpsHorizontalAccuracy = location.horizontalAccuracy
+        gpsSignalQuality = GPSSignalQuality(horizontalAccuracy: location.horizontalAccuracy)
 
         // Gait analysis (pass GPS accuracy for weighted speed constraints)
         gaitAnalyzer.processLocation(speed: currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy)

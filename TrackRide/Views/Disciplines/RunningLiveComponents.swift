@@ -182,6 +182,12 @@ struct RunningLiveView: View {
                         .frame(width: selectedTab == .map ? 24 : 8, height: 8)
                 }
                 .animation(.spring(response: 0.3), value: selectedTab)
+
+                // GPS signal indicator (for outdoor GPS runs)
+                if let locManager = locationManager {
+                    GPSSignalIndicator(quality: locManager.gpsSignalQuality, showLabel: false)
+                        .help(locManager.gpsSignalQuality.impactDescription)
+                }
             }
 
             Spacer()
