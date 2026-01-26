@@ -15,7 +15,8 @@ struct HorseEditView: View {
     let horse: Horse?
 
     @State private var name: String = ""
-    @State private var breed: String = ""
+    @State private var breedType: HorseBreed = .unknown
+    @State private var breed: String = ""  // Optional specific breed name within category
     @State private var color: String = ""
     @State private var dateOfBirth: Date?
     @State private var weight: Double?
@@ -56,9 +57,35 @@ struct HorseEditView: View {
                 Section("Basic Information") {
                     TextField("Name", text: $name)
 
-                    TextField("Breed", text: $breed)
+                    // Breed Type Picker (for gait detection)
+                    Picker("Breed Type", selection: $breedType) {
+                        ForEach(BreedCategory.allCases, id: \.self) { category in
+                            Section(header: Text(category.rawValue)) {
+                                ForEach(HorseBreed.allCases.filter { $0.category == category }, id: \.self) { breed in
+                                    Text(breed.displayName).tag(breed)
+                                }
+                            }
+                        }
+                    }
+
+                    // Optional specific breed name (for display)
+                    TextField("Specific Breed (optional)", text: $breed)
+                        .textInputAutocapitalization(.words)
 
                     TextField("Color", text: $color)
+                }
+
+                // Breed Info
+                if breedType != .unknown {
+                    Section {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                            Text("Gait detection will use \(breedType.displayName) biomechanical characteristics")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 // Details
@@ -178,6 +205,7 @@ struct HorseEditView: View {
             .onAppear {
                 if let horse = horse {
                     name = horse.name
+                    breedType = horse.typedBreed
                     breed = horse.breed
                     color = horse.color
                     dateOfBirth = horse.dateOfBirth
@@ -201,6 +229,7 @@ struct HorseEditView: View {
         if let horse = horse {
             // Update existing
             horse.name = name
+            horse.typedBreed = breedType
             horse.breed = breed
             horse.color = color
             horse.dateOfBirth = dateOfBirth
@@ -224,6 +253,7 @@ struct HorseEditView: View {
             // Create new
             let newHorse = Horse()
             newHorse.name = name
+            newHorse.typedBreed = breedType
             newHorse.breed = breed
             newHorse.color = color
             newHorse.dateOfBirth = dateOfBirth
