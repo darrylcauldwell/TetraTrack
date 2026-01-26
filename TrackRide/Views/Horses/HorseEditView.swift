@@ -59,14 +59,11 @@ struct HorseEditView: View {
 
                     // Breed Type Picker (for gait detection)
                     Picker("Breed Type", selection: $breedType) {
-                        ForEach(BreedCategory.allCases, id: \.self) { category in
-                            Section(header: Text(category.rawValue)) {
-                                ForEach(HorseBreed.allCases.filter { $0.category == category }, id: \.self) { breed in
-                                    Text(breed.displayName).tag(breed)
-                                }
-                            }
+                        ForEach(HorseBreed.allCases) { breed in
+                            Text(breed.displayName).tag(breed)
                         }
                     }
+                    .pickerStyle(.navigationLink)
 
                     // Optional specific breed name (for display)
                     TextField("Specific Breed (optional)", text: $breed)
