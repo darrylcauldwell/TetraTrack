@@ -1337,7 +1337,7 @@ final class RideTracker {
             gallopPct = gaits.gallop
             elev = currentElevation
 
-        case .schooling:
+        case .schooling, .dressage:
             walkPct = gaits.walk
             trotPct = gaits.trot
             canterPct = gaits.canter

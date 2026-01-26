@@ -136,6 +136,8 @@ final class PostSessionSummaryService {
             headline = "Nice hack covering \(ride.formattedDistance)"
         case .schooling:
             headline = "Productive schooling session of \(ride.formattedDuration)"
+        case .dressage:
+            headline = "Focused dressage session of \(ride.formattedDuration)"
         case .crossCountry:
             headline = "Exciting cross-country session"
         }

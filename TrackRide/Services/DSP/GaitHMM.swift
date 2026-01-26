@@ -267,6 +267,7 @@ final class GaitHMM {
     private var customSpeedBounds: [(min: Double, max: Double)]?
     private var canterMultiplier: Double = 1.0
     private var frequencyOffset: Double = 0.0
+    private var isDressageMode: Bool = false
 
     /// Configure HMM for a specific horse breed with optional age adjustment and custom tuning
     /// - Parameters:
@@ -343,6 +344,61 @@ final class GaitHMM {
     /// Reset to initial state (stationary)
     func reset() {
         stateProbs = [1.0, 0, 0, 0, 0]
+        isDressageMode = false
+    }
+
+    /// Configure for dressage mode with adjusted parameters for collected work
+    /// Dressage features:
+    /// - Slower, more controlled gaits
+    /// - Walk at very slow speeds with controlled rhythm
+    /// - Collected trot can be quite slow
+    /// - Canter rarely occurs at walking speeds
+    func configureDressageMode() {
+        isDressageMode = true
+
+        // Dressage speed bounds: much tighter and lower speeds
+        // Walk: 0-2.5 m/s (collected walk can be very slow)
+        // Trot: 2.0-4.5 m/s (collected trot is slower than working trot)
+        // Canter: 3.5-7.0 m/s (collected canter needs more speed than walk/trot)
+        // Gallop: essentially disabled in dressage (7.0+ m/s)
+        customSpeedBounds = [
+            (0, 0.5),       // Stationary
+            (0.1, 2.5),     // Walk - wider range for collected walk
+            (2.0, 4.5),     // Trot - higher minimum to avoid false positives from walk
+            (3.5, 7.0),     // Canter - requires clear speed increase
+            (7.0, 20.0)     // Gallop - essentially disabled
+        ]
+
+        // Higher transition probability makes gait changes slower/stickier
+        // This reduces flicker between gaits during collected work
+        let selfProb = 0.95  // Even stickier than normal (0.90)
+        let transProb = 0.05
+        transitionMatrix = [
+            [selfProb, transProb, 0, 0, 0],
+            [transProb/2, selfProb, transProb/2, 0, 0],
+            [0, transProb/2, selfProb, transProb/2, 0],
+            [0, 0, transProb/2, selfProb, transProb/2],
+            [0, 0, 0, transProb, selfProb]
+        ]
+
+        // Dressage-specific emission parameters
+        // Wider walk frequency range to capture collected/extended walks
+        // Higher minimum speed requirements for trot/canter
+        let numFeatures = FeatureIndex.allCases.count
+        emissionParams = [
+            // Stationary: no movement
+            Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1),
+            // Walk: expanded frequency range (0.8-2.8 Hz) for collected/extended walk
+            Self.createEmissions(f0: 0.8...2.8, h2: 0.2...0.8, h3: 0.1...0.6, entropy: 0.2...0.6, xyC: 0.2...0.6, zYawC: 0.2...0.5, rms: 0.03...0.18, yaw: 0.1...0.4),
+            // Trot: higher H2 threshold, requires clearer 2-beat pattern
+            Self.createEmissions(f0: 2.2...4.0, h2: 1.5...3.0, h3: 0.2...0.7, entropy: 0.3...0.6, xyC: 0.75...1.0, zYawC: 0.1...0.35, rms: 0.18...0.40, yaw: 0.2...0.5),
+            // Canter: requires stronger signals to detect
+            Self.createEmissions(f0: 1.8...3.2, h2: 0.4...1.0, h3: 1.2...2.5, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.65...0.95, rms: 0.28...0.50, yaw: 0.45...0.9),
+            // Gallop: very unlikely in dressage
+            Self.createEmissions(f0: 3.5...6.5, h2: 0.2...0.7, h3: 0.3...0.8, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.75...1.0, rms: 0.40...0.7, yaw: 0.7...1.3)
+        ]
+
+        Log.gait.info("Dressage mode configured: adjusted speed bounds and emission parameters")
     }
 
     // MARK: - Forward Algorithm
@@ -450,28 +506,44 @@ final class GaitHMM {
         ]
 
         // GPS accuracy weighting:
-        // - Accuracy < 5m: full constraint weight (0.1 multiplier for violations)
-        // - Accuracy 5-20m: reduced constraint weight
-        // - Accuracy > 20m: minimal constraint weight (0.5 multiplier)
-        // - Accuracy > 50m: almost no constraint (0.8 multiplier)
+        // In dressage mode, we trust GPS speed more even with moderate accuracy
+        // because slow collected movements can generate misleading IMU patterns
         let constraintStrength: Double
-        if gpsAccuracy < 5.0 {
-            constraintStrength = 0.1  // High confidence GPS, apply strong constraint
-        } else if gpsAccuracy < 20.0 {
-            // Linear interpolation between 0.1 and 0.5
-            constraintStrength = 0.1 + (gpsAccuracy - 5.0) / 15.0 * 0.4
-        } else if gpsAccuracy < 50.0 {
-            // Linear interpolation between 0.5 and 0.8
-            constraintStrength = 0.5 + (gpsAccuracy - 20.0) / 30.0 * 0.3
+        if isDressageMode {
+            // Dressage mode: stronger reliance on GPS speed
+            if gpsAccuracy < 10.0 {
+                constraintStrength = 0.05  // Very strong constraint
+            } else if gpsAccuracy < 30.0 {
+                constraintStrength = 0.1   // Strong constraint
+            } else if gpsAccuracy < 50.0 {
+                constraintStrength = 0.25  // Moderate constraint
+            } else {
+                constraintStrength = 0.5   // Reduced but still meaningful
+            }
         } else {
-            constraintStrength = 0.8  // Low confidence GPS, barely apply constraint
+            // Normal mode: standard GPS weighting
+            // - Accuracy < 5m: full constraint weight (0.1 multiplier for violations)
+            // - Accuracy 5-20m: reduced constraint weight
+            // - Accuracy > 20m: minimal constraint weight (0.5 multiplier)
+            // - Accuracy > 50m: almost no constraint (0.8 multiplier)
+            if gpsAccuracy < 5.0 {
+                constraintStrength = 0.1  // High confidence GPS, apply strong constraint
+            } else if gpsAccuracy < 20.0 {
+                // Linear interpolation between 0.1 and 0.5
+                constraintStrength = 0.1 + (gpsAccuracy - 5.0) / 15.0 * 0.4
+            } else if gpsAccuracy < 50.0 {
+                // Linear interpolation between 0.5 and 0.8
+                constraintStrength = 0.5 + (gpsAccuracy - 20.0) / 30.0 * 0.3
+            } else {
+                constraintStrength = 0.8  // Low confidence GPS, barely apply constraint
+            }
         }
 
         for state in HMMGaitState.allCases {
             let bounds = speedBounds[state.rawValue]
             if gpsSpeed < bounds.min || gpsSpeed > bounds.max {
                 // Reduce probability based on GPS accuracy
-                // With poor GPS, we trust IMU more
+                // With poor GPS, we trust IMU more (except in dressage mode)
                 constrained[state.rawValue] *= constraintStrength
             }
         }

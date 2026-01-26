@@ -13,11 +13,18 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
     // Most common at top
     case hack = "Hack"
     case schooling = "Schooling"
+    case dressage = "Dressage"
     case crossCountry = "Cross Country"
 
     /// Whether this is an indoor ride type (arena work)
     var isIndoor: Bool {
-        self == .schooling
+        self == .schooling || self == .dressage
+    }
+
+    /// Whether this is a dressage/collected work session
+    /// These sessions use adjusted gait detection for slow, controlled movements
+    var isDressageMode: Bool {
+        self == .dressage
     }
 
     /// Whether this is an outdoor ride type
@@ -34,6 +41,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return "mountain.2.fill"
         case .schooling:
             return "rectangle.portrait.fill"
+        case .dressage:
+            return "figure.equestrian.sports"
         }
     }
 
@@ -46,6 +55,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return Color.red
         case .schooling:
             return Color.purple
+        case .dressage:
+            return Color.indigo
         }
     }
 
@@ -58,6 +69,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return "Cross country jumping"
         case .schooling:
             return "Arena schooling and flatwork"
+        case .dressage:
+            return "Dressage tests and collected work"
         }
     }
 
@@ -68,6 +81,6 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
 
     /// All indoor ride types
     static var indoorTypes: [RideType] {
-        [.schooling]
+        [.schooling, .dressage]
     }
 }

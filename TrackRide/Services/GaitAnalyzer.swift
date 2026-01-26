@@ -100,9 +100,10 @@ final class GaitAnalyzer: Resettable {
     private var sampleTimestamps: [Date] = []
     private let motionSampleWindow = 100
 
-    // MARK: - Horse Profile
+    // MARK: - Horse Profile & Ride Type
 
     private var horseProfile: Horse?
+    private var isDressageMode: Bool = false
 
     // MARK: - Segment Management
 
@@ -149,11 +150,18 @@ final class GaitAnalyzer: Resettable {
         isAnalyzing = true
         currentGait = .stationary
 
+        // Check if this is a dressage session (uses adjusted gait detection)
+        isDressageMode = ride.rideType.isDressageMode
+
         // Reset all buffers
         clearBuffers()
 
-        // Reset HMM
+        // Reset HMM and configure for dressage mode if needed
         hmm.reset()
+        if isDressageMode {
+            hmm.configureDressageMode()
+            Log.tracking.info("Dressage mode enabled - using adjusted gait detection")
+        }
 
         // Reset frame transformer calibration for fresh calibration
         frameTransformer.resetCalibration()
