@@ -4,6 +4,19 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>TetraTrack</string>
+	<key>CKSharingSupported</key>
+	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>CloudKit Share</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cloudkit-iCloud.MyHorse.TrackRide</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

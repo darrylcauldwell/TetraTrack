@@ -140,27 +140,68 @@ actor ShareConnectionService {
             throw ShareConnectionError.shareCreationFailed(underlying: error)
         }
 
-        // 2. Create a ZONE-LEVEL share (not record-level)
+        // 2. Get or create a ZONE-LEVEL share
         // This shares ALL records in the FamilySharing zone, including:
         // - LiveTrackingSession records
         // - SafetyAlert records
         // - ShareConnection records
-        let share = CKShare(recordZoneID: zoneID)
-        share.publicPermission = .readOnly
+        //
+        // IMPORTANT: A zone can only have one zone-level share, so we must
+        // check if one already exists and re-use it.
 
-        // Set share metadata
-        share[CKShare.SystemFieldKey.title] = "TetraTrack Family Sharing" as CKRecordValue
-        share[CKShare.SystemFieldKey.shareType] = shareType.rawValue as CKRecordValue
+        var share: CKShare
+        var existingShareURL: URL?
 
-        // 3. Save the share
+        // First, try to fetch an existing zone-level share
         do {
-            let savedShare = try await container.privateCloudDatabase.save(share) as? CKShare
-
-            if let savedShare = savedShare {
-                connection.shareRecordID = savedShare.recordID.recordName
-                connection.shareURL = savedShare.url
-                Log.family.info("Zone-level share created. URL: \(savedShare.url?.absoluteString ?? "nil")")
+            let existingShare = try await fetchExistingZoneShare(zoneID: zoneID)
+            if let existingShare = existingShare {
+                share = existingShare
+                existingShareURL = existingShare.url
+                Log.family.info("Found existing zone-level share. URL: \(existingShareURL?.absoluteString ?? "nil")")
+            } else {
+                // No existing share, create a new one
+                share = CKShare(recordZoneID: zoneID)
+                share.publicPermission = .readOnly
+                share[CKShare.SystemFieldKey.title] = "TetraTrack Family Sharing" as CKRecordValue
+                share[CKShare.SystemFieldKey.shareType] = shareType.rawValue as CKRecordValue
+                Log.family.info("Creating new zone-level share")
             }
+        } catch {
+            // Error fetching, try creating new share
+            Log.family.warning("Could not fetch existing share, creating new: \(error.localizedDescription)")
+            share = CKShare(recordZoneID: zoneID)
+            share.publicPermission = .readOnly
+            share[CKShare.SystemFieldKey.title] = "TetraTrack Family Sharing" as CKRecordValue
+            share[CKShare.SystemFieldKey.shareType] = shareType.rawValue as CKRecordValue
+        }
+
+        // 3. Save the share (or re-save existing to get updated URL)
+        do {
+            let savedShare: CKShare
+            if existingShareURL != nil {
+                // Existing share - just use it
+                savedShare = share
+            } else {
+                // New share - save it
+                do {
+                    savedShare = try await container.privateCloudDatabase.save(share) as! CKShare
+                } catch let error as CKError where error.code == .serverRecordChanged {
+                    // Zone-level share already exists (race condition or query failed to find it)
+                    // Retry fetching the existing share
+                    Log.family.warning("Zone share already exists, retrying fetch...")
+                    if let existingShare = try await fetchExistingZoneShare(zoneID: zoneID) {
+                        savedShare = existingShare
+                        Log.family.info("Successfully retrieved existing zone share on retry")
+                    } else {
+                        throw ShareConnectionError.shareCreationFailed(underlying: error)
+                    }
+                }
+            }
+
+            connection.shareRecordID = savedShare.recordID.recordName
+            connection.shareURL = savedShare.url
+            Log.family.info("Zone-level share ready. URL: \(savedShare.url?.absoluteString ?? "nil")")
 
             // Update the connection record with share info
             connectionRecord["shareRecordID"] = connection.shareRecordID
@@ -187,6 +228,36 @@ actor ShareConnectionService {
         } catch {
             Log.family.error("Failed to create zone-level share: \(error)")
             throw ShareConnectionError.shareCreationFailed(underlying: error)
+        }
+    }
+
+    /// Fetch an existing zone-level share for a zone
+    private func fetchExistingZoneShare(zoneID: CKRecordZone.ID) async throws -> CKShare? {
+        // Query for cloudkit.share records in the zone
+        let query = CKQuery(recordType: "cloudkit.share", predicate: NSPredicate(value: true))
+
+        do {
+            let (results, _) = try await container.privateCloudDatabase.records(
+                matching: query,
+                inZoneWith: zoneID,
+                resultsLimit: 1
+            )
+
+            for (_, result) in results {
+                if case .success(let record) = result {
+                    if let share = record as? CKShare {
+                        return share
+                    }
+                }
+            }
+            return nil
+        } catch let error as CKError where error.code == .unknownItem {
+            // No shares exist, which is fine
+            return nil
+        } catch {
+            // Query might fail if no shares exist - that's OK
+            Log.family.debug("Zone share query returned error (may be normal): \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -256,15 +327,25 @@ actor ShareConnectionService {
     // MARK: - Get or Create Share Connection
 
     /// Get an existing share connection or create a new one
+    /// Validates that existing connections still have valid shares
     func getOrCreateConnection(
         for relationshipID: UUID,
         shareType: ShareType,
         ownerUserID: String
     ) async throws -> ShareConnection {
         // Try to fetch existing
-        if let existing = try await fetchConnection(for: relationshipID),
+        if var existing = try await fetchConnection(for: relationshipID),
            existing.shareURL != nil {
-            return existing
+
+            // Validate the share is still valid in CloudKit
+            if let isValid = try? await validateShareExists(existing),
+               isValid {
+                return existing
+            }
+
+            // Share no longer valid - clear cache and create new
+            Log.family.warning("Existing share for \(relationshipID) is no longer valid, creating new")
+            connectionCache.removeValue(forKey: relationshipID)
         }
 
         // Create new
@@ -275,12 +356,46 @@ actor ShareConnectionService {
         )
     }
 
+    /// Validate that a share connection's CloudKit share still exists
+    private func validateShareExists(_ connection: ShareConnection) async throws -> Bool {
+        guard let shareRecordID = connection.shareRecordID,
+              let zoneID = zoneID else {
+            return false
+        }
+
+        let recordID = CKRecord.ID(recordName: shareRecordID, zoneID: zoneID)
+
+        do {
+            _ = try await container.privateCloudDatabase.record(for: recordID)
+            return true
+        } catch let error as CKError where error.code == .unknownItem {
+            return false
+        } catch {
+            // Other errors - assume valid to avoid unnecessary regeneration
+            Log.family.debug("Share validation error (assuming valid): \(error.localizedDescription)")
+            return true
+        }
+    }
+
     // MARK: - Revoke Share Connection
 
     /// Revoke and delete a ShareConnection
-    func revokeConnection(for relationshipID: UUID) async throws {
+    /// - Returns: true if successfully deleted, false if already deleted or doesn't exist
+    @discardableResult
+    func revokeConnection(for relationshipID: UUID) async throws -> Bool {
+        // Ensure zone is ready first
+        do {
+            try await ensureZoneReady()
+        } catch {
+            // Zone not available - may already be deleted or never existed
+            connectionCache.removeValue(forKey: relationshipID)
+            Log.family.info("Zone not available during revoke - assuming already cleaned up")
+            return false
+        }
+
         guard let zoneID = zoneID else {
-            throw ShareConnectionError.zoneNotAvailable
+            connectionCache.removeValue(forKey: relationshipID)
+            return false
         }
 
         // Find the connection
@@ -288,7 +403,8 @@ actor ShareConnectionService {
               let recordID = connection.cloudKitRecordID else {
             // Already deleted or doesn't exist
             connectionCache.removeValue(forKey: relationshipID)
-            return
+            Log.family.info("No connection found for \(relationshipID) - already deleted")
+            return false
         }
 
         let ckRecordID = CKRecord.ID(recordName: recordID, zoneID: zoneID)
@@ -298,9 +414,36 @@ actor ShareConnectionService {
             _ = try await container.privateCloudDatabase.deleteRecord(withID: ckRecordID)
             connectionCache.removeValue(forKey: relationshipID)
             Log.family.info("Revoked share connection for relationship \(relationshipID)")
+            return true
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record doesn't exist - already deleted
+            connectionCache.removeValue(forKey: relationshipID)
+            Log.family.info("Connection record already deleted for \(relationshipID)")
+            return false
         } catch {
             Log.family.error("Failed to revoke share connection: \(error)")
             throw error
+        }
+    }
+
+    /// Verify that a connection has been fully deleted from CloudKit
+    /// Use this before allowing recreation of a contact
+    func verifyConnectionDeleted(for relationshipID: UUID) async -> Bool {
+        guard let zoneID = zoneID else {
+            // No zone = no connections
+            return true
+        }
+
+        // Clear cache first to force fresh fetch
+        connectionCache.removeValue(forKey: relationshipID)
+
+        do {
+            let connection = try await fetchConnectionFromCloudKit(relationshipID: relationshipID, zoneID: zoneID)
+            return connection == nil
+        } catch {
+            // Error fetching = assume deleted
+            Log.family.debug("Verify connection deleted query error (assuming deleted): \(error.localizedDescription)")
+            return true
         }
     }
 
@@ -314,8 +457,19 @@ actor ShareConnectionService {
 
             // Extract owner info from metadata
             let ownerIdentity = metadata.ownerIdentity
-            let ownerID = ownerIdentity.userRecordID?.recordName ?? UUID().uuidString
-            let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown"
+
+            // Use deterministic ID based on URL if userRecordID is unavailable
+            // This ensures duplicate detection works even without CloudKit identity
+            let ownerID: String
+            if let recordName = ownerIdentity.userRecordID?.recordName {
+                ownerID = recordName
+            } else {
+                // Use a hash of the share URL as a stable identifier
+                ownerID = "share-\(url.absoluteString.hashValue)"
+                Log.family.warning("Owner identity unavailable, using URL-based ID")
+            }
+
+            let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown User"
 
             Log.family.info("Fetched share metadata from \(ownerName) (not accepting yet)")
             return (ownerID, ownerName)
@@ -335,8 +489,17 @@ actor ShareConnectionService {
             let acceptedShare = try await container.accept(metadata)
 
             let ownerIdentity = acceptedShare.owner.userIdentity
-            let ownerID = ownerIdentity.userRecordID?.recordName ?? UUID().uuidString
-            let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown"
+
+            // Use deterministic ID - prefer real ID, fallback to URL-based
+            let ownerID: String
+            if let recordName = ownerIdentity.userRecordID?.recordName {
+                ownerID = recordName
+            } else {
+                ownerID = "share-\(url.absoluteString.hashValue)"
+                Log.family.warning("Owner identity unavailable after accept, using URL-based ID")
+            }
+
+            let ownerName = ownerIdentity.nameComponents?.formatted() ?? "Unknown User"
 
             Log.family.info("Accepted share from \(ownerName)")
             return (ownerID, ownerName)
@@ -350,7 +513,17 @@ actor ShareConnectionService {
     // MARK: - Check if URL is CloudKit Share
 
     nonisolated func isCloudKitShareURL(_ url: URL) -> Bool {
-        url.scheme == "cloudkit" || url.host?.contains("icloud") == true
+        // CloudKit share URLs can come in several formats:
+        // 1. cloudkit:// scheme (direct CloudKit URL)
+        // 2. https://www.icloud.com/share/... (web share URL)
+        // 3. cloudkit-iCloud.MyHorse.TrackRide:// (app-specific URL scheme)
+        let scheme = url.scheme?.lowercased() ?? ""
+        let host = url.host?.lowercased() ?? ""
+
+        return scheme == "cloudkit" ||
+               scheme.hasPrefix("cloudkit-") ||
+               host.contains("icloud.com") ||
+               host.contains("icloud-content.com")
     }
 
     // MARK: - Cache Management

@@ -44,6 +44,7 @@ actor LiveTrackingService {
         let session: LiveTrackingSession
         let attemptCount: Int
         let nextRetryTime: Date
+        let createdAt: Date  // When the original update was queued
     }
 
     /// Queue of pending updates to retry
@@ -51,6 +52,9 @@ actor LiveTrackingService {
 
     /// Maximum retry attempts before giving up
     private let maxRetryAttempts = 5
+
+    /// Maximum age for a pending update before it's considered stale (2 minutes)
+    private let maxPendingAge: TimeInterval = 120
 
     /// Base delay for exponential backoff (seconds)
     private let baseRetryDelay: TimeInterval = 2
@@ -305,10 +309,14 @@ actor LiveTrackingService {
         let delay = baseRetryDelay * pow(2.0, Double(previousAttempts))
         let nextRetryTime = Date().addingTimeInterval(delay)
 
+        // Preserve original creation time, or set it for first attempt
+        let createdAt = pendingUpdate?.createdAt ?? Date()
+
         pendingUpdate = PendingUpdate(
             session: session,
             attemptCount: previousAttempts + 1,
-            nextRetryTime: nextRetryTime
+            nextRetryTime: nextRetryTime,
+            createdAt: createdAt
         )
 
         // Check network before scheduling retry
@@ -356,6 +364,14 @@ actor LiveTrackingService {
     /// Process the pending retry
     private func processPendingRetry() async {
         guard let pending = pendingUpdate, let zoneID = zoneID else { return }
+
+        // Check if the pending update is too old (stale)
+        let age = Date().timeIntervalSince(pending.createdAt)
+        if age > maxPendingAge {
+            Log.family.warning("Dropping stale location update (age: \(Int(age))s, max: \(Int(self.maxPendingAge))s)")
+            pendingUpdate = nil
+            return
+        }
 
         let success = await sendLocationUpdate(session: pending.session, zoneID: zoneID)
 

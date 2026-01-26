@@ -45,7 +45,8 @@ struct FamilyView: View {
                         TrustedContactsCard(
                             contacts: trustedContacts,
                             sharingCoordinator: sharingCoordinator,
-                            onAddMember: { showingAddMember = true }
+                            onAddMember: { showingAddMember = true },
+                            onContactRemoved: { loadContacts() }
                         )
                     }
                 }
@@ -66,6 +67,10 @@ struct FamilyView: View {
                 }
             }
             .refreshable {
+                // Restart refresh loop if it stopped due to errors
+                sharingCoordinator.restartRefreshLoopIfNeeded()
+
+                sharingCoordinator.loadPendingRequests()
                 await sharingCoordinator.fetchFamilyLocations()
                 loadContacts()
             }
@@ -83,6 +88,7 @@ struct FamilyView: View {
             }
             .task {
                 sharingCoordinator.loadLinkedRiders()
+                sharingCoordinator.loadPendingRequests()
                 await sharingCoordinator.setup()
                 await sharingCoordinator.fetchFamilyLocations()
                 loadContacts()
@@ -244,6 +250,7 @@ struct PendingRequestCard: View {
     let sharingCoordinator: UnifiedSharingCoordinator
     @State private var isAccepting = false
     @State private var showingDeclineConfirmation = false
+    @State private var acceptFailed = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -264,9 +271,15 @@ struct PendingRequestCard: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
 
-                Text("Received \(request.timeSinceReceived)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if acceptFailed {
+                    Text("Failed to accept - tap to retry")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                } else {
+                    Text("Received \(request.timeSinceReceived)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
@@ -294,11 +307,11 @@ struct PendingRequestCard: View {
                         ProgressView()
                             .frame(width: 36, height: 36)
                     } else {
-                        Image(systemName: "checkmark")
+                        Image(systemName: acceptFailed ? "arrow.clockwise" : "checkmark")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
-                            .background(AppColors.success)
+                            .background(acceptFailed ? AppColors.warning : AppColors.success)
                             .clipShape(Circle())
                     }
                 }
@@ -323,12 +336,23 @@ struct PendingRequestCard: View {
     }
 
     private func acceptRequest() {
+        // Capture request ID to handle race condition where request is removed during async operation
+        let requestID = request.id
+
         isAccepting = true
+        acceptFailed = false
+
         Task {
             // Use the proper accept method that accepts the CKShare and removes from pending
-            _ = await sharingCoordinator.acceptPendingRequest(request)
+            let success = await sharingCoordinator.acceptPendingRequest(request)
             await MainActor.run {
                 isAccepting = false
+                if !success {
+                    // Only show failure if request still exists (wasn't removed due to invalid URL)
+                    if sharingCoordinator.pendingRequests.contains(where: { $0.id == requestID }) {
+                        acceptFailed = true
+                    }
+                }
             }
         }
     }
@@ -595,6 +619,7 @@ struct TrustedContactsCard: View {
     let contacts: [SharingRelationship]
     let sharingCoordinator: UnifiedSharingCoordinator
     let onAddMember: () -> Void
+    let onContactRemoved: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -621,7 +646,11 @@ struct TrustedContactsCard: View {
                     Divider()
                         .padding(.vertical, 4)
                 }
-                ContactRow(contact: contact, sharingCoordinator: sharingCoordinator)
+                ContactRow(
+                    contact: contact,
+                    sharingCoordinator: sharingCoordinator,
+                    onRemoved: onContactRemoved
+                )
             }
         }
         .padding(20)
@@ -635,6 +664,7 @@ struct TrustedContactsCard: View {
 struct ContactRow: View {
     let contact: SharingRelationship
     let sharingCoordinator: UnifiedSharingCoordinator
+    let onRemoved: () -> Void
     @State private var liveTracking: Bool
     @State private var fallAlerts: Bool
     @State private var stationaryAlerts: Bool
@@ -646,13 +676,30 @@ struct ContactRow: View {
     @State private var currentShareURL: URL?
     @State private var showingShareError = false
 
-    init(contact: SharingRelationship, sharingCoordinator: UnifiedSharingCoordinator) {
+    init(contact: SharingRelationship, sharingCoordinator: UnifiedSharingCoordinator, onRemoved: @escaping () -> Void) {
         self.contact = contact
         self.sharingCoordinator = sharingCoordinator
+        self.onRemoved = onRemoved
         self._liveTracking = State(initialValue: contact.canViewLiveRiding)
         self._fallAlerts = State(initialValue: contact.receiveFallAlerts)
         self._stationaryAlerts = State(initialValue: contact.receiveStationaryAlerts)
         self._emergencySOS = State(initialValue: contact.isEmergencyContact)
+    }
+
+    /// Sync state with contact data when it changes externally (e.g., CloudKit sync)
+    private func syncStateWithContact() {
+        if liveTracking != contact.canViewLiveRiding {
+            liveTracking = contact.canViewLiveRiding
+        }
+        if fallAlerts != contact.receiveFallAlerts {
+            fallAlerts = contact.receiveFallAlerts
+        }
+        if stationaryAlerts != contact.receiveStationaryAlerts {
+            stationaryAlerts = contact.receiveStationaryAlerts
+        }
+        if emergencySOS != contact.isEmergencyContact {
+            emergencySOS = contact.isEmergencyContact
+        }
     }
 
     private var inviteStatusColor: Color {
@@ -758,7 +805,10 @@ struct ContactRow: View {
 
                                 Button {
                                     // Generate share URL if needed before showing sheet
-                                    if contact.shareURLValue == nil && currentShareURL == nil {
+                                    // Always regenerate if no current URL or cached URL
+                                    let needsGeneration = contact.shareURLValue == nil && currentShareURL == nil
+
+                                    if needsGeneration {
                                         isGeneratingShare = true
                                         Task {
                                             let url = await sharingCoordinator.generateShareLink(for: contact)
@@ -766,6 +816,8 @@ struct ContactRow: View {
                                                 isGeneratingShare = false
                                                 guard let url = url else {
                                                     // Show error - share link is required
+                                                    // Clear any stale cached URL
+                                                    currentShareURL = nil
                                                     showingShareError = true
                                                     return
                                                 }
@@ -773,9 +825,13 @@ struct ContactRow: View {
                                                 showingShareSheet = true
                                             }
                                         }
-                                    } else {
-                                        currentShareURL = contact.shareURLValue
+                                    } else if let cachedURL = currentShareURL ?? contact.shareURLValue {
+                                        // Use existing valid URL
+                                        currentShareURL = cachedURL
                                         showingShareSheet = true
+                                    } else {
+                                        // Fallback: no URL available, show error
+                                        showingShareError = true
                                     }
                                 } label: {
                                     if isGeneratingShare {
@@ -888,6 +944,9 @@ struct ContactRow: View {
             Button("Remove Contact", role: .destructive) {
                 Task {
                     await sharingCoordinator.deleteRelationship(contact)
+                    await MainActor.run {
+                        onRemoved()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -912,6 +971,22 @@ struct ContactRow: View {
         } message: {
             Text("Please make sure you're signed into iCloud in Settings. The invite link requires iCloud to work.")
         }
+        .onAppear {
+            // Sync state with contact data on appear (handles external changes)
+            syncStateWithContact()
+        }
+        .onChange(of: contact.canViewLiveRiding) { _, newValue in
+            if liveTracking != newValue { liveTracking = newValue }
+        }
+        .onChange(of: contact.receiveFallAlerts) { _, newValue in
+            if fallAlerts != newValue { fallAlerts = newValue }
+        }
+        .onChange(of: contact.receiveStationaryAlerts) { _, newValue in
+            if stationaryAlerts != newValue { stationaryAlerts = newValue }
+        }
+        .onChange(of: contact.isEmergencyContact) { _, newValue in
+            if emergencySOS != newValue { emergencySOS = newValue }
+        }
         .presentationBackground(Color.black)
     }
 }
@@ -927,23 +1002,23 @@ struct FeatureToggleRow: View {
     let onChange: (Bool) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 12) {
             // Top row: Icon, Title, and Toggle
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 // Icon with colored background
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(color.opacity(0.15))
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
 
                     Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(color)
                 }
 
                 Text(title)
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -955,18 +1030,16 @@ struct FeatureToggleRow: View {
                     }
             }
 
-            // Description on its own line
+            // Description on its own line with proper wrapping
             Text(description)
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 10)
-                .padding(.leading, 58) // Align with title (44 icon + 14 spacing)
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 16)
+        .padding(12)
         .background(AppColors.cardBackground.opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -1189,9 +1262,18 @@ struct AddFamilyMemberView: View {
             await MainActor.run {
                 // Check if we got a share URL
                 guard let url = shareURL else {
-                    // Show error to user - the share link is critical for the invite
+                    // Show the actual error from the coordinator if available
                     isLoading = false
-                    errorMessage = "Please make sure you're signed into iCloud in Settings. The invite link requires iCloud to work."
+                    let coordinatorError = sharingCoordinator.errorMessage
+                    let isSignedIn = sharingCoordinator.isSignedIn
+                    let userID = sharingCoordinator.currentUserID
+
+                    if let error = coordinatorError {
+                        errorMessage = error
+                    } else {
+                        // Debug info to help diagnose
+                        errorMessage = "Share link failed. Debug: isSignedIn=\(isSignedIn), userID=\(userID.isEmpty ? "empty" : "set"), coordinatorError=nil"
+                    }
                     showingError = true
                     return
                 }

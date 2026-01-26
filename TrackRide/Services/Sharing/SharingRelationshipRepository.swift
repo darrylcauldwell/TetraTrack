@@ -104,16 +104,87 @@ final class SharingRelationshipRepository {
         return try context.fetch(descriptor).first
     }
 
+    /// Check if a relationship with the same name already exists
+    func hasExistingRelationship(name: String) throws -> Bool {
+        guard let context = modelContext else { return false }
+
+        let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let descriptor = FetchDescriptor<SharingRelationship>()
+        let all = try context.fetch(descriptor)
+
+        return all.contains { existing in
+            existing.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedName
+        }
+    }
+
+    /// Check if a relationship with the same email or phone already exists
+    func hasExistingRelationship(email: String?, phoneNumber: String?) throws -> Bool {
+        guard let context = modelContext else { return false }
+
+        let descriptor = FetchDescriptor<SharingRelationship>()
+        let all = try context.fetch(descriptor)
+
+        return all.contains { existing in
+            // Check email match
+            if let email = email, !email.isEmpty,
+               let existingEmail = existing.email, !existingEmail.isEmpty {
+                if email.lowercased() == existingEmail.lowercased() {
+                    return true
+                }
+            }
+
+            // Check phone match
+            if let phone = phoneNumber, !phone.isEmpty,
+               let existingPhone = existing.phoneNumber, !existingPhone.isEmpty {
+                // Normalize phone numbers for comparison (remove spaces, dashes, etc.)
+                let normalizedPhone = phone.filter { $0.isNumber }
+                let normalizedExisting = existingPhone.filter { $0.isNumber }
+                if normalizedPhone == normalizedExisting && !normalizedPhone.isEmpty {
+                    return true
+                }
+            }
+
+            return false
+        }
+    }
+
     /// Create a new relationship
+    /// - Parameters:
+    ///   - name: Contact name
+    ///   - type: Relationship type
+    ///   - email: Optional email address
+    ///   - phoneNumber: Optional phone number
+    ///   - preset: Permission preset to apply
+    ///   - allowDuplicates: If false, returns nil if duplicate exists
+    /// - Returns: The new relationship, or nil if duplicate found and not allowed
     func create(
         name: String,
         type: RelationshipType,
         email: String? = nil,
         phoneNumber: String? = nil,
-        preset: PermissionPreset? = nil
-    ) -> SharingRelationship {
+        preset: PermissionPreset? = nil,
+        allowDuplicates: Bool = false
+    ) -> SharingRelationship? {
         guard let context = modelContext else {
-            fatalError("SharingRelationshipRepository: ModelContext not configured")
+            Log.family.error("SharingRelationshipRepository: ModelContext not configured")
+            return nil
+        }
+
+        // Check for duplicates if not allowed
+        if !allowDuplicates {
+            do {
+                if try hasExistingRelationship(name: name) {
+                    Log.family.warning("Duplicate relationship name '\(name)' - skipping creation")
+                    return nil
+                }
+                if try hasExistingRelationship(email: email, phoneNumber: phoneNumber) {
+                    Log.family.warning("Duplicate relationship with same email/phone - skipping creation")
+                    return nil
+                }
+            } catch {
+                Log.family.error("Failed to check for duplicates: \(error)")
+                // Continue with creation if check fails
+            }
         }
 
         let relationship = SharingRelationship(name: name, relationshipType: type)
@@ -136,6 +207,14 @@ final class SharingRelationshipRepository {
         }
 
         context.insert(relationship)
+
+        // Save immediately
+        do {
+            try context.save()
+        } catch {
+            Log.family.error("Failed to save new relationship: \(error)")
+        }
+
         return relationship
     }
 
@@ -148,7 +227,15 @@ final class SharingRelationshipRepository {
 
     /// Delete a relationship
     func delete(_ relationship: SharingRelationship) {
-        modelContext?.delete(relationship)
+        guard let context = modelContext else { return }
+        context.delete(relationship)
+
+        // Save the deletion
+        do {
+            try context.save()
+        } catch {
+            Log.family.error("Failed to save after deleting relationship: \(error)")
+        }
     }
 
     /// Delete by ID
@@ -201,12 +288,28 @@ final class SharingRelationshipRepository {
             shareURL: shareURL
         )
         context.insert(request)
+
+        // CRITICAL: Save immediately so pending request persists across app restarts
+        do {
+            try context.save()
+        } catch {
+            Log.family.error("Failed to save pending request: \(error)")
+        }
+
         return request
     }
 
     /// Delete a pending request
     func deletePendingRequest(_ request: PendingShareRequest) {
-        modelContext?.delete(request)
+        guard let context = modelContext else { return }
+        context.delete(request)
+
+        // Save the deletion
+        do {
+            try context.save()
+        } catch {
+            Log.family.error("Failed to save after deleting pending request: \(error)")
+        }
     }
 
     /// Check if a pending request already exists from this owner
@@ -240,32 +343,49 @@ final class SharingRelationshipRepository {
 
         Log.family.info("Starting migration from UserDefaults...")
 
-        // Migrate TrustedContacts
-        migrateTrustedContacts(context: context)
+        // Migrate TrustedContacts (doesn't delete source yet)
+        let migratedContacts = migrateTrustedContactsSafely(context: context)
 
-        // Migrate pending share requests
-        migratePendingRequests(context: context)
+        // Migrate pending share requests (doesn't delete source yet)
+        let migratedRequests = migratePendingRequestsSafely(context: context)
 
-        // Save all changes
-        try context.save()
+        // Save all changes - MUST succeed before deleting source data
+        do {
+            try context.save()
 
-        // Mark migration as complete
-        UserDefaults.standard.set(true, forKey: migrationCompletedKey)
-        Log.family.info("Migration from UserDefaults completed")
+            // Only delete source data AFTER successful save
+            if migratedContacts > 0 {
+                UserDefaults.standard.removeObject(forKey: trustedContactsKey)
+                Log.family.info("Migrated \(migratedContacts) trusted contacts")
+            }
+            if migratedRequests > 0 {
+                UserDefaults.standard.removeObject(forKey: pendingRequestsKey)
+                Log.family.info("Migrated \(migratedRequests) pending requests")
+            }
+
+            // Mark migration as complete
+            UserDefaults.standard.set(true, forKey: migrationCompletedKey)
+            Log.family.info("Migration from UserDefaults completed")
+
+        } catch {
+            // Save failed - do NOT delete source data so we can retry
+            Log.family.error("Migration save failed, source data preserved: \(error)")
+            throw error
+        }
     }
 
-    private func migrateTrustedContacts(context: ModelContext) {
+    /// Migrate trusted contacts without deleting source data
+    /// Returns the number of contacts migrated
+    private func migrateTrustedContactsSafely(context: ModelContext) -> Int {
         guard let data = UserDefaults.standard.data(forKey: trustedContactsKey) else {
             Log.family.debug("No trusted contacts to migrate")
-            return
+            return 0
         }
 
         // Decode legacy TrustedContact struct
-        // This requires the legacy struct to still be decodable
-        // We'll use a simple dictionary approach for flexibility
         guard let contacts = try? JSONDecoder().decode([LegacyTrustedContact].self, from: data) else {
             Log.family.error("Failed to decode legacy trusted contacts")
-            return
+            return 0
         }
 
         for legacy in contacts {
@@ -296,20 +416,21 @@ final class SharingRelationshipRepository {
             Log.family.debug("Migrated contact: \(legacy.name)")
         }
 
-        // Clear UserDefaults after successful migration
-        UserDefaults.standard.removeObject(forKey: trustedContactsKey)
-        Log.family.info("Migrated \(contacts.count) trusted contacts")
+        // DO NOT delete source data here - let caller do it after save succeeds
+        return contacts.count
     }
 
-    private func migratePendingRequests(context: ModelContext) {
+    /// Migrate pending requests without deleting source data
+    /// Returns the number of requests migrated
+    private func migratePendingRequestsSafely(context: ModelContext) -> Int {
         guard let data = UserDefaults.standard.data(forKey: pendingRequestsKey) else {
             Log.family.debug("No pending requests to migrate")
-            return
+            return 0
         }
 
         guard let requests = try? JSONDecoder().decode([LegacyPendingRequest].self, from: data) else {
             Log.family.error("Failed to decode legacy pending requests")
-            return
+            return 0
         }
 
         for legacy in requests {
@@ -322,9 +443,8 @@ final class SharingRelationshipRepository {
             context.insert(request)
         }
 
-        // Clear UserDefaults
-        UserDefaults.standard.removeObject(forKey: pendingRequestsKey)
-        Log.family.info("Migrated \(requests.count) pending requests")
+        // DO NOT delete source data here - let caller do it after save succeeds
+        return requests.count
     }
 }
 

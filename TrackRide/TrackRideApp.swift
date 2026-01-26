@@ -136,6 +136,9 @@ struct TrackRideApp: App {
     @State private var rideTracker: RideTracker?
     @State private var isConfigured = false
 
+    // Key for persisting pending share URLs that arrive before app is ready
+    private static let pendingShareURLKey = "pendingShareURLToProcess"
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -243,10 +246,45 @@ struct TrackRideApp: App {
         // Configure route planning service
         ServiceContainer.shared.routePlanning.configure(with: sharedModelContainer.mainContext, container: sharedModelContainer)
 
+        // Configure family sharing coordinator
+        UnifiedSharingCoordinator.shared.configure(with: sharedModelContainer.mainContext)
+
+        // Initialize CloudKit schema for family sharing (creates record types in Development mode)
+        Task {
+            let schemaInitializer = CloudKitSchemaInitializer()
+            let result = await schemaInitializer.initializeSchema()
+            if result.success {
+                Log.app.info("CloudKit schema initialized: \(result.recordTypesCreated.joined(separator: ", "))")
+            } else {
+                Log.app.warning("CloudKit schema initialization: \(result.errors.joined(separator: "; "))")
+            }
+        }
+
         // Index upcoming competitions for Maps and Siri Suggestions
         indexUpcomingCompetitions()
 
         isConfigured = true
+
+        // Process any pending share URL that arrived before app was ready
+        processPendingShareURLIfNeeded()
+    }
+
+    /// Process a share URL that was persisted because the app wasn't ready when it arrived
+    private func processPendingShareURLIfNeeded() {
+        guard let urlString = UserDefaults.standard.string(forKey: Self.pendingShareURLKey),
+              let url = URL(string: urlString) else {
+            return
+        }
+
+        Log.app.info("Found persisted share URL, processing: \(urlString)")
+
+        // Clear the stored URL immediately to prevent reprocessing
+        UserDefaults.standard.removeObject(forKey: Self.pendingShareURLKey)
+
+        // Process the URL now that we're configured
+        Task {
+            await storePendingShareRequest(from: url)
+        }
     }
 
     private func indexUpcomingCompetitions() {
@@ -320,6 +358,13 @@ struct TrackRideApp: App {
         // Handle CloudKit share URLs
         let sharingCoordinator = UnifiedSharingCoordinator.shared
         if sharingCoordinator.isCloudKitShareURL(url) {
+            // If coordinator isn't configured yet, persist URL for later processing
+            if sharingCoordinator.repository == nil || !isConfigured {
+                Log.app.info("App not fully configured, persisting URL for later: \(url.absoluteString)")
+                UserDefaults.standard.set(url.absoluteString, forKey: Self.pendingShareURLKey)
+                UserDefaults.standard.synchronize()
+            }
+
             Task {
                 // Store as pending request instead of auto-accepting
                 // This allows the user to review and accept/decline in the app
@@ -332,12 +377,38 @@ struct TrackRideApp: App {
         // SECURITY: Don't auto-accept shares. Store as pending for user review.
         Log.app.info("Storing share request as pending for user approval")
 
+        let sharingCoordinator = UnifiedSharingCoordinator.shared
+
+        // Wait for coordinator to be configured with retry
+        var retryCount = 0
+        let maxRetries = 5
+        while sharingCoordinator.repository == nil && retryCount < maxRetries {
+            if retryCount == 0 {
+                Log.app.info("Repository not configured, configuring now...")
+                sharingCoordinator.configure(with: sharedModelContainer.mainContext)
+            } else {
+                Log.app.info("Waiting for repository configuration (attempt \(retryCount + 1)/\(maxRetries))...")
+            }
+
+            // Give SwiftData time to initialize
+            try? await Task.sleep(for: .milliseconds(500))
+            retryCount += 1
+        }
+
+        guard sharingCoordinator.repository != nil else {
+            Log.app.error("Failed to configure repository after \(maxRetries) attempts, persisting URL for later")
+            // Re-persist URL for next app launch
+            UserDefaults.standard.set(url.absoluteString, forKey: Self.pendingShareURLKey)
+            UserDefaults.standard.synchronize()
+            return
+        }
+
         do {
             // Fetch share metadata WITHOUT accepting to get owner info
-            let (ownerID, ownerName) = try await UnifiedSharingCoordinator.shared.fetchShareMetadata(from: url)
+            let (ownerID, ownerName) = try await sharingCoordinator.fetchShareMetadata(from: url)
 
             // Check if we already have a pending request from this owner
-            if let repository = UnifiedSharingCoordinator.shared.repository {
+            if let repository = sharingCoordinator.repository {
                 let hasPending = try repository.hasPendingRequest(fromOwnerID: ownerID)
                 if hasPending {
                     Log.app.info("Already have pending request from \(ownerName), ignoring duplicate")
@@ -346,7 +417,7 @@ struct TrackRideApp: App {
             }
 
             // Create pending request (don't accept yet)
-            await UnifiedSharingCoordinator.shared.addPendingRequest(
+            await sharingCoordinator.addPendingRequest(
                 ownerID: ownerID,
                 ownerName: ownerName,
                 shareURL: url
@@ -357,15 +428,36 @@ struct TrackRideApp: App {
 
             Log.app.info("Stored pending share request from \(ownerName)")
 
+            // Clear any persisted URL since we've processed it successfully
+            UserDefaults.standard.removeObject(forKey: Self.pendingShareURLKey)
+
         } catch {
             Log.app.error("Failed to process share URL: \(error.localizedDescription)")
 
-            // If we can't get metadata, still store with generic info
-            await UnifiedSharingCoordinator.shared.addPendingRequest(
-                ownerID: "unknown",
-                ownerName: "Someone",
+            // If we can't get metadata, still store with generic info so user can see something
+            // Use a hash of the URL as a unique ID to prevent duplicates
+            let urlBasedID = "url-\(url.absoluteString.hashValue)"
+
+            // Check for duplicate using URL-based ID
+            if let repository = sharingCoordinator.repository {
+                let hasPending = (try? repository.hasPendingRequest(fromOwnerID: urlBasedID)) ?? false
+                if hasPending {
+                    Log.app.info("Already have pending request for this URL, ignoring duplicate")
+                    return
+                }
+            }
+
+            await sharingCoordinator.addPendingRequest(
+                ownerID: urlBasedID,
+                ownerName: "Family Member",
                 shareURL: url
             )
+
+            // Still notify user
+            await NotificationManager.shared.sendPendingShareRequestNotification(from: "a family member")
+
+            // Clear persisted URL since we've stored the request
+            UserDefaults.standard.removeObject(forKey: Self.pendingShareURLKey)
         }
     }
 

@@ -74,6 +74,10 @@ final class UnifiedSharingCoordinator {
     /// Whether the last competitions fetch was truncated due to pagination limits
     private(set) var competitionsFetchTruncated: Bool = false
 
+    /// Whether the refresh loop has stopped due to repeated errors
+    /// When true, UI should show a warning and offer manual refresh
+    private(set) var refreshLoopStopped: Bool = false
+
     // MARK: - Services (Actor-based)
 
     private let accountService: CloudKitAccountService
@@ -236,17 +240,38 @@ final class UnifiedSharingCoordinator {
 
     /// Delete a relationship
     func deleteRelationship(_ relationship: SharingRelationship) async {
+        let relationshipID = relationship.id
+
         // Revoke live tracking share connection first (critical for security)
         do {
-            try await shareConnectionService.revokeConnection(for: relationship.id)
+            _ = try await shareConnectionService.revokeConnection(for: relationshipID)
             Log.family.info("Revoked ShareConnection for deleted relationship")
         } catch {
             Log.family.error("Failed to revoke ShareConnection: \(error)")
             // Continue with deletion even if revocation fails
         }
 
+        // Verify the CloudKit record was actually deleted
+        // This prevents "record already exists" errors when recreating contacts
+        let maxVerifyAttempts = 3
+        for attempt in 1...maxVerifyAttempts {
+            let isDeleted = await shareConnectionService.verifyConnectionDeleted(for: relationshipID)
+            if isDeleted {
+                Log.family.info("Verified ShareConnection deleted after \(attempt) attempt(s)")
+                break
+            }
+
+            if attempt < maxVerifyAttempts {
+                // Wait briefly and retry
+                Log.family.warning("ShareConnection not yet deleted, retrying verification (attempt \(attempt))")
+                try? await Task.sleep(for: .milliseconds(500))
+            } else {
+                Log.family.error("ShareConnection may not be fully deleted - could cause issues on recreation")
+            }
+        }
+
         // Revoke artifact shares
-        await artifactShareService.revokeAllShares(with: relationship.id)
+        await artifactShareService.revokeAllShares(with: relationshipID)
 
         // Delete from repository
         repository?.delete(relationship)
@@ -258,9 +283,21 @@ final class UnifiedSharingCoordinator {
     /// This uses record-level shares instead of zone-wide shares.
     /// Rate limited to prevent excessive CloudKit API calls.
     func generateShareLink(for relationship: SharingRelationship) async -> URL? {
-        guard isSignedIn else {
-            errorMessage = "Please sign in to iCloud to share"
-            return nil
+        // If not signed in, try refreshing account status first
+        // This handles cases where setup() hasn't run or completed yet
+        if !isSignedIn {
+            Log.family.info("isSignedIn is false, refreshing account status...")
+            let signedIn = await accountService.checkAccountStatus()
+            let userID = await accountService.currentUserID
+            self.isSignedIn = signedIn
+            self.currentUserID = userID
+
+            guard signedIn else {
+                errorMessage = "Please sign in to iCloud to share"
+                Log.family.error("Account status refresh failed - still not signed in")
+                return nil
+            }
+            Log.family.info("Account status refreshed - now signed in")
         }
 
         // Rate limiting: check if we recently generated a link for this relationship
@@ -284,6 +321,7 @@ final class UnifiedSharingCoordinator {
         }
 
         do {
+            Log.family.info("Creating share connection for relationship \(relationship.id), userID: \(self.currentUserID)")
             let connection = try await shareConnectionService.getOrCreateConnection(
                 for: relationship.id,
                 shareType: .liveTracking,
@@ -296,14 +334,45 @@ final class UnifiedSharingCoordinator {
             relationship.inviteStatus = .pending
             relationship.inviteSentDate = Date()
 
+            // CRITICAL: Save to SwiftData so share URL persists across app restarts
+            repository?.update(relationship)
+
             // Track generation time for rate limiting
             lastShareLinkGeneration[relationship.id] = Date()
 
-            return connection.shareURL
+            // Verify we got a valid share URL
+            guard let shareURL = connection.shareURL else {
+                Log.family.error("Share connection created but shareURL is nil")
+                errorMessage = "Share was created but no URL was generated. Please try again."
+                return nil
+            }
 
+            Log.family.info("Share link generated successfully: \(shareURL.absoluteString)")
+            return shareURL
+
+        } catch let error as ShareConnectionError {
+            Log.family.error("ShareConnectionError: \(error)")
+            switch error {
+            case .notSignedIn:
+                errorMessage = "iCloud authentication failed. Please sign out and back into iCloud in Settings."
+            case .zoneNotAvailable:
+                errorMessage = "Could not access iCloud storage. Please check your iCloud Drive is enabled."
+            case .shareCreationFailed(let underlying):
+                Log.family.error("Share creation underlying error: \(underlying)")
+                errorMessage = "Failed to create share: \(underlying.localizedDescription)"
+            case .shareNotFound:
+                errorMessage = "Share not found. Please try again."
+            case .recordNotFound:
+                errorMessage = "Record not found in iCloud."
+            case .invalidShareURL:
+                errorMessage = "Invalid share URL generated."
+            case .permissionDenied:
+                errorMessage = "Permission denied. Please check your iCloud settings."
+            }
+            return nil
         } catch {
             Log.family.error("Failed to generate share link: \(error)")
-            errorMessage = "Failed to generate share link"
+            errorMessage = "Failed to generate share link: \(error.localizedDescription)"
             return nil
         }
     }
@@ -348,6 +417,19 @@ final class UnifiedSharingCoordinator {
             return
         }
 
+        // Check if already exists (using repository to get persisted state)
+        do {
+            let hasPending = try repository.hasPendingRequest(fromOwnerID: ownerID)
+            if hasPending {
+                Log.family.info("Pending request from \(ownerID) already exists, skipping")
+                // Still reload to ensure UI is in sync
+                loadPendingRequests()
+                return
+            }
+        } catch {
+            Log.family.warning("Could not check for existing pending request: \(error)")
+        }
+
         // Create and persist the pending request
         let request = repository.createPendingRequest(
             ownerID: ownerID,
@@ -355,15 +437,21 @@ final class UnifiedSharingCoordinator {
             shareURL: shareURL
         )
 
-        // Update published state
-        await MainActor.run {
-            // Check if already in list (shouldn't happen, but defensive)
+        // Verify it was saved by reloading
+        loadPendingRequests()
+
+        // Double-check the request is in our list
+        let wasAdded = pendingRequests.contains(where: { $0.id == request.id })
+        if wasAdded {
+            Log.family.info("Added pending share request from \(ownerName) (id: \(request.id))")
+        } else {
+            Log.family.error("Failed to add pending request from \(ownerName) - not found after save")
+            // Force add to observable state as fallback
             if !pendingRequests.contains(where: { $0.ownerID == ownerID }) {
                 pendingRequests.append(request)
+                Log.family.info("Force-added pending request to observable state")
             }
         }
-
-        Log.family.info("Added pending share request from \(ownerName)")
     }
 
     /// Accept a pending share request (user approved)
@@ -371,6 +459,10 @@ final class UnifiedSharingCoordinator {
     func acceptPendingRequest(_ request: PendingShareRequest) async -> Bool {
         guard let shareURL = request.shareURL else {
             Log.family.error("Pending request has no share URL")
+            errorMessage = "This share request is invalid (no URL). Please ask \(request.ownerName) to send a new invite."
+
+            // Remove the broken pending request so it doesn't keep showing
+            await removePendingRequest(request)
             return false
         }
 
@@ -381,6 +473,12 @@ final class UnifiedSharingCoordinator {
             // Remove from pending requests
             await removePendingRequest(request)
             Log.family.info("Accepted pending share request from \(request.ownerName)")
+        } else {
+            // Accept failed - set helpful error message but keep request for retry
+            if errorMessage == nil {
+                errorMessage = "Failed to accept share from \(request.ownerName). Please check your internet connection and try again."
+            }
+            Log.family.error("Failed to accept share from \(request.ownerName)")
         }
 
         return success
@@ -406,12 +504,19 @@ final class UnifiedSharingCoordinator {
 
     /// Load pending requests from repository on launch
     func loadPendingRequests() {
-        guard let repository = repository else { return }
+        guard let repository = repository else {
+            Log.family.warning("Cannot load pending requests: repository not configured")
+            return
+        }
 
         do {
             let requests = try repository.fetchPendingRequests()
-            pendingRequests = requests
-            Log.family.info("Loaded \(requests.count) pending share requests")
+            // Only update if there's a difference to avoid unnecessary UI updates
+            if requests.count != pendingRequests.count ||
+               Set(requests.map { $0.id }) != Set(pendingRequests.map { $0.id }) {
+                pendingRequests = requests
+                Log.family.info("Loaded \(requests.count) pending share requests")
+            }
         } catch {
             Log.family.error("Failed to load pending requests: \(error)")
         }
@@ -551,13 +656,13 @@ final class UnifiedSharingCoordinator {
             // Atomic replacement of the array
             self.linkedRiders = updatedRiders
             self.sharedWithMe = sessions.filter { $0.isActive }
+
+            // Save linked riders atomically with the update
+            self.saveLinkedRiders()
         }
 
         // Check for safety alerts
         await safetyAlertService.checkSessions(sessions)
-
-        // Save linked riders
-        saveLinkedRiders()
 
         return true
     }
@@ -582,6 +687,9 @@ final class UnifiedSharingCoordinator {
     /// Flag to prevent overlapping saves
     private var isSavingLinkedRiders = false
 
+    /// Count of consecutive save failures for error tracking
+    private var linkedRidersSaveFailures = 0
+
     private func saveLinkedRiders() {
         // Prevent concurrent saves (shouldn't happen on MainActor, but defensive)
         guard !isSavingLinkedRiders else {
@@ -602,8 +710,30 @@ final class UnifiedSharingCoordinator {
         do {
             let data = try JSONEncoder().encode(ridersToSave)
             UserDefaults.standard.set(data, forKey: linkedRidersKey)
+            UserDefaults.standard.synchronize() // Force immediate write
+
+            // Reset failure counter on success
+            if linkedRidersSaveFailures > 0 {
+                Log.family.info("Linked riders save recovered after \(self.linkedRidersSaveFailures) failures")
+                linkedRidersSaveFailures = 0
+            }
         } catch {
-            Log.family.error("Failed to save linked riders: \(error)")
+            linkedRidersSaveFailures += 1
+            Log.family.error("Failed to save linked riders (attempt \(self.linkedRidersSaveFailures)): \(error)")
+
+            // After 3 consecutive failures, try to recover by clearing bad data
+            if linkedRidersSaveFailures >= 3 {
+                Log.family.warning("Multiple save failures - attempting recovery by filtering problematic riders")
+
+                // Try saving a minimal version (just IDs and names)
+                let minimalRiders = linkedRiders.map { LinkedRider(riderID: $0.riderID, name: $0.name) }
+                if let minimalData = try? JSONEncoder().encode(minimalRiders) {
+                    UserDefaults.standard.set(minimalData, forKey: linkedRidersKey)
+                    UserDefaults.standard.synchronize()
+                    Log.family.info("Saved minimal rider data as recovery")
+                    linkedRidersSaveFailures = 0
+                }
+            }
         }
     }
 
@@ -617,6 +747,10 @@ final class UnifiedSharingCoordinator {
             Log.family.info("Loaded \(self.linkedRiders.count) linked riders")
         } catch {
             Log.family.error("Failed to load linked riders: \(error)")
+
+            // Attempt recovery: clear corrupted data so we can start fresh
+            UserDefaults.standard.removeObject(forKey: linkedRidersKey)
+            Log.family.warning("Cleared corrupted linked riders data")
         }
     }
 
@@ -803,6 +937,9 @@ final class UnifiedSharingCoordinator {
         // Cancel any existing task
         refreshTask?.cancel()
 
+        // Reset stopped flag when starting
+        refreshLoopStopped = false
+
         refreshTask = Task { [weak self] in
             var consecutiveErrors = 0
             let maxConsecutiveErrors = 5
@@ -818,6 +955,12 @@ final class UnifiedSharingCoordinator {
                 let success = await self.fetchFamilyLocations()
                 if success {
                     consecutiveErrors = 0
+                    // Clear stopped flag on successful fetch
+                    if self.refreshLoopStopped {
+                        await MainActor.run {
+                            self.refreshLoopStopped = false
+                        }
+                    }
                 } else {
                     consecutiveErrors += 1
                     Log.family.warning("Refresh loop fetch failed (\(consecutiveErrors)/\(maxConsecutiveErrors))")
@@ -825,6 +968,10 @@ final class UnifiedSharingCoordinator {
                     // Exit loop if too many consecutive errors
                     if consecutiveErrors >= maxConsecutiveErrors {
                         Log.family.error("Refresh loop stopping due to repeated errors")
+                        await MainActor.run {
+                            self.refreshLoopStopped = true
+                            self.errorMessage = "Unable to fetch family locations. Pull down to refresh."
+                        }
                         break
                     }
                 }
@@ -848,6 +995,15 @@ final class UnifiedSharingCoordinator {
         refreshTask?.cancel()
         refreshTask = nil
         Log.family.info("Refresh loop stopped")
+    }
+
+    /// Restart the refresh loop after it stopped due to errors
+    /// Call this from UI when user pulls to refresh
+    func restartRefreshLoopIfNeeded() {
+        if refreshLoopStopped && activeWatcherCount > 0 {
+            Log.family.info("Restarting refresh loop after user request")
+            startRefreshLoop()
+        }
     }
 
     // MARK: - Family Role
