@@ -1,18 +1,18 @@
-# TrackRide
+# TetraTrack
 
 **The complete training companion for tetrathlon and eventing athletes.**
 
-Whether you're schooling in the arena, conditioning on trails, training for competition, or preparing across all four disciplines, TrackRide captures every session and turns it into insights that help you become a better athlete.
+Whether you're schooling in the arena, conditioning on trails, training for competition, or preparing across all four disciplines, TetraTrack captures every session and turns it into insights that help you become a better athlete.
 
 ---
 
 ## Your Personal AI Coach (Apple Intelligence)
 
-**TrackRide thinks with you.** Powered by Apple Intelligence, TrackRide goes beyond simple tracking to become your intelligent training partner - all processed privately on your device.
+**TetraTrack thinks with you.** Powered by Apple Intelligence, TetraTrack goes beyond simple tracking to become your intelligent training partner - all processed privately on your device.
 
 ### Understand Every Session Instantly (Apple Intelligence)
 
-After each training session, TrackRide tells you what matters in plain English:
+After each training session, TetraTrack tells you what matters in plain English:
 
 > "Strong canter work today with excellent left-right balance. Your rhythm scores have improved 15% this week. Consider more walk breaks next time - your heart rate stayed elevated throughout."
 
@@ -31,7 +31,7 @@ Toggle AI Search and just ask.
 
 ### Know When You're Ready to Train Hard (Apple Intelligence)
 
-TrackRide monitors your recovery and tells you in plain English:
+TetraTrack monitors your recovery and tells you in plain English:
 
 > "You're well-recovered today - great day for an intensive session. Your HRV is up 12% from yesterday and sleep quality was excellent."
 
@@ -53,7 +53,7 @@ Receive intelligent alerts tailored to your training:
 
 **Never type on a phone again.** Tap the microphone and dictate your notes hands-free. Perfect for capturing thoughts immediately after training while they're still fresh.
 
-TrackRide transcribes your voice in real-time, adding punctuation automatically. Works for post-session observations, horse notes, and recovery journals.
+TetraTrack transcribes your voice in real-time, adding punctuation automatically. Works for post-session observations, horse notes, and recovery journals.
 
 ---
 
@@ -61,7 +61,7 @@ TrackRide transcribes your voice in real-time, adding punctuation automatically.
 
 ### One Tap to Start
 
-**Glove-friendly, always ready.** TrackRide features a large start/stop button designed for riders - approximately 200 points wide, impossible to miss even in thick gloves. Clear visual states show "Ready", "Recording", and "Paused" at a glance.
+**Glove-friendly, always ready.** TetraTrack features a large start/stop button designed for riders - approximately 200 points wide, impossible to miss even in thick gloves. Clear visual states show "Ready", "Recording", and "Paused" at a glance.
 
 Strong haptic feedback confirms every action on both iPhone and Apple Watch, so you know it worked without looking.
 
@@ -85,7 +85,7 @@ The map updates as you ride, with a mini stats card showing duration, distance, 
 - Apple Audiobooks
 - Audible
 
-Plus playback controls (play/pause, skip) without leaving TrackRide. Perfect for hacking and conditioning rides.
+Plus playback controls (play/pause, skip) without leaving TetraTrack. Perfect for hacking and conditioning rides.
 
 ### Exit Without Saving
 
@@ -104,7 +104,7 @@ Every ride captures:
 
 ### Automatic Gait Detection
 
-**See exactly how you spend your time in the saddle.** TrackRide automatically classifies walk, trot, canter, and gallop from speed and acceleration patterns - no buttons to press, no manual logging.
+**See exactly how you spend your time in the saddle.** TetraTrack automatically classifies walk, trot, canter, and gallop from speed and acceleration patterns - no buttons to press, no manual logging.
 
 - **Live gait indicator** with colour coding (walk = green, trot = blue, canter = orange, gallop = red)
 - **Post-ride pie chart** showing time in each gait
@@ -122,7 +122,7 @@ Every ride captures:
 
 ### Symmetry and Rhythm Scoring
 
-For serious flatwork, TrackRide analyses your movement patterns to give you symmetry and rhythm scores - key indicators of correct, balanced work.
+For serious flatwork, TetraTrack analyses your movement patterns to give you symmetry and rhythm scores - key indicators of correct, balanced work.
 
 ### Elevation Profiles
 
@@ -130,7 +130,7 @@ For serious flatwork, TrackRide analyses your movement patterns to give you symm
 
 ### Weather Tracking
 
-**Know the conditions you trained in.** TrackRide automatically captures weather at the start and end of every outdoor session using Apple WeatherKit:
+**Know the conditions you trained in.** TetraTrack automatically captures weather at the start and end of every outdoor session using Apple WeatherKit:
 
 - **Current conditions**: Temperature, feels-like, humidity, wind speed and direction
 - **At-a-glance badge**: See temp and conditions while riding
@@ -146,7 +146,7 @@ Every ride displays on a detailed map with colour-coded sections by gait or spee
 
 ### Route Planning
 
-**Plan horse-safe routes before you ride.** TrackRide includes a fully offline route planner that finds bridleways, byways, and tracks - no internet required once you've downloaded your region.
+**Plan horse-safe routes before you ride.** TetraTrack includes a fully offline route planner that finds bridleways, byways, and tracks - no internet required once you've downloaded your region.
 
 **Download Once, Route Anywhere:**
 - Download UK regional map data from OpenStreetMap (free, updated regularly)
@@ -171,7 +171,7 @@ Available regions for download:
 
 **Smart Region Detection:**
 - Tap anywhere on the map to start planning
-- TrackRide automatically detects which region contains your location
+- TetraTrack automatically detects which region contains your location
 - Prompts to download the correct region if data is needed
 - Shows download progress with phases: Downloading → Parsing → Indexing
 
@@ -209,7 +209,7 @@ Available regions for download:
 
 ### Ride Photos
 
-TrackRide automatically finds photos taken during your ride and displays them as tappable markers along your route. No manual tagging - if you took a photo while riding, TrackRide will find it.
+TetraTrack automatically finds photos taken during your ride and displays them as tappable markers along your route. No manual tagging - if you took a photo while riding, TetraTrack will find it.
 
 ---
 
@@ -247,7 +247,7 @@ Clear card-based interface makes it simple to:
 
 ### Live Location Sharing
 
-Your family can open TrackRide and see:
+Your family can open TetraTrack and see:
 - Your current position on a live map (updates every 10-15 seconds)
 - Your complete route with gait colors
 - Your current speed and gait
@@ -264,7 +264,7 @@ Uses iCloud-based sharing so all family devices stay in sync.
 
 ### Fall Detection
 
-TrackRide uses a 2-phase detection algorithm to identify probable falls:
+TetraTrack uses a 2-phase detection algorithm to identify probable falls:
 
 **Phase 1: Impact Detection**
 - High acceleration spike (>3G impact) or rapid rotation (>5 rad/s)
@@ -544,20 +544,20 @@ Each horse builds up their own complete history:
 
 ### Smart Workload Recommendations
 
-TrackRide analyses the last 7 days of each horse's work: rest day, light work, moderate session, or ready for harder work.
+TetraTrack analyses the last 7 days of each horse's work: rest day, light work, moderate session, or ready for harder work.
 
 ---
 
 ## Apple Watch Control
 
-**Leave your phone in your pocket.** The TrackRide Watch app gives you full control and real-time metrics for every discipline.
+**Leave your phone in your pocket.** The TetraTrack Watch app gives you full control and real-time metrics for every discipline.
 
 ### Riding on Your Wrist
 
 - Start, pause, resume, and stop rides with large glove-friendly buttons
 - **Discipline-specific displays** that show what matters:
   - **Hacking**: Duration, gait percentages, distance, elevation
-  - **Flatwork**: Gait breakdown, lead/rein balance bars, turn counts, symmetry and rhythm scores
+  - **Flatwork**: Gait breakdown, lead/rein balance bars, turn angles, symmetry and rhythm scores
   - **Cross-Country**: Optimal time display, current time, time difference (color-coded ahead/behind), gait percentages
 - Swipe between pages using the Digital Crown
 - Live heart rate with zone indicator and average/max stats
@@ -647,9 +647,9 @@ Tactile feedback keeps you informed without looking at your wrist:
 
 ### Siri Control
 
-Talk to TrackRide without touching your phone:
+Talk to TetraTrack without touching your phone:
 
-- "Start a ride in TrackRide"
+- "Start a ride in TetraTrack"
 - "Stop my session"
 - "How was my last ride?"
 - "How much have I run this week?"
@@ -659,7 +659,7 @@ Talk to TrackRide without touching your phone:
 
 ## Post-Session AI Summary (Apple Intelligence)
 
-**Every session ends with personalised feedback.** TrackRide analyses your metrics and voice notes to create an encouraging summary with specific praise and improvement suggestions.
+**Every session ends with personalised feedback.** TetraTrack analyses your metrics and voice notes to create an encouraging summary with specific praise and improvement suggestions.
 
 ### What's Analysed
 
@@ -786,7 +786,7 @@ Smart coaching suggestions:
 
 ### AI-Powered Readiness Score (Apple Intelligence)
 
-TrackRide calculates a daily readiness score from 0-100, with AI recommendations explaining exactly what to do and why.
+TetraTrack calculates a daily readiness score from 0-100, with AI recommendations explaining exactly what to do and why.
 
 ### Fatigue Flags
 
@@ -881,7 +881,7 @@ Get coach-like summaries of your statistics in natural language, highlighting tr
 
 ### Apple Health
 
-TrackRide automatically writes workouts to Apple Health with full metrics:
+TetraTrack automatically writes workouts to Apple Health with full metrics:
 
 **Equestrian Sports**
 - Saved as `Equestrian Sports` workout type
@@ -989,7 +989,7 @@ These features are built and ready - UI updates coming in future releases:
 - **Heart Rate Zone Announcements** - Know when you enter a new HR zone
 - **Voice Coaching** - Running form reminders ("High knees", "Light feet")
 - **Workout Cues** - Countdown timers and interval transitions
-- **Siri Control** - "Start a ride in TrackRide", "Stop my session", "How was my last ride?"
+- **Siri Control** - "Start a ride in TetraTrack", "Stop my session", "How was my last ride?"
 - **Voice Notes** - Dictate session notes hands-free with real-time transcription
 
 ### With Apple Watch
@@ -1078,4 +1078,4 @@ Requires iPhone 15 Pro or later with iOS 26 and Apple Intelligence enabled in Se
 
 ---
 
-*TrackRide - Train. Track. Triumph.*
+*TetraTrack - Train. Track. Triumph.*

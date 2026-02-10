@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# TrackRide App Store Screenshot Generator
+# TetraTrack App Store Screenshot Generator
 # ========================================
 #
 # This script captures screenshots from iOS and watchOS simulators
@@ -38,7 +38,7 @@ mkdir -p "${OUTPUT_DIR}/iPhone_6.9"
 mkdir -p "${OUTPUT_DIR}/Apple_Watch_46mm"
 
 echo "==============================================="
-echo "TrackRide Screenshot Generator"
+echo "TetraTrack Screenshot Generator"
 echo "==============================================="
 echo ""
 echo "Output directory: ${OUTPUT_DIR}"
@@ -46,8 +46,8 @@ echo "Screen name: ${SCREEN_NAME}"
 echo ""
 
 # App bundle identifiers
-IPHONE_BUNDLE_ID="MyHorse.TrackRide"
-WATCH_BUNDLE_ID="MyHorse.TrackRide.watchkitapp"
+IPHONE_BUNDLE_ID="dev.dreamfold.TetraTrack"
+WATCH_BUNDLE_ID="dev.dreamfold.TetraTrack.watchkitapp"
 
 # Launch apps if --launch flag provided or if this is the first run
 if [ "$2" = "--launch" ] || [ "$SCREEN_NAME" = "01_Home" ]; then

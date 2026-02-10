@@ -1,0 +1,270 @@
+/*
+  Localizable.strings (German)
+  TetraTrack
+
+  German translations for the app.
+*/
+
+// MARK: - Tab Bar
+"Disciplines" = "Disziplinen";
+"Horses" = "Pferde";
+"Calendar" = "Kalender";
+"Live Sharing" = "Live-Teilen";
+"Settings" = "Einstellungen";
+
+// MARK: - Disciplines
+"Riding" = "Reiten";
+"Running" = "Laufen";
+"Swimming" = "Schwimmen";
+"Shooting" = "Schießen";
+"Track your ride" = "Ritt aufzeichnen";
+"Track your run" = "Lauf aufzeichnen";
+"Track your swim" = "Schwimmen aufzeichnen";
+"Track your shooting" = "Schießen aufzeichnen";
+
+// MARK: - Live Sharing
+"Shared With Me" = "Mit mir geteilt";
+"Sharing With" = "Teilen mit";
+"Connected" = "Verbunden";
+"Pending" = "Ausstehend";
+"Not Sent" = "Nicht gesendet";
+"Not currently riding" = "Reitet gerade nicht";
+"Currently sharing your ride" = "Teilt gerade deinen Ritt";
+"No riders sharing with you yet" = "Noch keine Reiter teilen mit dir";
+"When someone shares their rides with you, they'll appear here" = "Wenn jemand seine Ritte mit dir teilt, erscheinen sie hier";
+"Add Trusted Contact" = "Vertrauenskontakt hinzufügen";
+"Safer Together" = "Gemeinsam sicherer";
+"Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong." = "Teile deinen Live-Standort mit Familie und Freunden, damit sie deine Trainings verfolgen und benachrichtigt werden können, wenn etwas schief geht.";
+"They can follow your rides and receive safety alerts" = "Sie können deine Ritte verfolgen und Sicherheitswarnungen erhalten";
+"Add & Send Invite" = "Hinzufügen & Einladung senden";
+"They'll receive a link to download the app" = "Sie erhalten einen Link zum Herunterladen der App";
+
+// MARK: - Permissions
+"Live Tracking" = "Live-Tracking";
+"Fall Detection" = "Sturzerkennung";
+"Stationary Alerts" = "Stillstandswarnungen";
+"Emergency SOS" = "Notruf SOS";
+"Permissions" = "Berechtigungen";
+"Can see your live location while you're riding" = "Kann deinen Live-Standort während des Reitens sehen";
+"Gets notified immediately if a fall is detected" = "Wird sofort benachrichtigt, wenn ein Sturz erkannt wird";
+"Gets warned if you stop moving unexpectedly" = "Wird gewarnt, wenn du unerwartet stehen bleibst";
+"Receives SMS with your GPS location in emergencies" = "Erhält SMS mit deinem GPS-Standort bei Notfällen";
+
+// MARK: - Notifications
+"Notifications" = "Benachrichtigungen";
+"Enable" = "Aktivieren";
+"Enable to receive safety alerts" = "Aktivieren, um Sicherheitswarnungen zu erhalten";
+"You'll receive safety alerts from your contacts" = "Du erhältst Sicherheitswarnungen von deinen Kontakten";
+
+// MARK: - Actions
+"Send invite" = "Einladung senden";
+"Send reminder" = "Erinnerung senden";
+"Remove contact" = "Kontakt entfernen";
+"Cancel" = "Abbrechen";
+"OK" = "OK";
+"View" = "Ansehen";
+"Delete" = "Löschen";
+"Save" = "Speichern";
+"Done" = "Fertig";
+"Edit" = "Bearbeiten";
+"Add" = "Hinzufügen";
+"Close" = "Schließen";
+"Confirm" = "Bestätigen";
+"Continue" = "Fortfahren";
+"Skip" = "Überspringen";
+"Retry" = "Erneut versuchen";
+
+// MARK: - Riding
+"Start Ride" = "Ritt starten";
+"Stop" = "Stopp";
+"Pause" = "Pause";
+"Resume" = "Fortsetzen";
+"Distance" = "Distanz";
+"Duration" = "Dauer";
+"Avg Speed" = "Ø Geschwindigkeit";
+"Max Speed" = "Max. Geschwindigkeit";
+"Elevation Gain" = "Höhenmeter";
+"Calories" = "Kalorien";
+"Heart Rate" = "Herzfrequenz";
+"Route" = "Route";
+"Ride Details" = "Ritt-Details";
+"Ride Summary" = "Ritt-Zusammenfassung";
+
+// MARK: - Gaits
+"Walk" = "Schritt";
+"Trot" = "Trab";
+"Canter" = "Galopp";
+"Gallop" = "Galopp";
+"Halt" = "Halt";
+"Gait Analysis" = "Gangartanalyse";
+
+// MARK: - Running
+"Start Run" = "Lauf starten";
+"Pace" = "Tempo";
+"Avg Pace" = "Ø Tempo";
+"Splits" = "Zwischenzeiten";
+"Laps" = "Runden";
+
+// MARK: - Swimming
+"Start Swim" = "Schwimmen starten";
+"Pool Length" = "Bahnlänge";
+"Laps" = "Bahnen";
+"Strokes" = "Züge";
+"SWOLF" = "SWOLF";
+
+// MARK: - Shooting
+"Start Session" = "Sitzung starten";
+"Score" = "Punktzahl";
+"Shots" = "Schüsse";
+"Average" = "Durchschnitt";
+"Target" = "Ziel";
+"Free Practice" = "Freies Training";
+"Competition Training" = "Wettkampftraining";
+"Competition" = "Wettkampf";
+"Pressure Insights" = "Druckanalyse";
+"Select Session Context" = "Sitzungskontext auswählen";
+"Track how pressure affects your performance" = "Verfolge, wie Druck deine Leistung beeinflusst";
+"Relaxed practice with no scoring pressure" = "Entspanntes Training ohne Punktedruck";
+"Practice under simulated competition conditions" = "Training unter simulierten Wettkampfbedingungen";
+"Actual competition scoring" = "Echte Wettkampfpunkte";
+"Pressure" = "Druck";
+"Quick Entry" = "Schnelleingabe";
+"Scan & Score" = "Scannen & Punkten";
+"Scan Card" = "Karte scannen";
+"Mark holes" = "Löcher markieren";
+"Tetrathlon Practice" = "Tetrathlon Training";
+"Shooting History" = "Schießverlauf";
+"View patterns over time" = "Muster im Zeitverlauf";
+"Analyse performance by context" = "Leistung nach Kontext analysieren";
+"Performance by Pressure Level" = "Leistung nach Druckniveau";
+"By Context" = "Nach Kontext";
+"Pattern Comparison" = "Mustervergleich";
+"Key Insights" = "Wichtige Erkenntnisse";
+"Low Pressure" = "Niedriger Druck";
+"Training" = "Training";
+"sessions" = "Sitzungen";
+"avg spread" = "Ø Streuung";
+"spread" = "Streuung";
+"No Shooting History Yet" = "Noch kein Schießverlauf";
+"No Data Yet" = "Noch keine Daten";
+"Complete some shooting sessions to see how pressure affects your performance." = "Absolviere einige Schießeinheiten, um zu sehen, wie Druck deine Leistung beeinflusst.";
+"Start Practicing" = "Training starten";
+"Last Target" = "Letztes Ziel";
+
+// MARK: - Audio Coaching
+"Coaching Voice" = "Coaching-Stimme";
+"Coaching Language" = "Coaching-Sprache";
+"Enable voice feedback during sessions" = "Sprachfeedback während der Sitzungen aktivieren";
+"Great shot!" = "Toller Schuss!";
+"Good grouping" = "Gute Gruppierung";
+"Focus on your breathing" = "Konzentriere dich auf deine Atmung";
+"Take your time" = "Nimm dir Zeit";
+"Excellent consistency" = "Hervorragende Konsistenz";
+"Your groups are tightening" = "Deine Gruppierungen werden enger";
+"Steady improvement" = "Stetige Verbesserung";
+
+// MARK: - Settings
+"Language" = "Sprache";
+"App Language" = "App-Sprache";
+"System Default" = "Systemstandard";
+"Following system setting" = "Folgt Systemeinstellung";
+"Audio Coaching" = "Audio-Coaching";
+"Voice Coaching" = "Sprach-Coaching";
+"Appearance" = "Erscheinungsbild";
+"About" = "Über";
+"Privacy" = "Datenschutz";
+"Help" = "Hilfe";
+"My Horses" = "Meine Pferde";
+"Manage your horses" = "Deine Pferde verwalten";
+"Your Profile" = "Dein Profil";
+"Rider Profile" = "Reiterprofil";
+"Health Integration" = "Health-Integration";
+"Apple Watch" = "Apple Watch";
+"Data Management" = "Datenverwaltung";
+"Offline Maps" = "Offline-Karten";
+
+// MARK: - Horses
+"Add Horse" = "Pferd hinzufügen";
+"Edit Horse" = "Pferd bearbeiten";
+"Name" = "Name";
+"Breed" = "Rasse";
+"Breed Type" = "Rassentyp";
+"Color" = "Farbe";
+"Date of Birth" = "Geburtsdatum";
+"Notes" = "Notizen";
+"Photo" = "Foto";
+"No horses yet" = "Noch keine Pferde";
+"Add your first horse" = "Füge dein erstes Pferd hinzu";
+
+// MARK: - Calendar
+"Competitions" = "Wettkämpfe";
+"Add Competition" = "Wettkampf hinzufügen";
+"Edit Competition" = "Wettkampf bearbeiten";
+"Venue" = "Veranstaltungsort";
+"Date" = "Datum";
+"Start Date" = "Startdatum";
+"End Date" = "Enddatum";
+"Tasks" = "Aufgaben";
+"No competitions" = "Keine Wettkämpfe";
+"No upcoming competitions" = "Keine anstehenden Wettkämpfe";
+
+// MARK: - Time
+"ago" = "her";
+"just now" = "gerade eben";
+"min" = "Min.";
+"hr" = "Std.";
+"day" = "Tag";
+"days" = "Tage";
+"Today" = "Heute";
+"Yesterday" = "Gestern";
+"This Week" = "Diese Woche";
+"This Month" = "Diesen Monat";
+"All Time" = "Gesamt";
+
+// MARK: - Units
+"km" = "km";
+"mi" = "mi";
+"m" = "m";
+"ft" = "ft";
+"km/h" = "km/h";
+"mph" = "mph";
+"bpm" = "bpm";
+"kcal" = "kcal";
+
+// MARK: - Errors
+"Error" = "Fehler";
+"Something went wrong" = "Etwas ist schief gelaufen";
+"Please try again" = "Bitte versuche es erneut";
+"No internet connection" = "Keine Internetverbindung";
+"Unable to load data" = "Daten konnten nicht geladen werden";
+"Permission denied" = "Berechtigung verweigert";
+
+// MARK: - GPS
+"GPS Signal" = "GPS-Signal";
+"Acquiring GPS" = "GPS wird gesucht";
+"Weak Signal" = "Schwaches Signal";
+"Strong Signal" = "Starkes Signal";
+"Location access required" = "Standortzugriff erforderlich";
+
+// MARK: - Empty States
+"No data" = "Keine Daten";
+"No rides yet" = "Noch keine Ritte";
+"No runs yet" = "Noch keine Läufe";
+"No swims yet" = "Noch keine Schwimmeinheiten";
+"No sessions yet" = "Noch keine Sitzungen";
+"Start your first ride" = "Starte deinen ersten Ritt";
+
+// MARK: - Diagnostics
+"Sharing Diagnostics" = "Teilen-Diagnose";
+"Overall Status" = "Gesamtstatus";
+"Health Checks" = "Gesundheitsprüfungen";
+"Critical Issues" = "Kritische Probleme";
+"Warnings" = "Warnungen";
+"Actions" = "Aktionen";
+"Run Health Check" = "Gesundheitsprüfung starten";
+"Initialize Schema" = "Schema initialisieren";
+"Refresh Subscriptions" = "Abonnements aktualisieren";
+"Reset Sharing Data" = "Teilen-Daten zurücksetzen";
+"Ready to Share" = "Bereit zum Teilen";
+"Not Ready" = "Nicht bereit";
+"Troubleshooting Tips" = "Tipps zur Fehlerbehebung";

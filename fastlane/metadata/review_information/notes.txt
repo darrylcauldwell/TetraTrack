@@ -1,0 +1,19 @@
+TetraTrack is a multi-discipline training app for tetrathlon and eventing athletes.
+
+LOCATION PERMISSION: The app requests location access to record GPS routes during riding, running, and open water swimming sessions. Background location is used so tracking continues when the screen locks during active exercise sessions. The app uses CLBackgroundActivitySession (iOS 17+) for fitness tracking.
+
+HEALTHKIT: Used to save workouts to Apple Health and read heart rate data from Apple Watch during sessions.
+
+CAMERA: Used to scan shooting target cards and detect shot holes for scoring.
+
+MICROPHONE: Used for hands-free voice notes during training sessions (e.g. while riding).
+
+APPLE WATCH: The Watch companion app provides glove-friendly controls for starting/stopping sessions, viewing live stats, and heart rate monitoring.
+
+To test the app:
+1. Grant location permission when prompted
+2. Tap any discipline (Riding, Running, Swimming, Shooting) from the home screen
+3. For Riding: Select a horse, tap the green Start button to begin GPS tracking
+4. For Running: Choose between outdoor run, treadmill, or time trial
+5. For Swimming: Choose pool or open water mode
+6. Settings > Generate Screenshot Data creates sample data for browsing features

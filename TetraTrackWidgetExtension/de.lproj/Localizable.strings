@@ -1,0 +1,30 @@
+/*
+  Localizable.strings (German)
+  TetraTrack Widget
+
+  German translations for widgets.
+*/
+
+// MARK: - Widget Titles
+"Recent Ride" = "Letzter Ritt";
+"Training Stats" = "Trainingsstatistik";
+"Quick Start" = "Schnellstart";
+"Next Competition" = "Nächster Wettkampf";
+
+// MARK: - Widget Descriptions
+"View your most recent ride" = "Deinen letzten Ritt anzeigen";
+"Your training statistics at a glance" = "Deine Trainingsstatistik auf einen Blick";
+"Start a ride quickly" = "Schnell einen Ritt starten";
+"Your upcoming competition" = "Dein nächster Wettkampf";
+
+// MARK: - Stats
+"Distance" = "Distanz";
+"Duration" = "Dauer";
+"Rides" = "Ritte";
+"This Week" = "Diese Woche";
+"This Month" = "Diesen Monat";
+
+// MARK: - Status
+"No recent rides" = "Keine aktuellen Ritte";
+"No upcoming competitions" = "Keine anstehenden Wettkämpfe";
+"Tap to start riding" = "Tippen zum Starten";

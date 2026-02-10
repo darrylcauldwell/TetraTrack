@@ -29,14 +29,12 @@ jobs:
         run: xcrun simctl list devices available
 
       - name: Resolve Swift packages
-        working-directory: TrackRide
         run: |
           xcodebuild -resolvePackageDependencies \
             -project TetraTrack.xcodeproj \
             -scheme TetraTrack
 
       - name: Build
-        working-directory: TrackRide
         run: |
           xcodebuild build \
             -project TetraTrack.xcodeproj \
@@ -46,7 +44,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Run Unit Tests
-        working-directory: TrackRide
         run: |
           xcodebuild test \
             -project TetraTrack.xcodeproj \
@@ -61,7 +58,7 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: TrackRide/TestResults.xcresult
+          path: TestResults.xcresult
           retention-days: 7
 
   ui-tests:
@@ -77,14 +74,12 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
       - name: Resolve Swift packages
-        working-directory: TrackRide
         run: |
           xcodebuild -resolvePackageDependencies \
             -project TetraTrack.xcodeproj \
             -scheme TetraTrack
 
       - name: Run UI Tests
-        working-directory: TrackRide
         run: |
           xcodebuild test \
             -project TetraTrack.xcodeproj \
@@ -99,5 +94,5 @@ jobs:
         if: always()
         with:
           name: ui-test-results
-          path: TrackRide/UITestResults.xcresult
+          path: UITestResults.xcresult
           retention-days: 7

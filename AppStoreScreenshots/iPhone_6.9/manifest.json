@@ -1,0 +1,254 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "56473951-E249-4DCD-AC2F-71011ECE28C9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "01_Home_Disciplines_0_7C55CE11-7349-4851-AF3E-6DD4263C4C84.png",
+        "timestamp" : 1769976599.336
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test01_HomeScreen()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test01_HomeScreen"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "A6049BE0-2414-4322-B245-3378227C333C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "02_Riding_BigButton_0_7F9BA174-2E91-45A7-A71A-D33E955871DB.png",
+        "timestamp" : 1769976608.392
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test02_RidingTrackingView()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test02_RidingTrackingView"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "653BF247-4150-48CA-ADAC-3DAC58447660.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "04_Ride_Detail_0_B4F27CA7-72DE-4D69-844A-8EE4F45A6E74.png",
+        "timestamp" : 1769976619.262
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "A1CA7722-9582-4F2D-8A0A-F559C514C974.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "03_Training_History_0_C2FB25FB-D613-4CAC-88C6-D0CDFBE3675B.png",
+        "timestamp" : 1769976617.564
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test03_TrainingHistory()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test03_TrainingHistory"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "0FCE969F-114D-47A4-A21E-498E1E7D705C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "05_Competition_Calendar_0_90E9E5C7-B9D3-4AC2-A342-B5629205282E.png",
+        "timestamp" : 1769976628.429
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test05_CompetitionCalendar()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test05_CompetitionCalendar"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "AA9A875E-6E5B-4D24-BFBE-8D70BA5D1E63.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "07_Horse_Detail_0_9461B2ED-6FDA-487E-9D4A-4EEE101DB5A8.png",
+        "timestamp" : 1769976641.739
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "3533F490-EADA-4E23-B77F-64CCA0D9FE3E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "06_Horse_List_0_2F2272F7-53C2-4766-84AA-D69D2306E865.png",
+        "timestamp" : 1769976639.87
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test06_HorseProfiles()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test06_HorseProfiles"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "2810FD39-8C41-4DBD-8156-B757466B3108.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "08_Running_0_38844A44-0DDA-4DB7-9690-323581F093E7.png",
+        "timestamp" : 1769976650.86
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test08_RunningView()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test08_RunningView"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "C40CD369-8357-4CBC-9FDD-4F190B406E37.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "09_Swimming_0_1DACEF74-D7DA-41E6-AB09-3A6CFCBF03BA.png",
+        "timestamp" : 1769976659.954
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test09_SwimmingView()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test09_SwimmingView"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "2569AA11-C4A1-48E2-A6BE-E9F12F3FBB86.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "10_Shooting_0_9B72AD4B-7ED9-4762-9C51-1D88248C0170.png",
+        "timestamp" : 1769976668.938
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test10_ShootingView()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test10_ShootingView"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "77A136CE-53FC-4215-96FE-EF2D49946FE9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "11_Session_Insights_0_CB85B0CB-7CF4-47E6-B4F7-F8128BEEAB5B.png",
+        "timestamp" : 1769976681.648
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test11_SessionInsights()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test11_SessionInsights"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "30EA1569-27CF-4E92-A3AD-9F7BEE8D3B29.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "12_Live_Sharing_0_1DA6E067-F7D2-4DCA-A341-00F4F28043B5.png",
+        "timestamp" : 1769976690.783
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test12_LiveSharing()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test12_LiveSharing"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "A88673F7-35A9-49C1-99EF-0DC2BF5756ED.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "13_Competition_Detail_Calendar_Sync_0_A4E627BC-E86D-470A-A659-5C7DB4B81254.png",
+        "timestamp" : 1769976702.445
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test13_CompetitionDetail_CalendarSync()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test13_CompetitionDetail_CalendarSync"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "C6D31205-0CF4-4FE2-AFE6-568F9D6A3EAC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "14_Tasks_Reminders_0_00957EBB-EF48-4F7E-9075-57F5AB22BB2B.png",
+        "timestamp" : 1769976711.572
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test14_TasksWithReminders()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test14_TasksWithReminders"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "F5BF0340-1843-452D-86BA-BDBBE6721938.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "15_Ride_Detail_Sensor_Export_0_862AB24F-EC54-4CA8-8AE0-1B96EA1D8F56.png",
+        "timestamp" : 1769976729.749
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test15_RideDetail_SensorExport()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test15_RideDetail_SensorExport"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "7DF6D51A-C3AA-4B4C-B9B0-BEC5E8F7AF41.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "17_Running_Countdown_0_F63D9D2C-9FC2-4A91-B3B8-237CFCD1CC68.png",
+        "timestamp" : 1769976741.871
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "AF7AFF66-FEE1-46AD-8F63-74E87423DF67.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "16_Running_Menu_0_4DE15C77-94AE-4841-8B6C-83616E6BFDFC.png",
+        "timestamp" : 1769976739.07
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test16_RunningWithCountdown()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test16_RunningWithCountdown"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7A866F2D-3F3F-4D20-9B26-E3670A23D12F",
+        "deviceName" : "iPhone 17 Pro Max",
+        "exportedFileName" : "4A76A414-5AC6-40F3-A544-881D5407D005.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "18_Swimming_Menu_0_4CBF5560-0AC7-43AF-A28D-8CA8EC6C261D.png",
+        "timestamp" : 1769976753.725
+      }
+    ],
+    "testIdentifier" : "ScreenshotTests/test18_SwimmingOpenWater()",
+    "testIdentifierURL" : "test://com.apple.xcode/TetraTrack/TetraTrackUITests/ScreenshotTests/test18_SwimmingOpenWater"
+  }
+]

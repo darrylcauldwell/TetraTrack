@@ -1,7 +1,7 @@
-# TrackRide - App Store Metadata
+# TetraTrack - App Store Metadata
 
 ## App Name (30 characters max)
-TrackRide
+TetraTrack
 
 ## Subtitle (30 characters max)
 Tetrathlon & Eventing Trainer
@@ -17,19 +17,19 @@ tetrathlon,pony club,eventing,horse riding,gps tracker,gait,running,swimming,sho
 
 ## App Description (4000 characters max)
 
-Your horse just spooked at a plastic bag. Again. But don't worry — TrackRide was still tracking your involuntary canter transition.
+Your horse just spooked at a plastic bag. Again. But don't worry — TetraTrack was still tracking your involuntary canter transition.
 
 Welcome to the only training app that actually gets tetrathlon and eventing. We know you're not just a runner who occasionally sits on a horse, or a swimmer who dabbles in target practice. You're gloriously, chaotically multi-talented — and finally, there's an app for that.
 
 AUTOMATIC GAIT DETECTION (AKA MAGIC)
 
-TrackRide knows when you're walking, trotting, cantering, or executing an unplanned gallop toward the gate. No buttons to press. No "was that a canter or a very enthusiastic trot?" debates. Just ride, and watch your route paint itself in gorgeous gait-coloured glory.
+TetraTrack knows when you're walking, trotting, cantering, or executing an unplanned gallop toward the gate. No buttons to press. No "was that a canter or a very enthusiastic trot?" debates. Just ride, and watch your route paint itself in gorgeous gait-coloured glory.
 
 Secretly favouring your left rein? We'll notice. Spending 90% of your "canter fitness session" in walk? The numbers don't lie. But we won't judge — much.
 
 YOUR AI COACH (WHO NEVER GETS TIRED OF YOUR QUESTIONS)
 
-Powered by Apple Intelligence, TrackRide analyses every session and actually tells you something useful:
+Powered by Apple Intelligence, TetraTrack analyses every session and actually tells you something useful:
 
 "Lovely balanced session today! Your rhythm scores are up 15% this week. Maybe add some walk breaks next time — your heart rate was working harder than your horse."
 
@@ -37,7 +37,7 @@ Ask anything: "Show me rides where I worked on collection" or "Why am I always s
 
 FOUR DISCIPLINES, ONE SLIGHTLY OBSESSIVE APP
 
-• RIDING — GPS tracking, gait detection, balance analysis, turn counting, elevation profiles, and yes, we'll find photos you took mid-hack
+• RIDING — GPS tracking, gait detection, balance analysis, lead detection, elevation profiles, and yes, we'll find photos you took mid-hack
 • RUNNING — 1500m time trials with virtual pacer (race your ghost!), intervals, treadmill mode for hamster wheel days, and AirPods coaching that reminds you to stop hunching
 • SWIMMING — 3-minute test simulation, automatic stroke counting via Apple Watch, SWOLF scores to obsess over, and lap-by-lap breakdowns
 • SHOOTING — Competition cards, stance stability tracking (your Watch knows when you're wobbling), dry fire drills, and AI pattern analysis that's surprisingly honest
@@ -166,7 +166,7 @@ Watch showing riding stats, finger tapping through screens
 "Complete control on your wrist."
 
 **Closing (3s)**
-TrackRide logo
+TetraTrack logo
 "Train. Track. Triumph."
 Download on the App Store badge
 
@@ -183,7 +183,7 @@ Download on the App Store badge
 ## App Privacy (Nutrition Labels)
 
 ### Data Used to Track You
-**None** — TrackRide does not track you across other companies' apps or websites.
+**None** — TetraTrack does not track you across other companies' apps or websites.
 
 ### Data Linked to You
 
@@ -365,7 +365,7 @@ tetrathlon,pentathlon,pony club,eventing,horse riding,gait tracker,running,swimm
 ### German Localization (de-DE)
 
 #### App Name
-**TrackRide** (keep English — recognized brand style)
+**TetraTrack** (keep English — recognized brand style)
 
 #### Subtitle (30 chars max)
 ```
@@ -407,7 +407,7 @@ Endlich! Eine App, die Schritt von Trab unterscheiden kann. KI-Coaching, Gangerk
 ### French Localization (fr-FR)
 
 #### App Name
-**TrackRide** (keep English)
+**TetraTrack** (keep English)
 
 #### Subtitle (30 chars max)
 ```

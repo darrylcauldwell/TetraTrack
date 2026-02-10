@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document analyzes the current air pistol shooting target analysis implementation in TrackRide and provides a comprehensive improvement plan. The analysis covers 12 key areas from image capture to history aggregation.
+This document analyzes the current air pistol shooting target analysis implementation in TetraTrack and provides a comprehensive improvement plan. The analysis covers 12 key areas from image capture to history aggregation.
 
 **Current State**: Auto-detection is disabled (`// No auto-detection - user will manually mark holes`). Manual marking works but lacks robust coordinate normalization and has tap interaction issues.
 

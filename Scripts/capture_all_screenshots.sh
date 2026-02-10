@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# TrackRide - Capture All App Store Screenshots
+# TetraTrack - Capture All App Store Screenshots
 # =============================================
 #
 # This script guides you through capturing all required screenshots.
@@ -36,7 +36,7 @@ wait_for_enter() {
 }
 
 echo "==============================================="
-echo "TrackRide App Store Screenshot Capture"
+echo "TetraTrack App Store Screenshot Capture"
 echo "==============================================="
 echo ""
 echo "IMPORTANT: Before starting, go to Settings in the app"

@@ -1,0 +1,53 @@
+/*
+  Localizable.strings (Swedish)
+  TetraTrack Watch App
+
+  Swedish translations for the watch app.
+*/
+
+// MARK: - Navigation
+"Home" = "Hem";
+"Start" = "Starta";
+"Stop" = "Stopp";
+"Pause" = "Pausa";
+"Resume" = "Återuppta";
+
+// MARK: - Disciplines
+"Riding" = "Ridning";
+"Running" = "Löpning";
+"Swimming" = "Simning";
+"Shooting" = "Skytte";
+
+// MARK: - Stats
+"Distance" = "Distans";
+"Duration" = "Varaktighet";
+"Speed" = "Hastighet";
+"Heart Rate" = "Puls";
+"Calories" = "Kalorier";
+"Pace" = "Tempo";
+
+// MARK: - Gaits
+"Walk" = "Skritt";
+"Trot" = "Trav";
+"Canter" = "Galopp";
+"Gallop" = "Galopp";
+"Halt" = "Halt";
+
+// MARK: - Status
+"Ready" = "Redo";
+"Recording" = "Spelar in";
+"Paused" = "Pausad";
+"Completed" = "Klar";
+"GPS Signal" = "GPS-signal";
+"Acquiring GPS" = "Hämtar GPS";
+
+// MARK: - Messages
+"Tap to start" = "Tryck för att starta";
+"Ride in progress" = "Ridtur pågår";
+"No active session" = "Ingen aktiv session";
+"Syncing with iPhone" = "Synkar med iPhone";
+
+// MARK: - Time
+"hr" = "tim";
+"min" = "min";
+"sec" = "sek";

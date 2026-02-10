@@ -1,0 +1,273 @@
+/*
+  Localizable.strings (Swedish)
+  TetraTrack
+
+  Swedish translations for the app.
+  Svenska översättningar för appen.
+*/
+
+// MARK: - Tab Bar
+"Disciplines" = "Discipliner";
+"Horses" = "Hästar";
+"Calendar" = "Kalender";
+"Live Sharing" = "Direktdelning";
+"Settings" = "Inställningar";
+
+// MARK: - Disciplines
+"Riding" = "Ridning";
+"Running" = "Löpning";
+"Swimming" = "Simning";
+"Shooting" = "Skytte";
+"Track your ride" = "Spåra din ridtur";
+"Track your run" = "Spåra ditt löppass";
+"Track your swim" = "Spåra ditt simpass";
+"Track your shooting" = "Spåra din skytteträning";
+
+// MARK: - Live Sharing
+"Shared With Me" = "Delat Med Mig";
+"Sharing With" = "Delar Med";
+"Connected" = "Ansluten";
+"Pending" = "Väntar";
+"Not Sent" = "Ej Skickat";
+"Not currently riding" = "Rider inte för närvarande";
+"Currently sharing your ride" = "Delar din ridtur just nu";
+"No riders sharing with you yet" = "Inga ryttare delar med dig än";
+"When someone shares their rides with you, they'll appear here" = "När någon delar sina ridturer med dig visas de här";
+"Add Trusted Contact" = "Lägg Till Betrodd Kontakt";
+"Safer Together" = "Säkrare Tillsammans";
+"Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong." = "Dela din position i realtid med familj och vänner så att de kan följa dina träningspass och bli varnade om något går fel.";
+"They can follow your rides and receive safety alerts" = "De kan följa dina ridturer och få säkerhetsvarningar";
+"Add & Send Invite" = "Lägg Till & Skicka Inbjudan";
+"They'll receive a link to download the app" = "De får en länk för att ladda ner appen";
+
+// MARK: - Permissions
+"Live Tracking" = "Direktspårning";
+"Fall Detection" = "Falldetektering";
+"Stationary Alerts" = "Stillastående-varningar";
+"Emergency SOS" = "Nöd-SOS";
+"Permissions" = "Behörigheter";
+"Can see your live location while you're riding" = "Kan se din position i realtid medan du rider";
+"Gets notified immediately if a fall is detected" = "Meddelas omedelbart om ett fall upptäcks";
+"Gets warned if you stop moving unexpectedly" = "Varnas om du oväntat slutar röra dig";
+"Receives SMS with your GPS location in emergencies" = "Får SMS med din GPS-position vid nödsituationer";
+
+// MARK: - Notifications
+"Notifications" = "Aviseringar";
+"Enable" = "Aktivera";
+"Enable to receive safety alerts" = "Aktivera för att få säkerhetsvarningar";
+"You'll receive safety alerts from your contacts" = "Du får säkerhetsvarningar från dina kontakter";
+
+// MARK: - Actions
+"Send invite" = "Skicka inbjudan";
+"Send reminder" = "Skicka påminnelse";
+"Remove contact" = "Ta bort kontakt";
+"Cancel" = "Avbryt";
+"OK" = "OK";
+"View" = "Visa";
+"Delete" = "Radera";
+"Save" = "Spara";
+"Done" = "Klar";
+"Edit" = "Redigera";
+"Add" = "Lägg till";
+"Close" = "Stäng";
+"Confirm" = "Bekräfta";
+"Continue" = "Fortsätt";
+"Skip" = "Hoppa över";
+"Retry" = "Försök igen";
+
+// MARK: - Riding
+"Start Ride" = "Starta Ridtur";
+"Stop" = "Stopp";
+"Pause" = "Pausa";
+"Resume" = "Återuppta";
+"Distance" = "Distans";
+"Duration" = "Varaktighet";
+"Avg Speed" = "Snitthast.";
+"Max Speed" = "Maxhast.";
+"Elevation Gain" = "Höjdökning";
+"Calories" = "Kalorier";
+"Heart Rate" = "Puls";
+"Route" = "Rutt";
+"Ride Details" = "Ridtur Detaljer";
+"Ride Summary" = "Ridtur Sammanfattning";
+
+// MARK: - Gaits
+"Walk" = "Skritt";
+"Trot" = "Trav";
+"Canter" = "Galopp";
+"Gallop" = "Galopp";
+"Halt" = "Halt";
+"Gait Analysis" = "Gångartanalys";
+
+// MARK: - Running
+"Start Run" = "Starta Löpning";
+"Pace" = "Tempo";
+"Avg Pace" = "Snitttempo";
+"Splits" = "Splits";
+"Laps" = "Varv";
+
+// MARK: - Swimming
+"Start Swim" = "Starta Simning";
+"Pool Length" = "Bassänglängd";
+"Laps" = "Längder";
+"Strokes" = "Simtag";
+"SWOLF" = "SWOLF";
+
+// MARK: - Shooting
+"Start Session" = "Starta Pass";
+"Score" = "Poäng";
+"Shots" = "Skott";
+"Average" = "Genomsnitt";
+"Target" = "Mål";
+"Free Practice" = "Fri Träning";
+"Competition Training" = "Tävlingsträning";
+"Competition" = "Tävling";
+"Pressure Insights" = "Pressinsikter";
+"Select Session Context" = "Välj Sessionskontext";
+"Track how pressure affects your performance" = "Spåra hur press påverkar din prestation";
+"Relaxed practice with no scoring pressure" = "Avslappnad träning utan poängpress";
+"Practice under simulated competition conditions" = "Träning under simulerade tävlingsförhållanden";
+"Actual competition scoring" = "Verklig tävlingspoäng";
+"Pressure" = "Press";
+"Quick Entry" = "Snabbinmatning";
+"Scan & Score" = "Skanna & Poäng";
+"Scan Card" = "Skanna Kort";
+"Mark holes" = "Markera hål";
+"Tetrathlon Practice" = "Tetrathlon Träning";
+"Shooting History" = "Skyttehistorik";
+"View patterns over time" = "Visa mönster över tid";
+"Analyse performance by context" = "Analysera prestation efter kontext";
+"Performance by Pressure Level" = "Prestation efter Pressnivå";
+"By Context" = "Efter Kontext";
+"Pattern Comparison" = "Mönsterjämförelse";
+"Key Insights" = "Viktiga Insikter";
+"Low Pressure" = "Låg Press";
+"Training" = "Träning";
+"sessions" = "pass";
+"avg spread" = "snittspridning";
+"spread" = "spridning";
+
+// MARK: - Audio Coaching
+"Audio Coaching" = "Ljudcoaching";
+"Voice Coaching" = "Röstcoaching";
+"Coaching Voice" = "Coachröst";
+"Coaching Language" = "Coachspråk";
+"Enable voice feedback during sessions" = "Aktivera röståterkoppling under pass";
+
+// MARK: - Settings
+"Language" = "Språk";
+"App Language" = "Appspråk";
+"System Default" = "Systemstandard";
+"Following system setting" = "Följer systeminställning";
+"Appearance" = "Utseende";
+"About" = "Om";
+"Privacy" = "Integritet";
+"Help" = "Hjälp";
+"My Horses" = "Mina Hästar";
+"Manage your horses" = "Hantera dina hästar";
+"Your Profile" = "Din Profil";
+"Rider Profile" = "Ryttarprofil";
+"Health Integration" = "Hälsointegration";
+"Apple Watch" = "Apple Watch";
+"Data Management" = "Datahantering";
+"Offline Maps" = "Offline Kartor";
+
+// MARK: - Horses
+"Add Horse" = "Lägg Till Häst";
+"Edit Horse" = "Redigera Häst";
+"Name" = "Namn";
+"Breed" = "Ras";
+"Breed Type" = "Rastyp";
+"Color" = "Färg";
+"Date of Birth" = "Födelsedatum";
+"Notes" = "Anteckningar";
+"Photo" = "Foto";
+"No horses yet" = "Inga hästar än";
+"Add your first horse" = "Lägg till din första häst";
+
+// MARK: - Calendar
+"Competitions" = "Tävlingar";
+"Add Competition" = "Lägg Till Tävling";
+"Edit Competition" = "Redigera Tävling";
+"Venue" = "Plats";
+"Date" = "Datum";
+"Start Date" = "Startdatum";
+"End Date" = "Slutdatum";
+"Tasks" = "Uppgifter";
+"No competitions" = "Inga tävlingar";
+"No upcoming competitions" = "Inga kommande tävlingar";
+
+// MARK: - Time
+"ago" = "sedan";
+"just now" = "just nu";
+"min" = "min";
+"hr" = "tim";
+"day" = "dag";
+"days" = "dagar";
+"Today" = "Idag";
+"Yesterday" = "Igår";
+"This Week" = "Denna Vecka";
+"This Month" = "Denna Månad";
+"All Time" = "All Tid";
+"Last Target" = "Senaste Mål";
+
+// MARK: - Units
+"km" = "km";
+"mi" = "mi";
+"m" = "m";
+"ft" = "fot";
+"km/h" = "km/h";
+"mph" = "mph";
+"bpm" = "bpm";
+"kcal" = "kcal";
+
+// MARK: - Errors
+"Error" = "Fel";
+"Something went wrong" = "Något gick fel";
+"Please try again" = "Försök igen";
+"No internet connection" = "Ingen internetanslutning";
+"Unable to load data" = "Kan inte ladda data";
+"Permission denied" = "Behörighet nekad";
+
+// MARK: - GPS
+"GPS Signal" = "GPS-signal";
+"Acquiring GPS" = "Hämtar GPS";
+"Weak Signal" = "Svag Signal";
+"Strong Signal" = "Stark Signal";
+"Location access required" = "Platstillgång krävs";
+
+// MARK: - Empty States
+"No data" = "Ingen data";
+"No rides yet" = "Inga ridturer än";
+"No runs yet" = "Inga löppass än";
+"No swims yet" = "Inga simpass än";
+"No sessions yet" = "Inga pass än";
+"Start your first ride" = "Starta din första ridtur";
+"No Shooting History Yet" = "Ingen Skyttehistorik Än";
+"No Data Yet" = "Ingen Data Än";
+"Complete some shooting sessions to see how pressure affects your performance." = "Genomför några skyttepass för att se hur press påverkar din prestation.";
+"Start Practicing" = "Börja Träna";
+
+// MARK: - Diagnostics
+"Sharing Diagnostics" = "Delningsdiagnostik";
+"Overall Status" = "Övergripande Status";
+"Health Checks" = "Hälsokontroller";
+"Critical Issues" = "Kritiska Problem";
+"Warnings" = "Varningar";
+"Actions" = "Åtgärder";
+"Run Health Check" = "Kör Hälsokontroll";
+"Initialize Schema" = "Initiera Schema";
+"Refresh Subscriptions" = "Uppdatera Prenumerationer";
+"Reset Sharing Data" = "Återställ Delningsdata";
+"Ready to Share" = "Redo att Dela";
+"Not Ready" = "Inte Redo";
+"Troubleshooting Tips" = "Felsökningstips";
+
+// MARK: - Audio Coaching Messages
+"Great shot!" = "Bra skott!";
+"Good grouping" = "Bra gruppering";
+"Focus on your breathing" = "Fokusera på din andning";
+"Take your time" = "Ta din tid";
+"Excellent consistency" = "Utmärkt konsekvens";
+"Your groups are tightening" = "Dina grupperingar stramas åt";
+"Steady improvement" = "Stadig förbättring";

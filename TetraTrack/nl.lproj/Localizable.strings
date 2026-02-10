@@ -1,0 +1,273 @@
+/*
+  Localizable.strings (Dutch)
+  TetraTrack
+
+  Dutch translations for the app.
+  Nederlandse vertalingen voor de app.
+*/
+
+// MARK: - Tab Bar
+"Disciplines" = "Disciplines";
+"Horses" = "Paarden";
+"Calendar" = "Kalender";
+"Live Sharing" = "Live Delen";
+"Settings" = "Instellingen";
+
+// MARK: - Disciplines
+"Riding" = "Paardrijden";
+"Running" = "Hardlopen";
+"Swimming" = "Zwemmen";
+"Shooting" = "Schieten";
+"Track your ride" = "Volg je rit";
+"Track your run" = "Volg je hardloopsessie";
+"Track your swim" = "Volg je zwemsessie";
+"Track your shooting" = "Volg je schietsessie";
+
+// MARK: - Live Sharing
+"Shared With Me" = "Gedeeld Met Mij";
+"Sharing With" = "Delen Met";
+"Connected" = "Verbonden";
+"Pending" = "In Afwachting";
+"Not Sent" = "Niet Verzonden";
+"Not currently riding" = "Momenteel niet aan het rijden";
+"Currently sharing your ride" = "Je rit wordt momenteel gedeeld";
+"No riders sharing with you yet" = "Nog geen ruiters die met je delen";
+"When someone shares their rides with you, they'll appear here" = "Wanneer iemand zijn ritten met je deelt, verschijnen ze hier";
+"Add Trusted Contact" = "Vertrouwd Contact Toevoegen";
+"Safer Together" = "Samen Veiliger";
+"Share your live location with family and friends so they can follow your sessions and be alerted if something goes wrong." = "Deel je live locatie met familie en vrienden zodat zij je sessies kunnen volgen en gewaarschuwd worden als er iets misgaat.";
+"They can follow your rides and receive safety alerts" = "Ze kunnen je ritten volgen en veiligheidsmeldingen ontvangen";
+"Add & Send Invite" = "Toevoegen & Uitnodiging Versturen";
+"They'll receive a link to download the app" = "Ze ontvangen een link om de app te downloaden";
+
+// MARK: - Permissions
+"Live Tracking" = "Live Tracking";
+"Fall Detection" = "Valdetectie";
+"Stationary Alerts" = "Stilstandmeldingen";
+"Emergency SOS" = "Nood SOS";
+"Permissions" = "Machtigingen";
+"Can see your live location while you're riding" = "Kan je live locatie zien terwijl je rijdt";
+"Gets notified immediately if a fall is detected" = "Wordt direct op de hoogte gesteld bij detectie van een val";
+"Gets warned if you stop moving unexpectedly" = "Wordt gewaarschuwd als je onverwacht stopt met bewegen";
+"Receives SMS with your GPS location in emergencies" = "Ontvangt SMS met je GPS-locatie in noodgevallen";
+
+// MARK: - Notifications
+"Notifications" = "Meldingen";
+"Enable" = "Inschakelen";
+"Enable to receive safety alerts" = "Schakel in om veiligheidsmeldingen te ontvangen";
+"You'll receive safety alerts from your contacts" = "Je ontvangt veiligheidsmeldingen van je contacten";
+
+// MARK: - Actions
+"Send invite" = "Uitnodiging versturen";
+"Send reminder" = "Herinnering versturen";
+"Remove contact" = "Contact verwijderen";
+"Cancel" = "Annuleren";
+"OK" = "OK";
+"View" = "Bekijken";
+"Delete" = "Verwijderen";
+"Save" = "Opslaan";
+"Done" = "Klaar";
+"Edit" = "Bewerken";
+"Add" = "Toevoegen";
+"Close" = "Sluiten";
+"Confirm" = "Bevestigen";
+"Continue" = "Doorgaan";
+"Skip" = "Overslaan";
+"Retry" = "Opnieuw Proberen";
+
+// MARK: - Riding
+"Start Ride" = "Start Rit";
+"Stop" = "Stop";
+"Pause" = "Pauzeren";
+"Resume" = "Hervatten";
+"Distance" = "Afstand";
+"Duration" = "Duur";
+"Avg Speed" = "Gem. Snelheid";
+"Max Speed" = "Max Snelheid";
+"Elevation Gain" = "Hoogteverschil";
+"Calories" = "Calorieën";
+"Heart Rate" = "Hartslag";
+"Route" = "Route";
+"Ride Details" = "Rit Details";
+"Ride Summary" = "Rit Samenvatting";
+
+// MARK: - Gaits
+"Walk" = "Stap";
+"Trot" = "Draf";
+"Canter" = "Galop";
+"Gallop" = "Galop";
+"Halt" = "Halt";
+"Gait Analysis" = "Ganganalyse";
+
+// MARK: - Running
+"Start Run" = "Start Hardlopen";
+"Pace" = "Tempo";
+"Avg Pace" = "Gem. Tempo";
+"Splits" = "Splits";
+"Laps" = "Rondjes";
+
+// MARK: - Swimming
+"Start Swim" = "Start Zwemmen";
+"Pool Length" = "Baanlengte";
+"Laps" = "Banen";
+"Strokes" = "Slagen";
+"SWOLF" = "SWOLF";
+
+// MARK: - Shooting
+"Start Session" = "Start Sessie";
+"Score" = "Score";
+"Shots" = "Schoten";
+"Average" = "Gemiddelde";
+"Target" = "Doel";
+"Free Practice" = "Vrije Training";
+"Competition Training" = "Wedstrijdtraining";
+"Competition" = "Wedstrijd";
+"Pressure Insights" = "Druk Inzichten";
+"Select Session Context" = "Selecteer Sessie Context";
+"Track how pressure affects your performance" = "Volg hoe druk je prestaties beïnvloedt";
+"Relaxed practice with no scoring pressure" = "Ontspannen training zonder scoredruk";
+"Practice under simulated competition conditions" = "Training onder gesimuleerde wedstrijdomstandigheden";
+"Actual competition scoring" = "Echte wedstrijdscores";
+"Pressure" = "Druk";
+"Quick Entry" = "Snelle Invoer";
+"Scan & Score" = "Scan & Score";
+"Scan Card" = "Scan Kaart";
+"Mark holes" = "Markeer gaten";
+"Tetrathlon Practice" = "Tetrathlon Training";
+"Shooting History" = "Schieten Geschiedenis";
+"View patterns over time" = "Bekijk patronen over tijd";
+"Analyse performance by context" = "Analyseer prestaties per context";
+"Performance by Pressure Level" = "Prestaties per Drukniveau";
+"By Context" = "Per Context";
+"Pattern Comparison" = "Patroonvergelijking";
+"Key Insights" = "Belangrijke Inzichten";
+"Low Pressure" = "Lage Druk";
+"Training" = "Training";
+"sessions" = "sessies";
+"avg spread" = "gem. spreiding";
+"spread" = "spreiding";
+
+// MARK: - Audio Coaching
+"Audio Coaching" = "Audiocoaching";
+"Voice Coaching" = "Spraakcoaching";
+"Coaching Voice" = "Coachingstem";
+"Coaching Language" = "Coachingtaal";
+"Enable voice feedback during sessions" = "Schakel spraakfeedback in tijdens sessies";
+
+// MARK: - Settings
+"Language" = "Taal";
+"App Language" = "App Taal";
+"System Default" = "Systeemstandaard";
+"Following system setting" = "Systeeminstelling volgen";
+"Appearance" = "Weergave";
+"About" = "Over";
+"Privacy" = "Privacy";
+"Help" = "Help";
+"My Horses" = "Mijn Paarden";
+"Manage your horses" = "Beheer je paarden";
+"Your Profile" = "Jouw Profiel";
+"Rider Profile" = "Ruitersprofiel";
+"Health Integration" = "Gezondheidsintegratie";
+"Apple Watch" = "Apple Watch";
+"Data Management" = "Gegevensbeheer";
+"Offline Maps" = "Offline Kaarten";
+
+// MARK: - Horses
+"Add Horse" = "Paard Toevoegen";
+"Edit Horse" = "Paard Bewerken";
+"Name" = "Naam";
+"Breed" = "Ras";
+"Breed Type" = "Rastype";
+"Color" = "Kleur";
+"Date of Birth" = "Geboortedatum";
+"Notes" = "Notities";
+"Photo" = "Foto";
+"No horses yet" = "Nog geen paarden";
+"Add your first horse" = "Voeg je eerste paard toe";
+
+// MARK: - Calendar
+"Competitions" = "Wedstrijden";
+"Add Competition" = "Wedstrijd Toevoegen";
+"Edit Competition" = "Wedstrijd Bewerken";
+"Venue" = "Locatie";
+"Date" = "Datum";
+"Start Date" = "Startdatum";
+"End Date" = "Einddatum";
+"Tasks" = "Taken";
+"No competitions" = "Geen wedstrijden";
+"No upcoming competitions" = "Geen aankomende wedstrijden";
+
+// MARK: - Time
+"ago" = "geleden";
+"just now" = "zojuist";
+"min" = "min";
+"hr" = "uur";
+"day" = "dag";
+"days" = "dagen";
+"Today" = "Vandaag";
+"Yesterday" = "Gisteren";
+"This Week" = "Deze Week";
+"This Month" = "Deze Maand";
+"All Time" = "Alle Tijd";
+"Last Target" = "Laatste Doel";
+
+// MARK: - Units
+"km" = "km";
+"mi" = "mi";
+"m" = "m";
+"ft" = "ft";
+"km/h" = "km/u";
+"mph" = "mph";
+"bpm" = "bpm";
+"kcal" = "kcal";
+
+// MARK: - Errors
+"Error" = "Fout";
+"Something went wrong" = "Er ging iets mis";
+"Please try again" = "Probeer het opnieuw";
+"No internet connection" = "Geen internetverbinding";
+"Unable to load data" = "Kan gegevens niet laden";
+"Permission denied" = "Toestemming geweigerd";
+
+// MARK: - GPS
+"GPS Signal" = "GPS Signaal";
+"Acquiring GPS" = "GPS verkrijgen";
+"Weak Signal" = "Zwak Signaal";
+"Strong Signal" = "Sterk Signaal";
+"Location access required" = "Locatietoegang vereist";
+
+// MARK: - Empty States
+"No data" = "Geen gegevens";
+"No rides yet" = "Nog geen ritten";
+"No runs yet" = "Nog geen hardloopsessies";
+"No swims yet" = "Nog geen zwemsessies";
+"No sessions yet" = "Nog geen sessies";
+"Start your first ride" = "Start je eerste rit";
+"No Shooting History Yet" = "Nog Geen Schietgeschiedenis";
+"No Data Yet" = "Nog Geen Gegevens";
+"Complete some shooting sessions to see how pressure affects your performance." = "Voltooi enkele schietsessies om te zien hoe druk je prestaties beïnvloedt.";
+"Start Practicing" = "Begin Met Oefenen";
+
+// MARK: - Diagnostics
+"Sharing Diagnostics" = "Diagnostiek Delen";
+"Overall Status" = "Algehele Status";
+"Health Checks" = "Gezondheidscontroles";
+"Critical Issues" = "Kritieke Problemen";
+"Warnings" = "Waarschuwingen";
+"Actions" = "Acties";
+"Run Health Check" = "Gezondheidscontrole Uitvoeren";
+"Initialize Schema" = "Schema Initialiseren";
+"Refresh Subscriptions" = "Abonnementen Vernieuwen";
+"Reset Sharing Data" = "Deelgegevens Resetten";
+"Ready to Share" = "Klaar om te Delen";
+"Not Ready" = "Niet Klaar";
+"Troubleshooting Tips" = "Tips voor Probleemoplossing";
+
+// MARK: - Audio Coaching Messages
+"Great shot!" = "Geweldige schot!";
+"Good grouping" = "Goede groepering";
+"Focus on your breathing" = "Focus op je ademhaling";
+"Take your time" = "Neem je tijd";
+"Excellent consistency" = "Uitstekende consistentie";
+"Your groups are tightening" = "Je groeperingen worden strakker";
+"Steady improvement" = "Gestage verbetering";

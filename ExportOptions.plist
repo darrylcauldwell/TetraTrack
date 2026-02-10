@@ -5,9 +5,11 @@
     <key>method</key>
     <string>app-store-connect</string>
     <key>destination</key>
-    <string>upload</string>
+    <string>export</string>
     <key>signingStyle</key>
     <string>automatic</string>
+    <key>teamID</key>
+    <string>N6BK2WX94Z</string>
     <key>uploadSymbols</key>
     <true/>
 </dict>

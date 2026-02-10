@@ -1,0 +1,30 @@
+/*
+  Localizable.strings (Dutch)
+  TetraTrack Widget
+
+  Dutch translations for widgets.
+*/
+
+// MARK: - Widget Titles
+"Recent Ride" = "Recente Rit";
+"Training Stats" = "Training Statistieken";
+"Quick Start" = "Snel Starten";
+"Next Competition" = "Volgende Wedstrijd";
+
+// MARK: - Widget Descriptions
+"View your most recent ride" = "Bekijk je meest recente rit";
+"Your training statistics at a glance" = "Je trainingsstatistieken in een oogopslag";
+"Start a ride quickly" = "Start snel een rit";
+"Your upcoming competition" = "Je aankomende wedstrijd";
+
+// MARK: - Stats
+"Distance" = "Afstand";
+"Duration" = "Duur";
+"Rides" = "Ritten";
+"This Week" = "Deze Week";
+"This Month" = "Deze Maand";
+
+// MARK: - Status
+"No recent rides" = "Geen recente ritten";
+"No upcoming competitions" = "Geen aankomende wedstrijden";
+"Tap to start riding" = "Tik om te beginnen met rijden";
