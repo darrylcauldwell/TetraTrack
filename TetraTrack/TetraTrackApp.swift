@@ -267,6 +267,13 @@ struct TetraTrackApp: App {
         // Configure RideTracker with model context
         tracker.configure(with: sharedModelContainer.mainContext)
 
+        // Auto-generate screenshot data when launched with -screenshotMode
+        if ProcessInfo.processInfo.arguments.contains("-screenshotMode") {
+            ScreenshotDataGenerator.generateScreenshotData(in: sharedModelContainer.mainContext)
+            try? sharedModelContainer.mainContext.save()
+            Log.app.info("Screenshot mode: generated demonstration data")
+        }
+
         // Activate Watch connectivity
         WatchConnectivityManager.shared.activate()
 

@@ -1,4 +1,4 @@
-What's New in Version 0.1
+What's New in Version 0.0.123
 
 BACKGROUND GPS — FIXED FOR GOOD
 
