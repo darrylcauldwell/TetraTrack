@@ -32,6 +32,10 @@ app_rating_config_path("./fastlane/rating_config.json")
 # Copyright
 copyright("2026 Darryl Cauldwell")
 
+# Categories
+primary_category("HEALTH_AND_FITNESS")
+secondary_category("SPORTS")
+
 # App icon (1024x1024 PNG without alpha for App Store listing)
 app_icon("./TetraTrack/Assets.xcassets/AppIcon.appiconset/tet1.png")
 
