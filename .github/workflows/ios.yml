@@ -3,15 +3,133 @@ name: iOS CI
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Validate
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      # --- SwiftLint ---
+      - name: SwiftLint
+        run: |
+          if command -v swiftlint &> /dev/null; then
+            swiftlint lint --reporter github-actions-logging
+          else
+            brew install swiftlint
+            swiftlint lint --reporter github-actions-logging
+          fi
+
+      # --- @Relationship optionality ---
+      - name: Check @Relationship optionality
+        run: |
+          ISSUES=$(grep -A1 "@Relationship" TetraTrack/Models/*.swift TetraTrack/Models/**/*.swift 2>/dev/null \
+            | grep -E "var.*\[.*\].*=" \
+            | grep -v "\?" || true)
+          if [ -n "$ISSUES" ]; then
+            echo "::error::Non-optional @Relationship arrays found (breaks CloudKit sync):"
+            echo "$ISSUES"
+            exit 1
+          fi
+
+      # --- MARKETING_VERSION consistency ---
+      - name: Check MARKETING_VERSION consistency
+        run: |
+          VERSIONS=$(grep "MARKETING_VERSION" TetraTrack.xcodeproj/project.pbxproj | sed 's/.*= //' | sed 's/;.*//' | sort -u)
+          COUNT=$(echo "$VERSIONS" | wc -l | tr -d ' ')
+          if [ "$COUNT" -gt 1 ]; then
+            echo "::error::Multiple MARKETING_VERSION values found:"
+            echo "$VERSIONS"
+            exit 1
+          fi
+          echo "All targets at MARKETING_VERSION = $(echo "$VERSIONS" | tr -d ' ')"
+
+      # --- App Store metadata limits ---
+      - name: Validate metadata character limits
+        run: |
+          if [ -x Scripts/validate_metadata.sh ]; then
+            Scripts/validate_metadata.sh
+          else
+            echo "validate_metadata.sh not found — skipping"
+          fi
+
+      # --- Resolve packages ---
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack
+
+      # --- Build iPhone ---
+      - name: Build iPhone
+        run: |
+          xcodebuild build \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      # --- Build Watch app ---
+      - name: Build Watch app
+        run: |
+          xcodebuild build \
+            -project TetraTrack.xcodeproj \
+            -scheme "TetraTrack Watch App" \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      # --- Build Widget ---
+      - name: Build Widget extension
+        run: |
+          xcodebuild build \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrackWidgetExtension \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      # --- Build Shared package ---
+      - name: Build Shared package
+        run: |
+          xcodebuild build \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrackShared \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      # --- Unit tests ---
+      - name: Run unit tests
+        run: |
+          xcodebuild test \
+            -project TetraTrack.xcodeproj \
+            -scheme TetraTrack \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
   deploy:
     name: Deploy to TestFlight
     runs-on: macos-26
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout
