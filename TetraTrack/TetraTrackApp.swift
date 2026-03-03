@@ -158,66 +158,32 @@ struct TetraTrackApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.locale, LocalizationManager.shared.locale)
-                .environment(locationManager)
-                .environment(gpsTracker)
-                .environment(rideTracker)
-                .viewContext(viewContext)
-                .onAppear {
-                    Log.app.info("ContentView.onAppear - rideTracker is \(rideTracker == nil ? "nil" : "set")")
-                    // Create GPSSessionTracker on first appear if needed
-                    if gpsTracker == nil {
-                        Log.app.info("Creating GPSSessionTracker...")
-                        gpsTracker = GPSSessionTracker(locationManager: locationManager)
-                        Log.app.info("GPSSessionTracker created")
-                    }
-                    // Create RideTracker on first appear if needed
-                    if rideTracker == nil, let gps = gpsTracker {
-                        Log.app.info("Creating RideTracker...")
-                        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gps)
-                        rideTracker = tracker
-                        Log.app.info("RideTracker created")
-                    }
-                    configureAppIfNeeded()
-                }
-                .task {
-                guard !Self.isUITesting else { return }
-                // Request notification permissions
-                _ = await NotificationManager.shared.requestAuthorization()
-                // Setup CloudKit subscriptions (handles errors internally)
-                await NotificationManager.shared.setupCloudKitSubscriptions()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .startRideFromSiri)) { notification in
-                handleStartRide(notification: notification)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .stopRideFromSiri)) { _ in
-                rideTracker?.stopRide()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .pauseRideFromSiri)) { _ in
-                rideTracker?.pauseRide()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .resumeRideFromSiri)) { _ in
-                rideTracker?.resumeRide()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
-                announceCurrentStatus()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .enableAudioFromSiri)) { _ in
-                setAudioCoaching(enabled: true)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .disableAudioFromSiri)) { _ in
-                setAudioCoaching(enabled: false)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleAudioFromSiri)) { _ in
-                toggleAudioCoaching()
-            }
+            rootContentView
+        }
+        .modelContainer(sharedModelContainer)
+    }
+
+    @ViewBuilder
+    private var rootContentView: some View {
+        ContentView()
+            .environment(\.locale, LocalizationManager.shared.locale)
+            .environment(locationManager)
+            .environment(gpsTracker)
+            .environment(rideTracker)
+            .viewContext(viewContext)
+            .onAppear(perform: handleAppear)
+            .task { await handleInitialSetup() }
+            .modifier(SiriNotificationModifier(
+                rideTracker: $rideTracker,
+                onStartRide: handleStartRide,
+                onAnnounceStatus: announceCurrentStatus,
+                onSetAudio: setAudioCoaching,
+                onToggleAudio: toggleAudioCoaching
+            ))
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(from: oldPhase, to: newPhase)
             }
-            .onOpenURL { url in
-                handleIncomingURL(url)
-            }
+            .onOpenURL { url in handleIncomingURL(url) }
             .onReceive(NotificationCenter.default.publisher(for: .didAcceptCloudKitShare)) { notification in
                 handleCloudKitShareAccepted(notification: notification)
             }
@@ -226,14 +192,32 @@ struct TetraTrackApp: App {
             }
             .onContinueUserActivity(NSUserActivityTypeBrowsingWeb, perform: handleWebUserActivity)
             .alert("Share Link Received", isPresented: $showShareLinkAlert) {
-                Button("OK") {
-                    showShareLinkAlert = false
-                }
+                Button("OK") { showShareLinkAlert = false }
             } message: {
                 Text(shareLinkAlertMessage)
             }
+    }
+
+    private func handleAppear() {
+        Log.app.info("ContentView.onAppear - rideTracker is \(rideTracker == nil ? "nil" : "set")")
+        if gpsTracker == nil {
+            Log.app.info("Creating GPSSessionTracker...")
+            gpsTracker = GPSSessionTracker(locationManager: locationManager)
+            Log.app.info("GPSSessionTracker created")
         }
-        .modelContainer(sharedModelContainer)
+        if rideTracker == nil, let gps = gpsTracker {
+            Log.app.info("Creating RideTracker...")
+            let tracker = RideTracker(locationManager: locationManager, gpsTracker: gps)
+            rideTracker = tracker
+            Log.app.info("RideTracker created")
+        }
+        configureAppIfNeeded()
+    }
+
+    private func handleInitialSetup() async {
+        guard !Self.isUITesting else { return }
+        _ = await NotificationManager.shared.requestAuthorization()
+        await NotificationManager.shared.setupCloudKitSubscriptions()
     }
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
@@ -552,5 +536,45 @@ struct TetraTrackApp: App {
         } catch {
             Log.app.error("Failed to check iCloud status: \(error.localizedDescription)")
         }
+    }
+}
+
+// MARK: - Siri Notification Modifier
+
+/// Extracts Siri .onReceive handlers into a ViewModifier to reduce type-checker
+/// complexity in the main App body.
+private struct SiriNotificationModifier: ViewModifier {
+    @Binding var rideTracker: RideTracker?
+    var onStartRide: (Notification) -> Void
+    var onAnnounceStatus: () -> Void
+    var onSetAudio: (Bool) -> Void
+    var onToggleAudio: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .startRideFromSiri)) { notification in
+                onStartRide(notification)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .stopRideFromSiri)) { _ in
+                rideTracker?.stopRide()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .pauseRideFromSiri)) { _ in
+                rideTracker?.pauseRide()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .resumeRideFromSiri)) { _ in
+                rideTracker?.resumeRide()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
+                onAnnounceStatus()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .enableAudioFromSiri)) { _ in
+                onSetAudio(true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .disableAudioFromSiri)) { _ in
+                onSetAudio(false)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleAudioFromSiri)) { _ in
+                onToggleAudio()
+            }
     }
 }
