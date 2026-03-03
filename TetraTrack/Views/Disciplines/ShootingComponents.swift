@@ -39,7 +39,7 @@ struct ShootingWatchStatusCard: View {
                     } else if isAppNotInstalled {
                         AccessibleStatusIndicator(.error, size: .small)
                     } else {
-                        AccessibleStatusIndicator(.warning, size: .small)
+                        AccessibleStatusIndicator(.standby, size: .small)
                     }
                 }
 
@@ -73,12 +73,9 @@ struct ShootingWatchStatusCard: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Raise your wrist or open TetraTrack on your watch to connect.")
+                    Text("Watch will connect automatically when you start your session.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Start a shooting session from the watch for per-shot sensor analysis.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {

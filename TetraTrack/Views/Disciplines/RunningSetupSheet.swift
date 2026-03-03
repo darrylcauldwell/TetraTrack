@@ -1189,7 +1189,7 @@ struct WatchStatusCard: View {
                     } else if isAppNotInstalled {
                         AccessibleStatusIndicator(.error, size: .small)
                     } else {
-                        AccessibleStatusIndicator(.warning, size: .small)
+                        AccessibleStatusIndicator(.standby, size: .small)
                     }
                 }
 
@@ -1236,12 +1236,9 @@ struct WatchStatusCard: View {
     @ViewBuilder
     private var notReachableContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Raise your wrist or open TetraTrack on your watch to connect.")
+            Text("Watch will connect automatically when you start your session.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("The watch will connect automatically when you start your run.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
 
         VStack(alignment: .leading, spacing: 6) {

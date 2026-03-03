@@ -600,6 +600,7 @@ struct AccessibleStatusIndicator: View {
         case syncing
         case error
         case warning
+        case standby
         case success
         case inactive
 
@@ -610,6 +611,7 @@ struct AccessibleStatusIndicator: View {
             case .syncing: return "arrow.triangle.2.circlepath"
             case .error: return "exclamationmark.triangle.fill"
             case .warning: return "exclamationmark.circle.fill"
+            case .standby: return "moon.circle.fill"
             case .success: return "checkmark.circle.fill"
             case .inactive: return "circle"
             }
@@ -621,7 +623,7 @@ struct AccessibleStatusIndicator: View {
             case .disconnected, .inactive: return AppColors.inactive
             case .syncing: return AppColors.primary
             case .error: return AppColors.error
-            case .warning: return AppColors.warning
+            case .warning, .standby: return AppColors.warning
             }
         }
 
@@ -632,6 +634,7 @@ struct AccessibleStatusIndicator: View {
             case .syncing: return "Syncing"
             case .error: return "Error"
             case .warning: return "Warning"
+            case .standby: return "Standby"
             case .success: return "Success"
             case .inactive: return "Inactive"
             }
