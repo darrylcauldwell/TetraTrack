@@ -330,7 +330,7 @@ struct SettingsView: View {
                     } label: {
                         Label("App Language", systemImage: "globe")
                     }
-                    .pickerStyle(.navigationLink)
+                    .pickerStyle(.inline)
                 } header: {
                     Text("Language")
                 } footer: {
