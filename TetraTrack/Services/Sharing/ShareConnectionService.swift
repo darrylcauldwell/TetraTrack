@@ -2,12 +2,12 @@
 //  ShareConnectionService.swift
 //  TetraTrack
 //
-//  Actor-based service for creating record-level CloudKit shares.
-//  This is the CRITICAL FIX: uses record-level shares instead of zone-wide shares.
+//  Actor-based service for creating zone-level CloudKit shares.
 //
-//  The previous implementation used CKShare(recordZoneID:) which creates a zone-wide
-//  share. However, CloudKit cannot generate valid share URLs for empty zones.
-//  This service creates a ShareConnection record first, then attaches a CKShare to it.
+//  Zone-level shares expose ALL records in the zone to accepted participants,
+//  which is required for LiveTrackingSession visibility. The ShareConnection
+//  record is saved first to ensure the zone is non-empty before creating
+//  the zone-level share (CloudKit cannot generate URLs for empty zones).
 //
 
 import Foundation
@@ -85,10 +85,12 @@ actor ShareConnectionService {
         zoneID
     }
 
-    // MARK: - Create Share Connection (Critical Fix)
+    // MARK: - Create Share Connection
 
-    /// Create a ShareConnection record with an attached CKShare.
-    /// This is the fix for the empty zone share URL bug.
+    /// Create a ShareConnection record with a zone-level CKShare.
+    /// The record is saved first to ensure the zone is non-empty,
+    /// then a zone-level share is created so ALL records in the zone
+    /// (including LiveTrackingSession) are visible to accepted participants.
     ///
     /// - Parameters:
     ///   - relationshipID: The SharingRelationship this share is for
@@ -121,16 +123,13 @@ actor ShareConnectionService {
             throw ShareConnectionError.zoneNotAvailable
         }
 
-        // CRITICAL: Clean up any existing zone-level share first.
-        // CloudKit does not allow record-level shares in a zone that already
-        // has a zone-level share. Old app versions may have created one.
-        await cleanupExistingZoneShare(zoneID: zoneID)
-
         // Clean up any stale ShareConnection records for this relationship
         // from previous failed attempts or old app versions
         await cleanupStaleConnections(for: relationshipID, zoneID: zoneID)
 
-        // 1. Create the ShareConnection record
+        // 1. Save the ShareConnection record FIRST (without CKShare).
+        // This ensures the zone is non-empty before creating a zone-level share,
+        // which avoids the empty-zone URL generation bug.
         var connection = ShareConnection(
             relationshipID: relationshipID,
             shareType: shareType,
@@ -138,44 +137,21 @@ actor ShareConnectionService {
         )
         let connectionRecord = connection.toCKRecord(zoneID: zoneID)
 
-        // 2. Create a RECORD-LEVEL share attached to the connection record
-        // Record-level shares are more reliable than zone-level shares for
-        // URL-based acceptance. The share is directly linked to the record.
-        let share = CKShare(rootRecord: connectionRecord)
-        share.publicPermission = .readOnly
-        share[CKShare.SystemFieldKey.title] = "TetraTrack Family Sharing" as CKRecordValue
-
-        // 3. Save the record AND share together using batch operation
-        // This is required for record-level shares to properly register
         do {
-            let (saveResults, _) = try await container.privateCloudDatabase.modifyRecords(
-                saving: [connectionRecord, share],
-                deleting: []
-            )
-
-            // Check results
-            for (recordID, result) in saveResults {
-                switch result {
-                case .success(let savedRecord):
-                    if let savedShare = savedRecord as? CKShare {
-                        connection.shareRecordID = savedShare.recordID.recordName
-                        connection.shareURL = savedShare.url
-                        Log.family.info("Share saved. URL: \(savedShare.url?.absoluteString ?? "nil")")
-                    } else if recordID == connectionRecord.recordID {
-                        connection.cloudKitRecordID = savedRecord.recordID.recordName
-                        Log.family.info("ShareConnection record saved")
-                    }
-                case .failure(let error):
-                    Log.family.error("Failed to save record \(recordID): \(error)")
-                    throw ShareConnectionError.shareCreationFailed(underlying: error)
-                }
-            }
-        } catch let error as ShareConnectionError {
-            throw error
+            let savedRecord = try await container.privateCloudDatabase.save(connectionRecord)
+            connection.cloudKitRecordID = savedRecord.recordID.recordName
+            Log.family.info("ShareConnection record saved (pre-share)")
         } catch {
-            Log.family.error("Failed to save share + connection: \(error)")
+            Log.family.error("Failed to save ShareConnection record: \(error)")
             throw ShareConnectionError.shareCreationFailed(underlying: error)
         }
+
+        // 2. Create or reuse a ZONE-LEVEL share.
+        // Zone-level shares expose ALL records in the zone to participants,
+        // which is required for LiveTrackingSession visibility.
+        let share = try await getOrCreateZoneShare(zoneID: zoneID, shareType: shareType)
+        connection.shareURL = share.url
+        connection.shareRecordID = share.recordID.recordName
 
         // Cache the connection
         connectionCache[relationshipID] = connection
@@ -190,13 +166,14 @@ actor ShareConnectionService {
             )
         }
 
-        Log.family.info("Record-level ShareConnection created successfully for relationship \(relationshipID)")
+        Log.family.info("Zone-level ShareConnection created successfully for relationship \(relationshipID)")
         return connection
     }
 
-    /// Get or create a zone-level share, handling stale shares from old app versions.
-    /// If an existing share is found with a valid URL, it's reused.
-    /// If an existing share has no URL (stale/corrupted), it's deleted and recreated.
+    /// Get or create a zone-level share, handling migration from record-level shares.
+    /// If an existing zone-level share is found with a valid URL, it's reused.
+    /// If creation fails (e.g. due to old record-level shares), cleans up all shares
+    /// in the zone and retries once.
     private func getOrCreateZoneShare(
         zoneID: CKRecordZone.ID,
         shareType: ShareType
@@ -209,7 +186,7 @@ actor ShareConnectionService {
             }
 
             // Stale share with no URL - delete it and create fresh
-            Log.family.warning("Found stale zone share with nil URL (likely from old app version), deleting...")
+            Log.family.warning("Found stale zone share with nil URL, deleting...")
             do {
                 try await container.privateCloudDatabase.deleteRecord(withID: existingShare.recordID)
                 Log.family.info("Deleted stale zone share")
@@ -246,6 +223,30 @@ actor ShareConnectionService {
                 return existingShare
             }
             throw ShareConnectionError.shareCreationFailed(underlying: error)
+        } catch {
+            // Creation failed — likely due to existing record-level shares from
+            // the old implementation blocking zone-level share creation.
+            // Clean up ALL shares in the zone and retry once.
+            Log.family.warning("Zone share creation failed, cleaning up old shares for migration: \(error)")
+            await cleanupAllShares(zoneID: zoneID)
+
+            let retryShare = CKShare(recordZoneID: zoneID)
+            retryShare.publicPermission = .readOnly
+            retryShare[CKShare.SystemFieldKey.title] = "TetraTrack Family Sharing" as CKRecordValue
+            retryShare[CKShare.SystemFieldKey.shareType] = shareType.rawValue as CKRecordValue
+
+            let saved = try await container.privateCloudDatabase.save(retryShare)
+            guard let savedShare = saved as? CKShare else {
+                throw ShareConnectionError.shareCreationFailed(
+                    underlying: NSError(
+                        domain: "ShareConnectionService",
+                        code: -3,
+                        userInfo: [NSLocalizedDescriptionKey: "Retry save returned non-CKShare record"]
+                    )
+                )
+            }
+            Log.family.info("Zone share saved after migration cleanup. URL: \(savedShare.url?.absoluteString ?? "nil")")
+            return savedShare
         }
     }
 
@@ -281,23 +282,29 @@ actor ShareConnectionService {
 
     // MARK: - Cleanup Helpers
 
-    /// Remove any existing zone-level share from the zone.
-    /// CloudKit does not allow record-level shares to coexist with a zone-level share.
-    /// Old app versions may have created a zone-level share that now blocks record-level shares.
-    private func cleanupExistingZoneShare(zoneID: CKRecordZone.ID) async {
-        guard let existingShare = try? await fetchExistingZoneShare(zoneID: zoneID) else {
-            return // No zone-level share, nothing to clean up
-        }
-
-        // Check if this is a zone-level share (no rootRecord reference)
-        // Record-level shares have a rootRecord; zone-level shares don't
-        Log.family.warning("Found existing zone-level share (ID: \(existingShare.recordID.recordName)), cleaning up for record-level share creation")
-
+    /// Delete ALL CKShare records in the zone (both zone-level and record-level).
+    /// Used for one-time migration from record-level to zone-level shares.
+    private func cleanupAllShares(zoneID: CKRecordZone.ID) async {
+        let query = CKQuery(recordType: "cloudkit.share", predicate: NSPredicate(value: true))
         do {
-            try await container.privateCloudDatabase.deleteRecord(withID: existingShare.recordID)
-            Log.family.info("Cleaned up zone-level share successfully")
+            let (results, _) = try await container.privateCloudDatabase.records(
+                matching: query, inZoneWith: zoneID
+            )
+            let ids = results.compactMap { (id, result) -> CKRecord.ID? in
+                if case .success = result { return id }
+                return nil
+            }
+            guard !ids.isEmpty else { return }
+            let (_, deleteResults) = try await container.privateCloudDatabase.modifyRecords(
+                saving: [], deleting: ids
+            )
+            let failedCount = deleteResults.filter { if case .failure = $0.value { return true }; return false }.count
+            if failedCount > 0 {
+                Log.family.warning("Failed to delete \(failedCount) of \(ids.count) share(s) during migration cleanup")
+            }
+            Log.family.info("Cleaned up \(ids.count - failedCount) old share(s) for zone-level migration")
         } catch {
-            Log.family.warning("Failed to clean up zone-level share: \(error.localizedDescription). Will attempt record-level share anyway.")
+            Log.family.warning("Share cleanup query failed: \(error.localizedDescription)")
         }
     }
 
