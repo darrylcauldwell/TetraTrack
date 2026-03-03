@@ -470,6 +470,38 @@ final class GaitHMM {
     /// - Returns: Constrained state probabilities
     private func applySpeedConstraints(_ probs: [Double], gpsSpeed: Double, gpsAccuracy: Double) -> [Double] {
         var constrained = probs
+        var vetoed = Set<Int>()
+
+        // Hard veto: zero out physically impossible states when GPS is reliable
+        if gpsAccuracy < 20.0 {
+            if gpsSpeed < 0.5 {
+                // Essentially stationary — zero all movement gaits
+                for state in [HMMGaitState.walk, .trot, .canter, .gallop] {
+                    constrained[state.rawValue] = 0
+                    vetoed.insert(state.rawValue)
+                }
+            } else if gpsSpeed < 2.0 {
+                // Walking pace — cannot be canter or gallop
+                for state in [HMMGaitState.canter, .gallop] {
+                    constrained[state.rawValue] = 0
+                    vetoed.insert(state.rawValue)
+                }
+            } else if gpsSpeed < 4.0 {
+                // Trot pace — cannot be gallop
+                constrained[HMMGaitState.gallop.rawValue] = 0
+                vetoed.insert(HMMGaitState.gallop.rawValue)
+            }
+            if gpsSpeed > 3.0 {
+                // Above walk speed range — cannot be walking
+                constrained[HMMGaitState.walk.rawValue] = 0
+                vetoed.insert(HMMGaitState.walk.rawValue)
+            }
+            if gpsSpeed > 6.0 {
+                // Above trot speed range — cannot be trotting
+                constrained[HMMGaitState.trot.rawValue] = 0
+                vetoed.insert(HMMGaitState.trot.rawValue)
+            }
+        }
 
         // Use custom speed bounds if configured, otherwise use defaults
         let speedBounds: [(min: Double, max: Double)] = customSpeedBounds ?? [
@@ -512,6 +544,15 @@ final class GaitHMM {
         if total > 1e-10 {
             for i in 0..<constrained.count {
                 constrained[i] /= total
+            }
+        } else if !vetoed.isEmpty {
+            // GPS constraints eliminated all reachable states (e.g. high speed from stationary)
+            // Distribute uniformly among physically possible (non-vetoed) states
+            let nonVetoed = (0..<constrained.count).filter { !vetoed.contains($0) }
+            if !nonVetoed.isEmpty {
+                for i in 0..<constrained.count {
+                    constrained[i] = nonVetoed.contains(i) ? 1.0 / Double(nonVetoed.count) : 0
+                }
             }
         }
 

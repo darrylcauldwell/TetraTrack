@@ -218,7 +218,7 @@ struct GaitHMMTests {
 
     // MARK: - GPS Speed Constraint Tests
 
-    @Test(.disabled("Pre-existing failure")) func highConfidenceGPSPenalisesWrongGait() {
+    @Test func highConfidenceGPSPenalisesWrongGait() {
         let hmm = GaitHMM()
         // Feed walk features but with GPS speed 0 (stationary) and high accuracy
         let features = GaitFeatureVector(
@@ -271,16 +271,15 @@ struct GaitHMMTests {
         #expect(hmm.currentState == .stationary)
     }
 
-    @Test(.disabled("Pre-existing failure")) func highSpeedPreventsSlowGaits() {
+    @Test func highSpeedPreventsSlowGaits() {
         let hmm = GaitHMM()
-        // Feed features with GPS speed 10 m/s (gallop territory) and high accuracy
-        let features = GaitFeatureVector(
-            strideFrequency: 4.5, h2Ratio: 0.5, h3Ratio: 0.6,
-            spectralEntropy: 0.75, xyCoherence: 0.25, zYawCoherence: 0.85,
-            normalizedVerticalRMS: 0.475, yawRateRMS: 0.9,
-            gpsSpeed: 10.0, gpsAccuracy: 3.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+        // Build up through gaits to establish non-stationary state
+        for _ in 0..<10 { hmm.update(with: walkFeatures()) }
+        for _ in 0..<10 { hmm.update(with: trotFeatures()) }
+        for _ in 0..<10 { hmm.update(with: canterFeatures()) }
+
+        // Feed gallop features at 10 m/s with high accuracy GPS
+        let features = gallopFeatures(gpsSpeed: 10.0, gpsAccuracy: 3.0)
         for _ in 0..<20 {
             hmm.update(with: features)
         }
@@ -530,6 +529,58 @@ struct GaitHMMTests {
         // Should converge and stabilize
         #expect(hmm.currentState == .walk)
         #expect(abs(walkProb1 - walkProb2) < 0.05)
+    }
+
+    // MARK: - Hard Speed Veto Tests
+
+    @Test func walkSpeedVetoesCanterAndGallop() {
+        let hmm = GaitHMM()
+        // Feed canter IMU features at walk speed with good GPS
+        let features = canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 5.0)
+        for _ in 0..<20 {
+            hmm.update(with: features)
+        }
+        // Hard veto should zero canter and gallop at < 2.0 m/s
+        #expect(hmm.probability(of: .canter) == 0)
+        #expect(hmm.probability(of: .gallop) == 0)
+    }
+
+    @Test func trotSpeedVetoesGallop() {
+        let hmm = GaitHMM()
+        // Feed gallop IMU features at trot speed with good GPS
+        let features = gallopFeatures(gpsSpeed: 3.5, gpsAccuracy: 5.0)
+        for _ in 0..<20 {
+            hmm.update(with: features)
+        }
+        // Hard veto should zero gallop at < 4.0 m/s
+        #expect(hmm.probability(of: .gallop) == 0)
+    }
+
+    @Test func poorGPSDoesNotApplyHardVeto() {
+        let hmm = GaitHMM()
+        // Establish canter state with proper speed
+        for _ in 0..<10 { hmm.update(with: walkFeatures()) }
+        for _ in 0..<10 { hmm.update(with: trotFeatures()) }
+        for _ in 0..<15 { hmm.update(with: canterFeatures()) }
+        #expect(hmm.currentState == .canter)
+
+        // Now feed canter features at walk speed with poor GPS (>= 20m accuracy)
+        // Hard veto should NOT apply, so canter probability should remain non-zero
+        let features = canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 30.0)
+        hmm.update(with: features)
+        #expect(hmm.probability(of: .canter) > 0)
+    }
+
+    @Test func walkSpeedCannotReachCanterEvenWithStrongIMU() {
+        let hmm = GaitHMM()
+        // 20 updates of canter features at walk speed with good GPS
+        for _ in 0..<20 {
+            hmm.update(with: canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 5.0))
+        }
+        // State should never be canter or gallop
+        let state = hmm.currentState
+        #expect(state != .canter)
+        #expect(state != .gallop)
     }
 
     // MARK: - Helpers
