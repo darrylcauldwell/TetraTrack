@@ -73,12 +73,7 @@ struct ShootingView: View {
     }
 
     var body: some View {
-        DisciplineMenuView(
-            items: menuItems,
-            header: WatchConnectivityManager.shared.isPaired
-                ? AnyView(ShootingWatchStatusCard())
-                : nil
-        )
+        DisciplineMenuView(items: menuItems)
             .navigationTitle("Shooting")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

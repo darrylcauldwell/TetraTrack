@@ -58,7 +58,12 @@ struct SwimmingView: View {
     }
 
     var body: some View {
-        DisciplineMenuView(items: menuItems)
+        DisciplineMenuView(
+                items: menuItems,
+                header: WatchConnectivityManager.shared.isPaired
+                    ? AnyView(SwimmingWatchStatusCard())
+                    : nil
+            )
             .navigationTitle("Swimming")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

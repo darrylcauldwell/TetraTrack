@@ -127,6 +127,11 @@ struct ShootingCompetitionView: View {
                 }
                 .padding(.horizontal)
 
+                if WatchConnectivityManager.shared.isPaired {
+                    ShootingWatchStatusCard()
+                        .padding(.horizontal)
+                }
+
                 if showingResults {
                     resultsView
                 } else {
@@ -759,6 +764,11 @@ struct FreePracticeView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top)
+
+                if WatchConnectivityManager.shared.isPaired {
+                    ShootingWatchStatusCard()
+                        .padding(.horizontal)
+                }
 
                 Spacer()
 
