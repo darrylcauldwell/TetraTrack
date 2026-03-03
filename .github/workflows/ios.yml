@@ -86,10 +86,14 @@ jobs:
       # --- Build Watch app ---
       - name: Build Watch app
         run: |
+          # Pick the first available watchOS simulator to avoid ambiguity
+          WATCH_UDID=$(xcrun simctl list devices available --json | \
+            python3 -c "import sys,json; devs=json.load(sys.stdin)['devices']; print(next(d['udid'] for k,v in devs.items() if 'watchOS' in k for d in v if d['isAvailable']))")
+          echo "Using Watch simulator: $WATCH_UDID"
           xcodebuild build \
             -project TetraTrack.xcodeproj \
             -scheme "TetraTrack Watch App Watch App" \
-            -destination 'generic/platform=watchOS Simulator' \
+            -destination "platform=watchOS Simulator,id=$WATCH_UDID" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
