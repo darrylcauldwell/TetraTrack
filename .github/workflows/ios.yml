@@ -89,7 +89,7 @@ jobs:
           xcodebuild build \
             -project TetraTrack.xcodeproj \
             -scheme "TetraTrack Watch App Watch App" \
-            -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' \
+            -destination 'generic/platform=watchOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
