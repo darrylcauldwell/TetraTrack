@@ -553,11 +553,7 @@ struct DayRow: View {
                     .italic()
                     .padding(.vertical, 8)
             } else {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 12) {
+                VStack(spacing: 8) {
                     ForEach(workouts) { workout in
                         ScheduledDrillCardCompact(
                             workout: workout,
@@ -591,7 +587,7 @@ struct DayRow: View {
     }
 }
 
-// MARK: - Compact Drill Card (for grid layout)
+// MARK: - Compact Drill Card (for row layout)
 
 struct ScheduledDrillCardCompact: View {
     let workout: ScheduledWorkout
@@ -605,7 +601,7 @@ struct ScheduledDrillCardCompact: View {
                 onTap()
             }
         }) {
-            VStack(spacing: 8) {
+            HStack(spacing: 12) {
                 // Icon with domain color
                 ZStack {
                     Circle()
@@ -630,19 +626,24 @@ struct ScheduledDrillCardCompact: View {
                     }
                 }
 
-                // Drill name
-                Text(workout.drillType.shortName)
-                    .font(.caption.bold())
-                    .lineLimit(1)
-                    .foregroundStyle(workout.isCompleted ? .secondary : .primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    // Drill name
+                    Text(workout.drillType.shortName)
+                        .font(.subheadline.bold())
+                        .lineLimit(1)
+                        .foregroundStyle(workout.isCompleted ? .secondary : .primary)
 
-                // Duration
-                Text(workout.formattedDuration)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    // Duration
+                    Text(workout.formattedDuration)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
