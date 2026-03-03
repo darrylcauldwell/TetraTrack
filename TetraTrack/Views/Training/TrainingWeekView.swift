@@ -369,8 +369,12 @@ struct TrainingWeekView: View {
                     weekStart: weekStart
                 )
 
+                // Refresh domain scores before creating week focus
+                let skillService = SkillDomainService()
+                skillService.updateProfile(activeProfile, context: modelContext)
+
                 // Create or update week focus
-                createWeekFocus(profile: activeProfile)
+                createWeekFocus(profile: activeProfile, recentSessions: Array(recentSessions.prefix(14)))
 
                 try modelContext.save()
 
@@ -383,7 +387,7 @@ struct TrainingWeekView: View {
         }
     }
 
-    private func createWeekFocus(profile: AthleteProfile) {
+    private func createWeekFocus(profile: AthleteProfile, recentSessions: [UnifiedDrillSession]) {
         let domains = SkillDomain.allCases
 
         // Check if profile has any meaningful data
@@ -440,13 +444,26 @@ struct TrainingWeekView: View {
             modelContext.delete(focus)
         }
 
+        // Generate data-driven coaching insight from drill history
+        let coachingEngine = CoachingEngine()
+        let weaknesses = coachingEngine.identifyWeaknesses(drillHistory: recentSessions)
+
+        let insight: String
+        if let topWeakness = weaknesses.first, topWeakness.severity > 0.25 {
+            insight = topWeakness.evidence
+        } else if hasData {
+            insight = weakestDomain.coachingTip
+        } else {
+            insight = "Complete drills to unlock personalized coaching insights based on your performance."
+        }
+
         // Create new focus
         let focus = TrainingWeekFocus(
             weekStartDate: weekStart,
             focusDomain: weakestDomain,
             secondaryFocusDomain: secondaryDomain,
             focusRationale: rationale,
-            coachingInsight: hasData ? weakestDomain.coachingTip : "Complete drills to unlock personalized coaching insights based on your performance."
+            coachingInsight: insight
         )
         modelContext.insert(focus)
     }
