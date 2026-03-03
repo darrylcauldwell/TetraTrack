@@ -956,12 +956,19 @@ final class UnifiedSharingCoordinator {
         refreshTask = Task { [weak self] in
             var consecutiveErrors = 0
             let maxConsecutiveErrors = 5
+            var cycleCount = 0
 
             while !Task.isCancelled {
                 // Check self still exists
                 guard let self = self else {
                     Log.family.warning("Refresh loop exiting - coordinator deallocated")
                     return
+                }
+
+                // Check for invite acceptance every 3rd cycle (~30s)
+                cycleCount += 1
+                if cycleCount % 3 == 1 {
+                    await self.updateInviteStatuses()
                 }
 
                 // Fetch with error tracking
