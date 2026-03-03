@@ -88,8 +88,9 @@ jobs:
       # dependencies (TetraTrackShared). Separate build steps for each
       # sub-target are redundant and fail without explicit iOS destinations.
 
-      # --- Unit tests ---
+      # --- Unit tests (PRs only — pushes to main run tests locally before push) ---
       - name: Run unit tests
+        if: github.event_name == 'pull_request'
         run: |
           xcodebuild test \
             -project TetraTrack.xcodeproj \
