@@ -83,30 +83,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -quiet
 
-      # Note: Watch app is built and validated as an embedded binary by the
-      # main TetraTrack scheme above (ValidateEmbeddedBinary). A separate
-      # Watch scheme build is not needed and is fragile on CI runners with
-      # multiple paired watchOS simulators.
-
-      # --- Build Widget ---
-      - name: Build Widget extension
-        run: |
-          xcodebuild build \
-            -project TetraTrack.xcodeproj \
-            -scheme TetraTrackWidgetExtension \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            -quiet
-
-      # --- Build Shared package ---
-      - name: Build Shared package
-        run: |
-          xcodebuild build \
-            -project TetraTrack.xcodeproj \
-            -scheme TetraTrackShared \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            -quiet
+      # Note: The main TetraTrack scheme build above already compiles and
+      # validates all embedded targets (Watch app, Widget extension) and
+      # dependencies (TetraTrackShared). Separate build steps for each
+      # sub-target are redundant and fail without explicit iOS destinations.
 
       # --- Unit tests ---
       - name: Run unit tests
