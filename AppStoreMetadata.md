@@ -62,7 +62,7 @@ Your data stays on your devices. Apple Intelligence processes locally. We're not
 
 ---
 
-Requires iOS 17.0+. Apple Watch features require watchOS 10.0+. Apple Intelligence features require iPhone 15 Pro or later.
+Requires iOS 26.1+. Apple Watch features require watchOS 26.1+. Apple Intelligence features require iPhone 15 Pro or later.
 
 Train. Track. Triumph. (Try not to spook at the plastic bags.)
 
@@ -260,16 +260,14 @@ Download on the App Store badge
 
 ## Localizations
 
-Currently available in:
+Available in:
 - English (UK) — Primary
 - English (US)
 - English (Australia)
-
-Future localizations planned:
-- German (strong equestrian market)
-- French
-- Dutch (strong equestrian market)
-- Swedish
+- German (~690 localisation keys)
+- French (~690 localisation keys)
+- Dutch (~690 localisation keys)
+- Swedish (~690 localisation keys)
 
 ---
 
@@ -446,62 +444,6 @@ Enfin ! Une app qui distingue le trot du galop "enthousiaste". Coaching IA, dét
 3. Family safety features
 4. Apple Intelligence emphasis (strong Apple market in France)
 
-### Localization Implementation Checklist
+### Localization Status
 
-#### Phase 1: Metadata Translation
-- [ ] Translate App Store description (German)
-- [ ] Translate App Store description (French)
-- [ ] Translate screenshot captions (German)
-- [ ] Translate screenshot captions (French)
-- [ ] Create localized keywords list
-- [ ] Translate What's New template
-
-#### Phase 2: In-App Localization
-- [ ] Create Localizable.strings (German)
-- [ ] Create Localizable.strings (French)
-- [ ] Localize date/time formats
-- [ ] Localize distance units (km standard in EU)
-- [ ] Localize number formats (comma vs period)
-- [ ] Review humor/idioms for cultural fit
-
-#### Phase 3: Visual Assets
-- [ ] Generate German screenshots with localized UI
-- [ ] Generate French screenshots with localized UI
-- [ ] Ensure fonts support German umlauts (ä, ö, ü, ß)
-- [ ] Ensure fonts support French accents (é, è, ê, ç, etc.)
-
-#### Phase 4: Testing
-- [ ] Native speaker review (German)
-- [ ] Native speaker review (French)
-- [ ] UI string length testing (German typically 30% longer)
-- [ ] Cultural appropriateness review
-
-### Budget Estimate
-
-| Item | German | French | Total |
-|------|--------|--------|-------|
-| App Store metadata translation | £200 | £200 | £400 |
-| In-app strings (~500 strings) | £400 | £400 | £800 |
-| Screenshot generation | £100 | £100 | £200 |
-| Native speaker QA | £150 | £150 | £300 |
-| **Total** | **£850** | **£850** | **£1,700** |
-
-### Timeline
-
-| Week | Task |
-|------|------|
-| 1 | Extract all localizable strings |
-| 2-3 | Professional translation (parallel) |
-| 4 | Integration & screenshot generation |
-| 5 | Native speaker review & fixes |
-| 6 | Submit localized builds |
-
-### Success Metrics
-
-| Metric | Target (6 months post-launch) |
-|--------|------------------------------|
-| German downloads | 500+ |
-| French downloads | 300+ |
-| Localized conversion rate | >3% (vs 2% baseline) |
-| German App Store rating | 4.5+ |
-| French App Store rating | 4.5+ |
+In-app localisation complete for all four languages (German, French, Dutch, Swedish) with ~690 keys each.

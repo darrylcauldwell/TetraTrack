@@ -1,344 +1,433 @@
-# TetraTrack Data Model Architecture
+# TetraTrack Architecture
 
-## Entity-Relationship Diagram
+## Overview
+
+TetraTrack is a multi-discipline training app targeting tetrathlon and eventing athletes. It uses physics-based signal processing (FFT, HMM, coherence analysis) to extract biomechanical metrics from IMU sensors, rather than simple heuristics.
+
+**Platforms:** iOS 17+ (primary), watchOS 10+ (companion), iPadOS (review-only), WidgetKit
+**Persistence:** SwiftData with CloudKit sync (`iCloud.dev.dreamfold.TetraTrack`)
+**AI:** FoundationModels framework (iOS 26+) for on-device intelligence
+
+---
+
+## Data Model
+
+### Entity-Relationship Diagram
 
 ```mermaid
 erDiagram
-    %% ─── RIDING DOMAIN ───
-    Horse ||--o{ Ride : "has many"
-    Horse ||--o{ Competition : "competes in"
-    Ride ||--o{ LocationPoint : "has many"
-    Ride ||--o{ GaitSegment : "has many"
-    Ride ||--o{ ReinSegment : "has many"
-    Ride ||--o{ GaitTransition : "has many"
-    Ride ||--o{ RidePhoto : "has many"
-    Ride ||--o{ RideScore : "has many"
-
-    %% ─── RUNNING DOMAIN ───
-    RunningSession ||--o{ RunningSplit : "has many"
-    RunningSession ||--o{ RunningInterval : "has many"
-    RunningSession ||--o{ RunningLocationPoint : "has many"
-
-    %% ─── SWIMMING DOMAIN ───
-    SwimmingSession ||--o{ SwimmingLap : "has many"
-    SwimmingSession ||--o{ SwimmingInterval : "has many"
-    SwimmingSession ||--o{ SwimmingLocationPoint : "has many"
-
-    %% ─── SHOOTING DOMAIN ───
-    ShootingSession ||--o{ ShootingEnd : "has many"
-    ShootingEnd ||--o{ Shot : "has many"
-
-    %% ─── COMPETITION DOMAIN ───
-    Competition ||--o{ CompetitionTask : "has many"
-
-    %% ─── WORKOUT TEMPLATES ───
-    WorkoutTemplate ||--o{ WorkoutBlock : "has many"
-
-    %% ─── ENTITIES ───
+    %% ── Riding Domain ──
     Horse {
-        UUID id
-        String name
-        String breed
-        Date dateOfBirth
-        Double weight
-        Double heightHands
-        Data photoData
-        Bool isArchived
-        Data learnedGaitParametersData
+        string name
+        string breed
+        double heightHands
+        double weightKg
+        date dateOfBirth
+        data photoData
+        string notes
+        string colour
+        string gender
     }
-
     Ride {
-        UUID id
-        Date startDate
-        Date endDate
-        Double totalDistance
-        Double totalDuration
-        String name
-        String rideTypeValue
-        Double elevationGain
-        Double totalLeftAngle
-        Double totalRightAngle
-        Double averageHeartRate
-        Data aiSummaryData
-        Data startWeatherData
+        date startDate
+        date endDate
+        double distance
+        double duration
+        string rideType
+        double averageSpeed
+        double maxSpeed
+        double elevationGain
+        double elevationLoss
+        data heartRateSamplesData
+        data aiSummaryData
+        data weatherData
+        data routeData
     }
-
     LocationPoint {
-        UUID id
-        Double latitude
-        Double longitude
-        Double altitude
-        Date timestamp
-        Double speed
+        double latitude
+        double longitude
+        double altitude
+        double speed
+        date timestamp
+        string gait
     }
-
     GaitSegment {
-        UUID id
-        String gaitType
-        Date startTime
-        Date endTime
-        Double distance
-        Double averageSpeed
-        String leadValue
-        Double rhythmScore
+        string gait
+        date startDate
+        date endDate
+        double distance
+        double avgSpeed
     }
-
     ReinSegment {
-        UUID id
-        String direction
-        Date startTime
-        Date endTime
+        date startDate
+        date endDate
+        double leftPressure
+        double rightPressure
+        double balance
     }
-
     GaitTransition {
-        UUID id
-        String fromGait
-        String toGait
-        Date timestamp
-        Double quality
+        date timestamp
+        string fromGait
+        string toGait
+        double smoothness
     }
-
     RidePhoto {
-        UUID id
-        String localIdentifier
-        Date capturedAt
-        Double latitude
-        Double longitude
+        string assetIdentifier
+        date dateTaken
     }
-
     RideScore {
-        UUID id
-        Int relaxation
-        Int impulsion
-        Int straightness
-        Int rhythm
-        Int riderPosition
-        String notes
+        int relaxation
+        int rhythm
+        int suppleness
+        int connection
+        int impulsion
+        int straightness
+        int collection
+        int riderPosition
+        int energy
     }
 
+    Horse ||--o{ Ride : "has rides"
+    Ride ||--o{ LocationPoint : "has points"
+    Ride ||--o{ GaitSegment : "has segments"
+    Ride ||--o{ ReinSegment : "has reins"
+    Ride ||--o{ GaitTransition : "has transitions"
+    Ride ||--o{ RidePhoto : "has photos"
+    Ride ||--o| RideScore : "has score"
+
+    %% ── Running Domain ──
     RunningSession {
-        UUID id
-        Date startDate
-        Date endDate
-        String sessionTypeRaw
-        String runModeRaw
-        Double totalDistance
-        Double totalDuration
-        Double averageCadence
-        Double averageHeartRate
-        Data startWeatherData
+        date startDate
+        date endDate
+        double distance
+        double duration
+        string sessionType
+        double averagePace
+        int averageCadence
+        data heartRateSamplesData
+        data aiSummaryData
+        data weatherData
     }
-
     RunningSplit {
-        UUID id
-        Int orderIndex
-        Double distance
-        Double duration
-        Double cadence
-        Double heartRate
+        int lapNumber
+        double distance
+        double duration
+        double pace
+        int cadence
     }
-
     RunningInterval {
-        UUID id
-        Int orderIndex
-        String name
-        Double targetDistance
-        Double targetPace
-        Bool isCompleted
+        int order
+        string intervalType
+        double targetPace
+        double duration
     }
-
     RunningLocationPoint {
-        UUID id
-        Double latitude
-        Double longitude
-        Date timestamp
-        Double speed
+        double latitude
+        double longitude
+        double altitude
+        double speed
+        date timestamp
     }
 
+    RunningSession ||--o{ RunningSplit : "has splits"
+    RunningSession ||--o{ RunningInterval : "has intervals"
+    RunningSession ||--o{ RunningLocationPoint : "has points"
+
+    %% ── Swimming Domain ──
     SwimmingSession {
-        UUID id
-        Date startDate
-        Date endDate
-        String poolModeRaw
-        Double poolLength
-        Double totalDistance
-        Double totalDuration
-        Int totalStrokes
-        Double averageHeartRate
+        date startDate
+        date endDate
+        double distance
+        double duration
+        string sessionType
+        int totalStrokes
+        double averageSWOLF
+        data heartRateSamplesData
     }
-
     SwimmingLap {
-        UUID id
-        Int orderIndex
-        Date startTime
-        Date endTime
-        Double distance
-        Int strokeCount
-        String strokeRaw
+        int lapNumber
+        double duration
+        int strokes
+        double swolf
+        string strokeType
     }
-
     SwimmingInterval {
-        UUID id
-        Int orderIndex
-        String name
-        Double targetDistance
-        Bool isCompleted
+        int order
+        string intervalType
+        double distance
     }
-
     SwimmingLocationPoint {
-        UUID id
-        Double latitude
-        Double longitude
-        Date timestamp
+        double latitude
+        double longitude
+        date timestamp
     }
 
+    SwimmingSession ||--o{ SwimmingLap : "has laps"
+    SwimmingSession ||--o{ SwimmingInterval : "has intervals"
+    SwimmingSession ||--o{ SwimmingLocationPoint : "has points"
+
+    %% ── Shooting Domain ──
     ShootingSession {
-        UUID id
-        Date startDate
-        Date endDate
-        String sessionContextRaw
-        String targetTypeRaw
-        Double distance
-        Int numberOfEnds
-        Double averageStanceStability
+        date startDate
+        date endDate
+        string sessionType
+        int totalScore
+        data stanceData
+        data heartRateSamplesData
     }
-
     ShootingEnd {
-        UUID id
-        Int orderIndex
-        Date startTime
-        Date endTime
-        UUID targetScanAnalysisID
+        int endNumber
+        int score
     }
-
     Shot {
-        UUID id
-        Int orderIndex
-        Int score
-        Bool isX
-        Double positionX
-        Double positionY
+        int shotNumber
+        int score
+        double x
+        double y
     }
 
+    ShootingSession ||--o{ ShootingEnd : "has ends"
+    ShootingEnd ||--o{ Shot : "has shots"
+
+    %% ── Competition Domain ──
     Competition {
-        UUID id
-        String name
-        Date date
-        Date endDate
-        String venue
-        String competitionTypeRaw
-        String levelRaw
-        Bool isEntered
-        Bool isCompleted
-        Int shootingScore
-        Double swimmingTime
-        Double runningTime
-        Int ridingScore
-        Data weatherData
+        string name
+        string venue
+        date startDate
+        date endDate
+        string competitionType
+        string level
+        data weatherData
+        string notes
     }
-
     CompetitionTask {
-        UUID id
-        String title
-        Date dueDate
-        Bool isCompleted
-        String priorityRaw
-        String categoryRaw
+        string title
+        bool isCompleted
+        string category
+        int priority
     }
 
-    WorkoutTemplate {
-        UUID id
-        String name
-        String disciplineRaw
-        String difficultyRaw
-        Int estimatedDuration
-        Bool isBuiltIn
-    }
-
-    WorkoutBlock {
-        UUID id
-        String name
-        Int durationSeconds
-        String targetGaitRaw
-        String intensityRaw
-        Int orderIndex
-    }
+    Competition ||--o{ CompetitionTask : "has tasks"
+    Competition }o--o| Horse : "assigned horse"
 ```
 
-## Domain Summary
+### Design Patterns
 
-The data model is organized into **6 domains** with a consistent pattern:
-each discipline has a **session** entity that owns child detail records.
+| Pattern | Usage |
+|---------|-------|
+| **JSON-blob storage** | Complex types encoded as `Data?` (heart rate samples, AI summaries, weather) |
+| **Enum-as-String** | All enums stored as raw strings for CloudKit compatibility |
+| **Optional relationships** | All `@Relationship` arrays use `[Type]?` (CloudKit requirement) |
+| **Cascade deletes** | Parent deletion cascades to children (LocationPoints, Splits, etc.) |
+| **PHAsset references** | Photos stored as asset identifiers, not image data |
+| **UUID foreign keys** | Cross-domain links use UUID strings |
 
-### 1. Riding (most complex)
-```
-Horse ──┬── Ride ──┬── LocationPoint (GPS breadcrumbs)
-        │          ├── GaitSegment (walk/trot/canter/gallop periods)
-        │          ├── ReinSegment (left/right/straight periods)
-        │          ├── GaitTransition (gait change events)
-        │          ├── RidePhoto (PHAsset references)
-        │          └── RideScore (subjective 1-5 ratings)
-        │
-        └── Competition
-```
-- **Horse** is the only entity shared across domains (Ride + Competition)
-- Rides store extensive biomechanical data as encoded JSON blobs (weather, AI summaries, stride metrics, gait diagnostics)
+### CloudKit Requirements
 
-### 2. Running
-```
-RunningSession ──┬── RunningSplit (per-km splits)
-                 ├── RunningInterval (structured workout intervals)
-                 └── RunningLocationPoint (GPS breadcrumbs)
-```
+```swift
+// All properties MUST have defaults or be optional
+var name: String = ""
+var endDate: Date?
 
-### 3. Swimming
-```
-SwimmingSession ──┬── SwimmingLap (per-length laps)
-                  ├── SwimmingInterval (structured intervals)
-                  └── SwimmingLocationPoint (open-water GPS)
+// Relationships MUST be optional arrays
+@Relationship(deleteRule: .cascade, inverse: \LocationPoint.ride)
+var locationPoints: [LocationPoint]? = []  // Note the ?
+
+// NEVER use @Attribute(.unique) — breaks CloudKit sync
 ```
 
-### 4. Shooting
+---
+
+## Service Architecture
+
+### Core Services
+
+| Service | Pattern | Purpose |
+|---------|---------|---------|
+| `RideTracker` | `@Observable` | Orchestrates active ride sessions |
+| `LocationManager` | `@Observable` | CoreLocation with `CLLocationUpdate.liveUpdates(.fitness)` |
+| `ServiceContainer` | Protocol DI | Dependency injection for testability |
+| `WatchConnectivityManager` | Singleton | Watch <-> phone messaging |
+| `AudioCoachManager` | Singleton | Voice coaching via AVSpeechSynthesizer |
+| `LocalizationManager` | Singleton | Runtime language switching |
+
+### Signal Processing (DSP)
+
+| Service | Algorithm | Purpose |
+|---------|-----------|---------|
+| `FFTProcessor` | Fast Fourier Transform | Frequency extraction from accelerometer data |
+| `GaitHMM` | Hidden Markov Model | Gait state classification with transition constraints |
+| `CoherenceAnalyzer` | Spectral coherence | Signal quality and coupling assessment |
+| `HilbertTransform` | Analytic signal | Phase extraction for lead detection |
+| `FrameTransformer` | Rotation matrices | Phone-to-horse coordinate transformation |
+
+### Discipline Services
+
+**Riding (13 services):**
+`GaitAnalyzer`, `LeadAnalyzer`, `ReinAnalyzer`, `TurnAnalyzer`, `SymmetryAnalyzer`, `RhythmAnalyzer`, `HorseRoutingEngine`, `HorseStatisticsManager`, `RideHealthCoordinator`, `RideWatchBridge`, `MotionManager`, `GaitLearningService`, `PostSessionSummaryService`
+
+**Running (7 services):**
+`LapDetector`, `VirtualPacer`, `TrainingProgramService`, `ProgramAudioCoach`, `RouteMatchingService`, `SegmentPBAnalyzer`, `WalkingAnalysisService`
+
+**Shooting (8+ services):**
+`EnhancedTargetScanner`, `AssistedHoleDetector`, `PatternAnalyzer`, `ShootingSensorAnalyzer`, `ShootingHistoryService`, `TargetThumbnailService` + Detection/ and MLTraining/ subdirectories
+
+**Swimming:** Integrated into session tracking views with Apple Watch stroke detection
+
+### Training & Analytics
+
+| Service | Purpose |
+|---------|---------|
+| `TrainingLoadService` | CTL/ATL/TSB performance management |
+| `CoachingEngine` | Real-time coaching cues |
+| `DrillScorer` | Drill performance scoring |
+| `AdaptiveDifficultyService` | Progressive drill difficulty |
+| `CrossSportCorrelationService` | Cross-discipline transfer analysis |
+| `TrendAnalyzer` | Long-term performance trends |
+
+### Intelligence (iOS 26+)
+
+| Service | Purpose |
+|---------|---------|
+| `IntelligenceService` | FoundationModels integration |
+| `AIDataCollector` | Data preparation for AI analysis |
+
+Features: ride summaries, training pattern analysis, personalised recommendations, ride comparison, competition insights, recovery analysis. Uses `@Generable` structured responses.
+
+### Sharing & CloudKit
+
+| Service | Purpose |
+|---------|---------|
+| `UnifiedSharingCoordinator` | Master CloudKit sharing orchestrator |
+| `ArtifactSyncService` | Cross-device training data sync |
+| `ShareConnectionService` | Family sharing connections |
+| `LiveTrackingService` | Real-time location sharing |
+| `SafetyAlertService` | Fall detection alert distribution |
+| `FallDetectionManager` | 2-phase fall detection algorithm |
+
+---
+
+## Signal Processing Pipeline
+
+### Gait Analysis
+
+The app measures horse gait, rider balance, and movement quality using rider-mounted IMU sensors (iPhone + Apple Watch).
+
+**Sensor Input:** CoreMotion at ~100Hz (userAcceleration, rotationRate, attitude)
+
+**Processing Pipeline:**
 ```
-ShootingSession ── ShootingEnd ── Shot
-                        │
-                        └── references TargetScanAnalysis (by UUID, not relationship)
+CoreMotion -> FrameTransformer (phone-to-horse coordinates)
+    -> Window-based FFT (2.5s windows, 80% overlap)
+    -> Feature extraction (Z, X, Y acceleration + yaw/roll rate)
+    -> Spectral analysis (Pz, Px, Pyaw)
+    -> Stride frequency detection (0.5-6Hz)
+    -> Harmonic ratios (H2, H3)
+    -> Coherence analysis
+    -> HMM classification (walk/trot/canter/gallop)
 ```
-- **TargetScanAnalysis** is a standalone entity (no @Relationship) linked by UUID — this is because scan analyses can exist independently of sessions
 
-### 5. Competitions
+**Horse Profile Calibration:** Age, weight, height, and breed parameters scale stride thresholds, normalise signals, estimate speed, and provide breed-specific frequency priors.
+
+**Gait Classification:** Feature vector includes stride frequency (f0), harmonic ratios (H2, H3), spectral entropy, and coherence. The HMM constrains transitions to physically possible sequences (e.g., no walk->gallop). Updates at 2-4Hz.
+
+**Canter Lead Detection:** Phase difference between lateral acceleration (Y) and yaw rate via Hilbert transform. +/-90 degrees indicates left/right lead.
+
+**Balance Metrics:**
+- Rein balance: RMS of positive/negative lateral acceleration, ratio metric
+- Turn balance: measured vs expected centripetal acceleration
+- Straightness: mean yaw rate and lateral acceleration
+- Lead quality: vertical-yaw coherence x lead phase magnitude
+- Rider symmetry: Apple Watch accelerometer data
+
+**Session Outputs:** Rhythm/regularity scores, transition quality ratings, lead consistency percentages, symmetry indices, bend quality metrics.
+
+### Running Motion Analysis
+
+iPhone-based motion analysis at 100Hz in pocket mode, reusing the DSP components.
+
+**Features:**
+1. **Cadence detection** -- FFT peak in 1.2-3.5Hz range, mapped to steps/min
+2. **Gait phase classification** -- Walking/jogging/running/sprinting based on cadence + vertical oscillation thresholds, confirmed by GPS
+3. **Vertical oscillation** -- Double-integration of vertical acceleration with high-pass drift removal
+4. **Ground contact time** -- Acceleration asymmetry and duty cycle analysis
+5. **Left-right asymmetry** -- Lateral acceleration peak comparison, asymmetry index
+6. **Impact loading** -- Peak acceleration magnitude and loading rate trends
+7. **Form degradation** -- Composite score from 5 metrics compared to session baseline, audio alerts when declining
+8. **Treadmill step counting** -- Step detection + stride length estimation for GPS-free distance
+9. **Running power** -- Three-component estimate (horizontal, vertical, lateral) for metabolic efficiency
+
+---
+
+## Ride Insights View
+
+Visual layout specification for post-ride analysis:
+
+1. **Header Summary** -- Rhythm, Lead Quality, Effort scores as horizontal progress bars (0-100%, colour-coded green/yellow/red)
+2. **Gait Timeline** -- Horizontal time axis with gait-coloured segments, canter lead arrows, tap for stride frequency
+3. **Rein & Turn Balance** -- Stacked line graphs (positive=left/inward, negative=right/outward) with green/yellow/red zones
+4. **Rider Symmetry** -- Line chart with threshold violation shading, summary statistics
+5. **Rhythm & Stability** -- Heatmap of stride timing irregularity, colour intensity = deviation
+6. **Transition Quality** -- Mini timeline of gait transitions, colour-coded by smoothness
+7. **Lead Consistency** -- Pie chart (correct lead vs cross-canter) with coupling score overlay
+8. **Interactive** -- Tap to highlight correlations, zoom along duration, swipe to compare segments
+
+---
+
+## Training Philosophy: Cross-Sport Transfer
+
+TetraTrack measures athlete movement across disciplines using a unified biomechanics framework, not just sport-specific metrics.
+
+### Six Pillars of Movement
+
+| Pillar | Riding | Running | Swimming | Shooting |
+|--------|--------|---------|----------|----------|
+| **Stability** | Trunk steadiness | Core engagement | Streamline hold | Stance steadiness |
+| **Balance** | Rein/turn balance | Left-right symmetry | Stroke symmetry | Weight distribution |
+| **Symmetry** | Lead consistency | Gait asymmetry | Bilateral stroke | Stance alignment |
+| **Rhythm** | Stride regularity | Cadence consistency | Stroke rate | Breathing rhythm |
+| **Endurance** | HR recovery | Pace maintenance | SWOLF consistency | Hold duration |
+| **Calmness** | HR variability | Form under fatigue | Stroke smoothness | Tremor control |
+
+### Cross-Sport Transfer Examples
+
+- Balance board drill -> improved running left-right symmetry
+- Breathing exercises -> improved swimming stroke consistency
+- Core stability drill -> improved shooting stance steadiness
+- Hip mobility drill -> improved riding straightness
+
+All metrics are physics-derived from IMU sensors and GPS -- not subjective assessments.
+
+---
+
+## Shooting Target Analysis
+
+Stadium geometry (Build 67+) uses stadium shapes for ring boundaries instead of ellipses. Implementation in `TargetGeometry.swift` and `RingAwareAnalyzer.swift`.
+
+---
+
+## Key Architectural Decisions
+
+### Timer Implementation
+Wall-clock time throughout: store `startDate = Date()` at start, compute elapsed as `Date().timeIntervalSince(startDate)`. Milestone detection uses boundary crossing, not exact equality. Applied across 27+ session and drill screens.
+
+### CloudKit Sync Strategy
+Automatic sync via SwiftData's `cloudKitDatabase: .automatic`. Graceful fallback to local-only if CloudKit unavailable. All models designed for sync compatibility (optional relationships, default values, string enums).
+
+### Encoded Data Fields
+Complex types stored as `Data?` and decoded on access:
+- `aiSummaryData` -> `SessionSummary`
+- `heartRateSamplesData` -> `[HeartRateSample]`
+- `weatherData` -> `WeatherConditions`
+
+### Background Location
+```swift
+locationManager.allowsBackgroundLocationUpdates = true
+locationManager.pausesLocationUpdatesAutomatically = false
+locationManager.activityType = .fitness
 ```
-Competition ── CompetitionTask
-     │
-     └── Horse (optional)
-```
-- Stores results for all four disciplines (shooting score, swimming time, running time, riding score) plus calculated points
 
-### 6. Standalone Entities (no parent relationships)
-| Entity | Purpose |
-|--------|---------|
-| **RiderProfile** | Physical stats (weight, height, HR zones) |
-| **AthleteProfile** | Rolling 30-day skill averages across all disciplines |
-| **SkillDomainScore** | Individual skill domain measurements |
-| **FatigueIndicator** | HRV-based recovery readiness |
-| **FlatworkExercise / PoleworkExercise** | Reusable arena exercises |
-| **UnifiedDrillSession / RidingDrillSession / ShootingDrillSession** | Drill practice records |
-| **TrainingStreak / ScheduledWorkout / TrainingWeekFocus** | Training planning |
-| **TargetScanAnalysis** | Camera-scanned target card results |
-| **DownloadedRegion / OSMNode / PlannedRoute / RouteWaypoint** | Offline route planning |
-| **TrainingArtifact / SharedCompetition / SharingRelationship / LinkedRiderRecord** | CloudKit family sharing |
-| **LiveTrackingSession / FamilyMember** | Real-time location sharing |
-
-## Design Patterns
-
-1. **JSON-blob storage** — Complex data (weather, AI summaries, heart rate samples, gait diagnostics) stored as `Data` properties with computed getters that decode on access. Avoids extra entities and keeps CloudKit compatible.
-
-2. **Enum-as-String** — All enums stored as raw `String` values (e.g. `rideTypeValue`, `competitionTypeRaw`) for CloudKit compatibility.
-
-3. **Optional relationships with `?`** — All `@Relationship` arrays use `[Type]?` (CloudKit requirement). Accessed via `(relationship ?? [])`.
-
-4. **Cascade deletes** — All parent→child relationships use `.cascade` delete rule.
-
-5. **PHAsset references** — Photos/videos store Apple Photos asset identifiers, not image data.
-
-6. **UUID foreign keys** — Some cross-domain links use stored UUIDs rather than @Relationship (e.g. `ShootingEnd.targetScanAnalysisID`).
+### Watch Communication
+- Real-time: `session.sendMessage()` (when reachable)
+- State sync: `session.updateApplicationContext()` (last value wins)
+- Queued commands: `session.transferUserInfo()` (guaranteed delivery)
