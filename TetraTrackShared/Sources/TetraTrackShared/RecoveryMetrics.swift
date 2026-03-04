@@ -210,10 +210,8 @@ public struct RecoverySession: Codable, Sendable {
         let targetHR = restingHR + 10 // Within 10 bpm of resting
 
         let sortedSamples = samples.sorted { $0.timestamp < $1.timestamp }
-        for sample in sortedSamples {
-            if sample.bpm <= targetHR {
-                return sample.secondsSinceRideEnd
-            }
+        for sample in sortedSamples where sample.bpm <= targetHR {
+            return sample.secondsSinceRideEnd
         }
         return nil
     }

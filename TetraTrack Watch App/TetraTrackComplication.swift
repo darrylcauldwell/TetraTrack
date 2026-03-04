@@ -66,9 +66,9 @@ struct TetraTrackProvider: TimelineProvider {
         // If riding, update more frequently
         let refreshDate: Date
         if service.isRiding {
-            refreshDate = Calendar.current.date(byAdding: .second, value: 15, to: currentDate)!
+            refreshDate = Calendar.current.date(byAdding: .second, value: 15, to: currentDate) ?? currentDate
         } else {
-            refreshDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate)!
+            refreshDate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate) ?? currentDate
         }
 
         let timeline = Timeline(entries: entries, policy: .after(refreshDate))

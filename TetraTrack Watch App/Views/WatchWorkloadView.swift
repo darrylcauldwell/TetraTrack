@@ -18,11 +18,11 @@ struct WorkloadData: Codable {
     let recommendation: WorkloadRecommendation
 
     enum WorkloadRecommendation: String, Codable {
-        case rest = "rest"
-        case light = "light"
-        case moderate = "moderate"
-        case ready = "ready"
-        case active = "active"  // Currently in a session
+        case rest
+        case light
+        case moderate
+        case ready
+        case active  // Currently in a session
     }
 }
 
