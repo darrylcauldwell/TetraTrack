@@ -628,40 +628,29 @@ actor ShareConnectionService {
 
     // MARK: - Check Share Acceptance Status
 
-    /// Check if the zone share has any accepted participants
-    /// Returns the user IDs of participants who have accepted
-    func checkShareAcceptance() async -> [String] {
-        guard let zoneID = zoneID else {
-            return []
-        }
+    /// Check if the zone share has any accepted non-owner participants.
+    /// Does not rely on userIdentity.userRecordID, which CloudKit often leaves nil
+    /// for zone-level shares fetched via query.
+    func hasAnyAcceptedParticipants() async -> Bool {
+        guard let zoneID = zoneID else { return false }
 
         do {
             guard let share = try await fetchExistingZoneShare(zoneID: zoneID) else {
-                return []
+                return false
             }
 
-            // Check all participants (excluding owner)
-            var acceptedParticipantIDs: [String] = []
-            for participant in share.participants {
-                // Skip the owner
-                if participant.role == .owner {
-                    continue
-                }
-
-                // Check if participant has accepted
-                if participant.acceptanceStatus == .accepted {
-                    if let userRecordID = participant.userIdentity.userRecordID?.recordName {
-                        acceptedParticipantIDs.append(userRecordID)
-                        Log.family.debug("Found accepted participant: \(userRecordID)")
-                    }
-                }
+            let accepted = share.participants.contains {
+                $0.role != .owner && $0.acceptanceStatus == .accepted
             }
 
-            return acceptedParticipantIDs
+            if accepted {
+                Log.family.debug("Zone share has at least one accepted participant")
+            }
 
+            return accepted
         } catch {
             Log.family.debug("Failed to check share acceptance: \(error.localizedDescription)")
-            return []
+            return false
         }
     }
 
