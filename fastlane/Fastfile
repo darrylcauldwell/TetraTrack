@@ -29,10 +29,9 @@ platform :ios do
     )
 
     # Keep version in sync: 0.1.<build>
-    increment_version_number(
-      xcodeproj: "TetraTrack.xcodeproj",
-      version_number: "0.1.#{new_build}"
-    )
+    # Use sed to update all MARKETING_VERSION entries across all targets/configs
+    # (increment_version_number requires VERSIONING_SYSTEM = apple-generic which is not set)
+    sh("sed -i '' 's/MARKETING_VERSION = [0-9.]*/MARKETING_VERSION = 0.1.#{new_build}/' ../TetraTrack.xcodeproj/project.pbxproj")
 
     # Build the app
     build_app(
