@@ -629,27 +629,39 @@ actor ShareConnectionService {
     // MARK: - Check Share Acceptance Status
 
     /// Check if the zone share has any accepted non-owner participants.
-    /// Does not rely on userIdentity.userRecordID, which CloudKit often leaves nil
-    /// for zone-level shares fetched via query.
+    /// Uses a two-step fetch: query to find the share record ID, then direct
+    /// fetch by ID to get the fully populated participants array.
+    /// CKQuery results for cloudkit.share do not reliably populate participants.
     func hasAnyAcceptedParticipants() async -> Bool {
         guard let zoneID = zoneID else { return false }
 
         do {
-            guard let share = try await fetchExistingZoneShare(zoneID: zoneID) else {
+            // Step 1: query to locate the share and get its record ID
+            guard let queryShare = try await fetchExistingZoneShare(zoneID: zoneID) else {
+                Log.family.debug("hasAnyAcceptedParticipants: no zone share found")
                 return false
             }
 
-            let accepted = share.participants.contains {
-                $0.role != .owner && $0.acceptanceStatus == .accepted
+            // Step 2: direct fetch by record ID to get fully populated participants
+            guard let share = try await container.privateCloudDatabase.record(for: queryShare.recordID) as? CKShare else {
+                Log.family.debug("hasAnyAcceptedParticipants: direct fetch did not return CKShare")
+                return false
             }
 
+            let nonOwners = share.participants.filter { $0.role != .owner }
+            Log.family.debug("hasAnyAcceptedParticipants: \(nonOwners.count) non-owner participant(s)")
+            for p in nonOwners {
+                Log.family.debug("  participant acceptanceStatus=\(p.acceptanceStatus.rawValue)")
+            }
+
+            let accepted = nonOwners.contains { $0.acceptanceStatus == .accepted }
             if accepted {
-                Log.family.debug("Zone share has at least one accepted participant")
+                Log.family.info("Zone share has at least one accepted participant")
             }
-
             return accepted
+
         } catch {
-            Log.family.debug("Failed to check share acceptance: \(error.localizedDescription)")
+            Log.family.debug("hasAnyAcceptedParticipants failed: \(error.localizedDescription)")
             return false
         }
     }
