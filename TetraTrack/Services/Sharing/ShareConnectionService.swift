@@ -628,40 +628,41 @@ actor ShareConnectionService {
 
     // MARK: - Check Share Acceptance Status
 
-    /// Check if the zone share has any accepted participants
-    /// Returns the user IDs of participants who have accepted
-    func checkShareAcceptance() async -> [String] {
-        guard let zoneID = zoneID else {
-            return []
-        }
+    /// Check if the zone share has any accepted non-owner participants.
+    /// Uses a two-step fetch: query to find the share record ID, then direct
+    /// fetch by ID to get the fully populated participants array.
+    /// CKQuery results for cloudkit.share do not reliably populate participants.
+    func hasAnyAcceptedParticipants() async -> Bool {
+        guard let zoneID = zoneID else { return false }
 
         do {
-            guard let share = try await fetchExistingZoneShare(zoneID: zoneID) else {
-                return []
+            // Step 1: query to locate the share and get its record ID
+            guard let queryShare = try await fetchExistingZoneShare(zoneID: zoneID) else {
+                Log.family.debug("hasAnyAcceptedParticipants: no zone share found")
+                return false
             }
 
-            // Check all participants (excluding owner)
-            var acceptedParticipantIDs: [String] = []
-            for participant in share.participants {
-                // Skip the owner
-                if participant.role == .owner {
-                    continue
-                }
-
-                // Check if participant has accepted
-                if participant.acceptanceStatus == .accepted {
-                    if let userRecordID = participant.userIdentity.userRecordID?.recordName {
-                        acceptedParticipantIDs.append(userRecordID)
-                        Log.family.debug("Found accepted participant: \(userRecordID)")
-                    }
-                }
+            // Step 2: direct fetch by record ID to get fully populated participants
+            guard let share = try await container.privateCloudDatabase.record(for: queryShare.recordID) as? CKShare else {
+                Log.family.debug("hasAnyAcceptedParticipants: direct fetch did not return CKShare")
+                return false
             }
 
-            return acceptedParticipantIDs
+            let nonOwners = share.participants.filter { $0.role != .owner }
+            Log.family.debug("hasAnyAcceptedParticipants: \(nonOwners.count) non-owner participant(s)")
+            for p in nonOwners {
+                Log.family.debug("  participant acceptanceStatus=\(p.acceptanceStatus.rawValue)")
+            }
+
+            let accepted = nonOwners.contains { $0.acceptanceStatus == .accepted }
+            if accepted {
+                Log.family.info("Zone share has at least one accepted participant")
+            }
+            return accepted
 
         } catch {
-            Log.family.debug("Failed to check share acceptance: \(error.localizedDescription)")
-            return []
+            Log.family.debug("hasAnyAcceptedParticipants failed: \(error.localizedDescription)")
+            return false
         }
     }
 

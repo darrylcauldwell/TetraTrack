@@ -301,7 +301,6 @@ struct SharingDiagnosticsView: View {
         let zoneID = CKRecordZone.ID(zoneName: "FamilySharing", ownerName: CKCurrentUserDefaultName)
 
         var errors: [String] = []
-        var deletedZone = false
 
         // 1. Delete the entire FamilySharing zone - this removes ALL records and shares
         do {
@@ -315,11 +314,8 @@ struct SharingDiagnosticsView: View {
                     errors.append("Zone delete: \(error.localizedDescription)")
                 }
             }
-            deletedZone = true
         } catch {
-            if let ckError = error as? CKError, ckError.code == .zoneNotFound {
-                deletedZone = true // Zone didn't exist, that's fine
-            } else {
+            if let ckError = error as? CKError, ckError.code != .zoneNotFound {
                 errors.append("Zone delete: \(error.localizedDescription)")
             }
         }

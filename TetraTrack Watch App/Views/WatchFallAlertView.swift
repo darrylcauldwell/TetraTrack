@@ -52,10 +52,10 @@ struct WatchFallAlertView: View {
                     .frame(height: 8)
 
                 // I'm OK button - large and prominent
-                Button(action: {
+                Button {
                     HapticManager.shared.playSuccessHaptic()
                     fallManager.confirmOK()
-                }) {
+                } label: {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title3)
@@ -71,10 +71,10 @@ struct WatchFallAlertView: View {
                 .buttonStyle(.plain)
 
                 // Get Help button
-                Button(action: {
+                Button {
                     HapticManager.shared.playStopHaptic()
                     fallManager.requestEmergency()
-                }) {
+                } label: {
                     HStack {
                         Image(systemName: "phone.fill")
                             .font(.caption)

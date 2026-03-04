@@ -232,33 +232,24 @@ final class UnifiedSharingCoordinator {
         )
     }
 
-    /// Check and update invite statuses based on share acceptance
-    /// Called periodically to detect when someone has accepted a share
+    /// Check and update invite statuses based on share acceptance.
+    /// Called periodically to detect when someone has accepted a share.
     func updateInviteStatuses() async {
         guard let repository = repository else { return }
 
-        // Get accepted participant IDs from CloudKit share
-        let acceptedIDs = await shareConnectionService.checkShareAcceptance()
+        // Zone-level share: if ANY non-owner participant has accepted,
+        // all pending outbound invites can be marked accepted.
+        let hasAccepted = await shareConnectionService.hasAnyAcceptedParticipants()
+        guard hasAccepted else { return }
 
-        guard !acceptedIDs.isEmpty else { return }
+        Log.family.info("Zone share has accepted participants, promoting pending invite statuses")
 
-        Log.family.info("Found \(acceptedIDs.count) accepted participants, updating invite statuses")
-
-        // Update relationships where the linked rider has accepted
         do {
             let relationships = try repository.fetchAll()
             var updatedCount = 0
 
             for relationship in relationships {
-                // Only update pending invites
                 guard relationship.inviteStatus == .pending else { continue }
-
-                // Check if this relationship's connection corresponds to an accepted participant
-                // We need to check if any of our linked riders match the accepted participants
-                // The linked riders are people who accepted our shares
-
-                // For now, if we have ANY accepted participants and the relationship is pending,
-                // mark it as accepted (since we use zone-level sharing)
                 relationship.inviteStatus = .accepted
                 repository.update(relationship)
                 updatedCount += 1
@@ -266,7 +257,7 @@ final class UnifiedSharingCoordinator {
             }
 
             if updatedCount > 0 {
-                Log.family.info("Updated \(updatedCount) invite statuses to accepted")
+                Log.family.info("Updated \(updatedCount) invite status(es) to accepted")
             }
         } catch {
             Log.family.error("Failed to update invite statuses: \(error)")
