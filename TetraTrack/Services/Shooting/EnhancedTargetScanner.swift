@@ -456,8 +456,9 @@ actor EnhancedTargetScanner {
             shots: snapshot.shots
         )
 
-        // Create analysis record
-        nonisolated(unsafe) let analysis = await MainActor.run {
+        // Create analysis record and update state together on MainActor
+        // (keeps TargetScanAnalysis within MainActor context, avoiding Sendable crossing)
+        return await MainActor.run {
             let analysis = TargetScanAnalysis()
             analysis.calculateEnhancedMetrics(
                 from: snapshot.shots,
@@ -467,17 +468,14 @@ actor EnhancedTargetScanner {
             analysis.targetAlignment = snapshot.alignment
             analysis.acquisitionQuality = acquisitionQuality
             analysis.validationWarnings = validationResult.warnings
-            return analysis
-        }
 
-        await MainActor.run {
             state.acquisitionQuality = acquisitionQuality
             state.processingMessage = ""
             state.isProcessing = false
             state.phase = .review
-        }
 
-        return analysis
+            return analysis
+        }
     }
 
     private func buildAcquisitionQuality(

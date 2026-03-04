@@ -301,7 +301,6 @@ struct SharingDiagnosticsView: View {
         let zoneID = CKRecordZone.ID(zoneName: "FamilySharing", ownerName: CKCurrentUserDefaultName)
 
         var errors: [String] = []
-        var deletedZone = false
 
         // 1. Delete the entire FamilySharing zone - this removes ALL records and shares
         do {
