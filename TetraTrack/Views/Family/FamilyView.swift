@@ -707,6 +707,21 @@ struct ContactRow: View {
                                 .buttonStyle(.borderedProminent)
                                 .tint(contact.inviteStatus == .pending ? .orange : AppColors.primary)
                                 .disabled(isGeneratingShare)
+
+                                if contact.inviteStatus == .pending {
+                                    Button {
+                                        contact.inviteStatus = .accepted
+                                        sharingCoordinator.repository?.update(contact)
+                                    } label: {
+                                        Label("Mark as Connected", systemImage: "checkmark.circle")
+                                            .font(.body)
+                                            .fontWeight(.medium)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 14)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(.green)
+                                }
                             }
                             .padding(16)
                             .background(AppColors.cardBackground.opacity(0.5))
