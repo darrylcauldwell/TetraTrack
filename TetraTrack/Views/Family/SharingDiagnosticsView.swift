@@ -314,11 +314,8 @@ struct SharingDiagnosticsView: View {
                     errors.append("Zone delete: \(error.localizedDescription)")
                 }
             }
-            deletedZone = true
         } catch {
-            if let ckError = error as? CKError, ckError.code == .zoneNotFound {
-                deletedZone = true // Zone didn't exist, that's fine
-            } else {
+            if let ckError = error as? CKError, ckError.code != .zoneNotFound {
                 errors.append("Zone delete: \(error.localizedDescription)")
             }
         }
