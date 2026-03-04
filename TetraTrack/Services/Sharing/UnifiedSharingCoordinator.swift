@@ -240,7 +240,10 @@ final class UnifiedSharingCoordinator {
         // Zone-level share: if ANY non-owner participant has accepted,
         // all pending outbound invites can be marked accepted.
         let hasAccepted = await shareConnectionService.hasAnyAcceptedParticipants()
-        guard hasAccepted else { return }
+        guard hasAccepted else {
+            Log.family.info("updateInviteStatuses: no accepted participants found, skipping")
+            return
+        }
 
         Log.family.info("Zone share has accepted participants, promoting pending invite statuses")
 

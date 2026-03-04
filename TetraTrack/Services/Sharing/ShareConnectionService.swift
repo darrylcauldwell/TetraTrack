@@ -633,35 +633,38 @@ actor ShareConnectionService {
     /// fetch by ID to get the fully populated participants array.
     /// CKQuery results for cloudkit.share do not reliably populate participants.
     func hasAnyAcceptedParticipants() async -> Bool {
-        guard let zoneID = zoneID else { return false }
+        guard let zoneID = zoneID else {
+            Log.family.info("hasAnyAcceptedParticipants: zoneID not initialized, returning false")
+            return false
+        }
 
         do {
             // Step 1: query to locate the share and get its record ID
             guard let queryShare = try await fetchExistingZoneShare(zoneID: zoneID) else {
-                Log.family.debug("hasAnyAcceptedParticipants: no zone share found")
+                Log.family.info("hasAnyAcceptedParticipants: no zone share found")
                 return false
             }
 
+            Log.family.info("hasAnyAcceptedParticipants: zone share found, recordID=\(queryShare.recordID.recordName)")
+
             // Step 2: direct fetch by record ID to get fully populated participants
             guard let share = try await container.privateCloudDatabase.record(for: queryShare.recordID) as? CKShare else {
-                Log.family.debug("hasAnyAcceptedParticipants: direct fetch did not return CKShare")
+                Log.family.info("hasAnyAcceptedParticipants: direct fetch did not return CKShare")
                 return false
             }
 
             let nonOwners = share.participants.filter { $0.role != .owner }
-            Log.family.debug("hasAnyAcceptedParticipants: \(nonOwners.count) non-owner participant(s)")
+            Log.family.info("hasAnyAcceptedParticipants: \(nonOwners.count) non-owner participant(s)")
             for p in nonOwners {
-                Log.family.debug("  participant acceptanceStatus=\(p.acceptanceStatus.rawValue)")
+                Log.family.info("hasAnyAcceptedParticipants: participant acceptanceStatus=\(p.acceptanceStatus.rawValue) role=\(p.role.rawValue)")
             }
 
             let accepted = nonOwners.contains { $0.acceptanceStatus == .accepted }
-            if accepted {
-                Log.family.info("Zone share has at least one accepted participant")
-            }
+            Log.family.info("hasAnyAcceptedParticipants: result=\(accepted)")
             return accepted
 
         } catch {
-            Log.family.debug("hasAnyAcceptedParticipants failed: \(error.localizedDescription)")
+            Log.family.info("hasAnyAcceptedParticipants failed: \(error.localizedDescription)")
             return false
         }
     }
