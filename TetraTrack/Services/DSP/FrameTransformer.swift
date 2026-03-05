@@ -62,7 +62,8 @@ final class FrameTransformer {
     private var gravityRunningAvg: (x: Double, y: Double, z: Double) = (0, 0, -1)
 
     /// EMA alpha for gravity tracking (slow adaptation to avoid reacting to motion)
-    private let gravityAlpha: Double = 0.01
+    /// 0.03 converges in ~33 samples vs ~100 at 0.01, reducing post-calibration settling time
+    private let gravityAlpha: Double = 0.03
 
     /// Faster EMA alpha for gravity tracking before first recalibration
     /// Converges 5x faster to detect misalignment from in-hand calibration
@@ -71,7 +72,7 @@ final class FrameTransformer {
     /// Threshold for detecting significant calibration drift (radians)
     /// About 20 degrees of tilt indicates phone has moved
     /// Configurable per mount position (thigh needs wider threshold)
-    var driftThreshold: Double = 0.35
+    var driftThreshold: Double = 0.40
 
     /// Number of samples since last drift check
     private var samplesSinceDriftCheck: Int = 0
@@ -99,6 +100,40 @@ final class FrameTransformer {
     /// Callback when calibration drift is detected
     var onCalibrationDrift: (() -> Void)?
 
+    // MARK: - Motion Gate (prevents recalibration during movement)
+
+    /// Phone mount position, affects axis mapping
+    var mountPosition: PhoneMountPosition = .jacketChest
+
+    /// Rolling buffer of vertical acceleration samples for motion gate
+    private var verticalSamplesForGate: [Double] = []
+
+    /// Rolling buffer of rotation magnitude samples for motion gate
+    private var rotationSamplesForGate: [Double] = []
+
+    /// Number of samples in the motion gate window
+    private let gateWindowSize = 100
+
+    /// Vertical RMS threshold below which the rider is considered stationary
+    private let motionGateVerticalThreshold = 0.15
+
+    /// Rotation RMS threshold below which the rider is considered stationary
+    private let motionGateRotationThreshold = 0.3
+
+    /// Whether the rider is currently stationary (both vertical and rotational RMS below thresholds)
+    private var isStationary: Bool {
+        guard verticalSamplesForGate.count >= 20 else { return true }
+        let vWindow = verticalSamplesForGate.suffix(min(gateWindowSize, verticalSamplesForGate.count))
+        let vMean = vWindow.reduce(0, +) / Double(vWindow.count)
+        let vAC = vWindow.map { $0 - vMean }
+        let verticalRMS = sqrt(vAC.map { $0 * $0 }.reduce(0, +) / Double(vAC.count))
+
+        let rWindow = rotationSamplesForGate.suffix(min(gateWindowSize, rotationSamplesForGate.count))
+        let rotationRMS = sqrt(rWindow.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(rWindow.count)))
+
+        return verticalRMS < motionGateVerticalThreshold && rotationRMS < motionGateRotationThreshold
+    }
+
     // MARK: - Initialization
 
     init() {}
@@ -110,8 +145,8 @@ final class FrameTransformer {
     /// - Parameter attitude: Current CMAttitude from device
     func calibrate(with attitude: CMAttitude) {
         let q = attitude.quaternion
-        // Store inverse of calibration quaternion
-        calibrationQuaternion = conjugate((q.w, q.x, q.y, q.z))
+        // Normalize and store inverse of calibration quaternion
+        calibrationQuaternion = conjugate(normalize((q.w, q.x, q.y, q.z)))
         isCalibrated = true
     }
 
@@ -124,6 +159,8 @@ final class FrameTransformer {
         samplesSinceDriftCheck = 0
         recalibrationCount = 0
         samplesSinceRecalibration = 0
+        verticalSamplesForGate = []
+        rotationSamplesForGate = []
     }
 
     // MARK: - Frame Transformation
@@ -152,15 +189,8 @@ final class FrameTransformer {
         // p' = q * p * q^-1 where p = (0, ax, ay, az)
         let rotated = rotateVector(acceleration, by: q)
 
-        // Map to horse frame:
-        // Device X (lateral) → Horse Y (lateral)
-        // Device Y (forward) → Horse X (forward)
-        // Device Z (vertical) → Horse Z (vertical)
-        return HorseFrameAcceleration(
-            forward: rotated.y,
-            lateral: rotated.x,
-            vertical: rotated.z
-        )
+        // Map to horse frame using mount-aware axis mapping
+        return mapToHorseAccel(rotated)
     }
 
     /// Transform device rotation rates to horse-relative frame
@@ -183,11 +213,7 @@ final class FrameTransformer {
 
         let rotated = rotateVector(rotation, by: q)
 
-        return HorseFrameRotation(
-            pitch: rotated.x,
-            roll: rotated.y,
-            yaw: rotated.z
-        )
+        return mapToHorseRotation(rotated)
     }
 
     /// Convenience method using Euler angles instead of CMAttitude
@@ -200,11 +226,7 @@ final class FrameTransformer {
         let q = eulerToQuaternion(pitch: pitch, roll: roll, yaw: yaw)
         let rotated = rotateVector(acceleration, by: q)
 
-        return HorseFrameAcceleration(
-            forward: rotated.y,
-            lateral: rotated.x,
-            vertical: rotated.z
-        )
+        return mapToHorseAccel(rotated)
     }
 
     // MARK: - Quaternion Operations
@@ -244,6 +266,15 @@ final class FrameTransformer {
         return (result.x, result.y, result.z)
     }
 
+    /// Normalize a quaternion to unit length to prevent drift from accumulated floating-point error
+    private func normalize(
+        _ q: (w: Double, x: Double, y: Double, z: Double)
+    ) -> (w: Double, x: Double, y: Double, z: Double) {
+        let norm = sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z)
+        guard norm > 1e-10 else { return (1, 0, 0, 0) }
+        return (q.w / norm, q.x / norm, q.y / norm, q.z / norm)
+    }
+
     /// Convert Euler angles to quaternion
     private func eulerToQuaternion(
         pitch: Double,
@@ -275,7 +306,7 @@ extension FrameTransformer {
     /// - Returns: Tuple of (acceleration, rotation) in horse frame
     func transform(_ sample: MotionSample) -> (accel: HorseFrameAcceleration, rotation: HorseFrameRotation) {
         // Use quaternion for proper frame transformation with calibration
-        let deviceQ = (w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ)
+        let deviceQ = normalize((w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ))
 
         // Apply calibration offset if set
         let q: (w: Double, x: Double, y: Double, z: Double)
@@ -289,21 +320,23 @@ extension FrameTransformer {
         let accelVec = (x: sample.accelerationX, y: sample.accelerationY, z: sample.accelerationZ)
         let rotatedAccel = rotateVector(accelVec, by: q)
 
-        let accel = HorseFrameAcceleration(
-            forward: rotatedAccel.y,
-            lateral: rotatedAccel.x,
-            vertical: rotatedAccel.z
-        )
+        let accel = mapToHorseAccel(rotatedAccel)
 
         // Rotate rotation rates as well for consistent frame
         let rotVec = (x: sample.rotationX, y: sample.rotationY, z: sample.rotationZ)
         let rotatedRot = rotateVector(rotVec, by: q)
 
-        let rotation = HorseFrameRotation(
-            pitch: rotatedRot.x,
-            roll: rotatedRot.y,
-            yaw: rotatedRot.z
-        )
+        let rotation = mapToHorseRotation(rotatedRot)
+
+        // Accumulate motion gate samples
+        verticalSamplesForGate.append(accel.vertical)
+        rotationSamplesForGate.append(rotation.magnitude)
+        if verticalSamplesForGate.count > gateWindowSize {
+            verticalSamplesForGate.removeFirst()
+        }
+        if rotationSamplesForGate.count > gateWindowSize {
+            rotationSamplesForGate.removeFirst()
+        }
 
         // Check for calibration drift and auto-recalibrate if needed
         if isCalibrated {
@@ -312,6 +345,28 @@ extension FrameTransformer {
         }
 
         return (accel, rotation)
+    }
+
+    // MARK: - Mount-Aware Axis Mapping
+
+    /// Map rotated acceleration to horse frame based on mount position
+    private func mapToHorseAccel(_ rotated: (x: Double, y: Double, z: Double)) -> HorseFrameAcceleration {
+        switch mountPosition {
+        case .jacketChest:
+            return HorseFrameAcceleration(forward: rotated.y, lateral: rotated.x, vertical: rotated.z)
+        case .jodhpurThigh:
+            return HorseFrameAcceleration(forward: rotated.z, lateral: rotated.x, vertical: rotated.y)
+        }
+    }
+
+    /// Map rotated rotation rates to horse frame based on mount position
+    private func mapToHorseRotation(_ rotated: (x: Double, y: Double, z: Double)) -> HorseFrameRotation {
+        switch mountPosition {
+        case .jacketChest:
+            return HorseFrameRotation(pitch: rotated.x, roll: rotated.y, yaw: rotated.z)
+        case .jodhpurThigh:
+            return HorseFrameRotation(pitch: rotated.x, roll: rotated.z, yaw: rotated.y)
+        }
     }
 
     // MARK: - Drift Detection
@@ -352,6 +407,10 @@ extension FrameTransformer {
         let cosAngle = -gravityRunningAvg.z / gravMag
         let angle = acos(max(-1.0, min(1.0, cosAngle)))
 
+        // Motion gate: only recalibrate when the rider is stationary
+        // Prevents recalibration during movement where gravity EMA is contaminated by motion
+        guard isStationary else { return }
+
         // If angle exceeds threshold, phone has moved significantly — auto-recalibrate
         if angle > driftThreshold {
             recalibrate()
@@ -390,7 +449,7 @@ extension FrameTransformer {
         let correctionQ = (w: cos(halfAngle), x: cx * s, y: cy * s, z: cz * s)
 
         // Apply correction: new calibration = correction * old calibration
-        calibrationQuaternion = multiplyQuaternions(correctionQ, calibrationQuaternion)
+        calibrationQuaternion = normalize(multiplyQuaternions(correctionQ, calibrationQuaternion))
 
         // Reset drift tracking for continued monitoring
         gravityRunningAvg = (0, 0, -1)
@@ -403,7 +462,7 @@ extension FrameTransformer {
     /// Auto-calibrate using a motion sample
     /// Call this when rider is sitting upright on stationary horse
     func calibrate(with sample: MotionSample) {
-        let q = (w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ)
+        let q = normalize((w: sample.quaternionW, x: sample.quaternionX, y: sample.quaternionY, z: sample.quaternionZ))
         // Store inverse of calibration quaternion
         calibrationQuaternion = conjugate(q)
         isCalibrated = true
