@@ -137,6 +137,18 @@ final class GaitAnalyzer: Resettable {
 
     private var horseProfile: Horse?
 
+    // MARK: - Dwell Time (anti-oscillation)
+
+    /// Minimum consecutive frames the HMM must favor a new gait before we accept the transition.
+    /// At 6 Hz update rate, 18 frames = 3 seconds of sustained evidence.
+    private let minimumDwellFrames = 18
+
+    /// The gait currently being "proposed" but not yet accepted
+    private var pendingGait: GaitType?
+
+    /// How many consecutive frames the pending gait has been the top candidate
+    private var pendingGaitFrameCount: Int = 0
+
     // MARK: - Segment Management
 
     private var currentSegment: GaitSegment?
@@ -154,6 +166,7 @@ final class GaitAnalyzer: Resettable {
     func configure(mountPosition position: PhoneMountPosition) {
         mountPosition = position
         frameTransformer.driftThreshold = position.driftThreshold
+        frameTransformer.mountPosition = position
     }
 
     /// Configure analyzer with horse profile for breed-specific priors
@@ -171,7 +184,8 @@ final class GaitAnalyzer: Resettable {
             )
 
             // Apply learned per-horse gait parameters (adaptive tuning from previous rides)
-            if let learned = horse.learnedGaitParameters {
+            // Skip if weight has changed >10% since parameters were learned
+            if let learned = horse.learnedGaitParameters, !horse.hasStaleLearnedParameters {
                 hmm.applyLearnedParameters(learned)
             }
         }
@@ -241,6 +255,8 @@ final class GaitAnalyzer: Resettable {
         calibrationStatus = .pending
         recentVerticalRMS = 0
         recentRotationRates = []
+        pendingGait = nil
+        pendingGaitFrameCount = 0
         collectDiagnostics = false
         diagnosticEntries.removeAll()
         hmm.reset()
@@ -299,9 +315,12 @@ final class GaitAnalyzer: Resettable {
                 calibrationStatus = .pending
             } else if calibrationSampleCount < delay {
                 calibrationStatus = .settling
-                // Track recent vertical acceleration for bounce gate
+                // Track recent vertical acceleration for bounce gate (DC-removed RMS)
+                let settleWindow = Array(verticalBuffer.suffix(min(20, verticalBuffer.count)))
+                let settleMean = settleWindow.isEmpty ? 0.0 : settleWindow.reduce(0, +) / Double(settleWindow.count)
+                let settleAC = settleWindow.map { $0 - settleMean }
                 recentVerticalRMS = sqrt(
-                    verticalBuffer.suffix(20).map { $0 * $0 }.reduce(0, +) / max(1.0, Double(min(20, verticalBuffer.count)))
+                    settleAC.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(settleAC.count))
                 )
                 // Track rotation rate for handling detection
                 recentRotationRates.append(sample.rotationMagnitude)
@@ -315,8 +334,11 @@ final class GaitAnalyzer: Resettable {
                 if recentRotationRates.count > 30 {
                     recentRotationRates.removeFirst()
                 }
+                let calWindow = Array(verticalBuffer.suffix(min(20, verticalBuffer.count)))
+                let calMean = calWindow.isEmpty ? 0.0 : calWindow.reduce(0, +) / Double(calWindow.count)
+                let calAC = calWindow.map { $0 - calMean }
                 recentVerticalRMS = sqrt(
-                    verticalBuffer.suffix(20).map { $0 * $0 }.reduce(0, +) / max(1.0, Double(min(20, verticalBuffer.count)))
+                    calAC.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(calAC.count))
                 )
 
                 // Settling gate: both vertical RMS AND rotation rate must be low
@@ -365,10 +387,13 @@ final class GaitAnalyzer: Resettable {
             sampleTimestamps.removeFirst()
         }
 
-        // Update bounce amplitude (RMS)
+        // Update bounce amplitude (AC-coupled RMS over up to 100 samples)
+        // DC removal prevents a constant offset from inflating the RMS
         if verticalBuffer.count >= 20 {
-            let recentSamples = Array(verticalBuffer.suffix(20))
-            bounceAmplitude = sqrt(recentSamples.map { $0 * $0 }.reduce(0, +) / 20.0)
+            let window = Array(verticalBuffer.suffix(min(100, verticalBuffer.count)))
+            let mean = window.reduce(0, +) / Double(window.count)
+            let ac = window.map { $0 - mean }
+            bounceAmplitude = sqrt(ac.map { $0 * $0 }.reduce(0, +) / Double(ac.count))
         }
 
         // Perform FFT analysis at fixed rate (only after calibration is complete)
@@ -380,6 +405,14 @@ final class GaitAnalyzer: Resettable {
     }
 
     // MARK: - Spectral Analysis
+
+    // Temporal window sizes and rationale:
+    // - FFT window: 256 samples (2.56s at 100Hz) — captures ~2 full stride cycles at walk
+    // - Bounce amplitude RMS: up to 100 samples (1s) — responsive to gait changes
+    // - Yaw RMS: up to 100 samples (1s) — matches bounce amplitude window
+    // - Coherence segments: 128 samples with 64-sample overlap — Welch's method
+    // - FFT update rate: 6 Hz (every 0.167s) — responsive without excessive computation
+    // - Calibration settling: 20 samples (0.2s) — quick settling check
 
     private func performSpectralAnalysis() {
         guard verticalBuffer.count >= 128 else { return }
@@ -413,7 +446,16 @@ final class GaitAnalyzer: Resettable {
 
         // Build feature vector
         let normalizedRMS = horseProfile?.normalizedVerticalRMS(bounceAmplitude) ?? bounceAmplitude
-        let yawRMS = sqrt(yawRateBuffer.suffix(50).map { $0 * $0 }.reduce(0, +) / 50.0)
+
+        // Yaw RMS with DC removal over up to 100 samples
+        let yawWindow = Array(yawRateBuffer.suffix(min(100, yawRateBuffer.count)))
+        let yawMean = yawWindow.reduce(0, +) / max(1.0, Double(yawWindow.count))
+        let yawAC = yawWindow.map { $0 - yawMean }
+        let rawYawRMS = sqrt(yawAC.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(yawAC.count)))
+
+        // Scale yaw RMS for thigh mount (thigh amplifies yaw due to leg rotation)
+        let yawRateScaleFactor: Double = mountPosition == .jodhpurThigh ? 0.5 : 1.0
+        let yawRMS = rawYawRMS * yawRateScaleFactor
 
         let features = GaitFeatureVector(
             strideFrequency: strideFrequency,
@@ -511,13 +553,27 @@ final class GaitAnalyzer: Resettable {
         }
         #endif
 
-        // Only change gait if confidence is high enough
+        // Only change gait if confidence is high enough AND sustained for minimum dwell time
         if newGait != currentGait && gaitConfidence > 0.65 {
-            let previousGait = currentGait
-            finalizeCurrentSegment()
-            currentGait = newGait
-            startNewSegment(gait: newGait)
-            onGaitChange?(previousGait, newGait)
+            if newGait == pendingGait {
+                pendingGaitFrameCount += 1
+            } else {
+                pendingGait = newGait
+                pendingGaitFrameCount = 1
+            }
+
+            if pendingGaitFrameCount >= minimumDwellFrames {
+                let previousGait = currentGait
+                finalizeCurrentSegment()
+                currentGait = newGait
+                startNewSegment(gait: newGait)
+                onGaitChange?(previousGait, newGait)
+                pendingGait = nil
+                pendingGaitFrameCount = 0
+            }
+        } else if newGait == currentGait {
+            pendingGait = nil
+            pendingGaitFrameCount = 0
         }
     }
 
@@ -691,11 +747,25 @@ final class GaitAnalyzer: Resettable {
 
         }
 
-        // Apply gait change
+        // Apply gait change with dwell time
         if newGait != currentGait && gaitConfidence > 0.65 {
-            let previousGait = currentGait
-            currentGait = newGait
-            onGaitChange?(previousGait, newGait)
+            if newGait == pendingGait {
+                pendingGaitFrameCount += 1
+            } else {
+                pendingGait = newGait
+                pendingGaitFrameCount = 1
+            }
+
+            if pendingGaitFrameCount >= minimumDwellFrames {
+                let previousGait = currentGait
+                currentGait = newGait
+                onGaitChange?(previousGait, newGait)
+                pendingGait = nil
+                pendingGaitFrameCount = 0
+            }
+        } else if newGait == currentGait {
+            pendingGait = nil
+            pendingGaitFrameCount = 0
         }
     }
 

@@ -99,11 +99,11 @@ final class MotionManager {
     private let operationQueue: OperationQueue
 
     // Signal filters for noise reduction
-    // Alpha 0.6 provides mild smoothing without excessive lag
+    // Alpha 0.8 preserves more signal detail for gait detection
     // Higher alpha = less smoothing, more responsive (better for gait detection)
     // Lower alpha = more smoothing, more lag (can blur gait transitions)
-    private var accelerationFilter = Vector3DFilter(alpha: 0.6)
-    private var rotationFilter = Vector3DFilter(alpha: 0.6)
+    private var accelerationFilter = Vector3DFilter(alpha: 0.8)
+    private var rotationFilter = Vector3DFilter(alpha: 0.8)
 
     /// Boot time reference for accurate timestamp conversion
     /// CoreMotion timestamps are seconds since device boot - we need this reference
