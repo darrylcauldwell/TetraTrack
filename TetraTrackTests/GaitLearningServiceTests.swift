@@ -134,6 +134,69 @@ struct GaitLearningServiceTests {
 
     // MARK: - Last Update
 
+    // MARK: - Weight Change Invalidation
+
+    @Test func referenceWeightStoredAfterLearning() {
+        let horse = Horse()
+        horse.name = "Test Horse"
+        horse.weight = 450
+
+        let (ride, _) = createRideWithSegments(gaits: [(.walk, 30.0, 1.5)])
+        service.learnFromRide(ride, horse: horse)
+
+        #expect(horse.learnedGaitParameters?.referenceWeight == 450)
+    }
+
+    @Test func staleParametersDetectedOnWeightIncrease() {
+        let horse = Horse()
+        horse.name = "Test Horse"
+        horse.weight = 450
+
+        var learned = LearnedGaitParameters(rideCount: 5, referenceWeight: 400)
+        horse.learnedGaitParameters = learned
+
+        // 450/400 = 1.125 > 1.1 → stale
+        #expect(horse.hasStaleLearnedParameters == true)
+    }
+
+    @Test func staleParametersDetectedOnWeightDecrease() {
+        let horse = Horse()
+        horse.name = "Test Horse"
+        horse.weight = 350
+
+        var learned = LearnedGaitParameters(rideCount: 5, referenceWeight: 400)
+        horse.learnedGaitParameters = learned
+
+        // 350/400 = 0.875 < 0.9 → stale
+        #expect(horse.hasStaleLearnedParameters == true)
+    }
+
+    @Test func parametersNotStaleWithinTenPercent() {
+        let horse = Horse()
+        horse.name = "Test Horse"
+        horse.weight = 420
+
+        var learned = LearnedGaitParameters(rideCount: 5, referenceWeight: 400)
+        horse.learnedGaitParameters = learned
+
+        // 420/400 = 1.05, within 10% → not stale
+        #expect(horse.hasStaleLearnedParameters == false)
+    }
+
+    @Test func parametersNotStaleWithoutReferenceWeight() {
+        let horse = Horse()
+        horse.name = "Test Horse"
+        horse.weight = 500
+
+        var learned = LearnedGaitParameters(rideCount: 5)
+        horse.learnedGaitParameters = learned
+
+        // No reference weight → not stale (benefit of the doubt)
+        #expect(horse.hasStaleLearnedParameters == false)
+    }
+
+    // MARK: - Last Update
+
     @Test func lastUpdateIsSet() {
         let horse = Horse()
         horse.name = "Test Horse"

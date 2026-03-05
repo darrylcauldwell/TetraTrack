@@ -277,13 +277,14 @@ struct LearnedGaitParameters: Codable, Sendable {
     var gallopEntropyMean: Double?
     var rideCount: Int = 0
     var lastUpdate: Date?
+    var referenceWeight: Double?
 
     private enum CodingKeys: String, CodingKey {
         case walkFrequencyCenter, trotFrequencyCenter
         case canterFrequencyCenter, gallopFrequencyCenter
         case walkH2Mean, trotH2Mean
         case canterH3Mean, gallopEntropyMean
-        case rideCount, lastUpdate
+        case rideCount, lastUpdate, referenceWeight
     }
 
     init(
@@ -296,7 +297,8 @@ struct LearnedGaitParameters: Codable, Sendable {
         canterH3Mean: Double? = nil,
         gallopEntropyMean: Double? = nil,
         rideCount: Int = 0,
-        lastUpdate: Date? = nil
+        lastUpdate: Date? = nil,
+        referenceWeight: Double? = nil
     ) {
         self.walkFrequencyCenter = walkFrequencyCenter
         self.trotFrequencyCenter = trotFrequencyCenter
@@ -308,6 +310,7 @@ struct LearnedGaitParameters: Codable, Sendable {
         self.gallopEntropyMean = gallopEntropyMean
         self.rideCount = rideCount
         self.lastUpdate = lastUpdate
+        self.referenceWeight = referenceWeight
     }
 
     nonisolated init(from decoder: Decoder) throws {
@@ -322,6 +325,7 @@ struct LearnedGaitParameters: Codable, Sendable {
         self.gallopEntropyMean = try container.decodeIfPresent(Double.self, forKey: .gallopEntropyMean)
         self.rideCount = try container.decodeIfPresent(Int.self, forKey: .rideCount) ?? 0
         self.lastUpdate = try container.decodeIfPresent(Date.self, forKey: .lastUpdate)
+        self.referenceWeight = try container.decodeIfPresent(Double.self, forKey: .referenceWeight)
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -336,6 +340,7 @@ struct LearnedGaitParameters: Codable, Sendable {
         try container.encodeIfPresent(gallopEntropyMean, forKey: .gallopEntropyMean)
         try container.encode(rideCount, forKey: .rideCount)
         try container.encodeIfPresent(lastUpdate, forKey: .lastUpdate)
+        try container.encodeIfPresent(referenceWeight, forKey: .referenceWeight)
     }
 }
 
@@ -484,6 +489,16 @@ final class Horse {
         }
     }
 
+    /// Whether learned gait parameters are stale due to a >10% weight change
+    /// Returns false if weight or reference weight is unknown (benefit of the doubt)
+    var hasStaleLearnedParameters: Bool {
+        guard let learned = learnedGaitParameters,
+              let refWeight = learned.referenceWeight,
+              let currentWeight = weight else { return false }
+        let ratio = currentWeight / refWeight
+        return ratio < 0.9 || ratio > 1.1
+    }
+
     /// Biomechanical priors based on breed
     var biomechanicalPriors: BiomechanicalPriors {
         typedBreed.biomechanicalPriors
@@ -570,8 +585,12 @@ final class Horse {
     /// Normalize vertical RMS by horse weight for cross-horse comparison
     /// - Parameter rawRMS: Raw RMS value from accelerometer
     /// - Returns: Normalized RMS (scaled to 500kg reference horse)
+    /// Normalize vertical RMS by horse weight for cross-horse comparison
+    /// Heavier horses produce lower accelerometer readings at the same gait intensity,
+    /// so we scale up. Lighter horses produce higher readings, so we scale down.
+    /// Returns rawRMS unchanged if weight is nil or outside plausible range (100-1500 kg).
     func normalizedVerticalRMS(_ rawRMS: Double) -> Double {
-        guard let weight = weight, weight > 0 else { return rawRMS }
+        guard let weight = weight, weight > 100, weight < 1500 else { return rawRMS }
         let referenceWeight = 500.0
         return rawRMS * (referenceWeight / weight)
     }
