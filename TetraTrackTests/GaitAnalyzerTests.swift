@@ -408,6 +408,128 @@ struct GaitAnalyzerTests {
         #expect(analyzer.currentGait == .stationary)
     }
 
+    // MARK: - Minimum Dwell Time Tests
+
+    @Test func oscillatingFeaturesDoNotCauseGaitChangeWithinDwellWindow() {
+        let analyzer = GaitAnalyzer()
+        let ride = Ride()
+        analyzer.startAnalyzing(for: ride)
+
+        let walkFeatures = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
+            spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
+            gpsSpeed: 1.5, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        let trotFeatures = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+
+        // Establish walk
+        for _ in 0..<30 {
+            analyzer.injectSyntheticFeatures(walkFeatures)
+        }
+        #expect(analyzer.currentGait == .walk)
+
+        // Alternate walk/trot every 2 frames (well under 18-frame dwell)
+        for i in 0..<20 {
+            if i % 4 < 2 {
+                analyzer.injectSyntheticFeatures(trotFeatures)
+            } else {
+                analyzer.injectSyntheticFeatures(walkFeatures)
+            }
+        }
+
+        // Should still be walk — oscillation was not sustained long enough
+        #expect(analyzer.currentGait == .walk)
+    }
+
+    @Test func sustainedNewGaitCausesTransitionAfterDwellWindow() {
+        let analyzer = GaitAnalyzer()
+        let ride = Ride()
+        analyzer.startAnalyzing(for: ride)
+
+        let walkFeatures = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
+            spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
+            gpsSpeed: 1.5, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        let trotFeatures = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+
+        // Establish walk
+        for _ in 0..<30 {
+            analyzer.injectSyntheticFeatures(walkFeatures)
+        }
+        #expect(analyzer.currentGait == .walk)
+
+        // Sustained trot for well beyond dwell window (18 frames minimum)
+        for _ in 0..<30 {
+            analyzer.injectSyntheticFeatures(trotFeatures)
+        }
+
+        // Should have transitioned to trot
+        #expect(analyzer.currentGait == .trot)
+    }
+
+    @Test func dwellCounterResetsWhenFeaturesRevertToOriginalGait() {
+        let analyzer = GaitAnalyzer()
+        let ride = Ride()
+        analyzer.startAnalyzing(for: ride)
+
+        let walkFeatures = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
+            spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
+            gpsSpeed: 1.5, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        let trotFeatures = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+
+        // Establish walk
+        for _ in 0..<30 {
+            analyzer.injectSyntheticFeatures(walkFeatures)
+        }
+        #expect(analyzer.currentGait == .walk)
+
+        // Feed 10 trot frames (under 18 threshold)
+        for _ in 0..<10 {
+            analyzer.injectSyntheticFeatures(trotFeatures)
+        }
+        #expect(analyzer.currentGait == .walk)
+
+        // Revert to walk — resets the pending counter
+        for _ in 0..<5 {
+            analyzer.injectSyntheticFeatures(walkFeatures)
+        }
+
+        // Feed 10 more trot frames — total is only 10 consecutive, not 20
+        for _ in 0..<10 {
+            analyzer.injectSyntheticFeatures(trotFeatures)
+        }
+
+        // Should still be walk — dwell counter was reset by the walk frames
+        #expect(analyzer.currentGait == .walk)
+    }
+
     // MARK: - Mount Position Configuration Tests
 
     @Test func jodhpurThighCalibrationDelay() {

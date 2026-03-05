@@ -583,6 +583,90 @@ struct GaitHMMTests {
         #expect(state != .gallop)
     }
 
+    // MARK: - Walk/Trot GPS Speed Constraint Tests
+
+    @Test func slowGPSSpeedSuppressesTrotProbability() {
+        let hmm = GaitHMM()
+        // Establish walk first
+        for _ in 0..<10 {
+            hmm.update(with: walkFeatures())
+        }
+        #expect(hmm.currentState == .walk)
+
+        // Feed ambiguous features (overlap zone) at slow GPS speed with good accuracy
+        let ambiguousAtSlowSpeed = GaitFeatureVector(
+            strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
+            spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 1.2, gpsAccuracy: 8.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        for _ in 0..<20 {
+            hmm.update(with: ambiguousAtSlowSpeed)
+        }
+
+        // At 1.2 m/s with good GPS, trot should be suppressed — walk should dominate
+        #expect(hmm.probability(of: .walk) > hmm.probability(of: .trot))
+    }
+
+    @Test func clearTrotSpeedSuppressesWalkProbability() {
+        let hmm = GaitHMM()
+        // Build up to trot
+        for _ in 0..<10 { hmm.update(with: walkFeatures()) }
+        for _ in 0..<15 { hmm.update(with: trotFeatures()) }
+        #expect(hmm.currentState == .trot)
+
+        // Feed ambiguous features at clear trot speed with good accuracy
+        let ambiguousAtTrotSpeed = GaitFeatureVector(
+            strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
+            spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.15, yawRateRMS: 0.3,
+            gpsSpeed: 3.0, gpsAccuracy: 8.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        for _ in 0..<20 {
+            hmm.update(with: ambiguousAtTrotSpeed)
+        }
+
+        // At 3.0 m/s with good GPS, walk should be suppressed — trot should dominate
+        #expect(hmm.probability(of: .trot) > hmm.probability(of: .walk))
+    }
+
+    @Test func poorGPSDoesNotApplyWalkTrotSoftConstraint() {
+        let hmm1 = GaitHMM()
+        let hmm2 = GaitHMM()
+
+        // Establish walk in both
+        for _ in 0..<10 {
+            hmm1.update(with: walkFeatures())
+            hmm2.update(with: walkFeatures())
+        }
+
+        // Feed ambiguous features at slow GPS — one with good accuracy, one with poor
+        let goodGPS = GaitFeatureVector(
+            strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
+            spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 1.2, gpsAccuracy: 8.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+        let poorGPS = GaitFeatureVector(
+            strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
+            spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 1.2, gpsAccuracy: 25.0,
+            watchArmSymmetry: 0, watchYawEnergy: 0
+        )
+
+        for _ in 0..<20 {
+            hmm1.update(with: goodGPS)
+            hmm2.update(with: poorGPS)
+        }
+
+        // Good GPS should suppress trot more than poor GPS
+        #expect(hmm1.probability(of: .trot) < hmm2.probability(of: .trot))
+    }
+
     // MARK: - Helpers
 
     private func stationaryFeatures() -> GaitFeatureVector {
