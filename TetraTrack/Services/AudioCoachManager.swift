@@ -49,6 +49,41 @@ enum RunningCoachingLevel: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Riding Coaching Level
+
+/// Quick coaching verbosity presets for riding sessions
+enum RidingCoachingLevel: String, CaseIterable, Identifiable {
+    case silent, essential, full
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .silent: return "Silent"
+        case .essential: return "Essential"
+        case .full: return "Full"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .silent:
+            return "No voice coaching. Ride in peace."
+        case .essential:
+            return "Gait changes and distance milestones only."
+        case .full:
+            return "Everything: gait, distance, time, heart rate, biomechanics."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .silent: return "speaker.slash"
+        case .essential: return "speaker.wave.1"
+        case .full: return "speaker.wave.3"
+        }
+    }
+}
+
 // MARK: - Coach Language
 
 /// Supported languages for voice coaching
@@ -140,8 +175,9 @@ final class AudioCoachManager: AudioCoaching {
     var announceRidingBiomechanics: Bool = true
     var announceRunningBiomechanics: Bool = true
 
-    // Running coaching level preset
+    // Coaching level presets
     var runningCoachingLevel: RunningCoachingLevel = .full
+    var ridingCoachingLevel: RidingCoachingLevel = .full
 
     // Running form reminder interval (in seconds)
     var formReminderIntervalSeconds: TimeInterval = 300 // Every 5 minutes by default
@@ -167,6 +203,8 @@ final class AudioCoachManager: AudioCoaching {
     private var lastTimeMilestone: TimeInterval = 0
     private var lastHeartRateZone: HeartRateZone?
     private var lastGait: GaitType = .stationary
+    private var lastGaitAnnouncementTime: Date?
+    private let gaitAnnouncementCooldown: TimeInterval = 5.0
 
     // Queue for announcements to avoid overlapping
     private var announcementQueue: [String] = []
@@ -319,6 +357,34 @@ final class AudioCoachManager: AudioCoaching {
         saveSettings()
     }
 
+    func applyRidingCoachingLevel(_ level: RidingCoachingLevel) {
+        ridingCoachingLevel = level
+        switch level {
+        case .silent:
+            announceGaitChanges = false
+            announceDistanceMilestones = false
+            announceTimeMilestones = false
+            announceHeartRateZones = false
+            announceWorkoutIntervals = false
+            announceRidingBiomechanics = false
+        case .essential:
+            announceGaitChanges = true
+            announceDistanceMilestones = true
+            announceTimeMilestones = false
+            announceHeartRateZones = false
+            announceWorkoutIntervals = false
+            announceRidingBiomechanics = false
+        case .full:
+            announceGaitChanges = true
+            announceDistanceMilestones = true
+            announceTimeMilestones = true
+            announceHeartRateZones = true
+            announceWorkoutIntervals = true
+            announceRidingBiomechanics = true
+        }
+        saveSettings()
+    }
+
     // MARK: - Public Methods
 
     func startSession() {
@@ -329,6 +395,7 @@ final class AudioCoachManager: AudioCoaching {
         lastTimeMilestone = 0
         lastHeartRateZone = nil
         lastGait = .stationary
+        lastGaitAnnouncementTime = nil
         announcementQueue.removeAll()
 
         if isEnabled {
@@ -450,7 +517,16 @@ final class AudioCoachManager: AudioCoaching {
 
         // Avoid announcing too frequently
         guard newGait != lastGait else { return }
+
+        // Cooldown: minimum 5 seconds between gait announcements
+        let now = Date()
+        if let lastTime = lastGaitAnnouncementTime,
+           now.timeIntervalSince(lastTime) < gaitAnnouncementCooldown {
+            return
+        }
+
         lastGait = newGait
+        lastGaitAnnouncementTime = now
 
         let message: String
         switch newGait {
@@ -663,6 +739,9 @@ extension AudioCoachManager {
         static let announceHeartRateZones = "audioCoach.announceHeartRateZones"
         static let announceWorkoutIntervals = "audioCoach.announceWorkoutIntervals"
 
+        // Riding
+        static let ridingCoachingLevel = "audioCoach.ridingCoachingLevel"
+
         // Running
         static let runningCoachingLevel = "audioCoach.runningCoachingLevel"
         static let announceRunningFormReminders = "audioCoach.announceRunningFormReminders"
@@ -734,6 +813,12 @@ extension AudioCoachManager {
         }
         if defaults.object(forKey: Keys.announceWorkoutIntervals) != nil {
             announceWorkoutIntervals = defaults.bool(forKey: Keys.announceWorkoutIntervals)
+        }
+
+        // Riding coaching level
+        if let levelRaw = defaults.string(forKey: Keys.ridingCoachingLevel),
+           let level = RidingCoachingLevel(rawValue: levelRaw) {
+            ridingCoachingLevel = level
         }
 
         // Running
@@ -829,6 +914,9 @@ extension AudioCoachManager {
         defaults.set(announceTimeMilestones, forKey: Keys.announceTimeMilestones)
         defaults.set(announceHeartRateZones, forKey: Keys.announceHeartRateZones)
         defaults.set(announceWorkoutIntervals, forKey: Keys.announceWorkoutIntervals)
+
+        // Riding coaching level
+        defaults.set(ridingCoachingLevel.rawValue, forKey: Keys.ridingCoachingLevel)
 
         // Running
         defaults.set(runningCoachingLevel.rawValue, forKey: Keys.runningCoachingLevel)

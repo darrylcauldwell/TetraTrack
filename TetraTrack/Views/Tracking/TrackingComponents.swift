@@ -175,6 +175,7 @@ struct DisciplineSetupSheet: View {
     @State private var selectedExercise: FlatworkExercise?
     @State private var showingCountdown = false
     @State private var showingNoEmergencyContactAlert = false
+    @State private var showingAudioCoachingSettings = false
 
     init(rideType: RideType, tracker: RideTracker) {
         Log.ui.info("DisciplineSetupSheet init: rideType=\(rideType.rawValue)")
@@ -307,6 +308,16 @@ struct DisciplineSetupSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal, 20)
 
+                        // Voice coaching level
+                        RidingCoachingLevelCard(showingSettings: $showingAudioCoachingSettings)
+                            .padding(.horizontal, 20)
+
+                        // Watch status card — only when a watch is paired
+                        if WatchConnectivityManager.shared.isPaired {
+                            WatchStatusCard()
+                                .padding(.horizontal, 20)
+                        }
+
                         // Phone placement tips
                         PhonePlacementTipView()
                             .padding(.horizontal, 20)
@@ -318,6 +329,12 @@ struct DisciplineSetupSheet: View {
                     .padding(.bottom, 40)
                 }
             }
+        }
+        .sheet(isPresented: $showingAudioCoachingSettings) {
+            NavigationStack {
+                AudioCoachingView()
+            }
+            .presentationBackground(Color.black)
         }
         .sheet(isPresented: $showingExerciseLibrary) {
             FlatworkLibraryView { exercise in
@@ -1491,6 +1508,57 @@ struct SensorModeCard: View {
                 }
                 .foregroundStyle(.secondary)
             }
+        }
+        .padding(16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+// MARK: - Riding Coaching Level Card
+
+struct RidingCoachingLevelCard: View {
+    @Binding var showingSettings: Bool
+    private var audioCoach: AudioCoachManager { AudioCoachManager.shared }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: audioCoach.ridingCoachingLevel.icon)
+                    .foregroundStyle(.blue)
+                    .frame(width: 20)
+                Text("Voice Coaching")
+                    .font(.subheadline.weight(.medium))
+            }
+
+            Picker("Level", selection: Binding(
+                get: { audioCoach.ridingCoachingLevel },
+                set: { audioCoach.applyRidingCoachingLevel($0) }
+            )) {
+                ForEach(RidingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.ridingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Button {
+                showingSettings = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.caption2)
+                    Text("Customise in Settings")
+                        .font(.caption)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
         .padding(16)
         .background(AppColors.cardBackground)
