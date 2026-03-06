@@ -20,7 +20,7 @@ struct RideMapView: View {
         ZStack {
             if let _ = rideTracker, let locManager = locationManager {
                 // Map with gait-colored route
-                Map(position: $position, interactionModes: []) {
+                Map(position: $position, interactionModes: [.pan, .zoom]) {
                     // User location
                     UserAnnotation()
 
@@ -91,7 +91,7 @@ struct RideMapView: View {
         guard let location = locationManager?.currentLocation else { return }
         position = .camera(MapCamera(
             centerCoordinate: location.coordinate,
-            distance: 800
+            distance: 400
         ))
     }
 }

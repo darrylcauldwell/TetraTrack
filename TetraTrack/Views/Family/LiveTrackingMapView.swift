@@ -16,8 +16,6 @@ struct LiveTrackingMapView: View {
     @State private var showRouteOverlay = true
     @State private var showingExerciseLibrary = false
     @State private var hasSetInitialPosition = false
-    @State private var showGroundTruth = false
-    @State private var groundTruthRecorder = GroundTruthRecorder()
 
     var body: some View {
         ZStack {
@@ -87,20 +85,8 @@ struct LiveTrackingMapView: View {
                 .padding()
             }
 
-            // Ground truth overlay
-            if showGroundTruth {
-                VStack {
-                    Spacer()
-                    GroundTruthOverlay(
-                        recorder: groundTruthRecorder,
-                        detectedGait: session.gait
-                    )
-                    .padding(.bottom, 8)
-                }
-            }
-
             // Gait legend (hide for running sessions — running phases use different terminology)
-            if showRouteOverlay && !session.routePoints.isEmpty && !showGroundTruth && !session.isRunningSession {
+            if showRouteOverlay && !session.routePoints.isEmpty && !session.isRunningSession {
                 VStack {
                     Spacer()
                     GaitLegend()
@@ -109,7 +95,7 @@ struct LiveTrackingMapView: View {
             }
 
             // Running phase legend for running sessions
-            if showRouteOverlay && !session.routePoints.isEmpty && !showGroundTruth && session.isRunningSession {
+            if showRouteOverlay && !session.routePoints.isEmpty && session.isRunningSession {
                 VStack {
                     Spacer()
                     RunningPhaseLegend()
@@ -122,16 +108,6 @@ struct LiveTrackingMapView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
-                    Button {
-                        showGroundTruth.toggle()
-                        if showGroundTruth && !groundTruthRecorder.isRecording {
-                            groundTruthRecorder.startRecording()
-                        }
-                    } label: {
-                        Label("Ground Truth", systemImage: "waveform.path.ecg")
-                            .foregroundStyle(showGroundTruth ? .cyan : .primary)
-                    }
-
                     if !session.isRunningSession {
                         Button {
                             showingExerciseLibrary = true
