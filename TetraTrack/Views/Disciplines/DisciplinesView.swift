@@ -175,14 +175,14 @@ struct DisciplinesView: View {
                     // Skills training involves capture, hidden on iPad
                     NavigationLink(destination: UnifiedTrainingView()) {
                         DisciplineCard(
-                            title: "Skills",
-                            subtitle: "Perform off-discipline training drills",
+                            title: "Drills",
+                            subtitle: "Off-discipline training drills",
                             icon: "figure.run.circle",
                             color: AppColors.mint
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Skills Training")
+                    .accessibilityLabel("Drills Training")
                     .accessibilityHint("Access training drills for all disciplines")
                     .hideInReadOnlyMode()
 

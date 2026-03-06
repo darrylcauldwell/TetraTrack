@@ -576,6 +576,15 @@ final class RideTracker {
         )
         Log.tracking.debug("GPS session tracker started")
 
+        // Auto-enable family sharing if any contacts have live tracking permission
+        if !isSharingWithFamily {
+            if let contacts = try? sharingCoordinator.fetchRelationships(),
+               contacts.contains(where: { $0.canViewLiveTracking && $0.inviteStatus == .accepted }) {
+                isSharingWithFamily = true
+                Log.tracking.debug("Auto-enabled family sharing — accepted contacts with live tracking permission found")
+            }
+        }
+
         // Start family sharing if enabled
         if isSharingWithFamily {
             Log.tracking.debug("Starting family sharing...")
