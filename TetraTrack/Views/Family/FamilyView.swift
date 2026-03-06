@@ -50,14 +50,7 @@ struct FamilyView: View {
             .navigationTitle("Live Sharing")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        SyncStatusIndicator()
-
-                        NavigationLink(destination: SharingDiagnosticsView()) {
-                            Image(systemName: "wrench.and.screwdriver")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    SyncStatusIndicator()
                 }
             }
             .refreshable {
@@ -708,20 +701,6 @@ struct ContactRow: View {
                                 .tint(contact.inviteStatus == .pending ? .orange : AppColors.primary)
                                 .disabled(isGeneratingShare)
 
-                                if contact.inviteStatus == .pending {
-                                    Button {
-                                        contact.inviteStatus = .accepted
-                                        sharingCoordinator.repository?.update(contact)
-                                    } label: {
-                                        Label("Mark as Connected", systemImage: "checkmark.circle")
-                                            .font(.body)
-                                            .fontWeight(.medium)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 14)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(.green)
-                                }
                             }
                             .padding(16)
                             .background(AppColors.cardBackground.opacity(0.5))
@@ -1357,15 +1336,10 @@ struct AddFamilyMemberView: View {
                 guard shareURL != nil else {
                     // Show the actual error from the coordinator if available
                     isLoading = false
-                    let coordinatorError = sharingCoordinator.errorMessage
-                    let isSignedIn = sharingCoordinator.isSignedIn
-                    let userID = sharingCoordinator.currentUserID
-
-                    if let error = coordinatorError {
+                    if let error = sharingCoordinator.errorMessage {
                         errorMessage = error
                     } else {
-                        // Debug info to help diagnose
-                        errorMessage = "Share link failed. Debug: isSignedIn=\(isSignedIn), userID=\(userID.isEmpty ? "empty" : "set"), coordinatorError=nil"
+                        errorMessage = "Unable to create share link. Please check your iCloud sign-in and try again."
                     }
                     showingError = true
                     return
