@@ -45,6 +45,7 @@ struct WalkingLiveView: View {
     @State private var minHeartRate: Int = Int.max
     @State private var heartRateReadings: [Int] = []
     @State private var heartRateSamples: [HeartRateSample] = []
+    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
 
     // Map
     @State private var selectedTab: RunningTab = .stats
@@ -530,9 +531,10 @@ struct WalkingLiveView: View {
     // MARK: - Watch Callbacks
 
     private func setupWatchCallbacks() {
-        // Heart rate callback
+        // Heart rate callback (companion HR via WCSession)
         watchManager.onHeartRateReceived = { bpm in
             DispatchQueue.main.async {
+                self.hasWCSessionHR = true
                 self.currentHeartRate = bpm
                 self.heartRateReadings.append(bpm)
                 if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
@@ -614,6 +616,24 @@ struct WalkingLiveView: View {
                 session.totalDistance = tracker.totalDistance
                 session.totalAscent = tracker.elevationGain
                 session.totalDescent = tracker.elevationLoss
+            }
+
+            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing.
+            // When mirroring is active, Watch skips companion HR (no WCSession messages),
+            // but HKLiveWorkoutDataSource still collects HR on iPhone.
+            if !hasWCSessionHR {
+                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
+                if lifecycleHR > 0 {
+                    currentHeartRate = lifecycleHR
+                    heartRateReadings.append(lifecycleHR)
+                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
+                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
+                    heartRateSamples.append(HeartRateSample(
+                        timestamp: Date(),
+                        bpm: lifecycleHR,
+                        maxHeartRate: estimatedMaxHR
+                    ))
+                }
             }
 
             checkCadenceFeedback()

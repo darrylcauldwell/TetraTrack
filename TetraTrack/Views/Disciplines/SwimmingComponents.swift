@@ -419,6 +419,7 @@ struct SwimmingLiveView: View {
     @State private var maxHeartRateReading: Int = 0
     @State private var heartRateReadings: [Int] = []
     @State private var heartRateSamples: [HeartRateSample] = []
+    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
 
     // Open water GPS tracking
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
@@ -1246,6 +1247,21 @@ struct SwimmingLiveView: View {
                 strokeCount = watchManager.strokeCount
                 strokeRate = watchManager.strokeRate
 
+                // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
+                if !hasWCSessionHR {
+                    let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
+                    if lifecycleHR > 0 {
+                        currentHeartRate = lifecycleHR
+                        heartRateReadings.append(lifecycleHR)
+                        if lifecycleHR > maxHeartRateReading { maxHeartRateReading = lifecycleHR }
+                        heartRateSamples.append(HeartRateSample(
+                            timestamp: Date(),
+                            bpm: lifecycleHR,
+                            maxHeartRate: estimatedMaxHR
+                        ))
+                    }
+                }
+
                 if isThreeMinuteTest {
                     // Timed test: minute marks, 10s warning, completion
                     let remaining = testDuration - elapsedTime
@@ -1775,9 +1791,10 @@ struct SwimmingLiveView: View {
             }
         }
 
-        // Heart rate callback
+        // Heart rate callback (companion HR via WCSession)
         watchManager.onHeartRateReceived = { bpm in
             DispatchQueue.main.async {
+                self.hasWCSessionHR = true
                 self.currentHeartRate = bpm
                 self.heartRateReadings.append(bpm)
                 if bpm > self.maxHeartRateReading {

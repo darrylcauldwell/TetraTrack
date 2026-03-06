@@ -161,7 +161,8 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     }
 
     var formattedPace: String {
-        averagePace.formattedPace
+        guard totalDistance >= 50 else { return "--" }
+        return averagePace.formattedPace
     }
 
     var formattedDistance: String {

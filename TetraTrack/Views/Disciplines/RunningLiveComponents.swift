@@ -95,6 +95,7 @@ struct RunningLiveView: View {
     @State private var minHeartRate: Int = Int.max
     @State private var heartRateReadings: [Int] = []
     @State private var heartRateSamples: [HeartRateSample] = []
+    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
     private var estimatedMaxHR: Int { 190 }
 
     // Enhanced sensor data from Watch
@@ -692,9 +693,10 @@ struct RunningLiveView: View {
             }
         }
 
-        // Heart rate callback
+        // Heart rate callback (companion HR via WCSession)
         watchManager.onHeartRateReceived = { bpm in
             DispatchQueue.main.async {
+                self.hasWCSessionHR = true
                 self.currentHeartRate = bpm
                 self.heartRateReadings.append(bpm)
                 if bpm > self.maxHeartRate {
@@ -1625,6 +1627,22 @@ struct RunningLiveView: View {
                 session.totalDistance = tracker.totalDistance
             }
 
+            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
+            if !hasWCSessionHR {
+                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
+                if lifecycleHR > 0 {
+                    currentHeartRate = lifecycleHR
+                    heartRateReadings.append(lifecycleHR)
+                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
+                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
+                    heartRateSamples.append(HeartRateSample(
+                        timestamp: Date(),
+                        bpm: lifecycleHR,
+                        maxHeartRate: estimatedMaxHR
+                    ))
+                }
+            }
+
             // Handle automatic phase transitions for intervals
             if intervalSettings != nil {
                 checkPhaseTransition()
@@ -2069,6 +2087,7 @@ struct TreadmillLiveView: View {
     @State private var minHeartRate: Int = Int.max
     @State private var heartRateReadings: [Int] = []
     @State private var heartRateSamples: [HeartRateSample] = []
+    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
     private var treadmillEstimatedMaxHR: Int { 190 }
 
     // Watch motion tracking (running form)
@@ -2499,6 +2518,7 @@ struct TreadmillLiveView: View {
     private func setupHeartRateCallback() {
         watchManager.onHeartRateReceived = { bpm in
             DispatchQueue.main.async {
+                self.hasWCSessionHR = true
                 self.currentHeartRate = bpm
                 self.heartRateReadings.append(bpm)
                 if bpm > self.maxHeartRate {
@@ -2688,6 +2708,22 @@ struct TreadmillLiveView: View {
             guard let start = sessionStartTime, isRunning else { return }
             elapsedTime = Date().timeIntervalSince(start) - pausedAccumulated
             session.totalDuration = elapsedTime
+
+            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
+            if !hasWCSessionHR {
+                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
+                if lifecycleHR > 0 {
+                    currentHeartRate = lifecycleHR
+                    heartRateReadings.append(lifecycleHR)
+                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
+                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
+                    heartRateSamples.append(HeartRateSample(
+                        timestamp: Date(),
+                        bpm: lifecycleHR,
+                        maxHeartRate: treadmillEstimatedMaxHR
+                    ))
+                }
+            }
 
             // Process running form reminders
             AudioCoachManager.shared.processRunningFormReminder(elapsedTime: elapsedTime)
