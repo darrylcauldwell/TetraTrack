@@ -48,6 +48,9 @@ final class WorkoutLifecycleService: NSObject {
     // Track whether we're building a route (outdoor sessions)
     private var isOutdoorSession: Bool = false
 
+    // Track activity type for watch motion mode mapping
+    private var currentActivityType: HKWorkoutActivityType?
+
     private override init() {
         super.init()
     }
@@ -126,6 +129,11 @@ final class WorkoutLifecycleService: NSObject {
 
             Log.health.info("WorkoutLifecycleService: started \(configuration.activityType.rawValue) workout")
 
+            // Send session control commands to Watch
+            self.currentActivityType = configuration.activityType
+            watchConnectivity.sendCommand(.startRide)
+            watchConnectivity.startMotionTracking(mode: watchMotionMode)
+
         } catch {
             state = .idle
             self.error = error.localizedDescription
@@ -203,11 +211,13 @@ final class WorkoutLifecycleService: NSObject {
     func pause() {
         workoutSession?.pause()
         state = .paused
+        watchConnectivity.sendCommand(.pauseRide)
     }
 
     func resume() {
         workoutSession?.resume()
         state = .active
+        watchConnectivity.sendCommand(.resumeRide)
     }
 
     // MARK: - End and Save
@@ -237,6 +247,10 @@ final class WorkoutLifecycleService: NSObject {
 
             // Finalize and save the workout
             let workout = try await builder.finishWorkout()
+
+            // Stop watch session
+            watchConnectivity.stopMotionTracking()
+            watchConnectivity.sendCommand(.stopRide)
 
             // Attach route if we have one
             if let routeBuilder = routeBuilder, let workout = workout {
@@ -273,6 +287,10 @@ final class WorkoutLifecycleService: NSObject {
         if let builder = workoutBuilder {
             builder.discardWorkout()
         }
+
+        // Stop watch session
+        watchConnectivity.stopMotionTracking()
+        watchConnectivity.sendCommand(.stopRide)
 
         cleanup()
         Log.health.info("WorkoutLifecycleService: discarded workout")
@@ -394,12 +412,22 @@ final class WorkoutLifecycleService: NSObject {
 
     // MARK: - Private
 
+    private var watchMotionMode: WatchMotionModeShared {
+        switch currentActivityType {
+        case .equestrianSports: return .riding
+        case .running, .walking: return .running
+        case .swimming: return .swimming
+        default: return .shooting
+        }
+    }
+
     private func cleanup() {
         clearSessionContext()
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
         isOutdoorSession = false
+        currentActivityType = nil
         state = .idle
         liveHeartRate = 0
         liveActiveCalories = 0

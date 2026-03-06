@@ -379,13 +379,6 @@ final class WatchConnectivityService: NSObject {
                 case .startRide:
                     self.rideState = .tracking
                     HapticManager.shared.playStartHaptic()
-                    // Start companion heart rate monitoring for riding
-                    WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
-                        self?.sendHeartRateUpdate(bpm)
-                    }
-                    Task {
-                        await WorkoutManager.shared.startHeartRateMonitoring(type: .riding)
-                    }
                     Log.watch.info("Session started from iPhone")
 
                 case .stopRide:
@@ -424,7 +417,9 @@ final class WatchConnectivityService: NSObject {
                         WatchMotionManager.shared.startTracking(mode: mode)
 
                         // Start companion HR monitoring for active disciplines
-                        if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
+                        // Guard: skip if WorkoutManager already has an active workout (mirrored session)
+                        if (sharedMode == .running || sharedMode == .swimming || sharedMode == .riding),
+                           !WorkoutManager.shared.isWorkoutActive {
                             let activityType: WatchActivityType = switch sharedMode {
                             case .running: .running
                             case .swimming: .swimming

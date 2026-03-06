@@ -18,6 +18,9 @@ struct ContentView: View {
             // Show active session view when workout is running
             if workoutManager.isWorkoutActive {
                 activeWorkoutView
+            } else if connectivityService.hasActiveSession {
+                // iPhone is driving the session — show companion summary
+                WatchHomeView()
             } else {
                 // Main dashboard with tabbed pages
                 TabView(selection: $selectedTab) {
@@ -52,6 +55,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: fallDetectionManager.fallDetected)
         .animation(.easeInOut(duration: 0.3), value: workoutManager.isWorkoutActive)
+        .animation(.easeInOut(duration: 0.3), value: connectivityService.hasActiveSession)
     }
 
     // MARK: - Active Workout View
