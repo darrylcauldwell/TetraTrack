@@ -377,11 +377,19 @@ final class WatchConnectivityService: NSObject {
                 // the Watch receives the mirrored session via workoutSessionMirroringStartHandler
                 // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
                 case .startRide:
+                    guard self.rideState != .tracking else {
+                        Log.watch.debug("Ignoring duplicate startRide — already tracking")
+                        break
+                    }
                     self.rideState = .tracking
                     HapticManager.shared.playStartHaptic()
                     Log.watch.info("Session started from iPhone")
 
                 case .stopRide:
+                    guard self.rideState != .idle else {
+                        Log.watch.debug("Ignoring duplicate stopRide — already idle")
+                        break
+                    }
                     self.rideState = .idle
                     WorkoutManager.shared.stopHeartRateMonitoring()
                     WorkoutManager.shared.onHeartRateUpdate = nil
@@ -414,21 +422,31 @@ final class WatchConnectivityService: NSObject {
                         case .riding: .riding
                         case .idle: .idle
                         }
+
+                        guard WatchMotionManager.shared.currentMode != mode else {
+                            Log.watch.debug("Ignoring duplicate startMotionTracking — already in \(mode.rawValue)")
+                            break
+                        }
                         WatchMotionManager.shared.startTracking(mode: mode)
 
-                        // Start companion HR monitoring for active disciplines
-                        // Guard: skip if WorkoutManager already has an active workout (mirrored session)
-                        if (sharedMode == .running || sharedMode == .swimming || sharedMode == .riding),
-                           !WorkoutManager.shared.isWorkoutActive {
+                        // Start companion HR monitoring as fallback for active disciplines.
+                        // Delay 2s to let HKWorkoutSession mirroring establish first —
+                        // if mirroring is active, skip companion HR to avoid duplicate workouts.
+                        if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
                             let activityType: WatchActivityType = switch sharedMode {
                             case .running: .running
                             case .swimming: .swimming
                             default: .riding
                             }
-                            WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
-                                self?.sendHeartRateUpdate(bpm)
-                            }
                             Task {
+                                try? await Task.sleep(for: .seconds(2))
+                                guard !WorkoutManager.shared.isWorkoutActive else {
+                                    Log.watch.debug("Mirrored session active — skipping companion HR")
+                                    return
+                                }
+                                WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
+                                    self?.sendHeartRateUpdate(bpm)
+                                }
                                 await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
                             }
                         }
@@ -437,6 +455,10 @@ final class WatchConnectivityService: NSObject {
                     }
 
                 case .stopMotionTracking:
+                    guard WatchMotionManager.shared.currentMode != .idle else {
+                        Log.watch.debug("Ignoring duplicate stopMotionTracking — already idle")
+                        break
+                    }
                     WatchMotionManager.shared.stopTracking()
                     WorkoutManager.shared.stopHeartRateMonitoring()
                     WorkoutManager.shared.onHeartRateUpdate = nil
@@ -479,8 +501,10 @@ final class WatchConnectivityService: NSObject {
                 }
             }
 
-            // Update session state (read-only display)
-            if let state = watchMessage.rideState {
+            // Update session state from status updates only (not from command messages,
+            // which already set rideState above — a delayed status update could overwrite
+            // a more recent command like .stopRide)
+            if let state = watchMessage.rideState, watchMessage.command == nil {
                 self.rideState = state
             }
             if let dur = watchMessage.duration {
