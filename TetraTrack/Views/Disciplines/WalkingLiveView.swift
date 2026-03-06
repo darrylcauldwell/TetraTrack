@@ -193,7 +193,7 @@ struct WalkingLiveView: View {
             // Secondary metrics row
             HStack(spacing: 24) {
                 metricColumn(
-                    value: session.averagePace > 0 ? formatPace(session.averagePace) : "--",
+                    value: session.totalDistance > 50 ? formatPace(session.averagePace) : "--",
                     label: "Pace"
                 )
                 metricColumn(
