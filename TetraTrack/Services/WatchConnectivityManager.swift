@@ -306,24 +306,16 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
         let dict = message.toDictionary()
 
-        // Always try sendMessage first for real-time updates
-        // It will fail gracefully if not reachable
+        // Use exactly ONE transport to avoid duplicate/out-of-order delivery
         if session.isReachable {
             Log.watch.debug("Sending real-time message to Watch (reachable)")
             session.sendMessage(dict, replyHandler: nil) { error in
                 Log.watch.error("Send error: \(error)")
             }
         } else {
-            // Try sendMessage anyway - sometimes isReachable is stale
-            Log.watch.debug("Watch not reachable, trying sendMessage then context")
-            session.sendMessage(dict, replyHandler: nil) { [weak self] _ in
-                // If sendMessage fails, fall back to application context
-                self?.updateApplicationContext(message)
-            }
+            Log.watch.debug("Watch not reachable, using application context")
+            updateApplicationContext(message)
         }
-
-        // Always update application context as backup for when Watch wakes
-        updateApplicationContext(message)
     }
 
     private func updateApplicationContext(_ message: WatchMessage) {

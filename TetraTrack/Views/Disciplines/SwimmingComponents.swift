@@ -1221,9 +1221,7 @@ struct SwimmingLiveView: View {
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-
-        // Update Watch state to active tracking
-        watchManager.sendCommand(.startRide)
+        // Watch state is already set by WorkoutLifecycleService — no duplicate send here
     }
 
     private func cancelArmedState() {
@@ -1798,7 +1796,7 @@ struct SwimmingLiveView: View {
 
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
-        watchManager.startMotionTracking(mode: .swimming)
+        // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
         sensorAnalyzer.startSession()
         startWatchStatusUpdates()
     }

@@ -729,7 +729,7 @@ struct RunningLiveView: View {
         }
 
         watchManager.resetMotionMetrics()
-        watchManager.startMotionTracking(mode: .running)
+        // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
         sensorAnalyzer.startSession()
         startWatchStatusUpdates()
     }
@@ -2519,7 +2519,7 @@ struct TreadmillLiveView: View {
     }
 
     private func startHeartRateTracking() {
-        watchManager.startMotionTracking(mode: .running)
+        // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
         sensorAnalyzer.startSession()
         startWatchStatusUpdates()
     }
