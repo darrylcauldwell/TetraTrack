@@ -165,19 +165,23 @@ struct TrainingWeekView: View {
                         .foregroundStyle(.secondary)
 
                     if let focus = currentWeekFocus {
-                        HStack(spacing: 8) {
-                            Image(systemName: focus.focusDomain.icon)
-                                .foregroundStyle(focus.focusDomain.colorValue)
-                            Text(focus.focusDomain.displayName)
-                                .font(.title2.bold())
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Image(systemName: focus.focusDomain.icon)
+                                    .foregroundStyle(focus.focusDomain.colorValue)
+                                Text(focus.focusDomain.displayName)
+                                    .font(.title2.bold())
+                            }
 
                             if let secondary = focus.secondaryFocusDomain {
-                                Text("+")
-                                    .foregroundStyle(.secondary)
-                                Image(systemName: secondary.icon)
-                                    .foregroundStyle(secondary.colorValue)
-                                Text(secondary.displayName)
-                                    .font(.headline)
+                                HStack(spacing: 8) {
+                                    Text("+")
+                                        .foregroundStyle(.secondary)
+                                    Image(systemName: secondary.icon)
+                                        .foregroundStyle(secondary.colorValue)
+                                    Text(secondary.displayName)
+                                        .font(.headline)
+                                }
                             }
                         }
                     } else {

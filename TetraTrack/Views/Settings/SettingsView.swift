@@ -321,9 +321,10 @@ struct SettingsView: View {
                 Section {
                     Picker(selection: $localizationManager.selectedLanguage) {
                         ForEach(AppLanguage.allCases) { language in
-                            HStack {
+                            HStack(spacing: 8) {
                                 Text(language.flag)
                                 Text(language.displayName)
+                                Spacer()
                             }
                             .tag(language)
                         }
@@ -414,15 +415,15 @@ struct SettingsView: View {
                                         AccessibleStatusIndicator(.connected, size: .small)
                                     } else {
                                         HStack(spacing: 4) {
-                                            Image(systemName: "exclamationmark.circle.fill")
+                                            Image(systemName: "checkmark.circle.fill")
                                                 .font(.system(size: 12))
-                                                .foregroundStyle(.orange)
-                                            Text("App not active")
+                                                .foregroundStyle(.secondary)
+                                            Text("Standby")
                                                 .font(.caption)
-                                                .foregroundStyle(.orange)
+                                                .foregroundStyle(.secondary)
                                         }
                                         .accessibilityElement(children: .combine)
-                                        .accessibilityLabel("Watch app not active")
+                                        .accessibilityLabel("Watch on standby")
                                     }
                                 } else {
                                     HStack(spacing: 4) {
@@ -452,14 +453,9 @@ struct SettingsView: View {
 
                     // Show guidance when not fully connected
                     if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled && !watchConnectivity.isReachable {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Open TetraTrack on your Apple Watch to enable live communication.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("The watch app will connect automatically when you start a ride.")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
+                        Text("Watch will connect automatically when you start a session.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
 
                     if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled {
@@ -964,15 +960,15 @@ struct SettingsView: View {
                     AccessibleStatusIndicator(.connected, size: .small)
                 } else {
                     HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.circle.fill")
+                        Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 12))
-                            .foregroundStyle(.orange)
-                        Text("App not active")
+                            .foregroundStyle(.secondary)
+                        Text("Standby")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Watch app not active")
+                    .accessibilityLabel("Watch on standby")
                 }
             } else {
                 HStack(spacing: 4) {
