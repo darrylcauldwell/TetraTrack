@@ -16,7 +16,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Show active session view when workout is running
-            if workoutManager.isWorkoutActive {
+            if workoutManager.isWorkoutActive && !workoutManager.isCompanionMode {
                 activeWorkoutView
             } else if connectivityService.hasActiveSession {
                 // iPhone is driving the session — show companion summary

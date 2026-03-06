@@ -63,6 +63,9 @@ struct WalkingLiveView: View {
     private let watchManager = WatchConnectivityManager.shared
     private let workoutLifecycle = WorkoutLifecycleService.shared
 
+    // Watch status updates
+    @State private var watchUpdateTimer: DispatchSourceTimer?
+
     // Service startup guard
     @State private var hasStartedServices = false
 
@@ -360,8 +363,9 @@ struct WalkingLiveView: View {
         // Start location tracking (callback-based, matching RunningLiveView pattern)
         startLocationTracking()
 
-        // Setup Watch heart rate and cadence callbacks
+        // Setup Watch heart rate, cadence callbacks, and status updates
         setupWatchCallbacks()
+        startWatchStatusUpdates()
 
         // Start HealthKit workout
         let config = HKWorkoutConfiguration()
@@ -399,7 +403,8 @@ struct WalkingLiveView: View {
         }
         session.heartRateSamples = heartRateSamples
 
-        // Clean up Watch callbacks
+        // Clean up Watch callbacks and status updates
+        stopWatchStatusUpdates()
         watchManager.onMotionUpdate = nil
         watchManager.onHeartRateReceived = nil
 
@@ -549,6 +554,44 @@ struct WalkingLiveView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Watch Status Updates
+
+    private func startWatchStatusUpdates() {
+        sendStatusToWatch()
+
+        let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.walkingWatchUpdate", qos: .utility)
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [self] in
+            DispatchQueue.main.async {
+                self.sendStatusToWatch()
+            }
+        }
+        source.resume()
+        watchUpdateTimer = source
+    }
+
+    private func stopWatchStatusUpdates() {
+        watchUpdateTimer?.cancel()
+        watchUpdateTimer = nil
+    }
+
+    private func sendStatusToWatch() {
+        watchManager.sendStatusUpdate(
+            rideState: .tracking,
+            duration: elapsedTime,
+            distance: session.totalDistance,
+            speed: session.totalDistance > 0 && elapsedTime > 0 ? session.totalDistance / elapsedTime : 0,
+            gait: "Walking",
+            heartRate: currentHeartRate > 0 ? currentHeartRate : nil,
+            heartRateZone: nil,
+            averageHeartRate: nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            horseName: nil,
+            rideType: "Walking"
+        )
     }
 
     // MARK: - Timer
