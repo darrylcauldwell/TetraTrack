@@ -11,7 +11,7 @@ import MapKit
 struct RideMapView: View {
     @Environment(RideTracker.self) private var rideTracker: RideTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
-    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var position: MapCameraPosition = .automatic
 
     var onBack: (() -> Void)? = nil
     var plannedRoute: PlannedRoute? = nil
@@ -20,7 +20,7 @@ struct RideMapView: View {
         ZStack {
             if let _ = rideTracker, let locManager = locationManager {
                 // Map with gait-colored route
-                Map(position: $position) {
+                Map(position: $position, interactionModes: []) {
                     // User location
                     UserAnnotation()
 
@@ -42,9 +42,12 @@ struct RideMapView: View {
                     }
                 }
                 .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-                .mapControls {
-                    MapCompass()
-                    MapScaleView()
+                .task {
+                    updateCameraPosition()
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(2))
+                        updateCameraPosition()
+                    }
                 }
 
                 // Overlay controls - minimal: back button and gait legend only
@@ -82,6 +85,14 @@ struct RideMapView: View {
                 )
             }
         }
+    }
+
+    private func updateCameraPosition() {
+        guard let location = locationManager?.currentLocation else { return }
+        position = .camera(MapCamera(
+            centerCoordinate: location.coordinate,
+            distance: 800
+        ))
     }
 }
 
