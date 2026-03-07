@@ -51,6 +51,12 @@ struct SteadyHoldDrillView: View {
                     }
                     .padding()
 
+
+                    // Watch status
+                    if WatchConnectivityManager.shared.isPaired && !isRunning {
+                        WatchStatusCard()
+                            .padding(.horizontal, 16)
+                    }
                     // Content area - centered in remaining space
                     if !isRunning && wobbleHistory.isEmpty {
                         instructionsView
