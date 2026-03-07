@@ -429,9 +429,10 @@ final class WatchConnectivityService: NSObject {
                         }
                         WatchMotionManager.shared.startTracking(mode: mode)
 
-                        // Start companion HR monitoring as fallback for active disciplines.
-                        // Delay 2s to let HKWorkoutSession mirroring establish first —
-                        // if mirroring is active, skip companion HR to avoid duplicate workouts.
+                        // Start HR monitoring for active disciplines.
+                        // Delay 2s to let HKWorkoutSession mirroring establish first.
+                        // If mirroring is active, relay HR from the mirrored session instead
+                        // of starting a separate companion workout (which would create duplicates).
                         if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
                             let activityType: WatchActivityType = switch sharedMode {
                             case .running: .running
@@ -440,14 +441,17 @@ final class WatchConnectivityService: NSObject {
                             }
                             Task {
                                 try? await Task.sleep(for: .seconds(2))
-                                guard !WorkoutManager.shared.isWorkoutActive else {
-                                    Log.watch.debug("Mirrored session active — skipping companion HR")
-                                    return
-                                }
+                                // Always wire up HR relay — mirrored sessions collect HR
+                                // but don't automatically send it to iPhone
                                 WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
                                     self?.sendHeartRateUpdate(bpm)
                                 }
-                                await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
+                                if !WorkoutManager.shared.isWorkoutActive {
+                                    // No mirrored session — start companion HR as fallback
+                                    await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
+                                } else {
+                                    Log.watch.debug("Mirrored session active — relaying HR without companion workout")
+                                }
                             }
                         }
 
