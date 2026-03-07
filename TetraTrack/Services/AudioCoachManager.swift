@@ -69,9 +69,9 @@ enum RidingCoachingLevel: String, CaseIterable, Identifiable {
         case .silent:
             return "No voice coaching. Ride in peace."
         case .essential:
-            return "Gait changes and distance milestones only."
+            return "Key events only: gait changes, distance milestones, session start/end."
         case .full:
-            return "Everything: gait, distance, time, heart rate, biomechanics."
+            return "Everything: gait, distance, time, heart rate zones, biomechanics feedback."
         }
     }
 
@@ -203,8 +203,7 @@ final class AudioCoachManager: AudioCoaching {
     private var lastTimeMilestone: TimeInterval = 0
     private var lastHeartRateZone: HeartRateZone?
     private var lastGait: GaitType = .stationary
-    private var lastGaitAnnouncementTime: Date?
-    private let gaitAnnouncementCooldown: TimeInterval = 5.0
+    private var lastGaitAnnouncementTime: Date = .distantPast
 
     // Queue for announcements to avoid overlapping
     private var announcementQueue: [String] = []
@@ -367,6 +366,7 @@ final class AudioCoachManager: AudioCoaching {
             announceHeartRateZones = false
             announceWorkoutIntervals = false
             announceRidingBiomechanics = false
+            announceCrossCountry = false
         case .essential:
             announceGaitChanges = true
             announceDistanceMilestones = true
@@ -374,6 +374,7 @@ final class AudioCoachManager: AudioCoaching {
             announceHeartRateZones = false
             announceWorkoutIntervals = false
             announceRidingBiomechanics = false
+            announceCrossCountry = true
         case .full:
             announceGaitChanges = true
             announceDistanceMilestones = true
@@ -381,6 +382,7 @@ final class AudioCoachManager: AudioCoaching {
             announceHeartRateZones = true
             announceWorkoutIntervals = true
             announceRidingBiomechanics = true
+            announceCrossCountry = true
         }
         saveSettings()
     }
@@ -395,7 +397,7 @@ final class AudioCoachManager: AudioCoaching {
         lastTimeMilestone = 0
         lastHeartRateZone = nil
         lastGait = .stationary
-        lastGaitAnnouncementTime = nil
+        lastGaitAnnouncementTime = .distantPast
         announcementQueue.removeAll()
 
         if isEnabled {
@@ -515,18 +517,11 @@ final class AudioCoachManager: AudioCoaching {
         guard isEnabled, announceGaitChanges else { return }
         guard oldGait != newGait, newGait != .stationary else { return }
 
-        // Avoid announcing too frequently
-        guard newGait != lastGait else { return }
-
-        // Cooldown: minimum 5 seconds between gait announcements
-        let now = Date()
-        if let lastTime = lastGaitAnnouncementTime,
-           now.timeIntervalSince(lastTime) < gaitAnnouncementCooldown {
-            return
-        }
-
+        // Avoid announcing too frequently — require different gait AND 5s minimum gap
+        guard newGait != lastGait,
+              Date().timeIntervalSince(lastGaitAnnouncementTime) >= 5.0 else { return }
         lastGait = newGait
-        lastGaitAnnouncementTime = now
+        lastGaitAnnouncementTime = Date()
 
         let message: String
         switch newGait {
@@ -799,6 +794,10 @@ extension AudioCoachManager {
         }
 
         // Riding
+        if let levelRaw = defaults.string(forKey: Keys.ridingCoachingLevel),
+           let level = RidingCoachingLevel(rawValue: levelRaw) {
+            ridingCoachingLevel = level
+        }
         if defaults.object(forKey: Keys.announceGaitChanges) != nil {
             announceGaitChanges = defaults.bool(forKey: Keys.announceGaitChanges)
         }
@@ -909,6 +908,7 @@ extension AudioCoachManager {
         defaults.set(selectedVoiceIdentifier, forKey: Keys.selectedVoiceIdentifier)
 
         // Riding
+        defaults.set(ridingCoachingLevel.rawValue, forKey: Keys.ridingCoachingLevel)
         defaults.set(announceGaitChanges, forKey: Keys.announceGaitChanges)
         defaults.set(announceDistanceMilestones, forKey: Keys.announceDistanceMilestones)
         defaults.set(announceTimeMilestones, forKey: Keys.announceTimeMilestones)

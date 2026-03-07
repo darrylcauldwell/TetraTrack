@@ -176,6 +176,7 @@ struct RideInsightsView: View {
         VStack(spacing: 20) {
             overallGraceScore
             intensityZonesCard
+            ElevationProfileView(profile: ride.elevationProfile)
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 16),
@@ -202,6 +203,7 @@ struct RideInsightsView: View {
         VStack(spacing: 16) {
             overallGraceScore
             intensityZonesCard
+            ElevationProfileView(profile: ride.elevationProfile)
             growCard
             rhythmCard
             alignCard

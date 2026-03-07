@@ -68,6 +68,12 @@ struct BreathingDrillView: View {
                     }
                     .padding()
 
+
+                    // Watch status
+                    if WatchConnectivityManager.shared.isPaired && phase == .ready {
+                        WatchStatusCard()
+                            .padding(.horizontal, 16)
+                    }
                     // Content area - centered in remaining space
                     if phase == .ready {
                         readyView

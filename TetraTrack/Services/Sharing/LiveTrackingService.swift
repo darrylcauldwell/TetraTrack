@@ -150,9 +150,15 @@ actor LiveTrackingService {
         session.activityType = activityType
         session.startSession()
 
-        // Create CloudKit record
+        // Create or update CloudKit record (reuse existing from prior session)
         let recordID = CKRecord.ID(recordName: "live-\(currentUserID)", zoneID: zoneID)
-        let record = CKRecord(recordType: liveTrackingRecordType, recordID: recordID)
+        let record: CKRecord
+        do {
+            record = try await container.privateCloudDatabase.record(for: recordID)
+        } catch {
+            // Record doesn't exist yet — create new
+            record = CKRecord(recordType: liveTrackingRecordType, recordID: recordID)
+        }
         updateRecord(record, from: session)
 
         do {

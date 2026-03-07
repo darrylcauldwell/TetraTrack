@@ -1329,8 +1329,14 @@ struct RunningSessionDetailView: View {
                                     .padding(.horizontal)
                             }
 
-                            ForEach(session.sortedSplits) { split in
-                                SplitRow(split: split)
+                            // Split efficiency trend
+                            if splits.count >= 2 {
+                                SplitEfficiencyChart(splits: splits)
+                                    .padding(.horizontal)
+                            }
+
+                            ForEach(splits) { split in
+                                SplitRow(split: split, sessionAvgPace: session.averagePace, sessionAvgCadence: session.averageCadence)
                             }
                         }
                     }
@@ -1909,42 +1915,193 @@ struct RunMiniStat: View {
 
 struct SplitRow: View {
     let split: RunningSplit
+    var sessionAvgPace: TimeInterval = 0
+    var sessionAvgCadence: Int = 0
 
     private var isTrackLap: Bool { split.distance < 1000 }
 
+    private var paceDeviation: Double? {
+        guard sessionAvgPace > 0 else { return nil }
+        return (split.pace - sessionAvgPace) / sessionAvgPace * 100
+    }
+
+    private var efficiency: Double? {
+        guard split.heartRate > 0, split.pace > 0 else { return nil }
+        return split.pace / Double(split.heartRate)
+    }
+
     var body: some View {
-        HStack {
-            Text(isTrackLap ? "Lap \(split.orderIndex + 1)" : "km \(split.orderIndex + 1)")
-                .font(.subheadline)
-                .frame(width: 50, alignment: .leading)
+        VStack(spacing: 6) {
+            HStack {
+                Text(isTrackLap ? "Lap \(split.orderIndex + 1)" : "km \(split.orderIndex + 1)")
+                    .font(.subheadline)
+                    .frame(width: 50, alignment: .leading)
 
-            if let zone = split.paceZone {
-                Text(zone.name)
-                    .font(.caption)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(zone.color).opacity(0.2))
-                    .foregroundStyle(Color(zone.color))
-                    .clipShape(Capsule())
+                if let zone = split.paceZone {
+                    Text(zone.name)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(zone.color).opacity(0.2))
+                        .foregroundStyle(Color(zone.color))
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+
+                if split.heartRate > 0 {
+                    Label("\(split.heartRate)", systemImage: "heart.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(isTrackLap ? split.duration.formattedLapTime : split.formattedPace)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 70, alignment: .trailing)
             }
 
-            Spacer()
+            // Efficiency metrics row
+            HStack(spacing: 12) {
+                if split.cadence > 0 {
+                    Label("\(split.cadence) spm", systemImage: "metronome")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
 
-            if split.heartRate > 0 {
-                Label("\(split.heartRate)", systemImage: "heart.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let dev = paceDeviation {
+                    let sign = dev >= 0 ? "+" : ""
+                    Text("\(sign)\(String(format: "%.1f", dev))%")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(abs(dev) < 3 ? .green : abs(dev) < 6 ? .orange : .red)
+                }
+
+                Spacer()
+
+                if split.elevation != 0 {
+                    Label(String(format: "%+.0fm", split.elevation), systemImage: split.elevation > 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
-
-            Text(isTrackLap ? split.duration.formattedLapTime : split.formattedPace)
-                .font(.subheadline.bold())
-                .foregroundStyle(AppColors.primary)
-                .frame(width: 70, alignment: .trailing)
         }
         .padding()
         .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal)
+    }
+}
+
+// MARK: - Split Efficiency Chart
+
+struct SplitEfficiencyChart: View {
+    let splits: [RunningSplit]
+
+    private struct SplitMetric: Identifiable {
+        let id: Int
+        let splitLabel: String
+        let pace: TimeInterval
+        let heartRate: Int
+        let cadence: Int
+    }
+
+    private var metrics: [SplitMetric] {
+        splits.map { split in
+            SplitMetric(
+                id: split.orderIndex,
+                splitLabel: split.distance < 1000 ? "L\(split.orderIndex + 1)" : "\(split.orderIndex + 1)",
+                pace: split.pace,
+                heartRate: split.heartRate,
+                cadence: split.cadence
+            )
+        }
+    }
+
+    private var avgPace: TimeInterval {
+        guard !splits.isEmpty else { return 0 }
+        return splits.map(\.pace).reduce(0, +) / Double(splits.count)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Pace & Heart Rate by Split")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Chart {
+                ForEach(metrics) { m in
+                    BarMark(
+                        x: .value("Split", m.splitLabel),
+                        y: .value("Pace", m.pace)
+                    )
+                    .foregroundStyle(m.pace <= avgPace ? Color.green.opacity(0.7) : Color.orange.opacity(0.7))
+                }
+
+                let hrMetrics = metrics.filter { $0.heartRate > 0 }
+                if !hrMetrics.isEmpty {
+                    ForEach(hrMetrics) { m in
+                        LineMark(
+                            x: .value("Split", m.splitLabel),
+                            y: .value("HR", Double(m.heartRate))
+                        )
+                        .foregroundStyle(.red)
+                        .interpolationMethod(.catmullRom)
+
+                        PointMark(
+                            x: .value("Split", m.splitLabel),
+                            y: .value("HR", Double(m.heartRate))
+                        )
+                        .foregroundStyle(.red)
+                        .symbolSize(20)
+                    }
+                }
+
+                if avgPace > 0 {
+                    RuleMark(y: .value("Avg", avgPace))
+                        .foregroundStyle(.secondary.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisValueLabel {
+                        if let sec = value.as(Double.self) {
+                            Text(sec.formattedPace)
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+            .frame(height: 150)
+
+            // Legend
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Circle().fill(.green.opacity(0.7)).frame(width: 8, height: 8)
+                    Text("Pace (faster)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 4) {
+                    Circle().fill(.orange.opacity(0.7)).frame(width: 8, height: 8)
+                    Text("Pace (slower)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if metrics.contains(where: { $0.heartRate > 0 }) {
+                    HStack(spacing: 4) {
+                        Circle().fill(.red).frame(width: 8, height: 8)
+                        Text("Heart Rate")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

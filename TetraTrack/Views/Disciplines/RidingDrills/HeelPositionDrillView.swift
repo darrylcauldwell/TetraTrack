@@ -53,6 +53,12 @@ struct HeelPositionDrillView: View {
                     }
                     .padding()
 
+
+                    // Watch status
+                    if WatchConnectivityManager.shared.isPaired && !isRunning {
+                        WatchStatusCard()
+                            .padding(.horizontal, 16)
+                    }
                     // Content area
                     if !isRunning && countdown == 3 && results.isEmpty {
                         instructionsView

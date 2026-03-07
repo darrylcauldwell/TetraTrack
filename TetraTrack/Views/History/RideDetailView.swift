@@ -82,8 +82,25 @@ struct RideDetailView: View {
                     badgesSection
                     insightsLinkSection
 
+                    if !ride.gaitBreakdown.isEmpty {
+                        GaitBreakdownView(ride: ride)
+                    }
+
+                    if ride.transitionCount > 0 || ride.turnStats.totalAngle > 0 {
+                        transitionStatsSection
+                    }
+
+                    if ride.totalLeadDuration > 0 {
+                        LeadBalanceView(ride: ride)
+                    }
+
+                    if ride.totalReinDuration > 0 {
+                        ReinBalanceView(ride: ride)
+                    }
+
                     if ride.hasHeartRateData {
                         HeartRateSummaryView(ride: ride)
+                        HeartRateByGaitView(ride: ride)
                     }
 
                     if let recoveryMetrics = ride.recoveryMetrics {
@@ -125,8 +142,29 @@ struct RideDetailView: View {
             badgesSection
             insightsLinkSection
 
+            // Gait breakdown
+            if !ride.gaitBreakdown.isEmpty {
+                GaitBreakdownView(ride: ride)
+            }
+
+            // Turn & transition stats
+            if ride.transitionCount > 0 || ride.turnStats.totalAngle > 0 {
+                transitionStatsSection
+            }
+
+            // Lead balance (canter/gallop)
+            if ride.totalLeadDuration > 0 {
+                LeadBalanceView(ride: ride)
+            }
+
+            // Rein balance (flatwork)
+            if ride.totalReinDuration > 0 {
+                ReinBalanceView(ride: ride)
+            }
+
             if ride.hasHeartRateData {
                 HeartRateSummaryView(ride: ride)
+                HeartRateByGaitView(ride: ride)
             }
 
             if let recoveryMetrics = ride.recoveryMetrics {
@@ -404,6 +442,50 @@ struct RideDetailView: View {
             sensorDataExportSection
         }
         .padding(.top)
+    }
+
+    private var transitionStatsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "arrow.triangle.swap")
+                Text("Transitions & Turns")
+                    .font(.headline)
+            }
+
+            if ride.transitionCount > 0 {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    StatCard(title: "Transitions", value: "\(ride.transitionCount)", icon: "arrow.up.arrow.down")
+                    StatCard(title: "Avg Quality", value: String(format: "%.0f%%", ride.averageTransitionQuality * 100), icon: "star")
+                    StatCard(title: "Upward", value: "\(ride.upwardTransitionCount)", icon: "arrow.up")
+                    StatCard(title: "Downward", value: "\(ride.downwardTransitionCount)", icon: "arrow.down")
+                }
+            }
+
+            if ride.turnStats.totalAngle > 0 {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Turn Balance")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(ride.turnStats.balanceDescription)
+                            .font(.callout)
+                            .fontWeight(.medium)
+                    }
+                    Spacer()
+                    Text(ride.turnStats.isBalanced ? "Balanced" : "Uneven")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(ride.turnStats.isBalanced ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                        .foregroundStyle(ride.turnStats.isBalanced ? .green : .orange)
+                        .clipShape(Capsule())
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
     }
 
     private var sensorDataExportSection: some View {

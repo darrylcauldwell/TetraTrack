@@ -33,6 +33,11 @@ struct RiderStillnessDrillView: View {
 
                 VStack(spacing: 0) {
                     header
+                    // Watch status
+                    if WatchConnectivityManager.shared.isPaired && !isRunning {
+                        WatchStatusCard()
+                            .padding(.horizontal, 16)
+                    }
 
                     if !isRunning && countdown == 3 && stabilityHistory.isEmpty {
                         instructionsView

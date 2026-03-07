@@ -45,9 +45,11 @@ struct WalkingLiveView: View {
     @State private var minHeartRate: Int = Int.max
     @State private var heartRateReadings: [Int] = []
     @State private var heartRateSamples: [HeartRateSample] = []
+    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
 
     // Map
     @State private var selectedTab: RunningTab = .stats
+    @State private var mapPosition: MapCameraPosition = .automatic
 
     // Km split tracking
     @State private var lastAnnouncedKm: Int = 0
@@ -62,6 +64,9 @@ struct WalkingLiveView: View {
     // Watch
     private let watchManager = WatchConnectivityManager.shared
     private let workoutLifecycle = WorkoutLifecycleService.shared
+
+    // Watch status updates
+    @State private var watchUpdateTimer: DispatchSourceTimer?
 
     // Service startup guard
     @State private var hasStartedServices = false
@@ -193,7 +198,7 @@ struct WalkingLiveView: View {
             // Secondary metrics row
             HStack(spacing: 24) {
                 metricColumn(
-                    value: session.averagePace > 0 ? formatPace(session.averagePace) : "--",
+                    value: session.totalDistance > 50 ? formatPace(session.averagePace) : "--",
                     label: "Pace"
                 )
                 metricColumn(
@@ -276,7 +281,7 @@ struct WalkingLiveView: View {
 
     private var walkingMapView: some View {
         ZStack {
-            Map {
+            Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
                 UserAnnotation()
 
                 if let coords = gpsTracker?.routeCoordinates, coords.count > 1 {
@@ -285,10 +290,43 @@ struct WalkingLiveView: View {
                 }
             }
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapUserLocationButton()
+            .task {
+                updateMapPosition()
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2))
+                    updateMapPosition()
+                }
+            }
+
+            // Back button overlay
+            VStack {
+                HStack {
+                    Button { selectedTab = .stats } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.body.weight(.semibold))
+                            Text("Stats")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                    }
+                    Spacer()
+                }
+                .padding()
+                Spacer()
             }
         }
+    }
+
+    private func updateMapPosition() {
+        guard let location = locationManager?.currentLocation else { return }
+        mapPosition = .camera(MapCamera(
+            centerCoordinate: location.coordinate,
+            distance: 400
+        ))
     }
 
     // MARK: - Control Buttons
@@ -360,8 +398,9 @@ struct WalkingLiveView: View {
         // Start location tracking (callback-based, matching RunningLiveView pattern)
         startLocationTracking()
 
-        // Setup Watch heart rate and cadence callbacks
+        // Setup Watch heart rate, cadence callbacks, and status updates
         setupWatchCallbacks()
+        startWatchStatusUpdates()
 
         // Start HealthKit workout
         let config = HKWorkoutConfiguration()
@@ -399,7 +438,8 @@ struct WalkingLiveView: View {
         }
         session.heartRateSamples = heartRateSamples
 
-        // Clean up Watch callbacks
+        // Clean up Watch callbacks and status updates
+        stopWatchStatusUpdates()
         watchManager.onMotionUpdate = nil
         watchManager.onHeartRateReceived = nil
 
@@ -525,9 +565,10 @@ struct WalkingLiveView: View {
     // MARK: - Watch Callbacks
 
     private func setupWatchCallbacks() {
-        // Heart rate callback
+        // Heart rate callback (companion HR via WCSession)
         watchManager.onHeartRateReceived = { bpm in
             DispatchQueue.main.async {
+                self.hasWCSessionHR = true
                 self.currentHeartRate = bpm
                 self.heartRateReadings.append(bpm)
                 if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
@@ -551,6 +592,44 @@ struct WalkingLiveView: View {
         }
     }
 
+    // MARK: - Watch Status Updates
+
+    private func startWatchStatusUpdates() {
+        sendStatusToWatch()
+
+        let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.walkingWatchUpdate", qos: .utility)
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [self] in
+            DispatchQueue.main.async {
+                self.sendStatusToWatch()
+            }
+        }
+        source.resume()
+        watchUpdateTimer = source
+    }
+
+    private func stopWatchStatusUpdates() {
+        watchUpdateTimer?.cancel()
+        watchUpdateTimer = nil
+    }
+
+    private func sendStatusToWatch() {
+        watchManager.sendStatusUpdate(
+            rideState: .tracking,
+            duration: elapsedTime,
+            distance: session.totalDistance,
+            speed: session.totalDistance > 0 && elapsedTime > 0 ? session.totalDistance / elapsedTime : 0,
+            gait: "Walking",
+            heartRate: currentHeartRate > 0 ? currentHeartRate : nil,
+            heartRateZone: nil,
+            averageHeartRate: nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            horseName: nil,
+            rideType: "Walking"
+        )
+    }
+
     // MARK: - Timer
 
     private func startTimer() {
@@ -571,6 +650,24 @@ struct WalkingLiveView: View {
                 session.totalDistance = tracker.totalDistance
                 session.totalAscent = tracker.elevationGain
                 session.totalDescent = tracker.elevationLoss
+            }
+
+            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing.
+            // When mirroring is active, Watch skips companion HR (no WCSession messages),
+            // but HKLiveWorkoutDataSource still collects HR on iPhone.
+            if !hasWCSessionHR {
+                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
+                if lifecycleHR > 0 {
+                    currentHeartRate = lifecycleHR
+                    heartRateReadings.append(lifecycleHR)
+                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
+                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
+                    heartRateSamples.append(HeartRateSample(
+                        timestamp: Date(),
+                        bpm: lifecycleHR,
+                        maxHeartRate: estimatedMaxHR
+                    ))
+                }
             }
 
             checkCadenceFeedback()

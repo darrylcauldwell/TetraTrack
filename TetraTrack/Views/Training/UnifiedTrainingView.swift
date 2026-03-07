@@ -55,7 +55,7 @@ struct UnifiedTrainingView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Skills")
+            .navigationTitle("Drills")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1136,7 +1136,7 @@ struct TrainingInsightsView: View {
 
     private var drillSessionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Skill Drills", systemImage: "figure.flexibility")
+            Label("Training Drills", systemImage: "figure.flexibility")
                 .font(.headline)
 
             let avgScore = drillSessions.isEmpty ? 0 : drillSessions.reduce(0) { $0 + $1.score } / Double(drillSessions.count)

@@ -48,6 +48,9 @@ final class WorkoutLifecycleService: NSObject {
     // Track whether we're building a route (outdoor sessions)
     private var isOutdoorSession: Bool = false
 
+    // Track activity type for watch motion mode mapping
+    private var currentActivityType: HKWorkoutActivityType?
+
     private override init() {
         super.init()
     }
@@ -76,6 +79,12 @@ final class WorkoutLifecycleService: NSObject {
 
         state = .preparing
         isOutdoorSession = configuration.locationType == .outdoor
+
+        // Send session control commands to Watch before HealthKit setup
+        // so the Watch transitions even if HealthKit fails
+        self.currentActivityType = configuration.activityType
+        watchConnectivity.sendCommand(.startRide)
+        watchConnectivity.startMotionTracking(mode: watchMotionMode)
 
         do {
             // Create workout session
@@ -203,11 +212,13 @@ final class WorkoutLifecycleService: NSObject {
     func pause() {
         workoutSession?.pause()
         state = .paused
+        watchConnectivity.sendCommand(.pauseRide)
     }
 
     func resume() {
         workoutSession?.resume()
         state = .active
+        watchConnectivity.sendCommand(.resumeRide)
     }
 
     // MARK: - End and Save
@@ -215,9 +226,13 @@ final class WorkoutLifecycleService: NSObject {
     /// End the workout, finalize the route, and save. Returns the saved HKWorkout if successful.
     @discardableResult
     func endAndSave(metadata: [String: Any]? = nil) async -> HKWorkout? {
+        // Stop watch session (always, even if HealthKit session is nil)
+        watchConnectivity.stopMotionTracking()
+        watchConnectivity.sendCommand(.stopRide)
+
         guard let session = workoutSession,
               let builder = workoutBuilder else {
-            state = .idle
+            cleanup()
             return nil
         }
 
@@ -263,6 +278,10 @@ final class WorkoutLifecycleService: NSObject {
 
     /// Discard the workout without saving.
     func discard() async {
+        // Stop watch session (always, even if HealthKit session is nil)
+        watchConnectivity.stopMotionTracking()
+        watchConnectivity.sendCommand(.stopRide)
+
         guard let session = workoutSession else {
             cleanup()
             return
@@ -394,12 +413,22 @@ final class WorkoutLifecycleService: NSObject {
 
     // MARK: - Private
 
+    private var watchMotionMode: WatchMotionModeShared {
+        switch currentActivityType {
+        case .equestrianSports: return .riding
+        case .running, .walking: return .running
+        case .swimming: return .swimming
+        default: return .shooting
+        }
+    }
+
     private func cleanup() {
         clearSessionContext()
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
         isOutdoorSession = false
+        currentActivityType = nil
         state = .idle
         liveHeartRate = 0
         liveActiveCalories = 0

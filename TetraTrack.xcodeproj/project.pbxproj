@@ -11,7 +11,7 @@
 		0ED4F12A8C5C6787228BEAD0 /* SimulatorTargets in Resources */ = {isa = PBXBuildFile; fileRef = 256A3089C3959FB985D801FB /* SimulatorTargets */; };
 		12872E13C363106A38FB2A52 /* TetraTrackWidgetExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33395BD8D2B84C06627A6456 /* TetraTrackWidgetExtension.swift */; };
 		2A437D650EC55243DFAD5673 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20EA86492389BBC03207D4CA /* SwiftUI.framework */; };
-		3E9A84362F086966008F00C4 /* TetraTrack Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3E9A84362F086966008F00C4 /* TetraTrack Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 3E9A84162F086964008F00C4 /* TetraTrack Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		71590A1E01AE75C3A0218113 /* TetraTrackShared in Frameworks */ = {isa = PBXBuildFile; productRef = 8CA96B77452B1A8A8CAAE4D2 /* TetraTrackShared */; };
 		7436F2E58CB41D8D18BC100C /* TetraTrackShared in Frameworks */ = {isa = PBXBuildFile; productRef = 2AC0620F069ADC5E87280476 /* TetraTrackShared */; };
 		9A5085F291BB97F6F362D732 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE76CD606845740366C21A43 /* Foundation.framework */; };
@@ -70,7 +70,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolder = Product;
 			files = (
-				3E9A84362F086966008F00C4 /* TetraTrack Watch App Watch App.app in Embed Watch Content */,
+				3E9A84362F086966008F00C4 /* TetraTrack Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 		};
@@ -92,9 +92,9 @@
 		3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TetraTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TetraTrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TetraTrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TetraTrack Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch App Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch App Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A84162F086964008F00C4 /* TetraTrack Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TetraTrack Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A84222F086966008F00C4 /* TetraTrack Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E9A842C2F086966008F00C4 /* TetraTrack Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "TetraTrack Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		44C27A278CA2270E0961175C /* TetraTrackWidgetExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = TetraTrackWidgetExtension.entitlements; sourceTree = "<group>"; };
 		5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TetraTrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B791F1562E1DA15BE4F8A7C1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -215,9 +215,9 @@
 				3E9A80F62F06CDCC008F00C4 /* TetraTrack.app */,
 				3E9A81072F06CDCE008F00C4 /* TetraTrackTests.xctest */,
 				3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */,
-				3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */,
-				3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */,
-				3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */,
+				3E9A84162F086964008F00C4 /* TetraTrack Watch App.app */,
+				3E9A84222F086966008F00C4 /* TetraTrack Watch AppTests.xctest */,
+				3E9A842C2F086966008F00C4 /* TetraTrack Watch AppUITests.xctest */,
 				5081E30D482A2568BEAAF51D /* TetraTrackWidgetExtension.appex */,
 			);
 			name = Products;
@@ -324,9 +324,9 @@
 			productReference = 3E9A81112F06CDCE008F00C4 /* TetraTrackUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */ = {
+		3E9A84152F086964008F00C4 /* TetraTrack Watch App */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch App" */;
+			buildConfigurationList = 3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App" */;
 			buildPhases = (
 				3E9A84122F086964008F00C4 /* Sources */,
 				3E9A84132F086964008F00C4 /* Frameworks */,
@@ -337,17 +337,17 @@
 			fileSystemSynchronizedGroups = (
 				3E9A84172F086964008F00C4 /* TetraTrack Watch App */,
 			);
-			name = "TetraTrack Watch App Watch App";
+			name = "TetraTrack Watch App";
 			packageProductDependencies = (
 				2AC0620F069ADC5E87280476 /* TetraTrackShared */,
 			);
 			productName = "TetraTrack Watch App";
-			productReference = 3E9A84162F086964008F00C4 /* TetraTrack Watch App Watch App.app */;
+			productReference = 3E9A84162F086964008F00C4 /* TetraTrack Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
-		3E9A84212F086966008F00C4 /* TetraTrack Watch App Watch AppTests */ = {
+		3E9A84212F086966008F00C4 /* TetraTrack Watch AppTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */;
+			buildConfigurationList = 3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch AppTests" */;
 			buildPhases = (
 				3E9A841E2F086966008F00C4 /* Sources */,
 				3E9A841F2F086966008F00C4 /* Frameworks */,
@@ -361,14 +361,14 @@
 			fileSystemSynchronizedGroups = (
 				3E9A84252F086966008F00C4 /* TetraTrack Watch AppTests */,
 			);
-			name = "TetraTrack Watch App Watch AppTests";
+			name = "TetraTrack Watch AppTests";
 			productName = "TetraTrack Watch AppTests";
-			productReference = 3E9A84222F086966008F00C4 /* TetraTrack Watch App Watch AppTests.xctest */;
+			productReference = 3E9A84222F086966008F00C4 /* TetraTrack Watch AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		3E9A842B2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests */ = {
+		3E9A842B2F086966008F00C4 /* TetraTrack Watch AppUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */;
+			buildConfigurationList = 3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch AppUITests" */;
 			buildPhases = (
 				3E9A84282F086966008F00C4 /* Sources */,
 				3E9A84292F086966008F00C4 /* Frameworks */,
@@ -382,9 +382,9 @@
 			fileSystemSynchronizedGroups = (
 				3E9A842F2F086966008F00C4 /* TetraTrack Watch AppUITests */,
 			);
-			name = "TetraTrack Watch App Watch AppUITests";
+			name = "TetraTrack Watch AppUITests";
 			productName = "TetraTrack Watch AppUITests";
-			productReference = 3E9A842C2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests.xctest */;
+			productReference = 3E9A842C2F086966008F00C4 /* TetraTrack Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		84CB7A672BCB40B671A2EE29 /* TetraTrackWidgetExtension */ = {
@@ -486,9 +486,9 @@
 				3E9A80F52F06CDCC008F00C4 /* TetraTrack */,
 				3E9A81062F06CDCE008F00C4 /* TetraTrackTests */,
 				3E9A81102F06CDCE008F00C4 /* TetraTrackUITests */,
-				3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */,
-				3E9A84212F086966008F00C4 /* TetraTrack Watch App Watch AppTests */,
-				3E9A842B2F086966008F00C4 /* TetraTrack Watch App Watch AppUITests */,
+				3E9A84152F086964008F00C4 /* TetraTrack Watch App */,
+				3E9A84212F086966008F00C4 /* TetraTrack Watch AppTests */,
+				3E9A842B2F086966008F00C4 /* TetraTrack Watch AppUITests */,
 				84CB7A672BCB40B671A2EE29 /* TetraTrackWidgetExtension */,
 			);
 		};
@@ -586,17 +586,17 @@
 		};
 		3E9A84242F086966008F00C4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App */;
 			targetProxy = 3E9A84232F086966008F00C4 /* PBXContainerItemProxy */;
 		};
 		3E9A842E2F086966008F00C4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App */;
 			targetProxy = 3E9A842D2F086966008F00C4 /* PBXContainerItemProxy */;
 		};
 		3E9A84352F086966008F00C4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App Watch App */;
+			target = 3E9A84152F086964008F00C4 /* TetraTrack Watch App */;
 			targetProxy = 3E9A84342F086966008F00C4 /* PBXContainerItemProxy */;
 		};
 		E7FFB5F3B11D9C71F80131E3 /* PBXTargetDependency */ = {
@@ -616,7 +616,7 @@
 				CODE_SIGN_ENTITLEMENTS = TetraTrack/TetraTrack.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -664,7 +664,7 @@
 				CODE_SIGN_ENTITLEMENTS = TetraTrack/TetraTrack.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -831,7 +831,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
@@ -857,7 +857,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
@@ -882,7 +882,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
@@ -907,7 +907,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
@@ -928,14 +928,14 @@
 			};
 			name = Release;
 		};
-		3E9A84382F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch App" */ = {
+		3E9A84382F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "TetraTrack Watch App/TetraTrack Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = TetraTrack;
@@ -963,14 +963,14 @@
 			};
 			name = Debug;
 		};
-		3E9A84392F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch App" */ = {
+		3E9A84392F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "TetraTrack Watch App/TetraTrack Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = TetraTrack;
@@ -999,12 +999,12 @@
 			};
 			name = Release;
 		};
-		3E9A843A2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */ = {
+		3E9A843A2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch AppTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.128;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.dreamfold.TetraTrack-Watch-AppTests";
@@ -1016,17 +1016,17 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App Watch App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App";
 				WATCHOS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Debug;
 		};
-		3E9A843B2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */ = {
+		3E9A843B2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch AppTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.128;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.dreamfold.TetraTrack-Watch-AppTests";
@@ -1038,17 +1038,17 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App Watch App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TetraTrack Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TetraTrack Watch App";
 				VALIDATE_PRODUCT = YES;
 				WATCHOS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Release;
 		};
-		3E9A843C2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */ = {
+		3E9A843C2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch AppUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.128;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.dreamfold.TetraTrack-Watch-AppUITests";
@@ -1065,11 +1065,11 @@
 			};
 			name = Debug;
 		};
-		3E9A843D2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */ = {
+		3E9A843D2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch AppUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.128;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.dreamfold.TetraTrack-Watch-AppUITests";
@@ -1095,7 +1095,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TetraTrackWidgetExtension/TetraTrackWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TetraTrackWidgetExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1125,7 +1125,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TetraTrackWidgetExtension/TetraTrackWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 126;
+				CURRENT_PROJECT_VERSION = 144;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TetraTrackWidgetExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1181,27 +1181,27 @@
 			);
 			defaultConfigurationName = Release;
 		};
-		3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch App" */ = {
+		3E9A843E2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3E9A84382F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch App" */,
-				3E9A84392F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch App" */,
+				3E9A84382F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App" */,
+				3E9A84392F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */ = {
+		3E9A843F2F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch AppTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3E9A843A2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */,
-				3E9A843B2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch AppTests" */,
+				3E9A843A2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch AppTests" */,
+				3E9A843B2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch AppTests" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */ = {
+		3E9A84402F086966008F00C4 /* Build configuration list for PBXNativeTarget "TetraTrack Watch AppUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3E9A843C2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */,
-				3E9A843D2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch App Watch AppUITests" */,
+				3E9A843C2F086966008F00C4 /* Debug configuration for PBXNativeTarget "TetraTrack Watch AppUITests" */,
+				3E9A843D2F086966008F00C4 /* Release configuration for PBXNativeTarget "TetraTrack Watch AppUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};
