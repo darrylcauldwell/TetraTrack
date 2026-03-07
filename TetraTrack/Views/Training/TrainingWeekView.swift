@@ -158,47 +158,44 @@ struct TrainingWeekView: View {
 
     private var weeklyFocusHeader: some View {
         VStack(spacing: 12) {
+            // Week date range
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("This Week's Focus")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Text("This Week's Focus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(weekRangeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
-                    if let focus = currentWeekFocus {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                Image(systemName: focus.focusDomain.icon)
-                                    .foregroundStyle(focus.focusDomain.colorValue)
-                                Text(focus.focusDomain.displayName)
-                                    .font(.title2.bold())
-                            }
-
-                            if let secondary = focus.secondaryFocusDomain {
-                                HStack(spacing: 8) {
-                                    Text("+")
-                                        .foregroundStyle(.secondary)
-                                    Image(systemName: secondary.icon)
-                                        .foregroundStyle(secondary.colorValue)
-                                    Text(secondary.displayName)
-                                        .font(.headline)
-                                }
-                            }
-                        }
-                    } else {
-                        Text("Balanced Training")
-                            .font(.title2.bold())
-                    }
+            // Primary focus
+            if let focus = currentWeekFocus {
+                HStack(spacing: 10) {
+                    Image(systemName: focus.focusDomain.icon)
+                        .font(.title3)
+                        .foregroundStyle(focus.focusDomain.colorValue)
+                    Text(focus.focusDomain.displayName)
+                        .font(.title2.bold())
+                    Spacer()
                 }
 
-                Spacer()
-
-                // Week date range
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(weekRangeText)
-                        .font(.subheadline.bold())
-                    Text(currentWeekFocus?.weekRangeDescription ?? "")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                // Secondary focus
+                if let secondary = focus.secondaryFocusDomain {
+                    HStack(spacing: 10) {
+                        Image(systemName: secondary.icon)
+                            .font(.title3)
+                            .foregroundStyle(secondary.colorValue)
+                        Text(secondary.displayName)
+                            .font(.headline)
+                        Spacer()
+                    }
+                }
+            } else {
+                HStack {
+                    Text("Balanced Training")
+                        .font(.title2.bold())
+                    Spacer()
                 }
             }
 
