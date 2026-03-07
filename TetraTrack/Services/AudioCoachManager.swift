@@ -397,6 +397,7 @@ final class AudioCoachManager: AudioCoaching {
         lastTimeMilestone = 0
         lastHeartRateZone = nil
         lastGait = .stationary
+        lastGaitAnnouncementTime = .distantPast
         announcementQueue.removeAll()
 
         if isEnabled {
@@ -813,6 +814,12 @@ extension AudioCoachManager {
             announceWorkoutIntervals = defaults.bool(forKey: Keys.announceWorkoutIntervals)
         }
 
+        // Riding coaching level
+        if let levelRaw = defaults.string(forKey: Keys.ridingCoachingLevel),
+           let level = RidingCoachingLevel(rawValue: levelRaw) {
+            ridingCoachingLevel = level
+        }
+
         // Running
         if let levelRaw = defaults.string(forKey: Keys.runningCoachingLevel),
            let level = RunningCoachingLevel(rawValue: levelRaw) {
@@ -907,6 +914,9 @@ extension AudioCoachManager {
         defaults.set(announceTimeMilestones, forKey: Keys.announceTimeMilestones)
         defaults.set(announceHeartRateZones, forKey: Keys.announceHeartRateZones)
         defaults.set(announceWorkoutIntervals, forKey: Keys.announceWorkoutIntervals)
+
+        // Riding coaching level
+        defaults.set(ridingCoachingLevel.rawValue, forKey: Keys.ridingCoachingLevel)
 
         // Running
         defaults.set(runningCoachingLevel.rawValue, forKey: Keys.runningCoachingLevel)

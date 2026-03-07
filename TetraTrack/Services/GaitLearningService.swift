@@ -70,6 +70,7 @@ final class GaitLearningService {
 
         learned.rideCount += 1
         learned.lastUpdate = Date()
+        learned.referenceWeight = horse.weight
 
         horse.learnedGaitParameters = learned
         horse.updatedAt = Date()

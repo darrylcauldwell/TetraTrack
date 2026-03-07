@@ -304,13 +304,17 @@ final class GaitHMM {
             // Stationary
             Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1),
             // Walk - low coherence, low entropy
-            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.05...0.15, yaw: 0.1...0.3),
+            // RMS 0.03-0.12 and yaw 0.05-0.20: narrower ranges for better walk/trot separation
+            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20),
             // Trot - high H2 (2-beat), very high XY coherence, low Z-yaw coherence
-            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.15...0.35, yaw: 0.2...0.5),
+            // RMS 0.12-0.28 and yaw 0.20-0.45: tighter ranges reduce overlap with canter
+            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45),
             // Canter - high H3 (3-beat), low XY coherence, high Z-yaw coherence
-            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.25...0.45, yaw: 0.4...0.8),
+            // RMS 0.28-0.50 and yaw 0.40-0.80: raised lower bounds for separation from trot
+            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80),
             // Gallop - weak harmonics, high entropy, strong yaw coupling
-            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.35...0.6, yaw: 0.6...1.2)
+            // RMS 0.40-0.70 and yaw 0.60-1.20: raised lower bounds for separation from canter
+            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20)
         ]
     }
 
@@ -503,6 +507,18 @@ final class GaitHMM {
             }
         }
 
+        // Soft constraint: walk/trot disambiguation when GPS is reasonably accurate
+        // At slow speed, strongly bias toward walk over trot (and vice versa)
+        if gpsAccuracy < 15.0 {
+            if gpsSpeed < 1.5 {
+                // Clearly walking speed — suppress trot probability by 80%
+                constrained[HMMGaitState.trot.rawValue] *= 0.2
+            } else if gpsSpeed > 2.5 && gpsSpeed < 4.0 {
+                // Clearly trotting speed — suppress walk probability by 80%
+                constrained[HMMGaitState.walk.rawValue] *= 0.2
+            }
+        }
+
         // Use custom speed bounds if configured, otherwise use defaults
         let speedBounds: [(min: Double, max: Double)] = customSpeedBounds ?? [
             (0, 0.8),      // Stationary (widened upper bound)
@@ -586,17 +602,18 @@ final class GaitHMM {
     /// Frequency ranges per spec: Walk 1-2.2Hz, Trot 2-3.8Hz, Canter 1.8-3Hz, Gallop >3Hz
     private static func defaultEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
         // Default values for a 15.2hh horse
+        // RMS and yaw ranges are separated to minimize overlap between adjacent gaits
         return [
             // Stationary: no movement
             createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1),
-            // Walk: 1.0-2.2 Hz, H2 0.3-0.7, H3 0.2-0.5, low coherence, low entropy
-            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.05...0.15, yaw: 0.1...0.3),
-            // Trot: 2.0-3.8 Hz, H2 > 1.2, very high XY coherence, low Z-yaw coherence
-            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.15...0.35, yaw: 0.2...0.5),
+            // Walk: 1.0-2.2 Hz, low coherence, low entropy
+            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20),
+            // Trot: 2.0-3.8 Hz, high H2 (2-beat), very high XY coherence
+            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45),
             // Canter: 1.8-3.0 Hz, H3 > H2, low XY coherence, high Z-yaw coherence
-            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.25...0.45, yaw: 0.4...0.8),
+            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80),
             // Gallop: >3.0 Hz (3.0-6.0), weak harmonics, high entropy, strong yaw coupling
-            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.35...0.6, yaw: 0.6...1.2)
+            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20)
         ]
     }
 

@@ -66,16 +66,16 @@ enum PhoneMountPosition: String, Codable, CaseIterable, PhonePlacementConfigurab
     /// EMA filter alpha for motion filtering (lower = more smoothing)
     var filterAlpha: Double {
         switch self {
-        case .jodhpurThigh: return 0.4  // More smoothing for bouncy thigh
-        case .jacketChest: return 0.6   // Less smoothing for stable torso
+        case .jodhpurThigh: return 0.7  // Less smoothing than before (was 0.4) — preserves gait signal
+        case .jacketChest: return 0.8   // Less smoothing than before (was 0.6) — preserves gait signal
         }
     }
 
     /// Calibration drift threshold in radians
     var driftThreshold: Double {
         switch self {
-        case .jodhpurThigh: return 0.50  // More tolerant - thigh moves more
-        case .jacketChest: return 0.35   // Tighter threshold for stable torso
+        case .jodhpurThigh: return 0.40  // Tighter than before (was 0.50) — motion gate now prevents false triggers
+        case .jacketChest: return 0.50   // Wider than before (was 0.35) — chest mount has more torso sway
         }
     }
 }

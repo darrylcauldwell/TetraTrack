@@ -175,7 +175,7 @@ struct DisciplineSetupSheet: View {
     @State private var selectedExercise: FlatworkExercise?
     @State private var showingCountdown = false
     @State private var showingNoEmergencyContactAlert = false
-    @State private var showingAudioSettings = false
+    @State private var showingAudioCoachingSettings = false
 
     init(rideType: RideType, tracker: RideTracker) {
         Log.ui.info("DisciplineSetupSheet init: rideType=\(rideType.rawValue)")
@@ -308,6 +308,16 @@ struct DisciplineSetupSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal, 20)
 
+                        // Voice coaching level
+                        RidingCoachingLevelCard(showingSettings: $showingAudioCoachingSettings)
+                            .padding(.horizontal, 20)
+
+                        // Watch status card — only when a watch is paired
+                        if WatchConnectivityManager.shared.isPaired {
+                            WatchStatusCard()
+                                .padding(.horizontal, 20)
+                        }
+
                         // Phone placement tips
                         PhonePlacementTipView()
                             .padding(.horizontal, 20)
@@ -316,18 +326,16 @@ struct DisciplineSetupSheet: View {
                         SensorModeCard(pocketModeManager: PocketModeManager.shared)
                             .padding(.horizontal, 20)
 
-                        // Voice coaching level
-                        RidingCoachingLevelCard(showingSettings: $showingAudioSettings)
-
-                        // Watch status card
-                        if WatchConnectivityManager.shared.isPaired {
-                            WatchStatusCard()
-                                .padding(.horizontal, 20)
-                        }
                     }
                     .padding(.bottom, 40)
                 }
             }
+        }
+        .sheet(isPresented: $showingAudioCoachingSettings) {
+            NavigationStack {
+                AudioCoachingView()
+            }
+            .presentationBackground(Color.black)
         }
         .sheet(isPresented: $showingExerciseLibrary) {
             FlatworkLibraryView { exercise in
@@ -363,11 +371,6 @@ struct DisciplineSetupSheet: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("No emergency contacts have valid phone numbers. Fall detection SMS alerts won't be sent during this ride.")
-        }
-        .sheet(isPresented: $showingAudioSettings) {
-            NavigationStack {
-                AudioCoachingView()
-            }
         }
         .onAppear {
             Log.ui.info("DisciplineSetupSheet appeared for \(rideType.rawValue)")

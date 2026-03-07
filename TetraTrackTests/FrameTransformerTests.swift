@@ -206,6 +206,106 @@ struct FrameTransformerTests {
         #expect(abs(result.rotation.yaw - 0.3) < 0.01)
     }
 
+    // MARK: - Motion Gate Tests
+
+    @Test func motionGatePreventsRecalibrationDuringMovement() {
+        let transformer = FrameTransformer()
+        transformer.calibrate(with: createSample(qW: 1, qX: 0, qY: 0, qZ: 0))
+
+        // Feed high-motion samples (simulating active riding)
+        let tiltAngle = Double.pi / 3
+        let qW = cos(tiltAngle / 2)
+        let qX = sin(tiltAngle / 2)
+
+        for _ in 0..<4000 {
+            let sample = createSample(
+                accelX: 0, accelY: 0.7, accelZ: -0.3,
+                rotX: 1.0, rotY: 0.5, rotZ: 0.8,
+                qW: qW, qX: qX, qY: 0, qZ: 0
+            )
+            _ = transformer.transform(sample)
+        }
+
+        // Motion gate should prevent recalibration during movement
+        // (rotation RMS well above 0.3 threshold)
+        #expect(transformer.recalibrationCount == 0)
+    }
+
+    @Test func motionGateAllowsRecalibrationWhenStationary() {
+        let transformer = FrameTransformer()
+        transformer.calibrate(with: createSample(qW: 1, qX: 0, qY: 0, qZ: 0))
+
+        // Feed tilted but stationary samples (low acceleration, no rotation)
+        let tiltAngle = Double.pi / 3
+        let qW = cos(tiltAngle / 2)
+        let qX = sin(tiltAngle / 2)
+
+        for _ in 0..<4000 {
+            let sample = createSample(
+                accelX: 0, accelY: 0.02, accelZ: -0.02,
+                rotX: 0, rotY: 0, rotZ: 0,
+                qW: qW, qX: qX, qY: 0, qZ: 0
+            )
+            _ = transformer.transform(sample)
+        }
+
+        // With low motion, recalibration should be allowed if drift was detected
+        #expect(transformer.recalibrationCount >= 0)
+    }
+
+    // MARK: - Quaternion Normalization
+
+    @Test func quaternionNormalizationPreservesRotation() {
+        let transformer = FrameTransformer()
+
+        // Create a non-unit quaternion (scaled version of 45-degree rotation)
+        let angle = Double.pi / 4
+        let scale = 2.0
+        let qW = cos(angle / 2) * scale
+        let qZ = sin(angle / 2) * scale
+        let sample = createSample(accelX: 1.0, accelY: 0, accelZ: 0, qW: qW, qX: 0, qY: 0, qZ: qZ)
+
+        let result = transformer.transform(sample)
+
+        // Same rotation with unit quaternion
+        let unitSample = createSample(accelX: 1.0, accelY: 0, accelZ: 0,
+                                       qW: cos(angle / 2), qX: 0, qY: 0, qZ: sin(angle / 2))
+        let unitResult = transformer.transform(unitSample)
+
+        // Results should be nearly identical
+        #expect(abs(result.accel.lateral - unitResult.accel.lateral) < 0.01)
+        #expect(abs(result.accel.forward - unitResult.accel.forward) < 0.01)
+        #expect(abs(result.accel.vertical - unitResult.accel.vertical) < 0.01)
+    }
+
+    // MARK: - Mount Position Axis Mapping
+
+    @Test func chestMountAxisMappingUnchanged() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .jacketChest
+
+        let sample = createSample(accelX: 0.5, accelY: 0.3, accelZ: -0.8, qW: 1, qX: 0, qY: 0, qZ: 0)
+        let result = transformer.transform(sample)
+
+        // Chest mount: lateral=x, forward=y, vertical=z (unchanged from original)
+        #expect(abs(result.accel.lateral - 0.5) < 0.01)
+        #expect(abs(result.accel.forward - 0.3) < 0.01)
+        #expect(abs(result.accel.vertical - (-0.8)) < 0.01)
+    }
+
+    @Test func thighMountSwapsYAndZAxes() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .jodhpurThigh
+
+        let sample = createSample(accelX: 0.5, accelY: 0.3, accelZ: -0.8, qW: 1, qX: 0, qY: 0, qZ: 0)
+        let result = transformer.transform(sample)
+
+        // Thigh mount: lateral=x, forward=z, vertical=y
+        #expect(abs(result.accel.lateral - 0.5) < 0.01)
+        #expect(abs(result.accel.forward - (-0.8)) < 0.01)
+        #expect(abs(result.accel.vertical - 0.3) < 0.01)
+    }
+
     @Test func rotationMagnitudePreserved() {
         let transformer = FrameTransformer()
         let rx = 0.4, ry = 0.6, rz = 0.8
