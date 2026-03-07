@@ -49,6 +49,7 @@ struct WalkingLiveView: View {
 
     // Map
     @State private var selectedTab: RunningTab = .stats
+    @State private var mapPosition: MapCameraPosition = .automatic
 
     // Km split tracking
     @State private var lastAnnouncedKm: Int = 0
@@ -280,7 +281,7 @@ struct WalkingLiveView: View {
 
     private var walkingMapView: some View {
         ZStack {
-            Map {
+            Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
                 UserAnnotation()
 
                 if let coords = gpsTracker?.routeCoordinates, coords.count > 1 {
@@ -289,10 +290,43 @@ struct WalkingLiveView: View {
                 }
             }
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapUserLocationButton()
+            .task {
+                updateMapPosition()
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2))
+                    updateMapPosition()
+                }
+            }
+
+            // Back button overlay
+            VStack {
+                HStack {
+                    Button { selectedTab = .stats } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.body.weight(.semibold))
+                            Text("Stats")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                    }
+                    Spacer()
+                }
+                .padding()
+                Spacer()
             }
         }
+    }
+
+    private func updateMapPosition() {
+        guard let location = locationManager?.currentLocation else { return }
+        mapPosition = .camera(MapCamera(
+            centerCoordinate: location.coordinate,
+            distance: 400
+        ))
     }
 
     // MARK: - Control Buttons
