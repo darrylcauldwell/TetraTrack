@@ -38,6 +38,11 @@ struct StressInoculationDrillView: View {
 
                 VStack(spacing: 0) {
                     header
+                    // Watch status
+                    if WatchConnectivityManager.shared.isPaired && phase == .instructions {
+                        WatchStatusCard()
+                            .padding(.horizontal, 16)
+                    }
 
                     switch phase {
                     case .instructions:
