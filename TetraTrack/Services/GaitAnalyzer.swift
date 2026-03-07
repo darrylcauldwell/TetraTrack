@@ -36,6 +36,10 @@ final class GaitAnalyzer: Resettable {
     var currentGait: GaitType = .stationary
     var isAnalyzing: Bool = false
 
+    /// Minimum time (seconds) before allowing another gait change — prevents oscillation
+    private let minimumGaitDwellTime: TimeInterval = 3.0
+    private var lastGaitChangeTime: Date = .distantPast
+
     /// Current detected stride frequency (Hz) - primary spectral output
     var detectedBounceFrequency: Double = 0
 
@@ -511,12 +515,14 @@ final class GaitAnalyzer: Resettable {
         }
         #endif
 
-        // Only change gait if confidence is high enough
-        if newGait != currentGait && gaitConfidence > 0.65 {
+        // Only change gait if confidence is high enough and minimum dwell time has elapsed
+        if newGait != currentGait && gaitConfidence > 0.65 &&
+           Date().timeIntervalSince(lastGaitChangeTime) >= minimumGaitDwellTime {
             let previousGait = currentGait
             finalizeCurrentSegment()
             currentGait = newGait
             startNewSegment(gait: newGait)
+            lastGaitChangeTime = Date()
             onGaitChange?(previousGait, newGait)
         }
     }
