@@ -318,6 +318,12 @@ struct DisciplineSetupSheet: View {
 
                         // Voice coaching level
                         RidingCoachingLevelCard(showingSettings: $showingAudioSettings)
+
+                        // Watch status card
+                        if WatchConnectivityManager.shared.isPaired {
+                            WatchStatusCard()
+                                .padding(.horizontal, 20)
+                        }
                     }
                     .padding(.bottom, 40)
                 }
