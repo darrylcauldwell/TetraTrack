@@ -49,6 +49,41 @@ enum RunningCoachingLevel: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Riding Coaching Level
+
+/// Quick coaching verbosity presets for riding sessions
+enum RidingCoachingLevel: String, CaseIterable, Identifiable {
+    case silent, essential, full
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .silent: return "Silent"
+        case .essential: return "Essential"
+        case .full: return "Full"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .silent:
+            return "No voice coaching. Ride in peace."
+        case .essential:
+            return "Key events only: gait changes, distance milestones, session start/end."
+        case .full:
+            return "Everything: gait, distance, time, heart rate zones, biomechanics feedback."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .silent: return "speaker.slash"
+        case .essential: return "speaker.wave.1"
+        case .full: return "speaker.wave.3"
+        }
+    }
+}
+
 // MARK: - Coach Language
 
 /// Supported languages for voice coaching
@@ -140,8 +175,9 @@ final class AudioCoachManager: AudioCoaching {
     var announceRidingBiomechanics: Bool = true
     var announceRunningBiomechanics: Bool = true
 
-    // Running coaching level preset
+    // Coaching level presets
     var runningCoachingLevel: RunningCoachingLevel = .full
+    var ridingCoachingLevel: RidingCoachingLevel = .full
 
     // Running form reminder interval (in seconds)
     var formReminderIntervalSeconds: TimeInterval = 300 // Every 5 minutes by default
@@ -315,6 +351,37 @@ final class AudioCoachManager: AudioCoaching {
             announcePBRaceCoaching = true
             announceRunningBiomechanics = true
             announceRunningFormReminders = true
+        }
+        saveSettings()
+    }
+
+    func applyRidingCoachingLevel(_ level: RidingCoachingLevel) {
+        ridingCoachingLevel = level
+        switch level {
+        case .silent:
+            announceGaitChanges = false
+            announceDistanceMilestones = false
+            announceTimeMilestones = false
+            announceHeartRateZones = false
+            announceWorkoutIntervals = false
+            announceRidingBiomechanics = false
+            announceCrossCountry = false
+        case .essential:
+            announceGaitChanges = true
+            announceDistanceMilestones = true
+            announceTimeMilestones = false
+            announceHeartRateZones = false
+            announceWorkoutIntervals = false
+            announceRidingBiomechanics = false
+            announceCrossCountry = true
+        case .full:
+            announceGaitChanges = true
+            announceDistanceMilestones = true
+            announceTimeMilestones = true
+            announceHeartRateZones = true
+            announceWorkoutIntervals = true
+            announceRidingBiomechanics = true
+            announceCrossCountry = true
         }
         saveSettings()
     }
@@ -663,6 +730,9 @@ extension AudioCoachManager {
         static let announceHeartRateZones = "audioCoach.announceHeartRateZones"
         static let announceWorkoutIntervals = "audioCoach.announceWorkoutIntervals"
 
+        // Riding
+        static let ridingCoachingLevel = "audioCoach.ridingCoachingLevel"
+
         // Running
         static let runningCoachingLevel = "audioCoach.runningCoachingLevel"
         static let announceRunningFormReminders = "audioCoach.announceRunningFormReminders"
@@ -720,6 +790,10 @@ extension AudioCoachManager {
         }
 
         // Riding
+        if let levelRaw = defaults.string(forKey: Keys.ridingCoachingLevel),
+           let level = RidingCoachingLevel(rawValue: levelRaw) {
+            ridingCoachingLevel = level
+        }
         if defaults.object(forKey: Keys.announceGaitChanges) != nil {
             announceGaitChanges = defaults.bool(forKey: Keys.announceGaitChanges)
         }
@@ -824,6 +898,7 @@ extension AudioCoachManager {
         defaults.set(selectedVoiceIdentifier, forKey: Keys.selectedVoiceIdentifier)
 
         // Riding
+        defaults.set(ridingCoachingLevel.rawValue, forKey: Keys.ridingCoachingLevel)
         defaults.set(announceGaitChanges, forKey: Keys.announceGaitChanges)
         defaults.set(announceDistanceMilestones, forKey: Keys.announceDistanceMilestones)
         defaults.set(announceTimeMilestones, forKey: Keys.announceTimeMilestones)
