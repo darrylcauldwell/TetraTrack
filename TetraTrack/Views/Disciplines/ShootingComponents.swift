@@ -641,7 +641,35 @@ struct ShootingSessionDetailView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .onDisappear {
+                applySensorAnalysisIfNeeded()
+            }
         }
+    }
+
+    private func applySensorAnalysisIfNeeded() {
+        let watchManager = WatchConnectivityManager.shared
+        let shotMetrics = watchManager.receivedShotMetrics
+        guard !shotMetrics.isEmpty, session.graceOverallScore == 0 else { return }
+
+        let allShots = (session.ends ?? []).flatMap { $0.shots ?? [] }
+        ShootingSensorAnalyzer.applyShotSensorData(shotMetrics, to: allShots)
+
+        // Update stance/tremor averages if not already set
+        if session.averageStanceStability == 0 && watchManager.stanceStability > 0 {
+            session.averageStanceStability = watchManager.stanceStability
+        }
+        if session.averageTremorLevel == 0 && watchManager.tremorLevel > 0 {
+            session.averageTremorLevel = watchManager.tremorLevel
+        }
+
+        let analysis = ShootingSensorAnalyzer.analyzeSession(
+            shotMetrics: shotMetrics,
+            sessionStanceStability: session.averageStanceStability,
+            averageHeartRate: session.averageHeartRate
+        )
+        ShootingSensorAnalyzer.applyAnalysis(analysis, to: session)
+        watchManager.clearShotMetrics()
     }
 
     // MARK: - Stance & Tremor Helpers

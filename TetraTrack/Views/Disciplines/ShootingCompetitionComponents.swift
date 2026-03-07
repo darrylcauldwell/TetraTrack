@@ -417,13 +417,28 @@ struct ShootingCompetitionView: View {
         }
         session.ends?.append(end2)
 
-        // Wire Watch stance/tremor sensor data
+        // Wire Watch stance/tremor sensor data and run analysis
         let watchManager = WatchConnectivityManager.shared
         if watchManager.stanceStability > 0 {
             session.averageStanceStability = watchManager.stanceStability
         }
         if watchManager.tremorLevel > 0 {
             session.averageTremorLevel = watchManager.tremorLevel
+        }
+
+        // Apply per-shot sensor data and compute GRACE scores
+        let shotMetrics = watchManager.receivedShotMetrics
+        if !shotMetrics.isEmpty {
+            let allShots = (session.ends ?? []).flatMap { $0.shots ?? [] }
+            ShootingSensorAnalyzer.applyShotSensorData(shotMetrics, to: allShots)
+
+            let analysis = ShootingSensorAnalyzer.analyzeSession(
+                shotMetrics: shotMetrics,
+                sessionStanceStability: session.averageStanceStability,
+                averageHeartRate: session.averageHeartRate
+            )
+            ShootingSensorAnalyzer.applyAnalysis(analysis, to: session)
+            watchManager.clearShotMetrics()
         }
 
         // Insert into model context
