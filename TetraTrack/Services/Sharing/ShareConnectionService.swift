@@ -275,7 +275,7 @@ actor ShareConnectionService {
             return nil
         } catch {
             // Query might fail if no shares exist - that's OK
-            Log.family.debug("Zone share query returned error (may be normal): \(error.localizedDescription)")
+
             return nil
         }
     }
@@ -345,7 +345,7 @@ actor ShareConnectionService {
 
             Log.family.info("Stale ShareConnection cleanup complete")
         } catch {
-            Log.family.debug("No stale connections to clean up: \(error.localizedDescription)")
+
         }
     }
 
@@ -395,7 +395,7 @@ actor ShareConnectionService {
                                     connection.shareRecordID = share.recordID.recordName
                                 }
                             } catch {
-                                Log.family.debug("Could not fetch share via record reference: \(error.localizedDescription)")
+
                             }
                         }
 
@@ -472,7 +472,7 @@ actor ShareConnectionService {
             return false
         } catch {
             // Other errors - assume valid to avoid unnecessary regeneration
-            Log.family.debug("Share validation error (assuming valid): \(error.localizedDescription)")
+
             return true
         }
     }
@@ -542,7 +542,7 @@ actor ShareConnectionService {
             return connection == nil
         } catch {
             // Error fetching = assume deleted
-            Log.family.debug("Verify connection deleted query error (assuming deleted): \(error.localizedDescription)")
+
             return true
         }
     }
