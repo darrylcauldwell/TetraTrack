@@ -321,17 +321,13 @@ struct SettingsView: View {
                 Section {
                     Picker(selection: $localizationManager.selectedLanguage) {
                         ForEach(AppLanguage.allCases) { language in
-                            HStack(spacing: 8) {
-                                Text(language.flag)
-                                Text(language.displayName)
-                                Spacer()
-                            }
-                            .tag(language)
+                            Text("\(language.flag) \(language.displayName)")
+                                .tag(language)
                         }
                     } label: {
                         Label("App Language", systemImage: "globe")
                     }
-                    .pickerStyle(.inline)
+                    .pickerStyle(.navigationLink)
                 } header: {
                     Text("Language")
                 } footer: {
