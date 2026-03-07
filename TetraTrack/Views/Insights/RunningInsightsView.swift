@@ -274,6 +274,7 @@ struct RunningInsightsView: View {
             }
 
             enjoyCard
+            formDegradationCard
         }
         .padding(24)
     }
@@ -289,6 +290,7 @@ struct RunningInsightsView: View {
             alignCard
             circleCard
             enjoyCard
+            formDegradationCard
         }
         .padding()
     }
@@ -571,6 +573,21 @@ struct RunningInsightsView: View {
             icon: "heart.fill",
             color: .red
         )
+    }
+
+    // MARK: - Form Degradation Card
+
+    @ViewBuilder
+    private var formDegradationCard: some View {
+        let samples = session.runningFormSamples
+        if samples.count >= 8 {
+            let analysis = bio.formDegradation(
+                oscillationSamples: samples.map(\.oscillation),
+                gctSamples: samples.map(\.groundContactTime),
+                cadenceSamples: samples.map { Double($0.cadence) }
+            )
+            FormDegradationBadge(analysis: analysis)
+        }
     }
 
     // MARK: - Pillar Card Template

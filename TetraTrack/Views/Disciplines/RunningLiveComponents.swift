@@ -85,6 +85,10 @@ struct RunningLiveView: View {
     @State private var gctReadings: [Double] = []
     @State private var formSamples: [RunningFormSample] = []
 
+    // Form degradation detection
+    @State private var lastDegradationCheckCount: Int = 0
+    @State private var lastDegradationAlertTime: Date = .distantPast
+
     // Recovery tracking
     @State private var isRecoveryPhase = false
     @State private var recoveryTimer: DispatchSourceTimer?
@@ -689,6 +693,9 @@ struct RunningLiveView: View {
                     if stability > 0 {
                         AudioCoachManager.shared.processRunningStability(stability)
                     }
+
+                    // Form degradation detection
+                    self.checkFormDegradation()
                 }
             }
         }
@@ -1599,6 +1606,36 @@ struct RunningLiveView: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
+    // MARK: - Form Degradation Detection
+
+    private func checkFormDegradation() {
+        // Need at least 20 samples and check every 10 new samples (~30s at 3s intervals)
+        guard formSamples.count >= 20,
+              formSamples.count - lastDegradationCheckCount >= 10 else { return }
+        lastDegradationCheckCount = formSamples.count
+
+        // Throttle alerts to at most once per 90 seconds
+        guard Date().timeIntervalSince(lastDegradationAlertTime) > 90 else { return }
+
+        let bio = RunnerBiomechanics()
+        let analysis = bio.formDegradation(
+            oscillationSamples: formSamples.map(\.oscillation),
+            gctSamples: formSamples.map(\.groundContactTime),
+            cadenceSamples: formSamples.map { Double($0.cadence) }
+        )
+
+        guard analysis.hasDegradation else { return }
+        lastDegradationAlertTime = Date()
+
+        if analysis.cadenceDegraded {
+            AudioCoachManager.shared.announce("Cadence dropping — focus on quick, light steps")
+        } else if analysis.gctDegraded {
+            AudioCoachManager.shared.announce("Ground contact rising — think hot coals, quick feet")
+        } else if analysis.oscillationDegraded {
+            AudioCoachManager.shared.announce("Bouncing more — run tall, engage your core")
+        }
+    }
+
     // MARK: - Timer & Actions
 
     private func startTimer() {
@@ -2099,6 +2136,10 @@ struct TreadmillLiveView: View {
     @State private var gctReadings: [Double] = []
     @State private var formSamples: [RunningFormSample] = []
 
+    // Form degradation detection
+    @State private var lastDegradationCheckCount: Int = 0
+    @State private var lastDegradationAlertTime: Date = .distantPast
+
     // Recovery tracking
     @State private var isRecoveryPhase = false
     @State private var recoveryTimer: DispatchSourceTimer?
@@ -2508,6 +2549,9 @@ struct TreadmillLiveView: View {
                     if stability > 0 {
                         AudioCoachManager.shared.processRunningStability(stability)
                     }
+
+                    // Form degradation detection
+                    self.checkFormDegradation()
                 }
             }
         }
@@ -2693,6 +2737,34 @@ struct TreadmillLiveView: View {
         if currentHeartRate < 150 { return 3 }
         if currentHeartRate < 170 { return 4 }
         return 5
+    }
+
+    // MARK: - Form Degradation Detection
+
+    private func checkFormDegradation() {
+        guard formSamples.count >= 20,
+              formSamples.count - lastDegradationCheckCount >= 10 else { return }
+        lastDegradationCheckCount = formSamples.count
+
+        guard Date().timeIntervalSince(lastDegradationAlertTime) > 90 else { return }
+
+        let bio = RunnerBiomechanics()
+        let analysis = bio.formDegradation(
+            oscillationSamples: formSamples.map(\.oscillation),
+            gctSamples: formSamples.map(\.groundContactTime),
+            cadenceSamples: formSamples.map { Double($0.cadence) }
+        )
+
+        guard analysis.hasDegradation else { return }
+        lastDegradationAlertTime = Date()
+
+        if analysis.cadenceDegraded {
+            AudioCoachManager.shared.announce("Cadence dropping — focus on quick, light steps")
+        } else if analysis.gctDegraded {
+            AudioCoachManager.shared.announce("Ground contact rising — think hot coals, quick feet")
+        } else if analysis.oscillationDegraded {
+            AudioCoachManager.shared.announce("Bouncing more — run tall, engage your core")
+        }
     }
 
     // MARK: - Timer & Actions
