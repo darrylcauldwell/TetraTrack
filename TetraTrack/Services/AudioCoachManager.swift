@@ -203,6 +203,7 @@ final class AudioCoachManager: AudioCoaching {
     private var lastTimeMilestone: TimeInterval = 0
     private var lastHeartRateZone: HeartRateZone?
     private var lastGait: GaitType = .stationary
+    private var lastGaitAnnouncementTime: Date = .distantPast
 
     // Queue for announcements to avoid overlapping
     private var announcementQueue: [String] = []
@@ -515,9 +516,11 @@ final class AudioCoachManager: AudioCoaching {
         guard isEnabled, announceGaitChanges else { return }
         guard oldGait != newGait, newGait != .stationary else { return }
 
-        // Avoid announcing too frequently
-        guard newGait != lastGait else { return }
+        // Avoid announcing too frequently — require different gait AND 5s minimum gap
+        guard newGait != lastGait,
+              Date().timeIntervalSince(lastGaitAnnouncementTime) >= 5.0 else { return }
         lastGait = newGait
+        lastGaitAnnouncementTime = Date()
 
         let message: String
         switch newGait {
