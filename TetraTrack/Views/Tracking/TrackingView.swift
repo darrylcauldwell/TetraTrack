@@ -10,7 +10,7 @@ import SwiftData
 
 struct TrackingView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(RideTracker.self) private var rideTracker: RideTracker?
+    @Environment(SessionTracker.self) private var sessionTracker: SessionTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @State private var selectedTab: TrackingTab = .stats
     @State private var showingExerciseLibrary = false
@@ -26,8 +26,9 @@ struct TrackingView: View {
 
     var body: some View {
         ZStack {
-            if let tracker = rideTracker {
-                if tracker.rideState == .tracking || tracker.rideState == .paused {
+            if let tracker = sessionTracker {
+                let riding = tracker.ridingState
+                if tracker.sessionState == .tracking || tracker.sessionState == .paused {
                     // Pure black background
                     Color(.systemBackground)
                         .ignoresSafeArea()
@@ -37,7 +38,8 @@ struct TrackingView: View {
                         HStack(spacing: 12) {
                             // Page indicator on left
                             HStack(spacing: 8) {
-                                let tabs: [TrackingTab] = tracker.selectedRideType.isOutdoor ? [.stats, .map] : [.stats, .exercises]
+                                let isOutdoor = riding?.selectedRideType.isOutdoor ?? true
+                                let tabs: [TrackingTab] = isOutdoor ? [.stats, .map] : [.stats, .exercises]
                                 ForEach(tabs, id: \.self) { tab in
                                     Capsule()
                                         .fill(selectedTab == tab ? AppColors.primary : Color.gray.opacity(0.3))
@@ -63,9 +65,9 @@ struct TrackingView: View {
                                 CompactMusicButton()
 
                                 // Voice note button when paused
-                                if tracker.rideState == .paused {
+                                if tracker.sessionState == .paused {
                                     VoiceNoteToolbarButton { note in
-                                        if let ride = tracker.currentRide {
+                                        if let ride = riding?.currentRide {
                                             let service = VoiceNotesService.shared
                                             ride.notes = service.appendNote(note, to: ride.notes)
                                         }
@@ -91,22 +93,23 @@ struct TrackingView: View {
                         .padding(.top, 8)
 
                         // Content - swipeable with map for outdoor, stats+exercises for flatwork
-                        if tracker.selectedRideType.isOutdoor {
+                        let isOutdoor = riding?.selectedRideType.isOutdoor ?? true
+                        if isOutdoor {
                             TabView(selection: $selectedTab) {
                                 // Stats View with integrated pause/resume/stop
                                 StatsContentView(
                                     tracker: tracker,
                                     onPauseResume: {
-                                        if tracker.rideState == .paused {
-                                            tracker.resumeRide()
+                                        if tracker.sessionState == .paused {
+                                            tracker.resume()
                                         } else {
-                                            tracker.pauseRide()
+                                            tracker.pause()
                                         }
                                     },
-                                    onStop: { tracker.stopRide() },
-                                    onDiscard: { tracker.discardRide() }
+                                    onStop: { Task { await tracker.stop() } },
+                                    onDiscard: { tracker.discard() }
                                 )
-                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.rideState)
+                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.sessionState)
                                 .tag(TrackingTab.stats)
 
                                 // Map View
@@ -135,16 +138,16 @@ struct TrackingView: View {
                                 StatsContentView(
                                     tracker: tracker,
                                     onPauseResume: {
-                                        if tracker.rideState == .paused {
-                                            tracker.resumeRide()
+                                        if tracker.sessionState == .paused {
+                                            tracker.resume()
                                         } else {
-                                            tracker.pauseRide()
+                                            tracker.pause()
                                         }
                                     },
-                                    onStop: { tracker.stopRide() },
-                                    onDiscard: { tracker.discardRide() }
+                                    onStop: { Task { await tracker.stop() } },
+                                    onDiscard: { tracker.discard() }
                                 )
-                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.rideState)
+                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.sessionState)
                                 .tag(TrackingTab.stats)
 
                                 // Exercises View
@@ -168,10 +171,10 @@ struct TrackingView: View {
         }
         .confirmationDialog("End Session", isPresented: $showingExitConfirmation, titleVisibility: .visible) {
             Button("Save") {
-                rideTracker?.stopRide()
+                Task { await sessionTracker?.stop() }
             }
             Button("Discard", role: .destructive) {
-                rideTracker?.discardRide()
+                sessionTracker?.discard()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -179,10 +182,10 @@ struct TrackingView: View {
         }
         .alert("Vehicle Detected", isPresented: vehicleAlertBinding) {
             Button("Stop & Save") {
-                rideTracker?.stopRide()
+                Task { await sessionTracker?.stop() }
             }
             Button("Keep Tracking", role: .cancel) {
-                rideTracker?.dismissVehicleAlert()
+                sessionTracker?.ridingState?.dismissVehicleAlert()
             }
         } message: {
             Text("It looks like you're traveling at vehicle speed. Would you like to stop tracking?")
@@ -192,7 +195,7 @@ struct TrackingView: View {
                 EmergencyAlertSentView(
                     emergencyContacts: emergencyContacts,
                     onDismiss: {
-                        rideTracker?.confirmFallOK()
+                        sessionTracker?.ridingState?.confirmFallOK()
                         emergencyAlertSent = false
                     },
                     onCallContact: { contact in
@@ -203,39 +206,39 @@ struct TrackingView: View {
                 )
             } else {
                 FallAlertView(
-                    countdownSeconds: rideTracker?.fallAlertCountdown ?? 30,
+                    countdownSeconds: sessionTracker?.ridingState?.fallAlertCountdown ?? 30,
                     onConfirmOK: {
-                        rideTracker?.confirmFallOK()
+                        sessionTracker?.ridingState?.confirmFallOK()
                     },
                     onRequestEmergency: {
-                        rideTracker?.requestEmergencyHelp()
+                        sessionTracker?.ridingState?.requestEmergencyHelp()
                         emergencyAlertSent = true
                     }
                 )
             }
         }
-        .onChange(of: rideTracker?.fallAlertCountdown ?? 30) { _, newValue in
-            if newValue <= 0 && (rideTracker?.showingFallAlert ?? false) {
+        .onChange(of: sessionTracker?.ridingState?.fallAlertCountdown ?? 30) { _, newValue in
+            if newValue <= 0 && (sessionTracker?.ridingState?.showingFallAlert ?? false) {
                 emergencyAlertSent = true
             }
         }
     }
 
-    /// Binding to vehicle alert state in RideTracker
+    /// Binding to vehicle alert state in RidingPlugin
     private var vehicleAlertBinding: Binding<Bool> {
         Binding(
-            get: { rideTracker?.showingVehicleAlert ?? false },
-            set: { _ in rideTracker?.dismissVehicleAlert() }
+            get: { sessionTracker?.ridingState?.showingVehicleAlert ?? false },
+            set: { _ in sessionTracker?.ridingState?.dismissVehicleAlert() }
         )
     }
 
-    /// Binding to fall alert state in RideTracker
+    /// Binding to fall alert state in RidingPlugin
     private var fallAlertBinding: Binding<Bool> {
         Binding(
-            get: { rideTracker?.showingFallAlert ?? false },
+            get: { sessionTracker?.ridingState?.showingFallAlert ?? false },
             set: { newValue in
                 if !newValue {
-                    rideTracker?.confirmFallOK()
+                    sessionTracker?.ridingState?.confirmFallOK()
                     emergencyAlertSent = false
                 }
             }
@@ -249,6 +252,6 @@ struct TrackingView: View {
     TrackingView()
         .environment(locManager)
         .environment(gpsTracker)
-        .environment(RideTracker(locationManager: locManager, gpsTracker: gpsTracker))
+        .environment(SessionTracker(locationManager: locManager, gpsTracker: gpsTracker))
         .modelContainer(for: [FlatworkExercise.self, PoleworkExercise.self], inMemory: true)
 }

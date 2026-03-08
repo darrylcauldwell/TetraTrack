@@ -8,18 +8,18 @@
 import SwiftUI
 
 struct RidePhaseControls: View {
-    let tracker: RideTracker
+    let plugin: RidingPlugin
 
     var body: some View {
         VStack(spacing: 12) {
             // Current phase indicator
             HStack {
-                Image(systemName: tracker.currentPhaseType.icon)
+                Image(systemName: plugin.currentPhaseType.icon)
                     .foregroundStyle(phaseColor)
-                Text(tracker.currentPhaseType.rawValue)
+                Text(plugin.currentPhaseType.rawValue)
                     .font(.headline)
                     .fontWeight(.bold)
-                if let phase = tracker.currentPhase {
+                if let phase = plugin.currentPhase {
                     Text(phase.formattedDuration)
                         .font(.subheadline)
                         .monospacedDigit()
@@ -35,7 +35,7 @@ struct RidePhaseControls: View {
             HStack(spacing: 12) {
                 ForEach(availableTransitions, id: \.self) { phaseType in
                     Button {
-                        tracker.startPhase(phaseType)
+                        plugin.startPhase(phaseType)
                     } label: {
                         VStack(spacing: 4) {
                             Image(systemName: phaseType.icon)
@@ -49,14 +49,14 @@ struct RidePhaseControls: View {
                         .foregroundStyle(phaseButtonColor(phaseType))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .sensoryFeedback(.impact(weight: .medium), trigger: tracker.currentPhaseType)
+                    .sensoryFeedback(.impact(weight: .medium), trigger: plugin.currentPhaseType)
                 }
             }
 
             // Jump count and faults for current round
-            if tracker.currentPhaseType == .round, let phase = tracker.currentPhase {
+            if plugin.currentPhaseType == .round, let phase = plugin.currentPhase {
                 HStack(spacing: 20) {
-                    Label("\(tracker.jumpCount - tracker.phaseStartJumpCount) jumps", systemImage: "arrow.up.forward")
+                    Label("\(plugin.jumpCount - plugin.phaseStartJumpCount) jumps", systemImage: "arrow.up.forward")
                     FaultStepper(phase: phase)
                 }
                 .font(.subheadline)
@@ -69,7 +69,7 @@ struct RidePhaseControls: View {
     }
 
     private var phaseColor: Color {
-        switch tracker.currentPhaseType {
+        switch plugin.currentPhaseType {
         case .warmup: return .gray
         case .round: return .blue
         case .rest: return .yellow
@@ -87,7 +87,7 @@ struct RidePhaseControls: View {
     }
 
     private var availableTransitions: [RidePhaseType] {
-        RidePhaseType.allCases.filter { $0 != tracker.currentPhaseType }
+        RidePhaseType.allCases.filter { $0 != plugin.currentPhaseType }
     }
 }
 

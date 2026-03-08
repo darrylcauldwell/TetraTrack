@@ -11,7 +11,7 @@ import os
 // MARK: - Idle Setup View
 
 struct IdleSetupView: View {
-    let tracker: RideTracker
+    let tracker: SessionTracker
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @State private var showingDisciplineSetup: RideType?
 
@@ -165,7 +165,7 @@ struct DisciplineSelectionView: View {
 
 struct DisciplineSetupSheet: View {
     let rideType: RideType
-    let tracker: RideTracker
+    let tracker: SessionTracker
     @Environment(\.dismiss) private var dismiss
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Query(filter: #Predicate<SharingRelationship> {
@@ -176,11 +176,13 @@ struct DisciplineSetupSheet: View {
     @State private var showingCountdown = false
     @State private var showingNoEmergencyContactAlert = false
     @State private var showingAudioCoachingSettings = false
+    @State private var ridingPlugin: RidingPlugin
 
-    init(rideType: RideType, tracker: RideTracker) {
+    init(rideType: RideType, tracker: SessionTracker) {
         Log.ui.info("DisciplineSetupSheet init: rideType=\(rideType.rawValue)")
         self.rideType = rideType
         self.tracker = tracker
+        self._ridingPlugin = State(initialValue: RidingPlugin(rideType: rideType))
     }
 
     var body: some View {
@@ -246,7 +248,6 @@ struct DisciplineSetupSheet: View {
                                 size: 80,
                                 action: {
                                     Log.ui.info("Start button tapped for \(rideType.rawValue)")
-                                    tracker.selectedRideType = rideType
                                     let hasValidContact = emergencyContacts.contains {
                                         if let phone = $0.phoneNumber {
                                             return PhoneNumberValidator.validate(phone).isAcceptable
@@ -260,7 +261,7 @@ struct DisciplineSetupSheet: View {
                                     }
                                 }
                             )
-                            .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.rideState)
+                            .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.sessionState)
 
                             Text("Tap to Start")
                                 .font(.subheadline)
@@ -271,12 +272,12 @@ struct DisciplineSetupSheet: View {
                         if rideType == .crossCountry {
                             XCSetupView(
                                 optimumTime: Binding(
-                                    get: { tracker.xcOptimumTime },
-                                    set: { tracker.xcOptimumTime = $0 }
+                                    get: { ridingPlugin.xcOptimumTime },
+                                    set: { ridingPlugin.xcOptimumTime = $0 }
                                 ),
                                 courseDistance: Binding(
-                                    get: { tracker.xcCourseDistance },
-                                    set: { tracker.xcCourseDistance = $0 }
+                                    get: { ridingPlugin.xcCourseDistance },
+                                    set: { ridingPlugin.xcCourseDistance = $0 }
                                 )
                             )
                             .padding(16)
@@ -299,8 +300,8 @@ struct DisciplineSetupSheet: View {
                         if rideType == .dressage {
                             DressageTestSetupCard(
                                 selectedTest: Binding(
-                                    get: { tracker.selectedDressageTest },
-                                    set: { tracker.selectedDressageTest = $0 }
+                                    get: { ridingPlugin.selectedDressageTest },
+                                    set: { ridingPlugin.selectedDressageTest = $0 }
                                 )
                             )
                             .padding(16)
@@ -312,8 +313,8 @@ struct DisciplineSetupSheet: View {
                         // Horse selection card
                         VStack(alignment: .leading, spacing: 12) {
                             HorseSelectionView(selectedHorse: Binding(
-                                get: { tracker.selectedHorse },
-                                set: { tracker.selectedHorse = $0 }
+                                get: { ridingPlugin.selectedHorse },
+                                set: { ridingPlugin.selectedHorse = $0 }
                             ))
                         }
                         .padding(16)
@@ -362,8 +363,8 @@ struct DisciplineSetupSheet: View {
                     showingCountdown = false
                     Task {
                         Log.ui.info("Countdown complete, starting ride...")
-                        await tracker.startRide()
-                        Log.ui.info("Ride started, rideState = \(String(describing: tracker.rideState))")
+                        await tracker.start(plugin: ridingPlugin)
+                        Log.ui.info("Ride started, sessionState = \(String(describing: tracker.sessionState))")
                         await MainActor.run {
                             Log.ui.info("Dismissing sheet...")
                             dismiss()
@@ -680,10 +681,12 @@ struct FlatworkSetupView: View {
 // MARK: - Stats Content View
 
 struct StatsContentView: View {
-    let tracker: RideTracker
+    let tracker: SessionTracker
     var onPauseResume: (() -> Void)? = nil
     var onStop: (() -> Void)? = nil
     var onDiscard: (() -> Void)? = nil
+
+    private var riding: RidingPlugin? { tracker.ridingState }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -698,7 +701,7 @@ struct StatsContentView: View {
             }
 
             // Tap hint at top
-            Text(tracker.rideState == .paused ? "Tap to Resume" : "Tap to Pause")
+            Text(tracker.sessionState == .paused ? "Tap to Resume" : "Tap to Pause")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
@@ -711,56 +714,56 @@ struct StatsContentView: View {
                         duration: tracker.formattedElapsedTime,
                         distance: tracker.formattedDistance,
                         speed: tracker.formattedSpeed,
-                        gait: tracker.currentGait,
-                        isPaused: tracker.rideState == .paused,
-                        lead: tracker.currentLead,
-                        rein: tracker.currentRein,
-                        symmetry: tracker.currentSymmetry,
-                        rhythm: tracker.currentRhythm,
-                        rideType: tracker.selectedRideType,
+                        gait: riding?.currentGait ?? .stationary,
+                        isPaused: tracker.sessionState == .paused,
+                        lead: riding?.currentLead ?? .unknown,
+                        rein: riding?.currentRein ?? .straight,
+                        symmetry: riding?.currentSymmetry ?? 0,
+                        rhythm: riding?.currentRhythm ?? 0,
+                        rideType: riding?.selectedRideType ?? .hack,
                         averageSpeed: tracker.formattedAverageSpeed,
                         elevation: tracker.formattedElevation,
                         elevationGain: tracker.formattedElevationGain,
-                        walkPercent: tracker.walkPercent,
-                        trotPercent: tracker.trotPercent,
-                        canterPercent: tracker.canterPercent,
-                        gallopPercent: tracker.gallopPercent,
+                        walkPercent: riding?.walkPercent ?? 0,
+                        trotPercent: riding?.trotPercent ?? 0,
+                        canterPercent: riding?.canterPercent ?? 0,
+                        gallopPercent: riding?.gallopPercent ?? 0,
                         heartRate: tracker.currentHeartRate,
                         heartRateZone: tracker.currentHeartRateZone,
                         averageHeartRate: tracker.averageHeartRate,
                         maxHeartRate: tracker.maxHeartRate,
-                        leftReinPercent: tracker.leftReinPercent,
-                        rightReinPercent: tracker.rightReinPercent,
-                        leftTurnPercent: tracker.leftTurnPercent,
-                        rightTurnPercent: tracker.rightTurnPercent,
-                        leftLeadPercent: tracker.leftLeadPercent,
-                        rightLeadPercent: tracker.rightLeadPercent,
-                        xcTimeDifference: tracker.xcTimeDifferenceFormatted,
-                        xcIsAheadOfTime: tracker.xcIsAheadOfTime,
-                        xcOptimumTime: tracker.xcOptimumTime,
+                        leftReinPercent: riding?.leftReinPercent ?? 0,
+                        rightReinPercent: riding?.rightReinPercent ?? 0,
+                        leftTurnPercent: riding?.leftTurnPercent ?? 0,
+                        rightTurnPercent: riding?.rightTurnPercent ?? 0,
+                        leftLeadPercent: riding?.leftLeadPercent ?? 0,
+                        rightLeadPercent: riding?.rightLeadPercent ?? 0,
+                        xcTimeDifference: riding?.xcTimeDifferenceFormatted ?? "0s",
+                        xcIsAheadOfTime: riding?.xcIsAheadOfTime ?? false,
+                        xcOptimumTime: riding?.xcOptimumTime ?? 0,
                         currentSpeedFormatted: tracker.formattedSpeed,
-                        currentGradient: tracker.currentGradientFormatted
+                        currentGradient: riding?.currentGradientFormatted ?? "0%"
                     )
 
                     // Phase controls for showjumping
-                    if tracker.selectedRideType == .showjumping {
-                        RidePhaseControls(tracker: tracker)
+                    if riding?.selectedRideType == .showjumping, let riding {
+                        RidePhaseControls(plugin: riding)
                     }
 
                     // Dressage test practice overlay
-                    if tracker.selectedRideType == .dressage, tracker.selectedDressageTest != nil {
-                        DressageTestPracticeView(tracker: tracker)
+                    if riding?.selectedRideType == .dressage, riding?.selectedDressageTest != nil, let riding {
+                        DressageTestPracticeView(plugin: riding)
                     }
 
                     // Watch sensor metrics
-                    if tracker.jumpCount > 0 || tracker.activeRidingPercent > 0 {
+                    if (riding?.jumpCount ?? 0) > 0 || (riding?.activeRidingPercent ?? 0) > 0 {
                         Divider()
                             .padding(.horizontal)
 
                         RiderSensorMetricsView(
-                            jumpCount: tracker.jumpCount,
-                            activePercent: tracker.activeRidingPercent,
-                            rideType: tracker.selectedRideType
+                            jumpCount: riding?.jumpCount ?? 0,
+                            activePercent: riding?.activeRidingPercent ?? 0,
+                            rideType: riding?.selectedRideType ?? .hack
                         )
                     }
                 }
@@ -771,7 +774,7 @@ struct StatsContentView: View {
 
             // Pause/Resume button with stop option
             PauseResumeButton(
-                isPaused: tracker.rideState == .paused,
+                isPaused: tracker.sessionState == .paused,
                 onTap: {
                     onPauseResume?()
                 },

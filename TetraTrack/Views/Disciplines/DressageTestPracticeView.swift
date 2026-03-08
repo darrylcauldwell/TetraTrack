@@ -8,20 +8,20 @@
 import SwiftUI
 
 struct DressageTestPracticeView: View {
-    let tracker: RideTracker
+    let plugin: RidingPlugin
 
     private var movements: [DressageMovement] {
-        guard let test = tracker.selectedDressageTest else { return [] }
+        guard let test = plugin.selectedDressageTest else { return [] }
         return DressageTestData.movements[test] ?? []
     }
 
     private var currentMovement: DressageMovement? {
-        guard tracker.currentMovementIndex < movements.count else { return nil }
-        return movements[tracker.currentMovementIndex]
+        guard plugin.currentMovementIndex < movements.count else { return nil }
+        return movements[plugin.currentMovementIndex]
     }
 
     private var isTestComplete: Bool {
-        tracker.currentMovementIndex >= movements.count
+        plugin.currentMovementIndex >= movements.count
     }
 
     var body: some View {
@@ -30,10 +30,10 @@ struct DressageTestPracticeView: View {
             HStack {
                 Image(systemName: "list.number")
                     .foregroundStyle(.indigo)
-                Text(tracker.selectedDressageTest?.displayName ?? "Test")
+                Text(plugin.selectedDressageTest?.displayName ?? "Test")
                     .font(.headline)
                 Spacer()
-                Text("\(tracker.currentMovementIndex + 1) of \(movements.count)")
+                Text("\(plugin.currentMovementIndex + 1) of \(movements.count)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -46,8 +46,8 @@ struct DressageTestPracticeView: View {
                         .foregroundStyle(.green)
                     Text("Test Complete")
                         .font(.headline)
-                    if !tracker.movementScores.isEmpty {
-                        let total = tracker.movementScores.reduce(0, +)
+                    if !plugin.movementScores.isEmpty {
+                        let total = plugin.movementScores.reduce(0, +)
                         let max = movements.count * 10
                         Text("\(total)/\(max) (\(String(format: "%.1f", Double(total) / Double(max) * 100))%)")
                             .font(.subheadline)
@@ -101,12 +101,12 @@ struct DressageTestPracticeView: View {
                         .foregroundStyle(.indigo)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .sensoryFeedback(.impact(weight: .medium), trigger: tracker.currentMovementIndex)
+                .sensoryFeedback(.impact(weight: .medium), trigger: plugin.currentMovementIndex)
             }
 
             // Progress bar
             GeometryReader { geo in
-                let progress = movements.isEmpty ? 0 : Double(tracker.currentMovementIndex) / Double(movements.count)
+                let progress = movements.isEmpty ? 0 : Double(plugin.currentMovementIndex) / Double(movements.count)
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.gray.opacity(0.2))
@@ -123,23 +123,23 @@ struct DressageTestPracticeView: View {
     }
 
     private func scoreAndAdvance(_ score: Int) {
-        tracker.movementScores.append(score)
-        tracker.currentMovementIndex += 1
+        plugin.movementScores.append(score)
+        plugin.currentMovementIndex += 1
         saveExecutionIfComplete()
     }
 
     private func advanceMovement() {
-        tracker.currentMovementIndex += 1
+        plugin.currentMovementIndex += 1
         saveExecutionIfComplete()
     }
 
     private func saveExecutionIfComplete() {
-        guard isTestComplete, let test = tracker.selectedDressageTest, let ride = tracker.currentRide else { return }
+        guard isTestComplete, let test = plugin.selectedDressageTest, let ride = plugin.currentRide else { return }
 
         let movementScoreRecords = movements.enumerated().map { index, movement in
             DressageMovementScore(
                 movementNumber: movement.number,
-                score: index < tracker.movementScores.count ? tracker.movementScores[index] : nil
+                score: index < plugin.movementScores.count ? plugin.movementScores[index] : nil
             )
         }
 
