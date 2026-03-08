@@ -51,6 +51,9 @@ final class WorkoutLifecycleService: NSObject {
     // Track activity type for watch motion mode mapping
     private var currentActivityType: HKWorkoutActivityType?
 
+    // Tracked workout save task for ordered post-session pipeline
+    private var workoutSaveTask: Task<HKWorkout?, Never>?
+
     private override init() {
         super.init()
     }
@@ -78,6 +81,7 @@ final class WorkoutLifecycleService: NSObject {
         }
 
         state = .preparing
+        workoutSaveTask = nil
         isOutdoorSession = configuration.locationType == .outdoor
 
         // Send session control commands to Watch before HealthKit setup
@@ -91,7 +95,8 @@ final class WorkoutLifecycleService: NSObject {
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             session.delegate = self
 
-            // Prepare for Watch mirroring
+            // Prepare session — makes it available for Watch mirroring via
+            // HKHealthStore.workoutSessionMirroredFromCompanionDevice() on watchOS
             session.prepare()
 
             // Create live workout builder with auto data collection
@@ -274,6 +279,30 @@ final class WorkoutLifecycleService: NSObject {
         }
     }
 
+    // MARK: - Begin End and Save (Non-Blocking)
+
+    /// Start ending and saving the workout in a tracked Task.
+    /// Non-blocking — call `awaitWorkoutSave()` later to get the result.
+    func beginEndAndSave(metadata: [String: Any]? = nil, events: [HKWorkoutEvent]? = nil, samples: [HKSample]? = nil) {
+        workoutSaveTask = Task {
+            if let events, !events.isEmpty {
+                await addWorkoutEvents(events)
+            }
+            if let samples, !samples.isEmpty {
+                await addSamples(samples)
+            }
+            let workout = await endAndSave(metadata: metadata)
+            sendIdleStateToWatch()
+            return workout
+        }
+    }
+
+    /// Await the tracked workout save Task. Returns the saved HKWorkout if successful.
+    func awaitWorkoutSave() async -> HKWorkout? {
+        guard let task = workoutSaveTask else { return nil }
+        return await task.value
+    }
+
     // MARK: - Discard
 
     /// Discard the workout without saving.
@@ -427,6 +456,9 @@ final class WorkoutLifecycleService: NSObject {
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
+        // Note: workoutSaveTask is intentionally NOT nilled here —
+        // awaitWorkoutSave() needs it after cleanup runs inside endAndSave().
+        // It is nilled on the next startWorkout() or discard() call.
         isOutdoorSession = false
         currentActivityType = nil
         state = .idle
@@ -508,6 +540,20 @@ extension WorkoutLifecycleService: HKLiveWorkoutBuilderDelegate {
             if let calType = collectedTypes.first(where: { $0 == HKQuantityType(.activeEnergyBurned) }) as? HKQuantityType {
                 if let stats = workoutBuilder.statistics(for: calType) {
                     self.liveActiveCalories = stats.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                }
+            }
+
+            // Distance (walking/running)
+            if let distType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceWalkingRunning) }) as? HKQuantityType {
+                if let stats = workoutBuilder.statistics(for: distType) {
+                    self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
+                }
+            }
+
+            // Distance (swimming)
+            if let swimDistType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceSwimming) }) as? HKQuantityType {
+                if let stats = workoutBuilder.statistics(for: swimDistType) {
+                    self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
                 }
             }
         }

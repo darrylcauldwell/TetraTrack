@@ -428,15 +428,12 @@ struct WalkingLiveView: View {
             Task { await sharingCoordinator.stopSharingLocation() }
         }
 
-        // End HealthKit workout with metadata
+        // Begin non-blocking workout save (awaited in parent view's onEnd)
         let walkingMetadata: [String: Any] = [
             "SessionType": "walking",
             HKMetadataKeyIndoorWorkout: false
         ]
-        Task {
-            _ = await workoutLifecycle.endAndSave(metadata: walkingMetadata)
-            workoutLifecycle.sendIdleStateToWatch()
-        }
+        workoutLifecycle.beginEndAndSave(metadata: walkingMetadata)
 
         // Audio coach - session end
         AudioCoachManager.shared.announceWalkingSessionEnd(
@@ -445,7 +442,6 @@ struct WalkingLiveView: View {
             averageCadence: session.averageCadence
         )
 
-        try? modelContext.save()
         onEnd()
     }
 

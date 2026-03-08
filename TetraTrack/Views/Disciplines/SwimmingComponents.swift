@@ -1641,23 +1641,12 @@ struct SwimmingLiveView: View {
             }
         }
 
-        // End workout lifecycle with enrichment data, then save to HealthKit
-        Task {
-            if !hkEvents.isEmpty {
-                await workoutLifecycle.addWorkoutEvents(hkEvents)
-            }
-            if !hkSamples.isEmpty {
-                await workoutLifecycle.addSamples(hkSamples)
-            }
-            let workout = await workoutLifecycle.endAndSave(metadata: swimMetadata)
-            if let workout {
-                Log.tracking.info("Swimming workout saved via WorkoutLifecycleService: \(workout.uuid.uuidString)")
-                await MainActor.run {
-                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                }
-            }
-            workoutLifecycle.sendIdleStateToWatch()
-        }
+        // Begin non-blocking workout save (awaited in parent view's onEnd)
+        workoutLifecycle.beginEndAndSave(
+            metadata: swimMetadata,
+            events: hkEvents.isEmpty ? nil : hkEvents,
+            samples: hkSamples.isEmpty ? nil : hkSamples
+        )
 
         session.totalDistance = totalDistance
         session.totalDuration = elapsedTime

@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
+import HealthKit
 
 struct SwimmingView: View {
     @Environment(\.dismiss) private var dismiss
@@ -107,8 +108,8 @@ struct SwimmingView: View {
                     freeSwimTargetDuration: freeSwimTargetDuration > 0 ? freeSwimTargetDuration : nil,
                     intervalSettings: activeIntervalSettings,
                     onEnd: {
+                        // Sync: PBs, skill scores, save, navigate
                         activeIntervalSettings = nil
-                        // Update CSS threshold pace after timed test
                         if session.name.contains("Test") && session.totalDistance > 0 {
                             var pbs = SwimmingPersonalBests.shared
                             pbs.updateThresholdPace(
@@ -120,21 +121,29 @@ struct SwimmingView: View {
                                 time: session.totalDuration
                             )
                         }
-                        // HealthKit workout save is handled by WorkoutLifecycleService.endAndSave()
-                        // Compute and save skill domain scores (basic without subjective score)
                         let skillService = SkillDomainService()
                         let skillScores = skillService.computeScores(from: session, score: nil)
                         for skillScore in skillScores {
                             modelContext.insert(skillScore)
                         }
                         try? modelContext.save()
-                        // Convert to TrainingArtifact and sync to CloudKit for family sharing
-                        Task {
-                            await ArtifactConversionService.shared.convertAndSyncSwimmingSession(session)
-                        }
-                        // Sync sessions to widgets
                         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
                         activeSession = nil
+
+                        // Background: await workout save → save UUID → artifact sync
+                        let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
+                        Task {
+                            let workoutLifecycle = WorkoutLifecycleService.shared
+                            let workout = await workoutLifecycle.awaitWorkoutSave()
+                            if let workout {
+                                await MainActor.run {
+                                    session.healthKitWorkoutUUID = workout.uuid.uuidString
+                                    try? modelContext.save()
+                                }
+                            }
+                            await ArtifactConversionService.shared.convertAndSyncSwimmingSession(session)
+                            UIApplication.shared.endBackgroundTask(bgTaskID)
+                        }
                     },
                     onDiscard: {
                         // Delete without saving
