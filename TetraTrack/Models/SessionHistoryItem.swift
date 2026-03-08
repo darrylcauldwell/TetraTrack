@@ -48,9 +48,9 @@ struct SessionHistoryItem: Identifiable, Hashable {
 
     init(runningSession: RunningSession) {
         self.id = runningSession.id
-        self.discipline = .running
+        self.discipline = runningSession.isWalking ? .walking : .running
         self.date = runningSession.startDate
-        self.name = runningSession.name.isEmpty ? "Run" : runningSession.name
+        self.name = runningSession.name.isEmpty ? (runningSession.isWalking ? "Walk" : "Run") : runningSession.name
         self.duration = runningSession.totalDuration
         self.primaryMetric = runningSession.formattedDistance
         self.secondaryMetric = runningSession.formattedPace
@@ -102,7 +102,8 @@ struct SessionHistoryItem: Identifiable, Hashable {
     private static func mapDiscipline(from workout: ExternalWorkout) -> TrainingDiscipline {
         switch workout.activityType {
         case .equestrianSports: return .riding
-        case .running, .walking, .hiking: return .running
+        case .running, .hiking: return .running
+        case .walking: return .walking
         case .swimming: return .swimming
         default: return .running // Default to running for other cardio
         }
@@ -136,8 +137,13 @@ extension SessionHistoryItem {
         if discipline == nil || discipline == .riding {
             items += rides.map { SessionHistoryItem(ride: $0) }
         }
-        if discipline == nil || discipline == .running {
-            items += runs.map { SessionHistoryItem(runningSession: $0) }
+        if discipline == nil || discipline == .running || discipline == .walking {
+            let runItems = runs.map { SessionHistoryItem(runningSession: $0) }
+            if let discipline {
+                items += runItems.filter { $0.discipline == discipline }
+            } else {
+                items += runItems
+            }
         }
         if discipline == nil || discipline == .swimming {
             items += swims.map { SessionHistoryItem(swimmingSession: $0) }

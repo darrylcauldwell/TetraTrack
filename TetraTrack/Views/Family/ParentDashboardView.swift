@@ -762,7 +762,7 @@ struct ArtifactDetailView: View {
             if let data = artifact.getRidingData() {
                 RidingDetailCard(data: data)
             }
-        case .running:
+        case .running, .walking:
             if let data = artifact.getRunningData() {
                 RunningDetailCard(data: data)
             }

@@ -176,6 +176,8 @@ final class WidgetDataSyncService {
                 horseName = item.ride?.horse?.name
             case .running:
                 sessionType = .run
+            case .walking:
+                sessionType = .run
             case .swimming:
                 sessionType = .swim
             case .shooting:

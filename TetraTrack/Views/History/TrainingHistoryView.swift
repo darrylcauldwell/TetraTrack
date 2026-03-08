@@ -60,6 +60,7 @@ struct SessionHistoryView: View {
         case all = "All"
         case riding = "Riding"
         case running = "Running"
+        case walking = "Walking"
         case swimming = "Swimming"
         case shooting = "Shooting"
 
@@ -68,6 +69,7 @@ struct SessionHistoryView: View {
             case .all: return "square.grid.2x2"
             case .riding: return "figure.equestrian.sports"
             case .running: return "figure.run"
+            case .walking: return "figure.walk"
             case .swimming: return "figure.pool.swim"
             case .shooting: return "target"
             }
@@ -78,6 +80,7 @@ struct SessionHistoryView: View {
             case .all: return .purple
             case .riding: return TrainingDiscipline.riding.swiftUIColor
             case .running: return TrainingDiscipline.running.swiftUIColor
+            case .walking: return TrainingDiscipline.walking.swiftUIColor
             case .swimming: return TrainingDiscipline.swimming.swiftUIColor
             case .shooting: return TrainingDiscipline.shooting.swiftUIColor
             }
@@ -88,6 +91,7 @@ struct SessionHistoryView: View {
             case .all: return nil
             case .riding: return .riding
             case .running: return .running
+            case .walking: return .walking
             case .swimming: return .swimming
             case .shooting: return .shooting
             }
@@ -323,11 +327,11 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    if session.isWalking {
-                        WalkingDetailView(session: session)
-                    } else {
-                        RunningSessionDetailView(session: session)
-                    }
+                    RunningSessionDetailView(session: session)
+                }
+            case .walking:
+                if let session = item.runningSession {
+                    WalkingDetailView(session: session)
                 }
             case .swimming:
                 if let session = item.swimmingSession {
@@ -438,11 +442,11 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    if session.isWalking {
-                        WalkingDetailView(session: session)
-                    } else {
-                        RunningSessionDetailView(session: session)
-                    }
+                    RunningSessionDetailView(session: session)
+                }
+            case .walking:
+                if let session = item.runningSession {
+                    WalkingDetailView(session: session)
                 }
             case .swimming:
                 if let session = item.swimmingSession {
