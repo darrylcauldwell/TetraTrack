@@ -88,6 +88,11 @@ final class GPSSessionTracker {
     private var lastPauseTime: Date?
     private var modelContext: ModelContext?
 
+    // Diagnostic counters for location tracking (#107)
+    private var rawLocationCount: Int = 0
+    private var filteredLocationCount: Int = 0
+    private var persistedLocationCount: Int = 0
+
     // Barometric elevation
     private let altimeter = CMAltimeter()
     private var useBarometer: Bool = false
@@ -130,6 +135,7 @@ final class GPSSessionTracker {
     ) async {
         self.subscriberId = subscriberId
         self.modelContext = modelContext
+        Log.location.info("GPS session starting — subscriber: \(subscriberId), activity: \(String(describing: activityType)), modelContext: \(modelContext != nil ? "available" : "NIL")")
         self.workoutLifecycle = workoutLifecycle
         self.currentActivityType = activityType
 
@@ -152,6 +158,9 @@ final class GPSSessionTracker {
         sessionStartTime = nil
         lastBarometricRelativeAltitude = 0
         barometerReferenceAltitude = nil
+        rawLocationCount = 0
+        filteredLocationCount = 0
+        persistedLocationCount = 0
         lastGPSAltitude = nil
 
         // Reset pedometer state
@@ -218,6 +227,8 @@ final class GPSSessionTracker {
 
     /// Stop the GPS session and clean up
     func stop() {
+        Log.location.info("GPS session ending — raw: \(self.rawLocationCount), filtered: \(self.filteredLocationCount), persisted: \(self.persistedLocationCount), routeCoords: \(self.routeCoordinates.count)")
+
         // Unsubscribe from location updates
         if let id = subscriberId {
             locationManager.unsubscribe(id: id)
@@ -249,12 +260,22 @@ final class GPSSessionTracker {
     private func handleRawLocation(_ location: CLLocation) {
         guard !isPaused else { return }
 
+        rawLocationCount += 1
+
         // Update GPS signal quality (always, even if filtered out)
         gpsHorizontalAccuracy = location.horizontalAccuracy
         gpsSignalQuality = GPSSignalQuality(horizontalAccuracy: location.horizontalAccuracy)
 
         // Run through filter pipeline
-        guard let filtered = filter.processLocation(location) else { return }
+        guard let filtered = filter.processLocation(location) else {
+            // Log every 50th rejection to avoid spam
+            if rawLocationCount % 50 == 0 {
+                Log.location.debug("GPS filter stats: \(self.rawLocationCount) raw, \(self.filteredLocationCount) accepted, \(self.persistedLocationCount) persisted, accuracy=\(location.horizontalAccuracy)")
+            }
+            return
+        }
+
+        filteredLocationCount += 1
 
         // Update warm-up state from filter
         isWarmedUp = filter.isWarmedUp
@@ -287,6 +308,9 @@ final class GPSSessionTracker {
             currentElevation = filtered.altitude
             if let ctx = modelContext {
                 insertLocationPoint?(filtered, ctx)
+                persistedLocationCount += 1
+            } else {
+                Log.location.warning("Cannot persist location point — modelContext is nil")
             }
             if let lifecycle = workoutLifecycle {
                 Task {
@@ -320,6 +344,9 @@ final class GPSSessionTracker {
         // Persist location point via discipline hook
         if let ctx = modelContext {
             insertLocationPoint?(filtered, ctx)
+            persistedLocationCount += 1
+        } else {
+            Log.location.warning("Cannot persist location point — modelContext is nil")
         }
 
         // Feed to workout route builder

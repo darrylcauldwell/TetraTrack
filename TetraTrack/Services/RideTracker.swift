@@ -340,7 +340,10 @@ final class RideTracker {
     private func setupLocationCallback() {
         // Persist filtered locations as LocationPoints
         gpsTracker.insertLocationPoint = { [weak self] location, ctx in
-            guard let self, let ride = self.currentRide else { return }
+            guard let self, let ride = self.currentRide else {
+                Log.tracking.warning("insertLocationPoint: self or currentRide is nil")
+                return
+            }
             let point = LocationPoint(from: location)
             point.ride = ride
             ctx.insert(point)
@@ -1022,6 +1025,8 @@ final class RideTracker {
                 }
                 activeBackgroundTasks.append(recoveryTask)
             }
+
+            Log.tracking.info("Ride finalize — locationPoints: \(ride.locationPoints?.count ?? -1), distance: \(ride.totalDistance), duration: \(ride.totalDuration)")
 
             do {
                 try modelContext?.save()

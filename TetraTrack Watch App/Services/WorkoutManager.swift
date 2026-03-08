@@ -109,8 +109,11 @@ final class WorkoutManager: NSObject {
     }
 
     private func handleMirroredSession(_ session: HKWorkoutSession) {
-        // If we already have an active workout, stop it first
-        if isWorkoutActive && !isMirroredSession {
+        // If we already have an active companion workout, stop it cleanly
+        if isWorkoutActive && isCompanionMode {
+            Log.tracking.info("Replacing companion HR session with mirrored session")
+            stopHeartRateMonitoring()
+        } else if isWorkoutActive && !isMirroredSession {
             discardWorkout()
         }
 
