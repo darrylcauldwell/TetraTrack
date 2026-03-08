@@ -598,6 +598,11 @@ actor LiveTrackingService {
         if let routeData = session.routePointsData {
             record["routePointsData"] = routeData
         }
+
+        // Store coaching notes
+        if let notesData = session.coachingNotesData {
+            record["coachingNotesData"] = notesData
+        }
     }
 
     private func sessionFromRecord(_ record: CKRecord) -> LiveTrackingSession? {
@@ -658,6 +663,11 @@ actor LiveTrackingService {
             } else {
                 Log.family.warning("Route data too large (\(routeData.count) bytes), skipping")
             }
+        }
+
+        // Decode coaching notes
+        if let notesData = record["coachingNotesData"] as? Data {
+            session.coachingNotesData = notesData
         }
 
         return session

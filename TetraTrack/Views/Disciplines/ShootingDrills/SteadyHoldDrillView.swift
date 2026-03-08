@@ -6,16 +6,14 @@
 //
 
 import SwiftUI
-import CoreMotion
 import SwiftData
-import Combine
 
 // MARK: - Steady Hold Drill View
 
 struct SteadyHoldDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var motionManager = SteadyHoldMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
 
     @State private var isRunning = false
@@ -38,7 +36,7 @@ struct SteadyHoldDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -75,7 +73,7 @@ struct SteadyHoldDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
             cueSystem.reset()
         }
     }
@@ -160,10 +158,10 @@ struct SteadyHoldDrillView: View {
                     .fill(wobbleColor)
                     .frame(width: 20, height: 20)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 100),
-                        y: CGFloat(motionManager.roll * 100)
+                        x: CGFloat(motionAnalyzer.relativePitch * 100),
+                        y: CGFloat(motionAnalyzer.relativeRoll * 100)
                     )
-                    .animation(.easeOut(duration: 0.05), value: motionManager.pitch)
+                    .animation(.easeOut(duration: 0.05), value: motionAnalyzer.relativePitch)
 
                 // Center target
                 Circle()
@@ -182,7 +180,7 @@ struct SteadyHoldDrillView: View {
                             .fill(Color.gray.opacity(0.3))
                         Rectangle()
                             .fill(wobbleColor)
-                            .frame(width: geo.size.width * (1 - min(motionManager.wobble, 1)))
+                            .frame(width: geo.size.width * (1 - min(motionAnalyzer.wobble, 1)))
                     }
                 }
                 .frame(height: 20)
@@ -250,16 +248,16 @@ struct SteadyHoldDrillView: View {
     }
 
     private var wobbleColor: Color {
-        if motionManager.wobble < 0.1 { return AppColors.active }
-        if motionManager.wobble < 0.3 { return AppColors.warning }
+        if motionAnalyzer.wobble < 0.1 { return AppColors.active }
+        if motionAnalyzer.wobble < 0.3 { return AppColors.warning }
         return AppColors.error
     }
 
     private var wobbleMessage: String {
-        if motionManager.wobble < 0.05 { return "Perfect!" }
-        if motionManager.wobble < 0.1 { return "Excellent hold" }
-        if motionManager.wobble < 0.2 { return "Good stability" }
-        if motionManager.wobble < 0.3 { return "Some movement" }
+        if motionAnalyzer.wobble < 0.05 { return "Perfect!" }
+        if motionAnalyzer.wobble < 0.1 { return "Excellent hold" }
+        if motionAnalyzer.wobble < 0.2 { return "Good stability" }
+        if motionAnalyzer.wobble < 0.3 { return "Some movement" }
         return "Hold steady!"
     }
 
@@ -281,16 +279,16 @@ struct SteadyHoldDrillView: View {
         isRunning = true
         elapsedTime = 0
         wobbleHistory = []
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             guard let timerStartDate else { return }
             elapsedTime = Date().timeIntervalSince(timerStartDate)
-            wobbleHistory.append(motionManager.wobble)
+            wobbleHistory.append(motionAnalyzer.wobble)
 
             // Process real-time cues
-            let stabilityScore = max(0, 100 - motionManager.wobble * 200)
+            let stabilityScore = max(0, 100 - motionAnalyzer.wobble * 200)
             cueSystem.processDrillState(score: stabilityScore, stability: stabilityScore, elapsed: elapsedTime, duration: targetDuration)
 
             if elapsedTime >= targetDuration {
@@ -303,7 +301,7 @@ struct SteadyHoldDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
         cueSystem.reset()
 
         // Calculate score from wobble history
@@ -334,44 +332,3 @@ struct SteadyHoldDrillView: View {
     }
 }
 
-// MARK: - Steady Hold Motion Manager
-
-class SteadyHoldMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var wobble: Double = 0
-
-    private var referencePitch: Double?
-    private var referenceRoll: Double?
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referencePitch = nil
-        referenceRoll = nil
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            // Set reference point on first reading
-            if self.referencePitch == nil {
-                self.referencePitch = motion.attitude.pitch
-                self.referenceRoll = motion.attitude.roll
-            }
-
-            // Calculate deviation from reference
-            self.pitch = motion.attitude.pitch - (self.referencePitch ?? 0)
-            self.roll = motion.attitude.roll - (self.referenceRoll ?? 0)
-
-            // Calculate total wobble
-            self.wobble = sqrt(self.pitch * self.pitch + self.roll * self.roll)
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}

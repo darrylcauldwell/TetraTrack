@@ -154,7 +154,32 @@ protocol WatchConnecting: AnyObject {
     var isReachable: Bool { get }
     var isPaired: Bool { get }
 
+    // Session lifecycle
+    var isSessionActive: Bool { get }
+    var activeSessionDiscipline: WatchSessionDiscipline? { get }
+    var sessionStartDate: Date? { get }
+
     func activate()
+    func startSession(discipline: WatchSessionDiscipline)
+    func endSession()
+
+    // Sequence counters for multi-observer pattern
+    var commandSequence: Int { get }
+    var lastReceivedCommand: WatchCommand? { get }
+    var heartRateSequence: Int { get }
+    var lastReceivedHeartRate: Int { get }
+    var motionUpdateSequence: Int { get }
+    var voiceNoteSequence: Int { get }
+    var lastVoiceNoteText: String? { get }
+    var strokeDetectedSequence: Int { get }
+    var enhancedSensorSequence: Int { get }
+    var fallEventSequence: Int { get }
+    var lastFallEvent: WatchFallEventType? { get }
+    var shotDetectedSequence: Int { get }
+    var lastDetectedShot: DetectedShotMetrics? { get }
+    var syncedSessionSequence: Int { get }
+    var lastSyncedSession: WatchSyncedSession? { get }
+
     func sendStatusUpdate(
         rideState: SharedRideState,
         duration: TimeInterval,

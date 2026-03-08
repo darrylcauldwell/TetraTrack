@@ -110,10 +110,20 @@ struct TrackingView: View {
                                 .tag(TrackingTab.stats)
 
                                 // Map View
-                                RideMapView {
-                                    withAnimation {
-                                        selectedTab = .stats
+                                LiveSessionMapView(
+                                    routeSegments: (locationManager?.gaitRouteSegments ?? []).map {
+                                        RouteSegment(coordinates: $0.coordinates, color: AppColors.gait($0.gaitType))
+                                    },
+                                    currentLocation: locationManager?.currentLocation,
+                                    onBack: {
+                                        withAnimation {
+                                            selectedTab = .stats
+                                        }
                                     }
+                                )
+                                .overlay(alignment: .bottom) {
+                                    MapLegendView.allGaitsLegend()
+                                        .padding(.bottom, 20)
                                 }
                                 .tag(TrackingTab.map)
                             }

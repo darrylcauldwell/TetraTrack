@@ -359,11 +359,10 @@ struct WalkingDetailView: View {
             Text("Route")
                 .font(.headline)
 
-            Map {
-                MapPolyline(coordinates: session.coordinates)
-                    .stroke(.teal, lineWidth: 3)
-            }
-            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+            SessionRouteMapView(
+                coordinates: session.coordinates,
+                routeColors: .solid(.teal)
+            )
             .frame(height: 200)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }

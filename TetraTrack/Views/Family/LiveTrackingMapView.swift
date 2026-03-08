@@ -16,6 +16,8 @@ struct LiveTrackingMapView: View {
     @State private var showRouteOverlay = true
     @State private var showingExerciseLibrary = false
     @State private var hasSetInitialPosition = false
+    @State private var showingCoachingNotes = false
+    @State private var coachingNoteText = ""
 
     var body: some View {
         ZStack {
@@ -89,7 +91,7 @@ struct LiveTrackingMapView: View {
             if showRouteOverlay && !session.routePoints.isEmpty && !session.isRunningSession {
                 VStack {
                     Spacer()
-                    GaitLegend()
+                    MapLegendView.allGaitsLegend()
                         .padding(.bottom, 100)
                 }
             }
@@ -98,7 +100,7 @@ struct LiveTrackingMapView: View {
             if showRouteOverlay && !session.routePoints.isEmpty && session.isRunningSession {
                 VStack {
                     Spacer()
-                    RunningPhaseLegend()
+                    MapLegendView.runningPhaseLegend()
                         .padding(.bottom, 100)
                 }
             }
@@ -108,6 +110,12 @@ struct LiveTrackingMapView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
+                    Button {
+                        showingCoachingNotes = true
+                    } label: {
+                        Label("Notes", systemImage: "note.text")
+                    }
+
                     if !session.isRunningSession {
                         Button {
                             showingExerciseLibrary = true
@@ -117,6 +125,12 @@ struct LiveTrackingMapView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingCoachingNotes) {
+            CoachingNotesSheet(
+                session: session,
+                noteText: $coachingNoteText
+            )
         }
         .sheet(isPresented: $showingExerciseLibrary) {
             NavigationStack {
@@ -354,72 +368,6 @@ struct LiveStatItem: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Gait Legend
-
-struct GaitLegend: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            GaitLegendItem(gait: .walk)
-            GaitLegendItem(gait: .trot)
-            GaitLegendItem(gait: .canter)
-            GaitLegendItem(gait: .gallop)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(AppColors.cardBackground)
-        .clipShape(Capsule())
-    }
-}
-
-struct GaitLegendItem: View {
-    let gait: GaitType
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(AppColors.gait(gait))
-                .frame(width: 8, height: 8)
-            Text(gait.rawValue)
-                .font(.caption2)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(gait.rawValue) gait color indicator")
-    }
-}
-
-// MARK: - Running Phase Legend
-
-struct RunningPhaseLegend: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            RunningPhaseLegendItem(phase: .walking)
-            RunningPhaseLegendItem(phase: .jogging)
-            RunningPhaseLegendItem(phase: .running)
-            RunningPhaseLegendItem(phase: .sprinting)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(AppColors.cardBackground)
-        .clipShape(Capsule())
-    }
-}
-
-struct RunningPhaseLegendItem: View {
-    let phase: RunningPhase
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(AppColors.gait(phase.toGaitType))
-                .frame(width: 8, height: 8)
-            Text(phase.rawValue)
-                .font(.caption2)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(phase.rawValue) phase color indicator")
     }
 }
 

@@ -7,14 +7,12 @@
 
 import SwiftUI
 import SwiftData
-import CoreMotion
-import Combine
 
 struct SplitTimeDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @StateObject private var motionManager = SplitTimeMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var isRunning = false
     @State private var currentTarget = 0
     @State private var totalTargets = 5
@@ -52,7 +50,7 @@ struct SplitTimeDrillView: View {
             }
         }
         .onDisappear {
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
         }
     }
 
@@ -62,7 +60,7 @@ struct SplitTimeDrillView: View {
                 .font(.headline)
             Spacer()
             Button {
-                motionManager.stopUpdates()
+                motionAnalyzer.stopUpdates()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -175,10 +173,10 @@ struct SplitTimeDrillView: View {
                     .fill(isOnTarget ? .green : .red)
                     .frame(width: 16, height: 16)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 140),
-                        y: CGFloat(motionManager.roll * 140)
+                        x: CGFloat(motionAnalyzer.relativePitch * 140),
+                        y: CGFloat(motionAnalyzer.relativeRoll * 140)
                     )
-                    .animation(.easeOut(duration: 0.05), value: motionManager.pitch)
+                    .animation(.easeOut(duration: 0.05), value: motionAnalyzer.relativePitch)
 
                 // Crosshairs
                 Rectangle()
@@ -374,7 +372,7 @@ struct SplitTimeDrillView: View {
             (x: Double.random(in: -100...100), y: Double.random(in: -100...100))
         }
 
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
         lastTransitionTime = Date()
         checkTargetAcquisition()
     }
@@ -390,8 +388,8 @@ struct SplitTimeDrillView: View {
                 guard let targetPos = targetPositions[safe: currentTarget] else { return }
 
                 // Check if aim is on target
-                let aimX = motionManager.pitch * 140
-                let aimY = motionManager.roll * 140
+                let aimX = motionAnalyzer.relativePitch * 140
+                let aimY = motionAnalyzer.relativeRoll * 140
                 let distance = sqrt(pow(aimX - targetPos.x, 2) + pow(aimY - targetPos.y, 2))
 
                 let wasOnTarget = isOnTarget
@@ -436,7 +434,7 @@ struct SplitTimeDrillView: View {
 
     private func endDrill() {
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
 
         let avgSplit = splitTimes.isEmpty ? 1.0 : splitTimes.reduce(0, +) / Double(splitTimes.count)
         let score = max(0, min(100, (1.5 - avgSplit) / 1.5 * 100))
@@ -474,42 +472,6 @@ extension Array {
     }
 }
 
-// MARK: - Split Time Motion Manager
-
-@MainActor
-class SplitTimeMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-
-    private var referencePitch: Double?
-    private var referenceRoll: Double?
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referencePitch = nil
-        referenceRoll = nil
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            if self.referencePitch == nil {
-                self.referencePitch = motion.attitude.pitch
-                self.referenceRoll = motion.attitude.roll
-            }
-
-            self.pitch = motion.attitude.pitch - (self.referencePitch ?? 0)
-            self.roll = motion.attitude.roll - (self.referenceRoll ?? 0)
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     SplitTimeDrillView()

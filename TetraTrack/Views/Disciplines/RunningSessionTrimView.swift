@@ -61,10 +61,15 @@ struct RunningSessionTrimView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     // Route Map Preview
-                    RunningTrimRouteMapView(
-                        session: session,
-                        trimStart: trimmedStartDate,
-                        trimEnd: trimmedEndDate
+                    SessionRouteMapView(
+                        coordinates: session.sortedLocationPoints.map { $0.coordinate },
+                        routeColors: .forTrim(
+                            sortedPoints: session.sortedLocationPoints.map { $0.coordinate },
+                            timestamps: session.sortedLocationPoints.map { $0.timestamp },
+                            trimStart: trimmedStartDate,
+                            trimEnd: trimmedEndDate,
+                            keptColor: .blue
+                        )
                     )
                     .frame(height: 250)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -262,70 +267,6 @@ struct RunningSessionTrimView: View {
         let mins = Int(secondsPerKm) / 60
         let secs = Int(secondsPerKm) % 60
         return String(format: "%d:%02d /km", mins, secs)
-    }
-}
-
-// MARK: - Running Trim Route Map View
-
-struct RunningTrimRouteMapView: View {
-    let session: RunningSession
-    let trimStart: Date
-    let trimEnd: Date
-
-    var body: some View {
-        Map {
-            // Kept route (blue)
-            let keptPoints = session.sortedLocationPoints.filter {
-                $0.timestamp >= trimStart && $0.timestamp <= trimEnd
-            }
-            if keptPoints.count > 1 {
-                MapPolyline(coordinates: keptPoints.map { $0.coordinate })
-                    .stroke(.blue, lineWidth: 4)
-            }
-
-            // Removed start section (red)
-            let removedStartPoints = session.sortedLocationPoints.filter {
-                $0.timestamp < trimStart
-            }
-            if removedStartPoints.count > 1 {
-                MapPolyline(coordinates: removedStartPoints.map { $0.coordinate })
-                    .stroke(.red.opacity(0.6), lineWidth: 4)
-            }
-
-            // Removed end section (red)
-            let removedEndPoints = session.sortedLocationPoints.filter {
-                $0.timestamp > trimEnd
-            }
-            if removedEndPoints.count > 1 {
-                MapPolyline(coordinates: removedEndPoints.map { $0.coordinate })
-                    .stroke(.red.opacity(0.6), lineWidth: 4)
-            }
-
-            // Start marker (after trim)
-            if let start = keptPoints.first {
-                Annotation("Start", coordinate: start.coordinate) {
-                    Image(systemName: "flag.fill")
-                        .foregroundStyle(.green)
-                        .padding(6)
-                        .background(.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-            }
-
-            // End marker (after trim)
-            if let end = keptPoints.last {
-                Annotation("End", coordinate: end.coordinate) {
-                    Image(systemName: "flag.checkered")
-                        .foregroundStyle(.red)
-                        .padding(6)
-                        .background(.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-            }
-        }
-        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
     }
 }
 

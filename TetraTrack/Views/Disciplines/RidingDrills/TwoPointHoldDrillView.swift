@@ -6,15 +6,13 @@
 //
 
 import SwiftUI
-import CoreMotion
 import SwiftData
-import Combine
 
 struct TwoPointHoldDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var streaks: [TrainingStreak]
-    @StateObject private var motionManager = TwoPointMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
 
     @State private var isRunning = false
     @State private var countdown = 3
@@ -40,7 +38,7 @@ struct TwoPointHoldDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -79,7 +77,7 @@ struct TwoPointHoldDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
         }
     }
 
@@ -181,7 +179,7 @@ struct TwoPointHoldDrillView: View {
                     HStack {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(stabilityColor)
-                            .frame(width: geo.size.width * motionManager.stabilityScore)
+                            .frame(width: geo.size.width * motionAnalyzer.stabilityScore)
                         Spacer(minLength: 0)
                     }
                 }
@@ -191,7 +189,7 @@ struct TwoPointHoldDrillView: View {
 
                 HStack {
                     VStack(alignment: .leading) {
-                        Text("\(Int(motionManager.stabilityScore * 100))%")
+                        Text("\(Int(motionAnalyzer.stabilityScore * 100))%")
                             .font(.title.bold())
                             .foregroundStyle(.white)
                         Text("Stability")
@@ -214,14 +212,14 @@ struct TwoPointHoldDrillView: View {
             // Movement stats
             HStack(spacing: 40) {
                 VStack {
-                    Text(String(format: "%.1f", abs(motionManager.pitch * 57.3)))
+                    Text(String(format: "%.1f", abs(motionAnalyzer.pitch * 57.3)))
                         .font(.title3.bold().monospacedDigit())
                     Text("Forward")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.1f", abs(motionManager.roll * 57.3)))
+                    Text(String(format: "%.1f", abs(motionAnalyzer.roll * 57.3)))
                         .font(.title3.bold().monospacedDigit())
                     Text("Lateral")
                         .font(.caption)
@@ -288,19 +286,19 @@ struct TwoPointHoldDrillView: View {
     }
 
     private var stabilityColor: Color {
-        StabilityColors.color(for: motionManager.stabilityScore)
+        StabilityColors.color(for: motionAnalyzer.stabilityScore)
     }
 
     private var stabilityIcon: String {
-        if motionManager.stabilityScore > 0.8 { return "checkmark.circle.fill" }
-        if motionManager.stabilityScore > 0.5 { return "exclamationmark.circle.fill" }
+        if motionAnalyzer.stabilityScore > 0.8 { return "checkmark.circle.fill" }
+        if motionAnalyzer.stabilityScore > 0.5 { return "exclamationmark.circle.fill" }
         return "xmark.circle.fill"
     }
 
     private var stabilityMessage: String {
-        if motionManager.stabilityScore > 0.9 { return "Perfect form!" }
-        if motionManager.stabilityScore > 0.7 { return "Strong position" }
-        if motionManager.stabilityScore > 0.5 { return "Hold steady" }
+        if motionAnalyzer.stabilityScore > 0.9 { return "Perfect form!" }
+        if motionAnalyzer.stabilityScore > 0.7 { return "Strong position" }
+        if motionAnalyzer.stabilityScore > 0.5 { return "Hold steady" }
         return "Keep your balance!"
     }
 
@@ -330,7 +328,7 @@ struct TwoPointHoldDrillView: View {
     private func startDrill() {
         isRunning = true
         elapsedTime = 0
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
@@ -339,7 +337,7 @@ struct TwoPointHoldDrillView: View {
                 elapsedTime = Date().timeIntervalSince(timerStartDate)
                 results.append(StabilityResult(
                     timestamp: elapsedTime,
-                    stability: motionManager.stabilityScore
+                    stability: motionAnalyzer.stabilityScore
                 ))
 
                 if elapsedTime >= targetDuration {
@@ -353,7 +351,7 @@ struct TwoPointHoldDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
 
         // Calculate average stability score
         let avgStability = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
@@ -389,49 +387,6 @@ struct TwoPointHoldDrillView: View {
     }
 }
 
-// MARK: - Two-Point Motion Manager
-
-@MainActor
-class TwoPointMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var totalMovement: Double = 0
-    @Published var stabilityScore: Double = 1.0
-
-    private var previousPitch: Double = 0
-    private var previousRoll: Double = 0
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            self.pitch = motion.attitude.pitch
-            self.roll = motion.attitude.roll
-
-            // Calculate movement from previous frame
-            let pitchDelta = abs(self.pitch - self.previousPitch)
-            let rollDelta = abs(self.roll - self.previousRoll)
-            self.totalMovement = pitchDelta + rollDelta
-
-            // Calculate stability (inverse of movement, smoothed)
-            let movement = sqrt(pitchDelta * pitchDelta + rollDelta * rollDelta)
-            let rawStability = max(0, 1 - (movement * 20))
-            self.stabilityScore = self.stabilityScore * 0.9 + rawStability * 0.1
-
-            self.previousPitch = self.pitch
-            self.previousRoll = self.roll
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     TwoPointHoldDrillView()

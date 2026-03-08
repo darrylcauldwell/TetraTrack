@@ -96,11 +96,18 @@ struct DryFireDrillView: View {
             }
         }
         .onAppear {
-            setupMotionCallbacks()
             watchConnected = watchManager.isReachable
         }
         .onDisappear {
             stopMotionTracking()
+        }
+        .onChange(of: watchManager.motionUpdateSequence) {
+            guard watchManager.currentMotionMode == .shooting else { return }
+            let stability = watchManager.stanceStability
+            stanceStability = stability
+            if waitingForFire {
+                stabilityReadings.append(stability)
+            }
         }
     }
 
@@ -477,30 +484,16 @@ struct DryFireDrillView: View {
         }
     }
 
-    // MARK: - Watch Motion Tracking
-
-    private func setupMotionCallbacks() {
-        watchManager.onMotionUpdate = { mode, stability, _, _, _, _, _ in
-            if mode == .shooting, let stability = stability {
-                DispatchQueue.main.async {
-                    self.stanceStability = stability
-                    if self.waitingForFire {
-                        self.stabilityReadings.append(stability)
-                    }
-                }
-            }
-        }
-    }
+    // Watch motion callback removed — using .onChange(of:) modifier
 
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
         watchManager.startMotionTracking(mode: .shooting)
-        sensorAnalyzer.startSession()
+        sensorAnalyzer.startSession(discipline: .shooting)
     }
 
     private func stopMotionTracking() {
         watchManager.stopMotionTracking()
-        watchManager.onMotionUpdate = nil
         sensorAnalyzer.stopSession()
     }
 }

@@ -6,15 +6,13 @@
 //
 
 import SwiftUI
-import CoreMotion
 import SwiftData
-import Combine
 
 struct BalanceBoardDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var streaks: [TrainingStreak]
-    @StateObject private var motionManager = BalanceBoardMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
 
     @State private var isRunning = false
     @State private var countdown = 3
@@ -40,7 +38,7 @@ struct BalanceBoardDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -79,7 +77,7 @@ struct BalanceBoardDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
         }
     }
 
@@ -164,9 +162,9 @@ struct BalanceBoardDrillView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.brown)
                     .frame(width: 200, height: 10)
-                    .rotationEffect(.degrees(motionManager.roll * 30))
+                    .rotationEffect(.degrees(motionAnalyzer.roll * 30))
                     .offset(y: 70)
-                    .animation(.easeOut(duration: 0.1), value: motionManager.roll)
+                    .animation(.easeOut(duration: 0.1), value: motionAnalyzer.roll)
 
                 // Balance indicator circle
                 ZStack {
@@ -196,10 +194,10 @@ struct BalanceBoardDrillView: View {
                         .frame(width: 25, height: 25)
                         .shadow(color: stabilityColor.opacity(0.5), radius: 8)
                         .offset(
-                            x: CGFloat(motionManager.roll * 80),
-                            y: CGFloat(motionManager.pitch * 80)
+                            x: CGFloat(motionAnalyzer.roll * 80),
+                            y: CGFloat(motionAnalyzer.pitch * 80)
                         )
-                        .animation(.easeOut(duration: 0.05), value: motionManager.roll)
+                        .animation(.easeOut(duration: 0.05), value: motionAnalyzer.roll)
 
                     // Center target
                     Circle()
@@ -211,7 +209,7 @@ struct BalanceBoardDrillView: View {
                 VStack {
                     Spacer()
                     HStack {
-                        Text("\(Int(motionManager.absorptionScore * 100))")
+                        Text("\(Int(motionAnalyzer.absorptionScore * 100))")
                             .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(stabilityColor)
                         Text("absorption")
@@ -229,21 +227,21 @@ struct BalanceBoardDrillView: View {
             // Movement metrics
             HStack(spacing: 24) {
                 VStack {
-                    Text(String(format: "%.1f", abs(motionManager.pitch * 57.3)))
+                    Text(String(format: "%.1f", abs(motionAnalyzer.pitch * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Forward")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.1f", abs(motionManager.roll * 57.3)))
+                    Text(String(format: "%.1f", abs(motionAnalyzer.roll * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Lateral")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.2f", motionManager.smoothness))
+                    Text(String(format: "%.2f", motionAnalyzer.smoothness))
                         .font(.headline.monospacedDigit())
                     Text("Smooth")
                         .font(.caption)
@@ -305,15 +303,15 @@ struct BalanceBoardDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if motionManager.absorptionScore > 0.8 { return AppColors.active }
-        if motionManager.absorptionScore > 0.5 { return AppColors.warning }
+        if motionAnalyzer.absorptionScore > 0.8 { return AppColors.active }
+        if motionAnalyzer.absorptionScore > 0.5 { return AppColors.warning }
         return AppColors.error
     }
 
     private var stabilityMessage: String {
-        if motionManager.absorptionScore > 0.9 { return "Excellent absorption!" }
-        if motionManager.absorptionScore > 0.7 { return "Smooth movement" }
-        if motionManager.absorptionScore > 0.5 { return "Keep it fluid" }
+        if motionAnalyzer.absorptionScore > 0.9 { return "Excellent absorption!" }
+        if motionAnalyzer.absorptionScore > 0.7 { return "Smooth movement" }
+        if motionAnalyzer.absorptionScore > 0.5 { return "Keep it fluid" }
         return "Absorb the movement!"
     }
 
@@ -345,7 +343,7 @@ struct BalanceBoardDrillView: View {
     private func startDrill() {
         isRunning = true
         elapsedTime = 0
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
@@ -354,7 +352,7 @@ struct BalanceBoardDrillView: View {
                 elapsedTime = Date().timeIntervalSince(timerStartDate)
                 results.append(StabilityResult(
                     timestamp: elapsedTime,
-                    stability: motionManager.absorptionScore
+                    stability: motionAnalyzer.absorptionScore
                 ))
 
                 if elapsedTime >= targetDuration {
@@ -368,7 +366,7 @@ struct BalanceBoardDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
 
         // Calculate average absorption score
         let avgAbsorption = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
@@ -404,62 +402,6 @@ struct BalanceBoardDrillView: View {
     }
 }
 
-// MARK: - Balance Board Motion Manager
-
-@MainActor
-class BalanceBoardMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var absorptionScore: Double = 1.0
-    @Published var smoothness: Double = 1.0
-
-    private var previousPitch: Double = 0
-    private var previousRoll: Double = 0
-    private var velocityHistory: [Double] = []
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        velocityHistory = []
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            self.pitch = motion.attitude.pitch
-            self.roll = motion.attitude.roll
-
-            // Calculate movement velocity
-            let pitchDelta = abs(self.pitch - self.previousPitch)
-            let rollDelta = abs(self.roll - self.previousRoll)
-            let velocity = sqrt(pitchDelta * pitchDelta + rollDelta * rollDelta)
-
-            // Track velocity history for smoothness calculation
-            self.velocityHistory.append(velocity)
-            if self.velocityHistory.count > 30 { // Keep ~0.5 seconds of history
-                self.velocityHistory.removeFirst()
-            }
-
-            // Calculate smoothness (lower variance = smoother)
-            let avgVelocity = self.velocityHistory.reduce(0, +) / Double(self.velocityHistory.count)
-            let variance = self.velocityHistory.map { pow($0 - avgVelocity, 2) }.reduce(0, +) / Double(self.velocityHistory.count)
-            self.smoothness = max(0, 1 - sqrt(variance) * 50)
-
-            // Absorption score considers both staying centered and smooth movement
-            let centeredness = max(0, 1 - sqrt(self.pitch * self.pitch + self.roll * self.roll) * 3)
-            self.absorptionScore = self.absorptionScore * 0.9 + (centeredness * 0.7 + self.smoothness * 0.3) * 0.1
-
-            self.previousPitch = self.pitch
-            self.previousRoll = self.roll
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     BalanceBoardDrillView()

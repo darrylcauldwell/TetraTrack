@@ -175,6 +175,22 @@ struct RideInsightsView: View {
     private var iPadContent: some View {
         VStack(spacing: 20) {
             overallGraceScore
+
+            // Phase timeline (showjumping rides)
+            if !ride.sortedPhases.isEmpty {
+                PhaseTimelineCard(phases: ride.sortedPhases)
+            }
+
+            // Dressage test scoresheet
+            if let execution = ride.dressageTestExecution {
+                DressageTestScoresheetCard(execution: execution)
+            }
+
+            // Coaching notes
+            if !ride.coachingNotes.isEmpty {
+                CoachingNotesCard(notes: ride.coachingNotes, rideStartDate: ride.startDate)
+            }
+
             intensityZonesCard
             ElevationProfileView(profile: ride.elevationProfile)
 
@@ -202,6 +218,22 @@ struct RideInsightsView: View {
     private var iPhoneContent: some View {
         VStack(spacing: 16) {
             overallGraceScore
+
+            // Phase timeline (showjumping rides)
+            if !ride.sortedPhases.isEmpty {
+                PhaseTimelineCard(phases: ride.sortedPhases)
+            }
+
+            // Dressage test scoresheet
+            if let execution = ride.dressageTestExecution {
+                DressageTestScoresheetCard(execution: execution)
+            }
+
+            // Coaching notes
+            if !ride.coachingNotes.isEmpty {
+                CoachingNotesCard(notes: ride.coachingNotes, rideStartDate: ride.startDate)
+            }
+
             intensityZonesCard
             ElevationProfileView(profile: ride.elevationProfile)
             growCard

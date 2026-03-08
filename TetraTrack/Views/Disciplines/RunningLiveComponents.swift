@@ -201,7 +201,6 @@ struct RunningLiveView: View {
         )
         .onAppear {
             Log.location.info("Running: onAppear fired, hasStartedServices=\(hasStartedServices), timerSource=\(timerSource == nil ? "nil" : "set")")
-            setupMotionCallbacks()
             if !hasStartedServices {
                 Log.location.info("Running: starting services (location, motion)")
                 startMotionTracking()
@@ -275,6 +274,69 @@ struct RunningLiveView: View {
         .onDisappear {
             timerSource?.cancel()
             AudioCoachManager.shared.stopRunningFormReminders()
+        }
+        .onChange(of: watchManager.motionUpdateSequence) {
+            guard watchManager.currentMotionMode == .running else { return }
+            var sampleCadence: Int = 0
+            var sampleOsc: Double = 0
+            var sampleGCT: Double = 0
+
+            let osc = watchManager.verticalOscillation
+            if osc > 0 {
+                verticalOscillation = osc
+                oscillationReadings.append(osc)
+                sampleOsc = osc
+            }
+            let gctVal = watchManager.groundContactTime
+            if gctVal > 0 {
+                groundContactTime = gctVal
+                gctReadings.append(gctVal)
+                sampleGCT = gctVal
+            }
+            let cadVal = watchManager.cadence
+            if cadVal > 0 {
+                cadence = cadVal
+                cadenceReadings.append(cadVal)
+                sampleCadence = cadVal
+            }
+
+            if sampleCadence > 0 || sampleOsc > 0 || sampleGCT > 0 {
+                formSamples.append(RunningFormSample(
+                    timestamp: Date(),
+                    cadence: sampleCadence,
+                    oscillation: sampleOsc,
+                    groundContactTime: sampleGCT
+                ))
+            }
+
+            if sampleCadence > 0 && AudioCoachManager.shared.announceCadenceFeedback {
+                AudioCoachManager.shared.processCadence(sampleCadence, target: targetCadence)
+            }
+            if sampleGCT > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
+                AudioCoachManager.shared.processGroundContactTime(sampleGCT)
+            }
+            if sampleOsc > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
+                AudioCoachManager.shared.processVerticalOscillation(sampleOsc)
+            }
+            let stability = sensorAnalyzer.postureStability
+            if stability > 0 {
+                AudioCoachManager.shared.processRunningStability(stability)
+            }
+            checkFormDegradation()
+        }
+        .onChange(of: watchManager.heartRateSequence) {
+            let bpm = watchManager.lastReceivedHeartRate
+            guard bpm > 0 else { return }
+            hasWCSessionHR = true
+            currentHeartRate = bpm
+            heartRateReadings.append(bpm)
+            if bpm > maxHeartRate { maxHeartRate = bpm }
+            if bpm < minHeartRate { minHeartRate = bpm }
+            heartRateSamples.append(HeartRateSample(
+                timestamp: Date(),
+                bpm: bpm,
+                maxHeartRate: estimatedMaxHR
+            ))
         }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
@@ -460,50 +522,19 @@ struct RunningLiveView: View {
 
     @ViewBuilder
     private var runningMapView: some View {
-        ZStack {
-            Map {
-                // User location
-                UserAnnotation()
-
-                // Route polyline
-                if let coords = gpsTracker?.routeCoordinates, coords.count > 1 {
-                    MapPolyline(coordinates: coords)
-                        .stroke(AppColors.primary, lineWidth: 4)
+        LiveSessionMapView(
+            routeSegments: {
+                let coords = gpsTracker?.routeCoordinates ?? []
+                guard coords.count > 1 else { return [] }
+                return [RouteSegment(coordinates: coords, color: AppColors.primary)]
+            }(),
+            followsUser: false,
+            onBack: {
+                withAnimation {
+                    selectedTab = .stats
                 }
             }
-            .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapCompass()
-                MapScaleView()
-            }
-
-            // Back button at top left
-            VStack {
-                HStack {
-                    Button {
-                        withAnimation {
-                            selectedTab = .stats
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.body.weight(.semibold))
-                            Text("Stats")
-                                .font(.subheadline.weight(.medium))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(AppColors.cardBackground)
-                        .clipShape(Capsule())
-                    }
-
-                    Spacer()
-                }
-                .padding()
-
-                Spacer()
-            }
-        }
+        )
     }
 
     // MARK: - Location Tracking
@@ -630,98 +661,7 @@ struct RunningLiveView: View {
         gpsTracker?.stop()
     }
 
-    // MARK: - Watch Motion & Heart Rate Tracking
-
-    private func setupMotionCallbacks() {
-        watchManager.onMotionUpdate = { mode, _, _, _, oscillation, gct, cad in
-            if mode == .running {
-                DispatchQueue.main.async {
-                    var sampleCadence: Int = 0
-                    var sampleOsc: Double = 0
-                    var sampleGCT: Double = 0
-
-                    if let oscillation = oscillation {
-                        self.verticalOscillation = oscillation
-                        if oscillation > 0 {
-                            self.oscillationReadings.append(oscillation)
-                            sampleOsc = oscillation
-                        }
-                    }
-                    if let gct = gct {
-                        self.groundContactTime = gct
-                        if gct > 0 {
-                            self.gctReadings.append(gct)
-                            sampleGCT = gct
-                        }
-                    }
-                    if let cad = cad {
-                        self.cadence = cad
-                        if cad > 0 {
-                            self.cadenceReadings.append(cad)
-                            sampleCadence = cad
-                        }
-                    }
-
-                    // Collect timestamped form sample
-                    if sampleCadence > 0 || sampleOsc > 0 || sampleGCT > 0 {
-                        let sample = RunningFormSample(
-                            timestamp: Date(),
-                            cadence: sampleCadence,
-                            oscillation: sampleOsc,
-                            groundContactTime: sampleGCT
-                        )
-                        self.formSamples.append(sample)
-                    }
-
-                    // Audio coaching: cadence feedback
-                    if sampleCadence > 0 && AudioCoachManager.shared.announceCadenceFeedback {
-                        AudioCoachManager.shared.processCadence(sampleCadence, target: self.targetCadence)
-                    }
-
-                    // Audio coaching: ground contact time feedback
-                    if sampleGCT > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                        AudioCoachManager.shared.processGroundContactTime(sampleGCT)
-                    }
-
-                    // Audio coaching: vertical oscillation feedback
-                    if sampleOsc > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                        AudioCoachManager.shared.processVerticalOscillation(sampleOsc)
-                    }
-
-                    // Audio coaching: posture stability feedback
-                    let stability = self.sensorAnalyzer.postureStability
-                    if stability > 0 {
-                        AudioCoachManager.shared.processRunningStability(stability)
-                    }
-
-                    // Form degradation detection
-                    self.checkFormDegradation()
-                }
-            }
-        }
-
-        // Heart rate callback (companion HR via WCSession)
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.hasWCSessionHR = true
-                self.currentHeartRate = bpm
-                self.heartRateReadings.append(bpm)
-                if bpm > self.maxHeartRate {
-                    self.maxHeartRate = bpm
-                }
-                if bpm < self.minHeartRate {
-                    self.minHeartRate = bpm
-                }
-                // Collect timestamped samples for timeline
-                let sample = HeartRateSample(
-                    timestamp: Date(),
-                    bpm: bpm,
-                    maxHeartRate: self.estimatedMaxHR
-                )
-                self.heartRateSamples.append(sample)
-            }
-        }
-    }
+    // Watch motion & HR callbacks removed — using .onChange(of:) modifiers
 
     private func startMotionTracking() {
         // Start workout lifecycle for Watch mirroring + HealthKit tracking
@@ -739,7 +679,7 @@ struct RunningLiveView: View {
 
         watchManager.resetMotionMetrics()
         // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
-        sensorAnalyzer.startSession()
+        sensorAnalyzer.startSession(discipline: .running)
         startWatchStatusUpdates()
     }
 
@@ -806,8 +746,6 @@ struct RunningLiveView: View {
         }
 
         watchManager.stopMotionTracking()
-        watchManager.onMotionUpdate = nil
-        watchManager.onHeartRateReceived = nil
         sensorAnalyzer.stopSession()
         stopWatchStatusUpdates()
 
@@ -943,13 +881,9 @@ struct RunningLiveView: View {
 
     private func startRecoveryTracking() {
         isRecoveryPhase = true
-        // Set up temporary HR callback for recovery
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.currentHeartRate = bpm
-            }
-        }
-        // After 60 seconds, capture recovery HR
+        // HR updates flow via .onChange(of: watchManager.heartRateSequence) —
+        // the modifier keeps currentHeartRate updated during recovery.
+        // After 60 seconds, capture recovery HR.
         let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.recoveryTimer", qos: .utility)
         let source = DispatchSource.makeTimerSource(queue: queue)
         source.schedule(deadline: .now() + 60.0, repeating: .never, leeway: .milliseconds(500))
@@ -958,7 +892,6 @@ struct RunningLiveView: View {
                 if self.currentHeartRate > 0 {
                     self.session.recoveryHeartRate = self.currentHeartRate
                 }
-                self.watchManager.onHeartRateReceived = nil
                 self.isRecoveryPhase = false
                 self.recoveryTimer = nil
             }
@@ -2049,8 +1982,6 @@ struct RunningLiveView: View {
 
         // Stop tracking
         watchManager.stopMotionTracking()
-        watchManager.onMotionUpdate = nil
-        watchManager.onHeartRateReceived = nil
         sensorAnalyzer.stopSession()
         stopWatchStatusUpdates()
 
@@ -2253,8 +2184,6 @@ struct TreadmillLiveView: View {
                 }
             }
 
-            setupMotionCallbacks()
-            setupHeartRateCallback()
             startHeartRateTracking()
             startTimer()
             UIApplication.shared.isIdleTimerDisabled = true
@@ -2263,6 +2192,69 @@ struct TreadmillLiveView: View {
         .onDisappear {
             timerSource?.cancel()
             AudioCoachManager.shared.stopRunningFormReminders()
+        }
+        .onChange(of: watchManager.motionUpdateSequence) {
+            guard watchManager.currentMotionMode == .running else { return }
+            var sampleCadence: Int = 0
+            var sampleOsc: Double = 0
+            var sampleGCT: Double = 0
+
+            let osc = watchManager.verticalOscillation
+            if osc > 0 {
+                verticalOscillation = osc
+                oscillationReadings.append(osc)
+                sampleOsc = osc
+            }
+            let gctVal = watchManager.groundContactTime
+            if gctVal > 0 {
+                groundContactTime = gctVal
+                gctReadings.append(gctVal)
+                sampleGCT = gctVal
+            }
+            let cadVal = watchManager.cadence
+            if cadVal > 0 {
+                cadence = cadVal
+                cadenceReadings.append(cadVal)
+                sampleCadence = cadVal
+            }
+
+            if sampleCadence > 0 || sampleOsc > 0 || sampleGCT > 0 {
+                formSamples.append(RunningFormSample(
+                    timestamp: Date(),
+                    cadence: sampleCadence,
+                    oscillation: sampleOsc,
+                    groundContactTime: sampleGCT
+                ))
+            }
+
+            if sampleCadence > 0 && AudioCoachManager.shared.announceCadenceFeedback {
+                AudioCoachManager.shared.processCadence(sampleCadence, target: targetCadence)
+            }
+            if sampleGCT > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
+                AudioCoachManager.shared.processGroundContactTime(sampleGCT)
+            }
+            if sampleOsc > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
+                AudioCoachManager.shared.processVerticalOscillation(sampleOsc)
+            }
+            let stability = sensorAnalyzer.postureStability
+            if stability > 0 {
+                AudioCoachManager.shared.processRunningStability(stability)
+            }
+            checkFormDegradation()
+        }
+        .onChange(of: watchManager.heartRateSequence) {
+            let bpm = watchManager.lastReceivedHeartRate
+            guard bpm > 0 else { return }
+            hasWCSessionHR = true
+            currentHeartRate = bpm
+            heartRateReadings.append(bpm)
+            if bpm > maxHeartRate { maxHeartRate = bpm }
+            if bpm < minHeartRate { minHeartRate = bpm }
+            heartRateSamples.append(HeartRateSample(
+                timestamp: Date(),
+                bpm: bpm,
+                maxHeartRate: treadmillEstimatedMaxHR
+            ))
         }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
@@ -2486,112 +2478,16 @@ struct TreadmillLiveView: View {
         return heartRateReadings.reduce(0, +) / heartRateReadings.count
     }
 
-    // MARK: - Motion Tracking
-
-    private func setupMotionCallbacks() {
-        watchManager.onMotionUpdate = { mode, _, _, _, oscillation, gct, cad in
-            if mode == .running {
-                DispatchQueue.main.async {
-                    var sampleCadence: Int = 0
-                    var sampleOsc: Double = 0
-                    var sampleGCT: Double = 0
-
-                    if let oscillation = oscillation {
-                        self.verticalOscillation = oscillation
-                        if oscillation > 0 {
-                            self.oscillationReadings.append(oscillation)
-                            sampleOsc = oscillation
-                        }
-                    }
-                    if let gct = gct {
-                        self.groundContactTime = gct
-                        if gct > 0 {
-                            self.gctReadings.append(gct)
-                            sampleGCT = gct
-                        }
-                    }
-                    if let cad = cad {
-                        self.cadence = cad
-                        if cad > 0 {
-                            self.cadenceReadings.append(cad)
-                            sampleCadence = cad
-                        }
-                    }
-
-                    // Collect timestamped form sample
-                    if sampleCadence > 0 || sampleOsc > 0 || sampleGCT > 0 {
-                        let sample = RunningFormSample(
-                            timestamp: Date(),
-                            cadence: sampleCadence,
-                            oscillation: sampleOsc,
-                            groundContactTime: sampleGCT
-                        )
-                        self.formSamples.append(sample)
-                    }
-
-                    // Audio coaching: cadence feedback
-                    if sampleCadence > 0 && AudioCoachManager.shared.announceCadenceFeedback {
-                        AudioCoachManager.shared.processCadence(sampleCadence, target: self.targetCadence)
-                    }
-
-                    // Audio coaching: ground contact time feedback
-                    if sampleGCT > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                        AudioCoachManager.shared.processGroundContactTime(sampleGCT)
-                    }
-
-                    // Audio coaching: vertical oscillation feedback
-                    if sampleOsc > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                        AudioCoachManager.shared.processVerticalOscillation(sampleOsc)
-                    }
-
-                    // Audio coaching: posture stability feedback
-                    let stability = self.sensorAnalyzer.postureStability
-                    if stability > 0 {
-                        AudioCoachManager.shared.processRunningStability(stability)
-                    }
-
-                    // Form degradation detection
-                    self.checkFormDegradation()
-                }
-            }
-        }
-    }
-
-    // MARK: - Heart Rate Tracking
-
-    private func setupHeartRateCallback() {
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.hasWCSessionHR = true
-                self.currentHeartRate = bpm
-                self.heartRateReadings.append(bpm)
-                if bpm > self.maxHeartRate {
-                    self.maxHeartRate = bpm
-                }
-                if bpm < self.minHeartRate {
-                    self.minHeartRate = bpm
-                }
-                // Collect timestamped samples for timeline
-                let sample = HeartRateSample(
-                    timestamp: Date(),
-                    bpm: bpm,
-                    maxHeartRate: self.treadmillEstimatedMaxHR
-                )
-                self.heartRateSamples.append(sample)
-            }
-        }
-    }
+    // Treadmill watch motion & HR callbacks removed — using .onChange(of:) modifiers
 
     private func startHeartRateTracking() {
         // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
-        sensorAnalyzer.startSession()
+        sensorAnalyzer.startSession(discipline: .treadmill)
         startWatchStatusUpdates()
     }
 
     private func stopHeartRateTracking() {
         watchManager.stopMotionTracking()
-        watchManager.onMotionUpdate = nil
-        watchManager.onHeartRateReceived = nil
         sensorAnalyzer.stopSession()
         stopWatchStatusUpdates()
 
@@ -2667,11 +2563,7 @@ struct TreadmillLiveView: View {
 
     private func startRecoveryTracking() {
         isRecoveryPhase = true
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.currentHeartRate = bpm
-            }
-        }
+        // HR updates flow via .onChange(of: watchManager.heartRateSequence) modifier
         // After 60 seconds, capture recovery HR
         let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.recoveryTimer", qos: .utility)
         let source = DispatchSource.makeTimerSource(queue: queue)
@@ -2681,7 +2573,6 @@ struct TreadmillLiveView: View {
                 if self.currentHeartRate > 0 {
                     self.session.recoveryHeartRate = self.currentHeartRate
                 }
-                self.watchManager.onHeartRateReceived = nil
                 self.isRecoveryPhase = false
                 self.recoveryTimer = nil
             }

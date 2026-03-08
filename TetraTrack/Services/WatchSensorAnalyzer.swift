@@ -10,12 +10,17 @@ import Foundation
 import Observation
 
 /// Comprehensive analyzer for Watch sensor data across all disciplines
-@Observable
+@Observable @MainActor
 final class WatchSensorAnalyzer: Resettable {
 
     // MARK: - Singleton
 
     static let shared = WatchSensorAnalyzer()
+
+    // MARK: - Session State
+
+    /// The active discipline for this session (nil when no session is active)
+    private(set) var activeDiscipline: WatchSessionDiscipline?
 
     // MARK: - Altitude Metrics
 
@@ -149,10 +154,10 @@ final class WatchSensorAnalyzer: Resettable {
     private var lastHeading: Double?
     private var lastUpdateTime: Date?
     private var sessionStartTime: Date?
-    private var intensitySamples: [Double] = []
-    private var breathingRateSamples: [Double] = []
-    private var pitchSamples: [Double] = []
-    private var rollSamples: [Double] = []
+    private var intensitySamples = RollingBuffer<Double>(capacity: 300)
+    private var breathingRateSamples = RollingBuffer<Double>(capacity: 60)
+    private var pitchSamples = RollingBuffer<Double>(capacity: 100)
+    private var rollSamples = RollingBuffer<Double>(capacity: 100)
     private var submersionStartTime: Date?
 
     // Jump detection state
@@ -165,16 +170,28 @@ final class WatchSensorAnalyzer: Resettable {
     private var turnStartTime: Date?
     private var isTurning: Bool = false
 
+    private var observationTask: Task<Void, Never>?
+
     private init() {
-        setupWatchConnectivityListener()
+        startObservingWatchManager()
     }
 
     // MARK: - Setup
 
-    private func setupWatchConnectivityListener() {
-        let watchManager = WatchConnectivityManager.shared
-        watchManager.onEnhancedSensorUpdate = { [weak self] in
-            self?.processWatchSensorUpdate()
+    private func startObservingWatchManager() {
+        observationTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.enhancedSensorSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.enhancedSensorSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.enhancedSensorSequence != lastSeq else { continue }
+                lastSeq = wm.enhancedSensorSequence
+                self.processWatchSensorUpdate()
+            }
         }
     }
 
@@ -226,14 +243,16 @@ final class WatchSensorAnalyzer: Resettable {
         trainingLoadScore = 0.0
         recoveryQuality = 100.0
 
+        activeDiscipline = nil
+
         lastAltitude = nil
         lastHeading = nil
         lastUpdateTime = nil
         sessionStartTime = nil
-        intensitySamples = []
-        breathingRateSamples = []
-        pitchSamples = []
-        rollSamples = []
+        intensitySamples.removeAll()
+        breathingRateSamples.removeAll()
+        pitchSamples.removeAll()
+        rollSamples.removeAll()
         submersionStartTime = nil
         preLandingAltitude = nil
         jumpStartTime = nil
@@ -245,48 +264,90 @@ final class WatchSensorAnalyzer: Resettable {
 
     // MARK: - Start/Stop Session
 
-    func startSession() {
+    func startSession(discipline: WatchSessionDiscipline) {
         reset()
+        activeDiscipline = discipline
         sessionStartTime = Date()
     }
 
     func stopSession() {
         // Finalize any in-progress events
+
+        // Discard incomplete jump (no reliable landing data)
+        if isAirborne {
+            isAirborne = false
+            preLandingAltitude = nil
+            jumpStartTime = nil
+        }
+
+        // Finalize in-progress turn
+        if isTurning, let startHeading = turnStartHeading, let startTime = turnStartTime {
+            var totalAngle = compassHeading - startHeading
+            if totalAngle > 180 { totalAngle -= 360 }
+            if totalAngle < -180 { totalAngle += 360 }
+
+            let minTurnAngle = 45.0
+            if abs(totalAngle) >= minTurnAngle {
+                let turn = CompassTurn(
+                    timestamp: startTime,
+                    angle: totalAngle,
+                    duration: Date().timeIntervalSince(startTime),
+                    direction: totalAngle > 0 ? .right : .left
+                )
+                compassTurns.append(turn)
+            }
+            isTurning = false
+            turnStartHeading = nil
+            turnStartTime = nil
+        }
+
+        // Finalize submersion time
         if isSubmerged, let startTime = submersionStartTime {
             totalSubmergedTime += Date().timeIntervalSince(startTime)
         }
+
+        activeDiscipline = nil
     }
 
     // MARK: - Process Watch Sensor Update
 
     private func processWatchSensorUpdate() {
+        guard let discipline = activeDiscipline else { return }
+
         let watchManager = WatchConnectivityManager.shared
         let now = Date()
         let dt = lastUpdateTime.map { now.timeIntervalSince($0) } ?? 0.1
         lastUpdateTime = now
 
-        // Process altitude
-        processAltitude(
-            relative: watchManager.relativeAltitude,
-            changeRate: watchManager.altitudeChangeRate,
-            pressure: watchManager.barometricPressure,
-            dt: dt
-        )
+        // Altitude + jump detection: riding, running, walking
+        if [.riding, .running, .walking].contains(discipline) {
+            processAltitude(
+                relative: watchManager.relativeAltitude,
+                changeRate: watchManager.altitudeChangeRate,
+                pressure: watchManager.barometricPressure,
+                dt: dt,
+                detectJumps: discipline == .riding
+            )
+        }
 
-        // Process posture
-        processPosture(
-            pitch: watchManager.posturePitch,
-            roll: watchManager.postureRoll,
-            dt: dt
-        )
+        // Posture: riding, running, shooting
+        if [.riding, .running, .shooting].contains(discipline) {
+            processPosture(
+                pitch: watchManager.posturePitch,
+                roll: watchManager.postureRoll,
+                dt: dt
+            )
+        }
 
-        // Process compass
-        processCompass(
-            heading: watchManager.compassHeading,
-            dt: dt
-        )
+        // Compass + turn detection: riding only
+        if discipline == .riding {
+            processCompass(
+                heading: watchManager.compassHeading,
+                dt: dt
+            )
+        }
 
-        // Process fatigue indicators
+        // Fatigue: all disciplines
         processFatigue(
             tremor: watchManager.tremorLevel,
             breathing: watchManager.breathingRate,
@@ -294,23 +355,27 @@ final class WatchSensorAnalyzer: Resettable {
             dt: dt
         )
 
-        // Process SpO2
-        processSpO2(spo2: watchManager.oxygenSaturation)
+        // SpO2: running, swimming
+        if [.running, .swimming].contains(discipline) {
+            processSpO2(spo2: watchManager.oxygenSaturation)
+        }
 
-        // Process water detection
-        processWaterDetection(
-            submerged: watchManager.isSubmerged,
-            depth: watchManager.waterDepth,
-            dt: dt
-        )
+        // Water detection: swimming only
+        if discipline == .swimming {
+            processWaterDetection(
+                submerged: watchManager.isSubmerged,
+                depth: watchManager.waterDepth,
+                dt: dt
+            )
+        }
 
-        // Update training load
+        // Training load: all disciplines
         updateTrainingLoad(dt: dt)
     }
 
     // MARK: - Altitude Processing
 
-    private func processAltitude(relative: Double, changeRate: Double, pressure: Double, dt: TimeInterval) {
+    private func processAltitude(relative: Double, changeRate: Double, pressure: Double, dt: TimeInterval, detectJumps: Bool) {
         relativeAltitude = relative
         altitudeChangeRate = changeRate
         barometricPressure = pressure
@@ -339,8 +404,10 @@ final class WatchSensorAnalyzer: Resettable {
             }
         }
 
-        // Jump detection
-        detectJump(altitude: relative, changeRate: changeRate)
+        // Jump detection (riding only)
+        if detectJumps {
+            detectJump(altitude: relative, changeRate: changeRate)
+        }
     }
 
     private func detectJump(altitude: Double, changeRate: Double) {
@@ -393,15 +460,11 @@ final class WatchSensorAnalyzer: Resettable {
         // Add to rolling samples
         pitchSamples.append(pitch)
         rollSamples.append(roll)
-        if pitchSamples.count > 100 {
-            pitchSamples.removeFirst()
-            rollSamples.removeFirst()
-        }
 
         // Calculate posture stability (inverse of variance)
         if pitchSamples.count >= 10 {
-            let pitchVariance = calculateVariance(pitchSamples.suffix(20))
-            let rollVariance = calculateVariance(rollSamples.suffix(20))
+            let pitchVariance = pitchSamples.variance
+            let rollVariance = rollSamples.variance
             let totalVariance = pitchVariance + rollVariance
 
             // Convert variance to stability score (0-100)
@@ -487,22 +550,17 @@ final class WatchSensorAnalyzer: Resettable {
 
         // Track breathing rate trend
         breathingRateSamples.append(breathing)
-        if breathingRateSamples.count > 60 {
-            breathingRateSamples.removeFirst()
-        }
 
         if breathingRateSamples.count >= 10 {
-            let recentAvg = breathingRateSamples.suffix(10).reduce(0, +) / 10
-            let olderAvg = breathingRateSamples.prefix(10).reduce(0, +) / 10
+            let items = breathingRateSamples.items
+            let recentAvg = items.suffix(10).reduce(0, +) / 10
+            let olderAvg = items.prefix(10).reduce(0, +) / 10
             breathingRateTrend = recentAvg - olderAvg
         }
 
         // Track intensity samples for average
         intensitySamples.append(intensity)
-        if intensitySamples.count > 300 {
-            intensitySamples.removeFirst()
-        }
-        averageIntensity = intensitySamples.reduce(0, +) / Double(max(1, intensitySamples.count))
+        averageIntensity = intensitySamples.mean
 
         // Track active vs passive time
         let activityThreshold = 40.0
@@ -513,9 +571,9 @@ final class WatchSensorAnalyzer: Resettable {
         }
 
         // Calculate fatigue score
-        // Components: tremor (40%), breathing rate increase (30%), duration (30%)
+        // Components: tremor (max 40), breathing rate increase (max 30), duration (max 30) = 100 total
         let tremorComponent = tremor * 0.4
-        let breathingComponent = max(0, breathingRateTrend) * 3  // Scaled
+        let breathingComponent = min(30, max(0, breathingRateTrend) * 3)
         let sessionDuration = sessionStartTime.map { Date().timeIntervalSince($0) / 3600 } ?? 0
         let durationComponent = min(30, sessionDuration * 30)  // Max 30 points for 1 hour
 
@@ -610,13 +668,11 @@ final class WatchSensorAnalyzer: Resettable {
         }
     }
 
-    // MARK: - Utility Methods
+    // MARK: - Real-Time Computed Properties
 
-    private func calculateVariance(_ samples: ArraySlice<Double>) -> Double {
-        guard samples.count > 1 else { return 0 }
-        let mean = samples.reduce(0, +) / Double(samples.count)
-        let squaredDiffs = samples.map { ($0 - mean) * ($0 - mean) }
-        return squaredDiffs.reduce(0, +) / Double(samples.count - 1)
+    /// Current submersion duration including in-progress submersion
+    var currentSubmergedTime: TimeInterval {
+        totalSubmergedTime + (isSubmerged ? (submersionStartTime.map { Date().timeIntervalSince($0) } ?? 0) : 0)
     }
 
     // MARK: - Discipline-Specific Summaries
@@ -641,7 +697,7 @@ final class WatchSensorAnalyzer: Resettable {
         RunningSensorSummary(
             totalElevationGain: totalElevationGain,
             totalElevationLoss: totalElevationLoss,
-            averageBreathingRate: breathingRateSamples.isEmpty ? 0 : breathingRateSamples.reduce(0, +) / Double(breathingRateSamples.count),
+            averageBreathingRate: breathingRateSamples.mean,
             breathingRateTrend: breathingRateTrend,
             minSpO2: minSpO2,
             currentSpO2: oxygenSaturation,

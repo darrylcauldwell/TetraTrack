@@ -14,6 +14,7 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
     case hack = "Hack"
     case schooling = "Schooling"
     case dressage = "Dressage"
+    case showjumping = "Showjumping"
     case crossCountry = "Cross Country"
     case gaitTesting = "Gait Testing"
 
@@ -43,6 +44,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return "rectangle.portrait.fill"
         case .dressage:
             return "figure.equestrian.sports"
+        case .showjumping:
+            return "arrow.up.forward"
         case .gaitTesting:
             return "waveform.path.ecg"
         }
@@ -59,6 +62,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return Color.purple
         case .dressage:
             return Color.indigo
+        case .showjumping:
+            return Color.orange
         case .gaitTesting:
             return Color.cyan
         }
@@ -75,6 +80,8 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
             return "Arena schooling and flatwork"
         case .dressage:
             return "Dressage tests and collected work"
+        case .showjumping:
+            return "Showjumping competition with phase tracking"
         case .gaitTesting:
             return "Diagnostic ride for validating gait detection accuracy"
         }
@@ -82,7 +89,7 @@ enum RideType: String, Codable, CaseIterable, Identifiable {
 
     /// All outdoor ride types
     static var outdoorTypes: [RideType] {
-        [.hack, .crossCountry, .gaitTesting]
+        [.hack, .showjumping, .crossCountry, .gaitTesting]
     }
 
     /// All indoor ride types

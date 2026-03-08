@@ -54,6 +54,9 @@ final class LiveTrackingSession {
     // Activity type — "riding" or "running"
     var activityType: String = "riding"
 
+    // Coaching notes from trusted contact
+    var coachingNotesData: Data?
+
     // Safety
     var lastMovementTime: Date = Date()
     var isStationary: Bool = false
@@ -193,6 +196,24 @@ final class LiveTrackingSession {
         }
     }
 
+    // MARK: - Coaching Notes
+
+    var coachingNotes: [CoachingNote] {
+        get {
+            guard let data = coachingNotesData else { return [] }
+            return (try? JSONDecoder().decode([CoachingNote].self, from: data)) ?? []
+        }
+        set {
+            coachingNotesData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    func addCoachingNote(text: String, authorName: String) {
+        var notes = coachingNotes
+        notes.append(CoachingNote(text: text, authorName: authorName))
+        coachingNotes = notes
+    }
+
     func startSession() {
         isActive = true
         startTime = Date()
@@ -206,6 +227,7 @@ final class LiveTrackingSession {
         routePointsData = nil
         routePointsDirty = false
         lastEncodedCount = 0
+        coachingNotesData = nil
     }
 
     func endSession() {

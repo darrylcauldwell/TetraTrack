@@ -7,14 +7,12 @@
 
 import SwiftUI
 import SwiftData
-import CoreMotion
-import Combine
 
 struct PosturalDriftDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @StateObject private var motionManager = PosturalDriftMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
     @State private var isRunning = false
     @State private var countdown = 3
@@ -58,7 +56,7 @@ struct PosturalDriftDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
             cueSystem.reset()
         }
     }
@@ -69,7 +67,7 @@ struct PosturalDriftDrillView: View {
                 .font(.headline)
             Spacer()
             Button {
-                motionManager.stopUpdates()
+                motionAnalyzer.stopUpdates()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -206,10 +204,10 @@ struct PosturalDriftDrillView: View {
                     .fill(stabilityColor)
                     .frame(width: 16, height: 16)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 50),
-                        y: CGFloat(motionManager.roll * 50)
+                        x: CGFloat(motionAnalyzer.relativePitch * 50),
+                        y: CGFloat(motionAnalyzer.relativeRoll * 50)
                     )
-                    .animation(.easeOut(duration: 0.05), value: motionManager.wobble)
+                    .animation(.easeOut(duration: 0.05), value: motionAnalyzer.wobble)
             }
 
             Text(feedbackMessage)
@@ -257,7 +255,7 @@ struct PosturalDriftDrillView: View {
             // Stats
             HStack(spacing: 30) {
                 VStack {
-                    Text(String(format: "%.1f°", motionManager.wobble * 57.3))
+                    Text(String(format: "%.1f°", motionAnalyzer.wobble * 57.3))
                         .font(.headline.monospacedDigit())
                     Text("Wobble")
                         .font(.caption)
@@ -422,7 +420,7 @@ struct PosturalDriftDrillView: View {
         elapsedTime = 0
         stabilityHistory = []
         currentStability = 100
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
@@ -431,7 +429,7 @@ struct PosturalDriftDrillView: View {
                 elapsedTime = Date().timeIntervalSince(timerStartDate)
 
                 // Calculate current stability from wobble
-                let wobbleStability = max(0, 100 - (motionManager.wobble * 200))
+                let wobbleStability = max(0, 100 - (motionAnalyzer.wobble * 200))
                 currentStability = currentStability * 0.8 + wobbleStability * 0.2
 
                 // Record stability point
@@ -451,7 +449,7 @@ struct PosturalDriftDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
         cueSystem.reset()
 
         let avgStability = stabilityHistory.isEmpty ? 0 : stabilityHistory.map(\.stability).reduce(0, +) / Double(stabilityHistory.count)
@@ -465,7 +463,7 @@ struct PosturalDriftDrillView: View {
             score: enduranceScore,
             stabilityScore: avgStability,
             enduranceScore: enduranceScore,
-            averageWobble: motionManager.averageWobble
+            averageWobble: motionAnalyzer.averageWobble
         )
         modelContext.insert(session)
         try? modelContext.save()
@@ -483,53 +481,6 @@ struct PosturalDriftDrillView: View {
     }
 }
 
-// MARK: - Postural Drift Motion Manager
-
-@MainActor
-class PosturalDriftMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var wobble: Double = 0
-    @Published var averageWobble: Double = 0
-
-    private var referencePitch: Double?
-    private var referenceRoll: Double?
-    private var wobbleSum: Double = 0
-    private var sampleCount: Int = 0
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referencePitch = nil
-        referenceRoll = nil
-        wobbleSum = 0
-        sampleCount = 0
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            if self.referencePitch == nil {
-                self.referencePitch = motion.attitude.pitch
-                self.referenceRoll = motion.attitude.roll
-            }
-
-            self.pitch = motion.attitude.pitch - (self.referencePitch ?? 0)
-            self.roll = motion.attitude.roll - (self.referenceRoll ?? 0)
-            self.wobble = sqrt(self.pitch * self.pitch + self.roll * self.roll)
-
-            self.wobbleSum += self.wobble
-            self.sampleCount += 1
-            self.averageWobble = self.wobbleSum / Double(self.sampleCount)
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     PosturalDriftDrillView()

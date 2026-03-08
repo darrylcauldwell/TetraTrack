@@ -550,13 +550,63 @@ struct SwimmingLiveView: View {
             )
             .ignoresSafeArea()
         )
-        .onAppear {
-            setupMotionCallbacks()
-        }
+        .onAppear {}
         .onDisappear {
             timer?.invalidate()
             restTimer?.invalidate()
             strokePickerTimer?.invalidate()
+        }
+        .onChange(of: watchManager.motionUpdateSequence) {
+            guard watchManager.currentMotionMode == .swimming else { return }
+            let strokes = watchManager.strokeCount
+            if strokes > 0 {
+                strokeCount = strokes
+            }
+            let rate = watchManager.strokeRate
+            if rate > 0 {
+                strokeRate = rate
+            }
+        }
+        .onChange(of: watchManager.strokeDetectedSequence) {
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+        }
+        .onChange(of: watchManager.enhancedSensorSequence) {
+            let currentlySubmerged = sensorAnalyzer.isSubmerged
+
+            // Submersion-triggered start for open water
+            if isArmedForSubmersion && currentlySubmerged {
+                triggerSubmersionStart()
+            }
+
+            // Detect surface -> resubmerge pattern (wall turn) for auto-lap
+            if !lastSubmersionState && currentlySubmerged && hasStarted && isRunning {
+                if lengthCount > 0 && !showAutoLapHint && !showStrokePicker {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showAutoLapHint = true
+                    }
+                    autoLapDismissTimer?.invalidate()
+                    autoLapDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
+                        dismissAutoLapHint()
+                    }
+                }
+            }
+            lastSubmersionState = currentlySubmerged
+        }
+        .onChange(of: watchManager.heartRateSequence) {
+            let bpm = watchManager.lastReceivedHeartRate
+            guard bpm > 0 else { return }
+            hasWCSessionHR = true
+            currentHeartRate = bpm
+            heartRateReadings.append(bpm)
+            if bpm > maxHeartRateReading {
+                maxHeartRateReading = bpm
+            }
+            heartRateSamples.append(HeartRateSample(
+                timestamp: Date(),
+                bpm: bpm,
+                maxHeartRate: estimatedMaxHR
+            ))
         }
         .overlay(alignment: .top) {
             VoiceNoteRecordingOverlay()
@@ -719,10 +769,10 @@ struct SwimmingLiveView: View {
             }
 
             // Water detection and SpO2 sensor metrics
-            if hasStarted && (sensorAnalyzer.isSubmerged || sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.totalSubmergedTime > 0) {
+            if hasStarted && (sensorAnalyzer.isSubmerged || sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.currentSubmergedTime > 0) {
                 SwimmingSensorMetricsView(
                     isSubmerged: sensorAnalyzer.isSubmerged,
-                    submergedTime: sensorAnalyzer.totalSubmergedTime,
+                    submergedTime: sensorAnalyzer.currentSubmergedTime,
                     submersionCount: sensorAnalyzer.submersionCount,
                     spo2: sensorAnalyzer.oxygenSaturation,
                     minSpo2: sensorAnalyzer.minSpO2,
@@ -733,10 +783,31 @@ struct SwimmingLiveView: View {
             // Open water map or lap button
             if isOpenWater {
                 if hasStarted {
-                    SwimmingOpenWaterMapView(
-                        coordinates: gpsTracker?.routeCoordinates ?? [],
-                        distance: gpsTracker?.totalDistance ?? 0
+                    LiveSessionMapView(
+                        routeSegments: {
+                            let coords = gpsTracker?.routeCoordinates ?? []
+                            guard coords.count > 1 else { return [] }
+                            return [RouteSegment(coordinates: coords, color: .cyan)]
+                        }(),
+                        followsUser: false
                     )
+                    .overlay(alignment: .bottomTrailing) {
+                        VStack(spacing: 2) {
+                            Text(String(format: "%.0fm", gpsTracker?.totalDistance ?? 0))
+                                .font(.headline.bold())
+                                .monospacedDigit()
+                            Text("GPS Distance")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding()
+                    }
+                    .frame(height: 250)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, -16) // bleed to edges
                 }
             } else if !testComplete {
@@ -1740,90 +1811,17 @@ struct SwimmingLiveView: View {
         gpsTracker?.stop()
     }
 
-    // MARK: - Watch Motion Tracking
-
-    private func setupMotionCallbacks() {
-        watchManager.onMotionUpdate = { mode, _, strokes, rate, _, _, _ in
-            if mode == .swimming {
-                DispatchQueue.main.async {
-                    if let strokes = strokes {
-                        self.strokeCount = strokes
-                    }
-                    if let rate = rate {
-                        self.strokeRate = rate
-                    }
-                }
-            }
-        }
-
-        watchManager.onStrokeDetected = {
-            // Haptic feedback on stroke detected
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.impactOccurred()
-        }
-
-        // Submersion detection: armed start trigger + auto-lap hints
-        watchManager.onEnhancedSensorUpdate = { [self] in
-            DispatchQueue.main.async {
-                let currentlySubmerged = self.sensorAnalyzer.isSubmerged
-
-                // Submersion-triggered start for open water
-                if self.isArmedForSubmersion && currentlySubmerged {
-                    self.triggerSubmersionStart()
-                }
-
-                // Detect surface -> resubmerge pattern (wall turn) for auto-lap
-                if !self.lastSubmersionState && currentlySubmerged && self.hasStarted && self.isRunning {
-                    // Only show hint if we have at least 1 length already
-                    // and not already showing a hint
-                    if self.lengthCount > 0 && !self.showAutoLapHint && !self.showStrokePicker {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.showAutoLapHint = true
-                        }
-                        // Auto-dismiss after 5 seconds
-                        self.autoLapDismissTimer?.invalidate()
-                        self.autoLapDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
-                            self.dismissAutoLapHint()
-                        }
-                    }
-                }
-                self.lastSubmersionState = currentlySubmerged
-            }
-        }
-
-        // Heart rate callback (companion HR via WCSession)
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.hasWCSessionHR = true
-                self.currentHeartRate = bpm
-                self.heartRateReadings.append(bpm)
-                if bpm > self.maxHeartRateReading {
-                    self.maxHeartRateReading = bpm
-                }
-                // Collect samples for timeline
-                let sample = HeartRateSample(
-                    timestamp: Date(),
-                    bpm: bpm,
-                    maxHeartRate: self.estimatedMaxHR
-                )
-                self.heartRateSamples.append(sample)
-            }
-        }
-    }
+    // Watch motion & HR callbacks removed — using .onChange(of:) modifiers
 
     private func startMotionTracking() {
         watchManager.resetMotionMetrics()
         // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
-        sensorAnalyzer.startSession()
+        sensorAnalyzer.startSession(discipline: .swimming)
         startWatchStatusUpdates()
     }
 
     private func stopMotionTracking() {
         watchManager.stopMotionTracking()
-        watchManager.onMotionUpdate = nil
-        watchManager.onHeartRateReceived = nil
-        watchManager.onStrokeDetected = nil
-        watchManager.onEnhancedSensorUpdate = nil
         sensorAnalyzer.stopSession()
         autoLapDismissTimer?.invalidate()
         stopWatchStatusUpdates()
@@ -1922,8 +1920,25 @@ struct SwimmingSessionDetailView: View {
 
                     // Open water route map
                     if session.hasRouteData {
-                        SwimmingOpenWaterRouteView(session: session)
-                            .padding(.horizontal)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "water.waves")
+                                    .foregroundStyle(.cyan)
+                                Text("Open Water Route")
+                                    .font(.headline)
+                            }
+
+                            SessionRouteMapView(
+                                coordinates: session.coordinates,
+                                routeColors: .solid(.cyan)
+                            )
+                            .frame(height: 250)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal)
                     }
 
                     // Heart rate timeline

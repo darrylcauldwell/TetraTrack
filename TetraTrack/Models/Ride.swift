@@ -74,6 +74,12 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
     /// HMM diagnostic data collected during gait testing rides
     var gaitDiagnosticsData: Data?
 
+    /// Dressage test execution data (JSON-encoded DressageTestExecution)
+    var dressageTestExecutionData: Data?
+
+    /// Coaching notes from trusted contact (JSON-encoded [CoachingNote])
+    var coachingNotesData: Data?
+
     /// Phone mount position during this ride (stored as String for CloudKit compatibility)
     var phoneMountPositionValue: String = PhoneMountPosition.jodhpurThigh.rawValue
 
@@ -114,6 +120,9 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
 
     @Relationship(deleteRule: .cascade, inverse: \RideScore.ride)
     var scores: [RideScore]? = []
+
+    @Relationship(deleteRule: .cascade, inverse: \RidePhase.ride)
+    var phases: [RidePhase]? = []
 
     // Horse association - optional for backwards compatibility
     var horse: Horse?
@@ -256,6 +265,33 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
     var rideType: RideType {
         get { RideType(rawValue: rideTypeValue) ?? .hack }
         set { rideTypeValue = newValue.rawValue }
+    }
+
+    /// Sorted phases by start date
+    var sortedPhases: [RidePhase] {
+        (phases ?? []).sorted { $0.startDate < $1.startDate }
+    }
+
+    /// Decoded dressage test execution
+    var dressageTestExecution: DressageTestExecution? {
+        get {
+            guard let data = dressageTestExecutionData else { return nil }
+            return try? JSONDecoder().decode(DressageTestExecution.self, from: data)
+        }
+        set {
+            dressageTestExecutionData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    /// Decoded coaching notes
+    var coachingNotes: [CoachingNote] {
+        get {
+            guard let data = coachingNotesData else { return [] }
+            return (try? JSONDecoder().decode([CoachingNote].self, from: data)) ?? []
+        }
+        set {
+            coachingNotesData = try? JSONEncoder().encode(newValue)
+        }
     }
 
     // MARK: - Lead Stats

@@ -113,6 +113,18 @@ final class RideTracker {
     // Horse selection
     var selectedHorse: Horse?
 
+    // Phase tracking (showjumping)
+    var currentPhase: RidePhase?
+    var currentPhaseType: RidePhaseType = .warmup
+    private var phaseStartDistance: Double = 0
+    private(set) var phaseStartJumpCount: Int = 0
+    private var phaseHeartRates: [Int] = []
+
+    // Dressage test practice
+    var selectedDressageTest: DressageTest?
+    var currentMovementIndex: Int = 0
+    var movementScores: [Int] = []
+
     // Live metrics
     var currentLead: Lead = .unknown
     var currentRein: ReinDirection = .straight
@@ -239,8 +251,15 @@ final class RideTracker {
 
     // Extracted coordinators
     private let healthCoordinator = RideHealthCoordinator()
-    private let watchBridge = RideWatchBridge()
+    private let watchManager = WatchConnectivityManager.shared
     private let workoutLifecycle = WorkoutLifecycleService.shared
+
+    // Watch observation tasks
+    private var watchCommandTask: Task<Void, Never>?
+    private var watchHeartRateTask: Task<Void, Never>?
+    private var watchVoiceNoteTask: Task<Void, Never>?
+    private var watchGaitEnhancementTask: Task<Void, Never>?
+    private var watchUpdateTimer: Timer?
 
     // Pocket mode
     private let pocketModeManager = PocketModeManager.shared
@@ -303,7 +322,7 @@ final class RideTracker {
         setupMotionCallback()
         setupGaitCallback()
         setupReinCallback()
-        setupWatchBridge()
+        startWatchObservation()
         setupHealthCoordinator()
         setupFallDetection()
     }
@@ -372,31 +391,89 @@ final class RideTracker {
         }
     }
 
-    private func setupWatchBridge() {
-        watchBridge.onStartRide = { [weak self] in
-            await self?.startRide()
+    private func startWatchObservation() {
+        watchManager.activate()
+        watchManager.startSession(discipline: .riding)
+
+        // Observe commands (start/stop/requestStatus)
+        watchCommandTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.commandSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.commandSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.commandSequence != lastSeq else { continue }
+                lastSeq = wm.commandSequence
+                guard let command = wm.lastReceivedCommand else { continue }
+                switch command {
+                case .startRide:
+                    await self.startRide()
+                case .stopRide:
+                    self.stopRide()
+                case .requestStatus:
+                    self.sendStatusToWatch()
+                default:
+                    break
+                }
+            }
         }
 
-        watchBridge.onStopRide = { [weak self] in
-            self?.stopRide()
+        // Observe heart rate
+        watchHeartRateTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.heartRateSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.heartRateSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.heartRateSequence != lastSeq else { continue }
+                lastSeq = wm.heartRateSequence
+                let hr = wm.lastReceivedHeartRate
+                guard hr > 0 else { continue }
+                self.handleHeartRateUpdate(hr)
+            }
         }
 
-        watchBridge.onRequestStatus = { [weak self] in
-            self?.sendStatusToWatch()
+        // Observe voice notes
+        watchVoiceNoteTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.voiceNoteSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.voiceNoteSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.voiceNoteSequence != lastSeq else { continue }
+                lastSeq = wm.voiceNoteSequence
+                guard let noteText = wm.lastVoiceNoteText,
+                      let ride = self.currentRide else { continue }
+                let service = VoiceNotesService.shared
+                ride.notes = service.appendNote(noteText, to: ride.notes)
+                var currentNotes = ride.voiceNotes
+                currentNotes.append(noteText)
+                ride.voiceNotes = currentNotes
+            }
         }
+    }
 
-        watchBridge.onHeartRateReceived = { [weak self] bpm in
-            self?.handleHeartRateUpdate(bpm)
-        }
-
-        watchBridge.onVoiceNoteReceived = { [weak self] noteText in
-            guard let self, let ride = self.currentRide else { return }
-            let service = VoiceNotesService.shared
-            ride.notes = service.appendNote(noteText, to: ride.notes)
-            var currentNotes = ride.voiceNotes
-            currentNotes.append(noteText)
-            ride.voiceNotes = currentNotes
-        }
+    private func stopWatchObservation() {
+        watchCommandTask?.cancel()
+        watchCommandTask = nil
+        watchHeartRateTask?.cancel()
+        watchHeartRateTask = nil
+        watchVoiceNoteTask?.cancel()
+        watchVoiceNoteTask = nil
+        watchGaitEnhancementTask?.cancel()
+        watchGaitEnhancementTask = nil
+        watchUpdateTimer?.invalidate()
+        watchUpdateTimer = nil
+        watchManager.endSession()
     }
 
     private func setupHealthCoordinator() {
@@ -533,7 +610,7 @@ final class RideTracker {
         reinAnalyzer.reset()
         symmetryAnalyzer.reset()
         rhythmAnalyzer.reset()
-        watchSensorAnalyzer.startSession()
+        watchSensorAnalyzer.startSession(discipline: .riding)
 
         // Configure analyzers with horse profile for breed-specific priors
         if let horse = selectedHorse {
@@ -607,7 +684,7 @@ final class RideTracker {
         do {
             let config = HKWorkoutConfiguration()
             config.activityType = .equestrianSports
-            config.locationType = .outdoor
+            config.locationType = selectedRideType.isIndoor ? .indoor : .outdoor
             try await workoutLifecycle.startWorkout(configuration: config)
             // Disable auto calorie collection — gait-adjusted calories are more accurate for riding
             workoutLifecycle.disableAutoCalories()
@@ -615,9 +692,10 @@ final class RideTracker {
             Log.tracking.error("Failed to start workout lifecycle: \(error)")
         }
 
-        // Start Watch updates
-        Log.tracking.debug("Starting watch bridge...")
-        watchBridge.startUpdates { [weak self] in
+        // Start Watch status updates (1Hz timer)
+        Log.tracking.debug("Starting watch status updates...")
+        watchUpdateTimer?.invalidate()
+        watchUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.sendStatusToWatch()
         }
 
@@ -640,6 +718,11 @@ final class RideTracker {
 
         // Start pocket mode monitoring if enabled
         pocketModeManager.startMonitoring()
+
+        // Auto-start warmup phase for showjumping rides
+        if selectedRideType == .showjumping {
+            startPhase(.warmup)
+        }
 
         Log.tracking.info("Ride started successfully")
     }
@@ -708,6 +791,9 @@ final class RideTracker {
     func stopRide() {
         guard rideState == .tracking || rideState == .paused else { return }
 
+        // End any active phase
+        endCurrentPhase()
+
         // Request background execution time for post-session tasks
         postSessionBackgroundTaskId = UIApplication.shared.beginBackgroundTask(
             withName: "PostSessionCleanup"
@@ -755,7 +841,8 @@ final class RideTracker {
 
         // Stop heart rate monitoring and get final stats
         healthCoordinator.stopMonitoring()
-        watchBridge.stopUpdates()
+        watchUpdateTimer?.invalidate()
+        watchUpdateTimer = nil
 
         // Build HealthKit enrichment data from analyzers (available now, before model finalization)
         // Gait transition marker events
@@ -964,6 +1051,15 @@ final class RideTracker {
 
             // HealthKit save is handled by WorkoutLifecycleService.endAndSave() above
 
+            // Transfer coaching notes from live tracking session to ride
+            if isSharingWithFamily, let session = sharingCoordinator.mySession {
+                let notes = session.coachingNotes
+                if !notes.isEmpty {
+                    ride.coachingNotes = notes
+                    Log.tracking.info("Transferred \(notes.count) coaching notes to ride")
+                }
+            }
+
             // Stop family sharing
             if isSharingWithFamily {
                 let stopSharingTask = Task {
@@ -1038,7 +1134,8 @@ final class RideTracker {
         audioCoach.endSession(distance: 0, duration: 0)
         gaitAnalyzer.stopAnalyzing()
         healthCoordinator.stopMonitoring()
-        watchBridge.stopUpdates()
+        watchUpdateTimer?.invalidate()
+        watchUpdateTimer = nil
 
         // Discard workout lifecycle (stops Watch mirroring)
         let discardWorkoutTask = Task {
@@ -1092,6 +1189,63 @@ final class RideTracker {
         healthCoordinator.resetState()
         currentWeather = nil
         weatherError = nil
+        currentPhase = nil
+        currentPhaseType = .warmup
+        phaseStartDistance = 0
+        phaseStartJumpCount = 0
+        phaseHeartRates = []
+        selectedDressageTest = nil
+        currentMovementIndex = 0
+        movementScores = []
+    }
+
+    // MARK: - Phase Tracking (Showjumping)
+
+    func startPhase(_ type: RidePhaseType) {
+        // End current phase if active
+        endCurrentPhase()
+
+        let phase = RidePhase(phaseType: type)
+        currentPhase = phase
+        currentPhaseType = type
+        phaseStartDistance = totalDistance
+        phaseStartJumpCount = jumpCount
+        phaseHeartRates = []
+
+        // Insert into ride
+        if let ride = currentRide {
+            if ride.phases == nil { ride.phases = [] }
+            ride.phases?.append(phase)
+        }
+
+        Log.tracking.info("Started phase: \(type.rawValue)")
+    }
+
+    func endCurrentPhase() {
+        guard let phase = currentPhase else { return }
+        phase.endDate = Date()
+        phase.distance = totalDistance - phaseStartDistance
+        phase.jumpCount = jumpCount - phaseStartJumpCount
+
+        if !phaseHeartRates.isEmpty {
+            phase.averageHeartRate = phaseHeartRates.reduce(0, +) / phaseHeartRates.count
+            phase.maxHeartRate = phaseHeartRates.max() ?? 0
+        }
+
+        let duration = phase.duration
+        if duration > 0 {
+            phase.averageSpeed = phase.distance / duration
+        }
+
+        Log.tracking.info("Ended phase: \(phase.phaseType.rawValue), duration: \(Int(duration))s")
+        currentPhase = nil
+    }
+
+    /// Track heart rate samples for current phase
+    func recordPhaseHeartRate(_ hr: Int) {
+        if currentPhase != nil {
+            phaseHeartRates.append(hr)
+        }
     }
 
     // MARK: - Post-Session Summary
@@ -1477,32 +1631,29 @@ final class RideTracker {
     /// Subscribe to Watch sensor updates to enhance gait detection
     /// Watch provides posture and movement data that improves gait classification accuracy
     private func setupWatchGaitEnhancement() {
-        let watchManager = WatchConnectivityManager.shared
+        watchGaitEnhancementTask?.cancel()
+        watchGaitEnhancementTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.enhancedSensorSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.enhancedSensorSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.enhancedSensorSequence != lastSeq else { continue }
+                lastSeq = wm.enhancedSensorSequence
 
-        // Store existing callback (if any) to chain with our enhancement
-        let existingCallback = watchManager.onEnhancedSensorUpdate
+                // Compute arm symmetry and yaw energy from Watch sensor data
+                let rollVariance = self.watchSensorAnalyzer.postureStability / 100.0
+                let armSymmetry = 1.0 - min(1.0, abs(wm.postureRoll) / 30.0)
+                let yawEnergy = self.watchSensorAnalyzer.movementIntensity / 100.0
 
-        watchManager.onEnhancedSensorUpdate = { [weak self] in
-            // Call existing callback first
-            existingCallback?()
-
-            // Compute arm symmetry and yaw energy from Watch sensor data
-            guard let self = self else { return }
-
-            // Arm symmetry: computed from posture roll consistency
-            // Low roll variance = good arm symmetry (arms moving evenly)
-            // Roll is in degrees from WatchConnectivityManager
-            let rollVariance = self.watchSensorAnalyzer.postureStability / 100.0
-            let armSymmetry = 1.0 - min(1.0, abs(watchManager.postureRoll) / 30.0)
-
-            // Yaw energy: computed from movement intensity
-            let yawEnergy = self.watchSensorAnalyzer.movementIntensity / 100.0
-
-            // Feed Watch data to gait analyzer for enhanced classification
-            self.gaitAnalyzer.updateWatchData(
-                armSymmetry: max(0, min(1, armSymmetry * rollVariance)),
-                yawEnergy: max(0, min(1, yawEnergy))
-            )
+                self.gaitAnalyzer.updateWatchData(
+                    armSymmetry: max(0, min(1, armSymmetry * rollVariance)),
+                    yawEnergy: max(0, min(1, yawEnergy))
+                )
+            }
         }
     }
 
@@ -1531,7 +1682,7 @@ final class RideTracker {
         var elev: Double?
 
         switch selectedRideType {
-        case .hack, .gaitTesting:
+        case .hack, .showjumping, .gaitTesting:
             walkPct = gaits.walk
             trotPct = gaits.trot
             canterPct = gaits.canter
@@ -1558,7 +1709,7 @@ final class RideTracker {
             elev = currentElevation
         }
 
-        watchBridge.sendStatus(
+        watchManager.sendStatusUpdate(
             rideState: state,
             duration: elapsedTime,
             distance: totalDistance,

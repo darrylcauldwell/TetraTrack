@@ -99,9 +99,36 @@ final class DrillMotionAnalyzer {
 
     let scorer = DrillScorer()
 
+    // MARK: - Reference-Relative Metrics
+
+    /// Pitch relative to reference position (set on first sample)
+    private(set) var relativePitch: Double = 0
+
+    /// Roll relative to reference position (set on first sample)
+    private(set) var relativeRoll: Double = 0
+
+    /// Combined wobble magnitude: sqrt(relativePitch² + relativeRoll²)
+    private(set) var wobble: Double = 0
+
+    /// Running average of wobble over the session
+    private(set) var averageWobble: Double = 0
+
+    // MARK: - Absorption / Smoothness Metrics
+
+    /// Movement absorption score (0-1), EMA smoothed
+    private(set) var absorptionScore: Double = 0
+
+    /// Movement smoothness (0-1), based on velocity variance
+    private(set) var smoothness: Double = 0
+
     // MARK: - Internal State
 
     private var referenceYaw: Double?
+    private var referencePitch: Double?
+    private var referenceRoll: Double?
+    private var wobbleSum: Double = 0
+    private var wobbleSampleCount: Int = 0
+    private var velocityHistory: [Double] = []
     private var previousPitch: Double = 0
     private var previousRoll: Double = 0
     private var previousYaw: Double = 0
@@ -141,6 +168,11 @@ final class DrillMotionAnalyzer {
         isRunning = true
         startTime = Date()
         referenceYaw = nil
+        referencePitch = nil
+        referenceRoll = nil
+        wobbleSum = 0
+        wobbleSampleCount = 0
+        velocityHistory.removeAll()
         scorer.reset()
         resetBuffers()
 
@@ -173,6 +205,17 @@ final class DrillMotionAnalyzer {
         stabilityScore = 100
         totalMovement = 0
         referenceYaw = nil
+        referencePitch = nil
+        referenceRoll = nil
+        relativePitch = 0
+        relativeRoll = 0
+        wobble = 0
+        averageWobble = 0
+        wobbleSum = 0
+        wobbleSampleCount = 0
+        absorptionScore = 0
+        smoothness = 0
+        velocityHistory.removeAll()
 
         // Reset frequency domain metrics
         tremorPower = 0
@@ -201,11 +244,21 @@ final class DrillMotionAnalyzer {
         pitch = motion.attitude.pitch
         roll = motion.attitude.roll
 
-        // Set reference yaw on first reading
+        // Set reference on first reading
         if referenceYaw == nil {
             referenceYaw = motion.attitude.yaw
+            referencePitch = motion.attitude.pitch
+            referenceRoll = motion.attitude.roll
         }
         yaw = motion.attitude.yaw - (referenceYaw ?? 0)
+
+        // Reference-relative metrics
+        relativePitch = motion.attitude.pitch - (referencePitch ?? 0)
+        relativeRoll = motion.attitude.roll - (referenceRoll ?? 0)
+        wobble = sqrt(relativePitch * relativePitch + relativeRoll * relativeRoll)
+        wobbleSampleCount += 1
+        wobbleSum += wobble
+        averageWobble = wobbleSum / Double(wobbleSampleCount)
 
         // Calculate acceleration magnitude
         let accel = motion.userAcceleration
@@ -246,6 +299,9 @@ final class DrillMotionAnalyzer {
 
         // Update fatigue tracking
         updateFatigueMetrics(timestamp: timestamp)
+
+        // Update absorption/smoothness metrics
+        updateAbsorptionMetrics()
 
         // Feed to integrated scorer
         scorer.process(pitch: pitch, roll: roll, yaw: yaw, timestamp: timestamp)
@@ -353,6 +409,21 @@ final class DrillMotionAnalyzer {
         )
         let rawStability = max(0, 1 - (movement * 20))
         stabilityScore = stabilityScore * 0.9 + rawStability * 0.1
+    }
+
+    private func updateAbsorptionMetrics() {
+        let velocity = sqrt(pow(pitch - previousPitch, 2) + pow(roll - previousRoll, 2))
+        velocityHistory.append(velocity)
+        if velocityHistory.count > 30 { velocityHistory.removeFirst() }
+
+        guard velocityHistory.count >= 2 else { return }
+        let mean = velocityHistory.reduce(0, +) / Double(velocityHistory.count)
+        let variance = velocityHistory.map { pow($0 - mean, 2) }.reduce(0, +) / Double(velocityHistory.count)
+        smoothness = max(0, 1 - sqrt(variance) * 50)
+
+        let centeredness = max(0, 1 - sqrt(pitch * pitch + roll * roll) * 3)
+        let rawAbsorption = centeredness * 0.7 + smoothness * 0.3
+        absorptionScore = absorptionScore * 0.9 + rawAbsorption * 0.1
     }
 
     private func resetBuffers() {

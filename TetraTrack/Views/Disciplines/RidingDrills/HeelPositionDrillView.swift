@@ -6,15 +6,13 @@
 //
 
 import SwiftUI
-import CoreMotion
 import SwiftData
-import Combine
 
 struct HeelPositionDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var streaks: [TrainingStreak]
-    @StateObject private var motionManager = RidingMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
 
     @State private var isRunning = false
     @State private var countdown = 3
@@ -40,7 +38,7 @@ struct HeelPositionDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -79,7 +77,7 @@ struct HeelPositionDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
         }
     }
 
@@ -159,20 +157,20 @@ struct HeelPositionDrillView: View {
                     .stroke(stabilityColor, lineWidth: 20)
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.3), value: motionManager.stabilityScore)
+                    .animation(.easeInOut(duration: 0.3), value: motionAnalyzer.stabilityScore)
 
                 // Wobble indicator
                 Circle()
                     .fill(stabilityColor)
                     .frame(width: 30, height: 30)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 80),
-                        y: CGFloat(motionManager.roll * 80)
+                        x: CGFloat(motionAnalyzer.pitch * 80),
+                        y: CGFloat(motionAnalyzer.roll * 80)
                     )
-                    .animation(.easeOut(duration: 0.1), value: motionManager.pitch)
+                    .animation(.easeOut(duration: 0.1), value: motionAnalyzer.pitch)
 
                 VStack {
-                    Text("\(Int(motionManager.stabilityScore * 100))")
+                    Text("\(Int(motionAnalyzer.stabilityScore * 100))")
                         .font(.system(size: 48, weight: .bold))
                     Text("Stability")
                         .font(.caption)
@@ -187,21 +185,21 @@ struct HeelPositionDrillView: View {
             // Real-time stats
             HStack(spacing: 30) {
                 VStack {
-                    Text(String(format: "%.2f", abs(motionManager.pitch * 57.3)))
+                    Text(String(format: "%.2f", abs(motionAnalyzer.pitch * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Pitch")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.2f", abs(motionManager.roll * 57.3)))
+                    Text(String(format: "%.2f", abs(motionAnalyzer.roll * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Roll")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.3f", motionManager.totalMovement))
+                    Text(String(format: "%.3f", motionAnalyzer.totalMovement))
                         .font(.headline.monospacedDigit())
                     Text("Movement")
                         .font(.caption)
@@ -265,15 +263,15 @@ struct HeelPositionDrillView: View {
     }
 
     private var stabilityColor: Color {
-        if motionManager.stabilityScore > 0.8 { return AppColors.active }
-        if motionManager.stabilityScore > 0.5 { return AppColors.warning }
+        if motionAnalyzer.stabilityScore > 0.8 { return AppColors.active }
+        if motionAnalyzer.stabilityScore > 0.5 { return AppColors.warning }
         return AppColors.error
     }
 
     private var stabilityMessage: String {
-        if motionManager.stabilityScore > 0.9 { return "Excellent! Rock solid!" }
-        if motionManager.stabilityScore > 0.7 { return "Good stability" }
-        if motionManager.stabilityScore > 0.5 { return "Some wobble detected" }
+        if motionAnalyzer.stabilityScore > 0.9 { return "Excellent! Rock solid!" }
+        if motionAnalyzer.stabilityScore > 0.7 { return "Good stability" }
+        if motionAnalyzer.stabilityScore > 0.5 { return "Some wobble detected" }
         return "Keep those heels down!"
     }
 
@@ -305,7 +303,7 @@ struct HeelPositionDrillView: View {
     private func startDrill() {
         isRunning = true
         elapsedTime = 0
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
@@ -314,7 +312,7 @@ struct HeelPositionDrillView: View {
                 elapsedTime = Date().timeIntervalSince(timerStartDate)
                 results.append(StabilityResult(
                     timestamp: elapsedTime,
-                    stability: motionManager.stabilityScore
+                    stability: motionAnalyzer.stabilityScore
                 ))
 
                 if elapsedTime >= targetDuration {
@@ -328,7 +326,7 @@ struct HeelPositionDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
 
         // Calculate average stability score
         let avgStability = results.map { $0.stability }.reduce(0, +) / Double(max(results.count, 1))
@@ -372,51 +370,6 @@ struct StabilityResult {
     let stability: Double
 }
 
-// MARK: - Riding Motion Manager
-
-@MainActor
-class RidingMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var yaw: Double = 0
-    @Published var totalMovement: Double = 0
-    @Published var stabilityScore: Double = 1.0
-
-    private var previousPitch: Double = 0
-    private var previousRoll: Double = 0
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            self.pitch = motion.attitude.pitch
-            self.roll = motion.attitude.roll
-            self.yaw = motion.attitude.yaw
-
-            // Calculate movement from previous frame
-            let pitchDelta = abs(self.pitch - self.previousPitch)
-            let rollDelta = abs(self.roll - self.previousRoll)
-            self.totalMovement = pitchDelta + rollDelta
-
-            // Calculate stability (inverse of movement, smoothed)
-            let movement = sqrt(pitchDelta * pitchDelta + rollDelta * rollDelta)
-            let rawStability = max(0, 1 - (movement * 20))
-            self.stabilityScore = self.stabilityScore * 0.9 + rawStability * 0.1
-
-            self.previousPitch = self.pitch
-            self.previousRoll = self.roll
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     HeelPositionDrillView()

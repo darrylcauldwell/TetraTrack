@@ -49,7 +49,7 @@ struct WalkingLiveView: View {
 
     // Map
     @State private var selectedTab: RunningTab = .stats
-    @State private var mapPosition: MapCameraPosition = .automatic
+
 
     // Km split tracking
     @State private var lastAnnouncedKm: Int = 0
@@ -111,6 +111,27 @@ struct WalkingLiveView: View {
             }
         }
         .onDisappear { cleanup() }
+        .onChange(of: watchManager.heartRateSequence) {
+            let bpm = watchManager.lastReceivedHeartRate
+            guard bpm > 0 else { return }
+            hasWCSessionHR = true
+            currentHeartRate = bpm
+            heartRateReadings.append(bpm)
+            if bpm > maxHeartRate { maxHeartRate = bpm }
+            if bpm < minHeartRate { minHeartRate = bpm }
+            heartRateSamples.append(HeartRateSample(
+                timestamp: Date(),
+                bpm: bpm,
+                maxHeartRate: estimatedMaxHR
+            ))
+        }
+        .onChange(of: watchManager.motionUpdateSequence) {
+            let cad = watchManager.cadence
+            if cad > 0 {
+                currentCadence = cad
+                cadenceReadings.append(cad)
+            }
+        }
         .confirmationDialog("End Walking Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
                 endSession()
@@ -280,53 +301,15 @@ struct WalkingLiveView: View {
     // MARK: - Walking Map View
 
     private var walkingMapView: some View {
-        ZStack {
-            Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
-                UserAnnotation()
-
-                if let coords = gpsTracker?.routeCoordinates, coords.count > 1 {
-                    MapPolyline(coordinates: coords)
-                        .stroke(.teal, lineWidth: 4)
-                }
-            }
-            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .task {
-                updateMapPosition()
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(2))
-                    updateMapPosition()
-                }
-            }
-
-            // Back button overlay
-            VStack {
-                HStack {
-                    Button { selectedTab = .stats } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.body.weight(.semibold))
-                            Text("Stats")
-                                .font(.subheadline.weight(.medium))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                    }
-                    Spacer()
-                }
-                .padding()
-                Spacer()
-            }
-        }
-    }
-
-    private func updateMapPosition() {
-        guard let location = locationManager?.currentLocation else { return }
-        mapPosition = .camera(MapCamera(
-            centerCoordinate: location.coordinate,
-            distance: 400
-        ))
+        LiveSessionMapView(
+            routeSegments: {
+                let coords = gpsTracker?.routeCoordinates ?? []
+                guard coords.count > 1 else { return [] }
+                return [RouteSegment(coordinates: coords, color: .teal)]
+            }(),
+            currentLocation: locationManager?.currentLocation,
+            onBack: { selectedTab = .stats }
+        )
     }
 
     // MARK: - Control Buttons
@@ -398,8 +381,7 @@ struct WalkingLiveView: View {
         // Start location tracking (callback-based, matching RunningLiveView pattern)
         startLocationTracking()
 
-        // Setup Watch heart rate, cadence callbacks, and status updates
-        setupWatchCallbacks()
+        // Start Watch status updates (HR/cadence handled by .onChange modifiers)
         startWatchStatusUpdates()
 
         // Start HealthKit workout
@@ -438,10 +420,8 @@ struct WalkingLiveView: View {
         }
         session.heartRateSamples = heartRateSamples
 
-        // Clean up Watch callbacks and status updates
+        // Clean up Watch status updates
         stopWatchStatusUpdates()
-        watchManager.onMotionUpdate = nil
-        watchManager.onHeartRateReceived = nil
 
         // Stop family sharing
         if shareWithFamily {
@@ -562,35 +542,7 @@ struct WalkingLiveView: View {
         gpsTracker?.stop()
     }
 
-    // MARK: - Watch Callbacks
-
-    private func setupWatchCallbacks() {
-        // Heart rate callback (companion HR via WCSession)
-        watchManager.onHeartRateReceived = { bpm in
-            DispatchQueue.main.async {
-                self.hasWCSessionHR = true
-                self.currentHeartRate = bpm
-                self.heartRateReadings.append(bpm)
-                if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
-                if bpm < self.minHeartRate { self.minHeartRate = bpm }
-                self.heartRateSamples.append(HeartRateSample(
-                    timestamp: Date(),
-                    bpm: bpm,
-                    maxHeartRate: self.estimatedMaxHR
-                ))
-            }
-        }
-
-        // Motion callback for cadence
-        watchManager.onMotionUpdate = { mode, _, _, _, _, _, cad in
-            DispatchQueue.main.async {
-                if let cad = cad, cad > 0 {
-                    self.currentCadence = cad
-                    self.cadenceReadings.append(cad)
-                }
-            }
-        }
-    }
+    // Watch callbacks removed — using .onChange(of:) modifiers on watchManager properties
 
     // MARK: - Watch Status Updates
 

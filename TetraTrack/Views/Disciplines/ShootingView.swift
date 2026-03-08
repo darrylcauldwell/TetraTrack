@@ -11,7 +11,6 @@ import AVFoundation
 import Vision
 import PhotosUI
 import CoreMotion
-import HealthKit
 import Combine
 import WidgetKit
 

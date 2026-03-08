@@ -10,6 +10,27 @@ import WatchConnectivity
 import Observation
 import os
 
+// MARK: - Watch Session Discipline
+
+/// Discipline for active Watch connectivity session
+enum WatchSessionDiscipline: String, Sendable {
+    case riding
+    case walking
+    case running
+    case treadmill
+    case swimming
+    case shooting
+}
+
+// MARK: - Fall Event Type
+
+/// Discriminated fall event from Watch
+enum WatchFallEventType: Sendable {
+    case detected(confidence: Double, impact: Double, rotation: Double)
+    case confirmedOK
+    case emergency
+}
+
 // MARK: - Watch Synced Session
 
 /// Represents a session recorded on Apple Watch and synced to iPhone
@@ -96,6 +117,39 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     private(set) var groundContactTime: Double = 0.0  // ms
     private(set) var cadence: Int = 0  // steps per minute
 
+    // MARK: - Session Lifecycle
+
+    private(set) var isSessionActive: Bool = false
+    private(set) var activeSessionDiscipline: WatchSessionDiscipline?
+    private(set) var sessionStartDate: Date?
+
+    // MARK: - Sequence Counters & Event Properties
+    // Observers use .onChange(of: sequence) or withObservationTracking to react.
+    // Multiple observers work simultaneously — no overwriting.
+
+    private(set) var commandSequence: Int = 0
+    private(set) var lastReceivedCommand: WatchCommand?
+
+    private(set) var heartRateSequence: Int = 0
+
+    private(set) var motionUpdateSequence: Int = 0
+
+    private(set) var voiceNoteSequence: Int = 0
+    private(set) var lastVoiceNoteText: String?
+
+    private(set) var strokeDetectedSequence: Int = 0
+
+    private(set) var enhancedSensorSequence: Int = 0
+
+    private(set) var fallEventSequence: Int = 0
+    private(set) var lastFallEvent: WatchFallEventType?
+
+    private(set) var shotDetectedSequence: Int = 0
+    private(set) var lastDetectedShot: DetectedShotMetrics?
+
+    private(set) var syncedSessionSequence: Int = 0
+    private(set) var lastSyncedSession: WatchSyncedSession?
+
     // MARK: - Enhanced Sensor Data (Phase 3)
 
     // Altimeter metrics
@@ -120,27 +174,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     private(set) var tremorLevel: Double = 0.0  // 0-100 (higher = more tremor)
     private(set) var movementIntensity: Double = 0.0  // 0-100 (overall activity level)
 
-    // MARK: - Callbacks
+    // MARK: - Shot Metrics Buffer
 
-    var onCommandReceived: ((WatchCommand) -> Void)?
-    var onHeartRateReceived: ((Int) -> Void)?
-    var onVoiceNoteReceived: ((String) -> Void)?
-    var onMotionUpdate: ((WatchMotionModeShared, Double?, Int?, Double?, Double?, Double?, Int?) -> Void)?
-    var onStrokeDetected: (() -> Void)?
-
-    // Enhanced sensor callback (fired when new sensor data received)
-    var onEnhancedSensorUpdate: (() -> Void)?
-
-    // Fall detection callbacks
-    var onWatchFallDetected: ((Double, Double, Double) -> Void)?  // confidence, impact, rotation
-    var onWatchFallConfirmedOK: (() -> Void)?
-    var onWatchFallEmergency: (() -> Void)?
-
-    // Watch autonomous session sync callback
-    var onWatchSessionReceived: ((WatchSyncedSession) -> Void)?
-
-    // Shooting shot detection
-    var onShootingShotDetected: ((DetectedShotMetrics) -> Void)?
     private(set) var receivedShotMetrics: [DetectedShotMetrics] = []
 
     // MARK: - Private
@@ -161,6 +196,36 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
     /// Clear buffered shot metrics (call when a shooting session is saved)
     func clearShotMetrics() {
+        receivedShotMetrics = []
+    }
+
+    /// Start a connectivity session for a discipline.
+    /// Resets accumulators so previous session data doesn't leak.
+    func startSession(discipline: WatchSessionDiscipline) {
+        resetSessionAccumulators()
+        isSessionActive = true
+        activeSessionDiscipline = discipline
+        sessionStartDate = Date()
+        Log.watch.info("Watch session started: \(discipline.rawValue)")
+    }
+
+    /// End the active connectivity session.
+    func endSession() {
+        isSessionActive = false
+        let discipline = activeSessionDiscipline?.rawValue ?? "none"
+        activeSessionDiscipline = nil
+        sessionStartDate = nil
+        Log.watch.info("Watch session ended: \(discipline)")
+    }
+
+    /// Reset all accumulators for a fresh session.
+    private func resetSessionAccumulators() {
+        lastReceivedHeartRate = 0
+        lastReceivedCommand = nil
+        lastVoiceNoteText = nil
+        lastFallEvent = nil
+        lastDetectedShot = nil
+        lastSyncedSession = nil
         receivedShotMetrics = []
     }
 
@@ -269,30 +334,27 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
     /// Reset motion metrics (for new session)
     func resetMotionMetrics() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.currentMotionMode = .idle
-            self.stanceStability = 0.0
-            self.strokeCount = 0
-            self.strokeRate = 0.0
-            self.verticalOscillation = 0.0
-            self.groundContactTime = 0.0
-            self.cadence = 0
+        currentMotionMode = .idle
+        stanceStability = 0.0
+        strokeCount = 0
+        strokeRate = 0.0
+        verticalOscillation = 0.0
+        groundContactTime = 0.0
+        cadence = 0
 
-            // Reset enhanced sensor data
-            self.relativeAltitude = 0.0
-            self.altitudeChangeRate = 0.0
-            self.barometricPressure = 0.0
-            self.isSubmerged = false
-            self.waterDepth = 0.0
-            self.oxygenSaturation = 0.0
-            self.breathingRate = 0.0
-            self.compassHeading = 0.0
-            self.posturePitch = 0.0
-            self.postureRoll = 0.0
-            self.tremorLevel = 0.0
-            self.movementIntensity = 0.0
-        }
+        // Reset enhanced sensor data
+        relativeAltitude = 0.0
+        altitudeChangeRate = 0.0
+        barometricPressure = 0.0
+        isSubmerged = false
+        waterDepth = 0.0
+        oxygenSaturation = 0.0
+        breathingRate = 0.0
+        compassHeading = 0.0
+        posturePitch = 0.0
+        postureRoll = 0.0
+        tremorLevel = 0.0
+        movementIntensity = 0.0
     }
 
     // MARK: - Private Methods
@@ -341,10 +403,9 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         // Check for shooting shot detection message
         if let type = message["type"] as? String, type == "shootingShotDetected" {
             if let metrics = DetectedShotMetrics.from(dictionary: message) {
-                DispatchQueue.main.async {
-                    self.receivedShotMetrics.append(metrics)
-                    self.onShootingShotDetected?(metrics)
-                }
+                receivedShotMetrics.append(metrics)
+                lastDetectedShot = metrics
+                shotDetectedSequence += 1
             }
             return
         }
@@ -358,114 +419,96 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
         // Handle command
         if let command = watchMessage.command {
-            DispatchQueue.main.async {
-                self.onCommandReceived?(command)
-            }
+            lastReceivedCommand = command
+            commandSequence += 1
 
             // Handle heart rate update
             if command == .heartRateUpdate, let hr = watchMessage.heartRate {
-                DispatchQueue.main.async {
-                    self.lastReceivedHeartRate = hr
-                    self.onHeartRateReceived?(hr)
-                }
+                lastReceivedHeartRate = hr
+                heartRateSequence += 1
             }
 
             // Handle voice note from Watch
             if command == .voiceNote, let noteText = watchMessage.voiceNoteText {
-                DispatchQueue.main.async {
-                    self.onVoiceNoteReceived?(noteText)
-                }
+                lastVoiceNoteText = noteText
+                voiceNoteSequence += 1
             }
 
             // Handle motion update from Watch
             if command == .motionUpdate {
-                let previousStrokeCount = self.strokeCount
+                let previousStrokeCount = strokeCount
 
-                DispatchQueue.main.async {
-                    if let mode = watchMessage.motionMode {
-                        self.currentMotionMode = mode
-                    }
-
-                    // Update shooting metrics
-                    if let stability = watchMessage.stanceStability {
-                        self.stanceStability = stability
-                    }
-
-                    // Update swimming metrics
-                    if let strokes = watchMessage.strokeCount {
-                        self.strokeCount = strokes
-                        // Detect new stroke
-                        if strokes > previousStrokeCount {
-                            self.onStrokeDetected?()
-                        }
-                    }
-                    if let rate = watchMessage.strokeRate {
-                        self.strokeRate = rate
-                    }
-
-                    // Update running metrics
-                    if let oscillation = watchMessage.verticalOscillation {
-                        self.verticalOscillation = oscillation
-                    }
-                    if let gct = watchMessage.groundContactTime {
-                        self.groundContactTime = gct
-                    }
-                    if let cad = watchMessage.cadence {
-                        self.cadence = cad
-                    }
-
-                    // Update enhanced sensor data
-                    if let altitude = watchMessage.relativeAltitude {
-                        self.relativeAltitude = altitude
-                    }
-                    if let altRate = watchMessage.altitudeChangeRate {
-                        self.altitudeChangeRate = altRate
-                    }
-                    if let pressure = watchMessage.barometricPressure {
-                        self.barometricPressure = pressure
-                    }
-                    if let submerged = watchMessage.isSubmerged {
-                        self.isSubmerged = submerged
-                    }
-                    if let depth = watchMessage.waterDepth {
-                        self.waterDepth = depth
-                    }
-                    if let spo2 = watchMessage.oxygenSaturation {
-                        self.oxygenSaturation = spo2
-                    }
-                    if let heading = watchMessage.compassHeading {
-                        self.compassHeading = heading
-                    }
-                    if let breathing = watchMessage.breathingRate {
-                        self.breathingRate = breathing
-                    }
-                    if let pitch = watchMessage.posturePitch {
-                        self.posturePitch = pitch
-                    }
-                    if let roll = watchMessage.postureRoll {
-                        self.postureRoll = roll
-                    }
-                    if let tremor = watchMessage.tremorLevel {
-                        self.tremorLevel = tremor
-                    }
-                    if let intensity = watchMessage.movementIntensity {
-                        self.movementIntensity = intensity
-                    }
-
-                    // Fire motion update callback
-                    self.onMotionUpdate?(
-                        self.currentMotionMode,
-                        watchMessage.stanceStability,
-                        watchMessage.strokeCount,
-                        watchMessage.strokeRate,
-                        watchMessage.verticalOscillation,
-                        watchMessage.groundContactTime,
-                        watchMessage.cadence
-                    )
-
-                    // Fire enhanced sensor callback if set
-                    self.onEnhancedSensorUpdate?()
+                if let mode = watchMessage.motionMode {
+                    currentMotionMode = mode
                 }
+
+                // Update shooting metrics
+                if let stability = watchMessage.stanceStability {
+                    stanceStability = stability
+                }
+
+                // Update swimming metrics
+                if let strokes = watchMessage.strokeCount {
+                    strokeCount = strokes
+                    if strokes > previousStrokeCount {
+                        strokeDetectedSequence += 1
+                    }
+                }
+                if let rate = watchMessage.strokeRate {
+                    strokeRate = rate
+                }
+
+                // Update running metrics
+                if let oscillation = watchMessage.verticalOscillation {
+                    verticalOscillation = oscillation
+                }
+                if let gct = watchMessage.groundContactTime {
+                    groundContactTime = gct
+                }
+                if let cad = watchMessage.cadence {
+                    cadence = cad
+                }
+
+                // Update enhanced sensor data
+                if let altitude = watchMessage.relativeAltitude {
+                    relativeAltitude = altitude
+                }
+                if let altRate = watchMessage.altitudeChangeRate {
+                    altitudeChangeRate = altRate
+                }
+                if let pressure = watchMessage.barometricPressure {
+                    barometricPressure = pressure
+                }
+                if let submerged = watchMessage.isSubmerged {
+                    isSubmerged = submerged
+                }
+                if let depth = watchMessage.waterDepth {
+                    waterDepth = depth
+                }
+                if let spo2 = watchMessage.oxygenSaturation {
+                    oxygenSaturation = spo2
+                }
+                if let heading = watchMessage.compassHeading {
+                    compassHeading = heading
+                }
+                if let breathing = watchMessage.breathingRate {
+                    breathingRate = breathing
+                }
+                if let pitch = watchMessage.posturePitch {
+                    posturePitch = pitch
+                }
+                if let roll = watchMessage.postureRoll {
+                    postureRoll = roll
+                }
+                if let tremor = watchMessage.tremorLevel {
+                    tremorLevel = tremor
+                }
+                if let intensity = watchMessage.movementIntensity {
+                    movementIntensity = intensity
+                }
+
+                motionUpdateSequence += 1
+                enhancedSensorSequence += 1
             }
 
             // Handle fall detection from Watch
@@ -473,23 +516,18 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
                 let confidence = watchMessage.fallConfidence ?? 0.5
                 let impact = watchMessage.fallImpactMagnitude ?? 0
                 let rotation = watchMessage.fallRotationMagnitude ?? 0
-                DispatchQueue.main.async {
-                    self.onWatchFallDetected?(confidence, impact, rotation)
-                }
+                lastFallEvent = .detected(confidence: confidence, impact: impact, rotation: rotation)
+                fallEventSequence += 1
             }
 
-            // Handle fall confirmed OK from Watch
             if command == .fallConfirmedOK {
-                DispatchQueue.main.async {
-                    self.onWatchFallConfirmedOK?()
-                }
+                lastFallEvent = .confirmedOK
+                fallEventSequence += 1
             }
 
-            // Handle fall emergency from Watch
             if command == .fallEmergency {
-                DispatchQueue.main.async {
-                    self.onWatchFallEmergency?()
-                }
+                lastFallEvent = .emergency
+                fallEventSequence += 1
             }
         }
     }
@@ -508,11 +546,9 @@ extension WatchConnectivityManager: WCSessionDelegate {
             return
         }
 
-        DispatchQueue.main.async {
-            self.isPaired = session.isPaired
-            self.isWatchAppInstalled = session.isWatchAppInstalled
-            self.isReachable = session.isReachable
-        }
+        isPaired = session.isPaired
+        isWatchAppInstalled = session.isWatchAppInstalled
+        isReachable = session.isReachable
 
         Log.watch.info("Activated - paired: \(session.isPaired), installed: \(session.isWatchAppInstalled)")
     }
@@ -528,9 +564,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
-        DispatchQueue.main.async {
-            self.isReachable = session.isReachable
-        }
+        isReachable = session.isReachable
         Log.watch.info("Reachability changed: \(session.isReachable)")
     }
 
@@ -567,10 +601,8 @@ extension WatchConnectivityManager: WCSessionDelegate {
 
         Log.watch.info("Received Watch session: \(session.discipline) - \(session.duration)s")
 
-        // Notify callback to handle the synced session
-        DispatchQueue.main.async {
-            self.onWatchSessionReceived?(session)
-        }
+        lastSyncedSession = session
+        syncedSessionSequence += 1
 
         return true
     }
@@ -593,10 +625,8 @@ extension WatchConnectivityManager: WCSessionDelegate {
 
     #if os(iOS)
     func sessionWatchStateDidChange(_ session: WCSession) {
-        DispatchQueue.main.async {
-            self.isPaired = session.isPaired
-            self.isWatchAppInstalled = session.isWatchAppInstalled
-        }
+        isPaired = session.isPaired
+        isWatchAppInstalled = session.isWatchAppInstalled
         Log.watch.info("Watch state changed - paired: \(session.isPaired)")
     }
     #endif

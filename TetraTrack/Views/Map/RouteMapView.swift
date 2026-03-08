@@ -2,39 +2,13 @@
 //  RouteMapView.swift
 //  TetraTrack
 //
-//  Liquid Glass Design - Route Map with Colour-Coded Gait Segments
+//  Ride-specific route map with photo annotations and gait coloring.
+//  Delegates route rendering to shared RouteColorScheme; adds photo overlay.
 //
 
 import SwiftUI
 import MapKit
 import Photos
-
-// MARK: - Map Style Options
-
-enum RouteMapStyle: String, CaseIterable {
-    case standard = "Standard"
-    case satellite = "Satellite"
-    case hybrid = "Hybrid"
-
-    var mapStyle: MapStyle {
-        switch self {
-        case .standard:
-            return .standard(elevation: .realistic)
-        case .satellite:
-            return .imagery(elevation: .realistic)
-        case .hybrid:
-            return .hybrid(elevation: .realistic)
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .standard: return "map"
-        case .satellite: return "globe.europe.africa"
-        case .hybrid: return "square.on.square"
-        }
-    }
-}
 
 // MARK: - Photo Annotation
 
@@ -46,32 +20,25 @@ struct PhotoAnnotation: Identifiable {
 }
 
 // MARK: - Route Map View
-// Note: Uses GaitRouteSegment from LiveTrackingSession.swift
 
 struct RouteMapView: View {
-    let ride: Ride?
-    let coordinates: [CLLocationCoordinate2D]
+    let ride: Ride
     @State private var showLegend = true
     @State private var mapStyle: RouteMapStyle = .standard
     @State private var photoAnnotations: [PhotoAnnotation] = []
     @State private var selectedPhotoAsset: PHAsset?
     @State private var showPhotos = true
 
-    /// Initialize with a Ride for colour-coded gait segments
-    init(ride: Ride) {
-        self.ride = ride
-        self.coordinates = ride.coordinates
+    private var routeColors: RouteColorScheme {
+        .fromRide(ride)
     }
 
-    /// Initialize with coordinates only (fallback, single colour)
-    init(coordinates: [CLLocationCoordinate2D]) {
-        self.ride = nil
-        self.coordinates = coordinates
+    private var coordinates: [CLLocationCoordinate2D] {
+        ride.coordinates
     }
 
     private var region: MKCoordinateRegion {
         guard !coordinates.isEmpty else {
-            // Default to UK if no coordinates
             return MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: 51.5, longitude: -0.1),
                 span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
@@ -93,104 +60,32 @@ struct RouteMapView: View {
             longitude: (minLon + maxLon) / 2
         )
 
-        // Add padding around the route
         let latDelta = max((maxLat - minLat) * 1.3, 0.005)
         let lonDelta = max((maxLon - minLon) * 1.3, 0.005)
 
-        let span = MKCoordinateSpan(
-            latitudeDelta: latDelta,
-            longitudeDelta: lonDelta
+        return MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
         )
-
-        return MKCoordinateRegion(center: center, span: span)
     }
 
-    /// Build gait-coloured route segments by matching location timestamps to gait segments
-    private var gaitRouteSegments: [GaitRouteSegment] {
-        guard let ride = ride,
-              let gaitSegments = ride.gaitSegments,
-              !gaitSegments.isEmpty else {
-            // No gait data - return single segment with primary colour
-            if coordinates.count >= 2 {
-                return [GaitRouteSegment(coordinates: coordinates, gaitType: .walk)]
+    private var usedGaits: [GaitType] {
+        switch routeColors {
+        case .segments(let segments):
+            let gaits: [GaitType] = segments.compactMap { segment in
+                GaitType.allCases.first { AppColors.gait($0) == segment.color }
             }
+            return Array(Set(gaits)).sorted { $0.rawValue < $1.rawValue }
+        default:
             return []
         }
-
-        let sortedPoints = ride.sortedLocationPoints
-        let sortedGaits = ride.sortedGaitSegments
-
-        guard !sortedPoints.isEmpty else { return [] }
-
-        var segments: [GaitRouteSegment] = []
-        var currentCoords: [CLLocationCoordinate2D] = []
-        var currentGait: GaitType?
-
-        for point in sortedPoints {
-            // Find which gait segment this point belongs to
-            let gait = gaitForTimestamp(point.timestamp, in: sortedGaits)
-
-            if currentGait == nil {
-                // First point
-                currentGait = gait
-                currentCoords.append(point.coordinate)
-            } else if gait == currentGait {
-                // Same gait, add to current segment
-                currentCoords.append(point.coordinate)
-            } else {
-                // Gait changed - save current segment and start new one
-                if currentCoords.count >= 2 {
-                    segments.append(GaitRouteSegment(
-                        coordinates: currentCoords,
-                        gaitType: currentGait ?? .walk
-                    ))
-                }
-                // Start new segment with overlap point for continuity
-                currentCoords = [currentCoords.last ?? point.coordinate, point.coordinate]
-                currentGait = gait
-            }
-        }
-
-        // Add final segment
-        if currentCoords.count >= 2, let gait = currentGait {
-            segments.append(GaitRouteSegment(coordinates: currentCoords, gaitType: gait))
-        }
-
-        return segments
-    }
-
-    /// Find the gait type for a given timestamp
-    private func gaitForTimestamp(_ timestamp: Date, in segments: [GaitSegment]) -> GaitType {
-        for segment in segments {
-            let endTime = segment.endTime ?? Date.distantFuture
-            if timestamp >= segment.startTime && timestamp <= endTime {
-                return segment.gait
-            }
-        }
-        // Default to walk if no matching segment found
-        return .walk
-    }
-
-    /// Get unique gaits used in route for legend
-    private var usedGaits: [GaitType] {
-        let gaits = gaitRouteSegments.map { $0.gaitType }
-        return Array(Set(gaits)).sorted { $0.rawValue < $1.rawValue }
     }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Map(initialPosition: .region(region)) {
-                // Colour-coded gait route segments
-                if ride != nil && !gaitRouteSegments.isEmpty {
-                    ForEach(gaitRouteSegments) { segment in
-                        MapPolyline(coordinates: segment.coordinates)
-                            .stroke(AppColors.gait(segment.gaitType), lineWidth: 5)
-                    }
-                } else if coordinates.count >= 2 {
-                    // Fallback: single colour route
-                    MapPolyline(coordinates: coordinates)
-                        .stroke(AppColors.primary, lineWidth: 4)
-                }
+                // Route rendering via shared RouteColorScheme
+                routeContent
 
                 // Start marker
                 if let first = coordinates.first {
@@ -278,7 +173,7 @@ struct RouteMapView: View {
                         .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                 }
 
-                // Photo toggle (if photos available)
+                // Photo toggle
                 if !photoAnnotations.isEmpty {
                     Button {
                         showPhotos.toggle()
@@ -292,9 +187,9 @@ struct RouteMapView: View {
                     }
                 }
 
-                // Gait Legend (glass styled)
-                if showLegend && !usedGaits.isEmpty && ride != nil {
-                    GaitMapLegend(gaits: usedGaits)
+                // Gait Legend
+                if showLegend && !usedGaits.isEmpty {
+                    MapLegendView.gaitLegend(usedGaits: usedGaits)
                 }
             }
             .padding(12)
@@ -308,13 +203,33 @@ struct RouteMapView: View {
         .presentationBackground(Color.black)
     }
 
-    private func loadPhotoAnnotations() async {
-        guard let ride = ride else { return }
+    // MARK: - Route Content
 
+    @MapContentBuilder
+    private var routeContent: some MapContent {
+        switch routeColors {
+        case .solid(let color):
+            if coordinates.count >= 2 {
+                MapPolyline(coordinates: coordinates)
+                    .stroke(color, lineWidth: 4)
+            }
+        case .segments(let segments):
+            ForEach(segments) { segment in
+                MapPolyline(coordinates: segment.coordinates)
+                    .stroke(segment.color, lineWidth: 5)
+            }
+        case .trim:
+            if coordinates.count >= 2 {
+                MapPolyline(coordinates: coordinates)
+                    .stroke(AppColors.primary, lineWidth: 4)
+            }
+        }
+    }
+
+    private func loadPhotoAnnotations() async {
         let photoService = RidePhotoService.shared
         guard photoService.isAuthorized else { return }
 
-        // Use full-day search to capture all photos with GPS from the ride day
         let (photos, _) = await photoService.findMediaForFullDay(ride)
 
         var annotations: [PhotoAnnotation] = []
@@ -333,55 +248,4 @@ struct RouteMapView: View {
             photoAnnotations = annotations
         }
     }
-}
-
-// MARK: - Gait Map Legend
-
-struct GaitMapLegend: View {
-    let gaits: [GaitType]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(gaits, id: \.self) { gait in
-                HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(AppColors.gait(gait))
-                        .frame(width: 20, height: 4)
-
-                    Text(gait.rawValue)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(.white.opacity(0.2), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
-    }
-}
-
-#Preview("With Gait Data") {
-    RouteMapView(coordinates: [
-        CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
-        CLLocationCoordinate2D(latitude: 51.5080, longitude: -0.1290),
-        CLLocationCoordinate2D(latitude: 51.5090, longitude: -0.1285),
-        CLLocationCoordinate2D(latitude: 51.5095, longitude: -0.1270),
-    ])
-    .frame(height: 300)
-}
-
-#Preview("Coordinates Only") {
-    RouteMapView(coordinates: [
-        CLLocationCoordinate2D(latitude: 51.5074, longitude: -0.1278),
-        CLLocationCoordinate2D(latitude: 51.5080, longitude: -0.1290),
-        CLLocationCoordinate2D(latitude: 51.5090, longitude: -0.1285),
-        CLLocationCoordinate2D(latitude: 51.5095, longitude: -0.1270),
-    ])
-    .frame(height: 300)
 }

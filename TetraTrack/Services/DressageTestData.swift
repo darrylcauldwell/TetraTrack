@@ -1,0 +1,383 @@
+//
+//  DressageTestData.swift
+//  TetraTrack
+//
+//  Movement sequences for British Dressage tests (Intro through Elementary)
+//
+
+import Foundation
+
+enum DressageTestData {
+    static let movements: [DressageTest: [DressageMovement]] = [
+        // MARK: - Intro A
+        .introA: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "A", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "Between A & F", instruction: "Working trot"),
+            DressageMovement(number: 6, marker: "A", instruction: "Change the rein across the diagonal"),
+            DressageMovement(number: 7, marker: "A", instruction: "20m circle left"),
+            DressageMovement(number: 8, marker: "Between A & K", instruction: "Working trot"),
+            DressageMovement(number: 9, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 10, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Intro B
+        .introB: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 5, marker: "Between E & K", instruction: "Working trot"),
+            DressageMovement(number: 6, marker: "A", instruction: "Change the rein across the diagonal"),
+            DressageMovement(number: 7, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 8, marker: "Between B & F", instruction: "Working trot"),
+            DressageMovement(number: 9, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 10, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Intro C
+        .introC: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "A", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 6, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 7, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 8, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 9, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 1
+        .prelim1: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "M-X-K", instruction: "Change the rein"),
+            DressageMovement(number: 5, marker: "A", instruction: "20m circle left"),
+            DressageMovement(number: 6, marker: "F-X-H", instruction: "Change the rein"),
+            DressageMovement(number: 7, marker: "C", instruction: "20m circle right"),
+            DressageMovement(number: 8, marker: "Between C & M", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 9, marker: "Between F & A", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 11, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 2
+        .prelim2: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 5, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "C", instruction: "20m circle right"),
+            DressageMovement(number: 7, marker: "H-X-F", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 8, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 9, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 10, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 7
+        .prelim7: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "Between B & M", instruction: "Working trot"),
+            DressageMovement(number: 6, marker: "H-X-F", instruction: "Change the rein"),
+            DressageMovement(number: 7, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 8, marker: "Between E & H", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 9, marker: "Between M & C", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 11, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 12
+        .prelim12: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "A", instruction: "20m circle left"),
+            DressageMovement(number: 5, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 7, marker: "H-X-F", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 8, marker: "F", instruction: "Medium walk"),
+            DressageMovement(number: 9, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "A", instruction: "20m circle right"),
+            DressageMovement(number: 11, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 12, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 13
+        .prelim13: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "F-X-H", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 7, marker: "M-X-K", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 8, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 9, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 11, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 12, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 14
+        .prelim14: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 5, marker: "A", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 6, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 7, marker: "M-X-K", instruction: "Change the rein"),
+            DressageMovement(number: 8, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 9, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 10, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 17
+        .prelim17: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "A", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "F-X-H", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 7, marker: "M-X-K", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 8, marker: "K-A", instruction: "Working trot"),
+            DressageMovement(number: 9, marker: "A", instruction: "20m circle left"),
+            DressageMovement(number: 10, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 11, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Prelim 18
+        .prelim18: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "A", instruction: "20m circle left, allowing the horse to stretch"),
+            DressageMovement(number: 5, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 6, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 7, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 8, marker: "H-X-F", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 9, marker: "F-A", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "A", instruction: "20m circle right"),
+            DressageMovement(number: 11, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 12, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 22
+        .novice22: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "H-X-F", instruction: "Change the rein"),
+            DressageMovement(number: 5, marker: "A", instruction: "20m circle right"),
+            DressageMovement(number: 6, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 7, marker: "C", instruction: "Working canter right"),
+            DressageMovement(number: 8, marker: "E", instruction: "20m circle in canter"),
+            DressageMovement(number: 9, marker: "Between E & K", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "A", instruction: "Working canter left"),
+            DressageMovement(number: 11, marker: "B", instruction: "20m circle in canter"),
+            DressageMovement(number: 12, marker: "Between B & M", instruction: "Working trot"),
+            DressageMovement(number: 13, marker: "H-X-F", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 14, marker: "F", instruction: "Medium walk"),
+            DressageMovement(number: 15, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 16, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 17, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 24
+        .novice24: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 5, marker: "Between B & F", instruction: "Working canter right"),
+            DressageMovement(number: 6, marker: "A", instruction: "20m circle in canter"),
+            DressageMovement(number: 7, marker: "K", instruction: "Working trot"),
+            DressageMovement(number: 8, marker: "H-X-F", instruction: "Change the rein"),
+            DressageMovement(number: 9, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 10, marker: "Between E & K", instruction: "Working canter left"),
+            DressageMovement(number: 11, marker: "A", instruction: "20m circle in canter"),
+            DressageMovement(number: 12, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 13, marker: "M-X-K", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 14, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 15, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 16, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 17, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 27
+        .novice27: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "M-X-K", instruction: "Change the rein"),
+            DressageMovement(number: 5, marker: "A", instruction: "Working canter left"),
+            DressageMovement(number: 6, marker: "E", instruction: "20m circle in canter"),
+            DressageMovement(number: 7, marker: "Between E & H", instruction: "Working trot"),
+            DressageMovement(number: 8, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 9, marker: "M-X-K", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 10, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 11, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 12, marker: "F-X-H", instruction: "Change the rein"),
+            DressageMovement(number: 13, marker: "C", instruction: "Working canter right"),
+            DressageMovement(number: 14, marker: "B", instruction: "20m circle in canter"),
+            DressageMovement(number: 15, marker: "Between B & F", instruction: "Working trot"),
+            DressageMovement(number: 16, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 17, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 28
+        .novice28: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working canter"),
+            DressageMovement(number: 2, marker: "X", instruction: "Working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "E", instruction: "20m circle left"),
+            DressageMovement(number: 5, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "B", instruction: "20m circle right"),
+            DressageMovement(number: 7, marker: "Between B & M", instruction: "Working canter right"),
+            DressageMovement(number: 8, marker: "C", instruction: "20m circle in canter"),
+            DressageMovement(number: 9, marker: "H", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 11, marker: "A", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 12, marker: "M", instruction: "Medium walk"),
+            DressageMovement(number: 13, marker: "C", instruction: "Working trot"),
+            DressageMovement(number: 14, marker: "Between E & K", instruction: "Working canter left"),
+            DressageMovement(number: 15, marker: "A", instruction: "20m circle in canter"),
+            DressageMovement(number: 16, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 17, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 18, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 30
+        .novice30: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "Between M & B", instruction: "Working canter right"),
+            DressageMovement(number: 5, marker: "B", instruction: "20m circle in canter"),
+            DressageMovement(number: 6, marker: "Between B & F", instruction: "Working trot"),
+            DressageMovement(number: 7, marker: "A", instruction: "20m circle left"),
+            DressageMovement(number: 8, marker: "Between K & E", instruction: "Working canter left"),
+            DressageMovement(number: 9, marker: "E", instruction: "20m circle in canter"),
+            DressageMovement(number: 10, marker: "Between E & H", instruction: "Working trot"),
+            DressageMovement(number: 11, marker: "C", instruction: "Medium walk"),
+            DressageMovement(number: 12, marker: "H-X-F", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 13, marker: "F", instruction: "Medium walk"),
+            DressageMovement(number: 14, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 15, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 16, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Novice 34
+        .novice34: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "Between H & E", instruction: "Working canter left"),
+            DressageMovement(number: 5, marker: "E", instruction: "20m circle in canter"),
+            DressageMovement(number: 6, marker: "K", instruction: "Working trot"),
+            DressageMovement(number: 7, marker: "A", instruction: "Medium walk"),
+            DressageMovement(number: 8, marker: "F-X-H", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 9, marker: "H", instruction: "Medium walk"),
+            DressageMovement(number: 10, marker: "C", instruction: "Working trot"),
+            DressageMovement(number: 11, marker: "Between M & B", instruction: "Working canter right"),
+            DressageMovement(number: 12, marker: "B", instruction: "20m circle in canter"),
+            DressageMovement(number: 13, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 14, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 15, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Elementary 42
+        .elem42: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "B", instruction: "15m circle right"),
+            DressageMovement(number: 5, marker: "F-X-H", instruction: "Change the rein"),
+            DressageMovement(number: 6, marker: "E", instruction: "15m circle left"),
+            DressageMovement(number: 7, marker: "K", instruction: "Working canter left"),
+            DressageMovement(number: 8, marker: "A", instruction: "20m circle in canter"),
+            DressageMovement(number: 9, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 10, marker: "M-X-K", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 11, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 12, marker: "A", instruction: "Working trot"),
+            DressageMovement(number: 13, marker: "H", instruction: "Working canter right"),
+            DressageMovement(number: 14, marker: "C", instruction: "20m circle in canter"),
+            DressageMovement(number: 15, marker: "M", instruction: "Working trot"),
+            DressageMovement(number: 16, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 17, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Elementary 43
+        .elem43: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "E", instruction: "15m circle left"),
+            DressageMovement(number: 5, marker: "Between E & K", instruction: "Working canter left"),
+            DressageMovement(number: 6, marker: "A", instruction: "20m circle in canter"),
+            DressageMovement(number: 7, marker: "Between F & B", instruction: "Working trot"),
+            DressageMovement(number: 8, marker: "M-X-K", instruction: "Change the rein"),
+            DressageMovement(number: 9, marker: "B", instruction: "15m circle right"),
+            DressageMovement(number: 10, marker: "Between B & M", instruction: "Working canter right"),
+            DressageMovement(number: 11, marker: "C", instruction: "20m circle in canter"),
+            DressageMovement(number: 12, marker: "Between H & E", instruction: "Working trot"),
+            DressageMovement(number: 13, marker: "K", instruction: "Medium walk"),
+            DressageMovement(number: 14, marker: "A", instruction: "Free walk on a long rein across the diagonal"),
+            DressageMovement(number: 15, marker: "M", instruction: "Medium walk"),
+            DressageMovement(number: 16, marker: "C", instruction: "Working trot"),
+            DressageMovement(number: 17, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 18, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Elementary 44
+        .elem44: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working canter right"),
+            DressageMovement(number: 2, marker: "X", instruction: "Working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track left"),
+            DressageMovement(number: 4, marker: "H-X-F", instruction: "Change the rein"),
+            DressageMovement(number: 5, marker: "A", instruction: "15m circle right"),
+            DressageMovement(number: 6, marker: "Between K & E", instruction: "Working canter left"),
+            DressageMovement(number: 7, marker: "E", instruction: "20m circle in canter"),
+            DressageMovement(number: 8, marker: "Between E & K", instruction: "Working trot"),
+            DressageMovement(number: 9, marker: "A", instruction: "Medium walk"),
+            DressageMovement(number: 10, marker: "K-X-M", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 11, marker: "M", instruction: "Medium walk"),
+            DressageMovement(number: 12, marker: "C", instruction: "Working trot"),
+            DressageMovement(number: 13, marker: "A", instruction: "15m circle left"),
+            DressageMovement(number: 14, marker: "Between F & B", instruction: "Working canter right"),
+            DressageMovement(number: 15, marker: "B", instruction: "20m circle in canter"),
+            DressageMovement(number: 16, marker: "Between B & F", instruction: "Working trot"),
+            DressageMovement(number: 17, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 18, marker: "X", instruction: "Halt, salute"),
+        ],
+
+        // MARK: - Elementary 49
+        .elem49: [
+            DressageMovement(number: 1, marker: "A", instruction: "Enter in working trot"),
+            DressageMovement(number: 2, marker: "X", instruction: "Halt, salute. Proceed in working trot"),
+            DressageMovement(number: 3, marker: "C", instruction: "Track right"),
+            DressageMovement(number: 4, marker: "M", instruction: "Working canter right"),
+            DressageMovement(number: 5, marker: "B", instruction: "15m circle in canter"),
+            DressageMovement(number: 6, marker: "F", instruction: "Working trot"),
+            DressageMovement(number: 7, marker: "K-X-M", instruction: "Change the rein"),
+            DressageMovement(number: 8, marker: "H", instruction: "Working canter left"),
+            DressageMovement(number: 9, marker: "E", instruction: "15m circle in canter"),
+            DressageMovement(number: 10, marker: "K", instruction: "Working trot"),
+            DressageMovement(number: 11, marker: "A", instruction: "Medium walk"),
+            DressageMovement(number: 12, marker: "F-X-H", instruction: "Free walk on a long rein"),
+            DressageMovement(number: 13, marker: "H", instruction: "Medium walk"),
+            DressageMovement(number: 14, marker: "C", instruction: "Working trot"),
+            DressageMovement(number: 15, marker: "A", instruction: "Down centre line"),
+            DressageMovement(number: 16, marker: "X", instruction: "Halt, salute"),
+        ],
+    ]
+}

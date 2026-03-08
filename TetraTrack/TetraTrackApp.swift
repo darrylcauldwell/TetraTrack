@@ -46,6 +46,7 @@ struct TetraTrackApp: App {
             GaitSegment.self,
             ReinSegment.self,
             GaitTransition.self,
+            RidePhase.self,
             LiveTrackingSession.self,
             FamilyMember.self,
             RiderProfile.self,

@@ -1213,10 +1213,13 @@ struct RunningSessionDetailView: View {
                 VStack(spacing: 20) {
                     // Route Map (if session has GPS data)
                     if session.hasRouteData {
-                        RunningRouteMapView(session: session)
-                            .frame(height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .padding(.horizontal)
+                        SessionRouteMapView(
+                            coordinates: session.coordinates,
+                            routeColors: .fromRunningSession(session)
+                        )
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal)
                     }
 
                     // Distance and time summary
@@ -2200,62 +2203,6 @@ struct TrackLapSplitChart: View {
         let mins = Int(time) / 60
         let secs = Int(time) % 60
         return String(format: "%d:%02d", mins, secs)
-    }
-}
-
-// MARK: - Running Route Map View
-
-struct RunningRouteMapView: View {
-    let session: RunningSession
-
-    var body: some View {
-        Map {
-            let points = session.sortedLocationPoints
-            if points.count > 1 {
-                // Speed-colored route segments
-                ForEach(0..<points.count - 1, id: \.self) { i in
-                    let coords = [points[i].coordinate, points[i + 1].coordinate]
-                    let phase = RunningPhase.fromGPSSpeed(points[i].speed)
-                    MapPolyline(coordinates: coords)
-                        .stroke(colorForPhase(phase), lineWidth: 4)
-                }
-            }
-
-            // Start marker
-            if let start = session.coordinates.first {
-                Annotation("Start", coordinate: start) {
-                    Image(systemName: "flag.fill")
-                        .foregroundStyle(.green)
-                        .padding(6)
-                        .background(.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-            }
-
-            // End marker
-            let coordinates = session.coordinates
-            if let end = coordinates.last, coordinates.count > 1 {
-                Annotation("End", coordinate: end) {
-                    Image(systemName: "flag.checkered")
-                        .foregroundStyle(.red)
-                        .padding(6)
-                        .background(.white)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-            }
-        }
-        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-    }
-
-    private func colorForPhase(_ phase: RunningPhase) -> Color {
-        switch phase {
-        case .walking: return .blue
-        case .jogging: return .green
-        case .running: return .orange
-        case .sprinting: return .red
-        }
     }
 }
 

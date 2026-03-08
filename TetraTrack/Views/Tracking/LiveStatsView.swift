@@ -274,20 +274,13 @@ struct GaitBreakdownBar: View {
                 }
             } else {
                 // Empty state with legend
-                HStack(spacing: 12) {
-                    GaitLegendItem(gait: .walk)
-                    GaitLegendItem(gait: .trot)
-                    GaitLegendItem(gait: .canter)
-                    GaitLegendItem(gait: .gallop)
-                }
-                .foregroundStyle(.tertiary)
+                MapLegendView.allGaitsLegend()
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal)
     }
 }
-
-// Note: GaitLegendItem is defined in LiveTrackingMapView.swift
 
 struct GaitLabel: View {
     let gait: GaitType

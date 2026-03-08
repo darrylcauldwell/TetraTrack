@@ -7,14 +7,12 @@
 
 import SwiftUI
 import SwiftData
-import CoreMotion
-import Combine
 
 struct RecoilControlDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @StateObject private var motionManager = RecoilMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
     @State private var isRunning = false
     @State private var currentRound = 0
@@ -53,7 +51,7 @@ struct RecoilControlDrillView: View {
             .withRealTimeCues(cueSystem)
         }
         .onDisappear {
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
             cueSystem.reset()
         }
     }
@@ -64,7 +62,7 @@ struct RecoilControlDrillView: View {
                 .font(.headline)
             Spacer()
             Button {
-                motionManager.stopUpdates()
+                motionAnalyzer.stopUpdates()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -152,10 +150,10 @@ struct RecoilControlDrillView: View {
                     .fill(aimColor)
                     .frame(width: 20, height: 20)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 100),
-                        y: CGFloat(motionManager.roll * 100)
+                        x: CGFloat(motionAnalyzer.relativePitch * 100),
+                        y: CGFloat(motionAnalyzer.relativeRoll * 100)
                     )
-                    .animation(.easeOut(duration: 0.05), value: motionManager.pitch)
+                    .animation(.easeOut(duration: 0.05), value: motionAnalyzer.relativePitch)
 
                 // Center target
                 Circle()
@@ -283,7 +281,7 @@ struct RecoilControlDrillView: View {
     }
 
     private var aimColor: Color {
-        let distance = sqrt(pow(motionManager.pitch, 2) + pow(motionManager.roll, 2))
+        let distance = sqrt(pow(motionAnalyzer.relativePitch, 2) + pow(motionAnalyzer.relativeRoll, 2))
         if distance < 0.05 { return AppColors.active }
         if distance < 0.1 { return AppColors.warning }
         return AppColors.error
@@ -330,20 +328,16 @@ struct RecoilControlDrillView: View {
         isRunning = true
         currentRound = 0
         recoveryTimes = []
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
         waitingForStable = true
         checkStableAndShoot()
     }
 
     private func checkStableAndShoot() {
         // Wait until stable, then trigger recoil
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak motionManager] timer in
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
             Task { @MainActor in
-                guard let motionManager = motionManager else {
-                    timer.invalidate()
-                    return
-                }
-                let isStable = sqrt(pow(motionManager.pitch, 2) + pow(motionManager.roll, 2)) < 0.08
+                let isStable = sqrt(pow(motionAnalyzer.relativePitch, 2) + pow(motionAnalyzer.relativeRoll, 2)) < 0.08
 
                 if isStable && self.waitingForStable {
                     self.waitingForStable = false
@@ -378,14 +372,9 @@ struct RecoilControlDrillView: View {
     }
 
     private func checkRecovery() {
-        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak motionManager] timer in
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
             Task { @MainActor in
-                guard let motionManager = motionManager else {
-                    timer.invalidate()
-                    return
-                }
-
-                let distance = sqrt(pow(motionManager.pitch, 2) + pow(motionManager.roll, 2))
+                let distance = sqrt(pow(motionAnalyzer.relativePitch, 2) + pow(motionAnalyzer.relativeRoll, 2))
 
                 if distance < 0.08 && self.showRecoil {
                     // Recovered!
@@ -425,7 +414,7 @@ struct RecoilControlDrillView: View {
 
     private func endDrill() {
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
         cueSystem.reset()
 
         let avgRecovery = recoveryTimes.isEmpty ? 1.0 : recoveryTimes.reduce(0, +) / Double(recoveryTimes.count)
@@ -456,42 +445,6 @@ struct RecoilControlDrillView: View {
     }
 }
 
-// MARK: - Recoil Motion Manager
-
-@MainActor
-class RecoilMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-
-    private var referencePitch: Double?
-    private var referenceRoll: Double?
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referencePitch = nil
-        referenceRoll = nil
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            if self.referencePitch == nil {
-                self.referencePitch = motion.attitude.pitch
-                self.referenceRoll = motion.attitude.roll
-            }
-
-            self.pitch = motion.attitude.pitch - (self.referencePitch ?? 0)
-            self.roll = motion.attitude.roll - (self.referenceRoll ?? 0)
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     RecoilControlDrillView()

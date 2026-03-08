@@ -6,16 +6,14 @@
 //
 
 import SwiftUI
-import CoreMotion
 import SwiftData
-import Combine
 
 // MARK: - Balance Drill View (Motion Sensors)
 
 struct BalanceDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var motionManager = BalanceMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
 
     @State private var isRunning = false
@@ -38,7 +36,7 @@ struct BalanceDrillView: View {
                             .font(.headline)
                         Spacer()
                         Button {
-                            motionManager.stopUpdates()
+                            motionAnalyzer.stopUpdates()
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -78,7 +76,7 @@ struct BalanceDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
             cueSystem.reset()
         }
     }
@@ -165,20 +163,20 @@ struct BalanceDrillView: View {
                     .stroke(stabilityColor, lineWidth: 20)
                     .frame(width: 200, height: 200)
                     .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.3), value: motionManager.stabilityScore)
+                    .animation(.easeInOut(duration: 0.3), value: motionAnalyzer.stabilityScore)
 
                 // Wobble indicator (dot that moves with device motion)
                 Circle()
                     .fill(stabilityColor)
                     .frame(width: 30, height: 30)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 80),
-                        y: CGFloat(motionManager.roll * 80)
+                        x: CGFloat(motionAnalyzer.pitch * 80),
+                        y: CGFloat(motionAnalyzer.roll * 80)
                     )
-                    .animation(.easeOut(duration: 0.1), value: motionManager.pitch)
+                    .animation(.easeOut(duration: 0.1), value: motionAnalyzer.pitch)
 
                 VStack {
-                    Text("\(Int(motionManager.stabilityScore * 100))")
+                    Text("\(Int(motionAnalyzer.stabilityScore * 100))")
                         .font(.system(size: 48, weight: .bold))
                     Text("Stability")
                         .font(.caption)
@@ -193,21 +191,21 @@ struct BalanceDrillView: View {
             // Real-time stats
             HStack(spacing: 30) {
                 VStack {
-                    Text(String(format: "%.2f°", abs(motionManager.pitch * 57.3)))
+                    Text(String(format: "%.2f°", abs(motionAnalyzer.pitch * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Pitch")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.2f°", abs(motionManager.roll * 57.3)))
+                    Text(String(format: "%.2f°", abs(motionAnalyzer.roll * 57.3)))
                         .font(.headline.monospacedDigit())
                     Text("Roll")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.3f", motionManager.totalMovement))
+                    Text(String(format: "%.3f", motionAnalyzer.totalMovement))
                         .font(.headline.monospacedDigit())
                     Text("Movement")
                         .font(.caption)
@@ -271,13 +269,13 @@ struct BalanceDrillView: View {
     }
 
     private var stabilityColor: Color {
-        StabilityColors.color(for: motionManager.stabilityScore)
+        StabilityColors.color(for: motionAnalyzer.stabilityScore)
     }
 
     private var stabilityMessage: String {
-        if motionManager.stabilityScore > 0.9 { return "Excellent! Rock solid!" }
-        if motionManager.stabilityScore > 0.7 { return "Good stability" }
-        if motionManager.stabilityScore > 0.5 { return "Some wobble detected" }
+        if motionAnalyzer.stabilityScore > 0.9 { return "Excellent! Rock solid!" }
+        if motionAnalyzer.stabilityScore > 0.7 { return "Good stability" }
+        if motionAnalyzer.stabilityScore > 0.5 { return "Some wobble detected" }
         return "Try to stay still"
     }
 
@@ -307,7 +305,7 @@ struct BalanceDrillView: View {
     private func startDrill() {
         isRunning = true
         elapsedTime = 0
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         timerStartDate = Date()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
@@ -315,11 +313,11 @@ struct BalanceDrillView: View {
             elapsedTime = Date().timeIntervalSince(timerStartDate)
             results.append(BalanceResult(
                 timestamp: elapsedTime,
-                stability: motionManager.stabilityScore
+                stability: motionAnalyzer.stabilityScore
             ))
 
             // Process real-time cues
-            cueSystem.processDrillState(score: motionManager.stabilityScore * 100, stability: motionManager.stabilityScore * 100, elapsed: elapsedTime, duration: targetDuration)
+            cueSystem.processDrillState(score: motionAnalyzer.stabilityScore * 100, stability: motionAnalyzer.stabilityScore * 100, elapsed: elapsedTime, duration: targetDuration)
 
             if elapsedTime >= targetDuration {
                 endDrill()
@@ -331,7 +329,7 @@ struct BalanceDrillView: View {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
         cueSystem.reset()
 
         // Calculate average stability score
@@ -368,47 +366,3 @@ struct BalanceResult {
     let stability: Double
 }
 
-// MARK: - Balance Motion Manager
-
-class BalanceMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var yaw: Double = 0
-    @Published var totalMovement: Double = 0
-    @Published var stabilityScore: Double = 1.0
-
-    private var previousPitch: Double = 0
-    private var previousRoll: Double = 0
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            self.pitch = motion.attitude.pitch
-            self.roll = motion.attitude.roll
-            self.yaw = motion.attitude.yaw
-
-            // Calculate movement from previous frame
-            let pitchDelta = abs(self.pitch - self.previousPitch)
-            let rollDelta = abs(self.roll - self.previousRoll)
-            self.totalMovement = pitchDelta + rollDelta
-
-            // Calculate stability (inverse of movement, smoothed)
-            let movement = sqrt(pitchDelta * pitchDelta + rollDelta * rollDelta)
-            let rawStability = max(0, 1 - (movement * 20))
-            self.stabilityScore = self.stabilityScore * 0.9 + rawStability * 0.1
-
-            self.previousPitch = self.pitch
-            self.previousRoll = self.roll
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}

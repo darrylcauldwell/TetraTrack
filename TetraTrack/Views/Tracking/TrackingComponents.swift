@@ -296,6 +296,19 @@ struct DisciplineSetupSheet: View {
                             .padding(.horizontal, 20)
                         }
 
+                        if rideType == .dressage {
+                            DressageTestSetupCard(
+                                selectedTest: Binding(
+                                    get: { tracker.selectedDressageTest },
+                                    set: { tracker.selectedDressageTest = $0 }
+                                )
+                            )
+                            .padding(16)
+                            .background(AppColors.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 20)
+                        }
+
                         // Horse selection card
                         VStack(alignment: .leading, spacing: 12) {
                             HorseSelectionView(selectedHorse: Binding(
@@ -728,6 +741,16 @@ struct StatsContentView: View {
                         currentSpeedFormatted: tracker.formattedSpeed,
                         currentGradient: tracker.currentGradientFormatted
                     )
+
+                    // Phase controls for showjumping
+                    if tracker.selectedRideType == .showjumping {
+                        RidePhaseControls(tracker: tracker)
+                    }
+
+                    // Dressage test practice overlay
+                    if tracker.selectedRideType == .dressage, tracker.selectedDressageTest != nil {
+                        DressageTestPracticeView(tracker: tracker)
+                    }
 
                     // Watch sensor metrics
                     if tracker.jumpCount > 0 || tracker.activeRidingPercent > 0 {

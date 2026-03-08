@@ -71,35 +71,43 @@ final class FallDetectionManager: FallDetecting {
 
     private init() {}
 
+    private var fallObservationTask: Task<Void, Never>?
+
     // MARK: - Configuration
 
     func configure(modelContext: ModelContext, riderName: String = "Rider", heartRateService: HeartRateService? = nil) {
         self.modelContext = modelContext
         self.riderName = riderName
         self.heartRateService = heartRateService
-        setupWatchCallbacks()
+        startObservingWatchFallEvents()
     }
 
-    private func setupWatchCallbacks() {
-        let watchManager = WatchConnectivityManager.shared
+    private func startObservingWatchFallEvents() {
+        fallObservationTask?.cancel()
+        fallObservationTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.fallEventSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.fallEventSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.fallEventSequence != lastSeq else { continue }
+                lastSeq = wm.fallEventSequence
 
-        // Handle fall detected from Watch
-        watchManager.onWatchFallDetected = { [weak self] confidence, impact, rotation in
-            guard let self else { return }
-            // Trigger fall detection on iPhone when Watch detects fall
-            if !self.fallDetected {
-                self.triggerFallDetection()
+                guard let event = wm.lastFallEvent else { continue }
+                switch event {
+                case .detected:
+                    if !self.fallDetected {
+                        self.triggerFallDetection()
+                    }
+                case .confirmedOK:
+                    self.confirmOK()
+                case .emergency:
+                    self.requestEmergency()
+                }
             }
-        }
-
-        // Handle user confirmed OK from Watch
-        watchManager.onWatchFallConfirmedOK = { [weak self] in
-            self?.confirmOK()
-        }
-
-        // Handle emergency request from Watch
-        watchManager.onWatchFallEmergency = { [weak self] in
-            self?.requestEmergency()
         }
     }
 

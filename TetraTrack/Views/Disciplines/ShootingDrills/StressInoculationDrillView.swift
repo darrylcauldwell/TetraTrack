@@ -7,14 +7,12 @@
 
 import SwiftUI
 import SwiftData
-import CoreMotion
-import Combine
 
 struct StressInoculationDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @StateObject private var motionManager = StressMotionManager()
+    @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
     @State private var phase: DrillPhase = .instructions
     @State private var warmupCountdown = 30
@@ -65,7 +63,7 @@ struct StressInoculationDrillView: View {
         .onDisappear {
             timer?.invalidate()
             timer = nil
-            motionManager.stopUpdates()
+            motionAnalyzer.stopUpdates()
             cueSystem.reset()
         }
     }
@@ -85,7 +83,7 @@ struct StressInoculationDrillView: View {
                 .font(.headline)
             Spacer()
             Button {
-                motionManager.stopUpdates()
+                motionAnalyzer.stopUpdates()
                 timer?.invalidate()
                 dismiss()
             } label: {
@@ -240,10 +238,10 @@ struct StressInoculationDrillView: View {
                     .fill(stabilityColor)
                     .frame(width: 20, height: 20)
                     .offset(
-                        x: CGFloat(motionManager.pitch * 100),
-                        y: CGFloat(motionManager.roll * 100)
+                        x: CGFloat(motionAnalyzer.relativePitch * 100),
+                        y: CGFloat(motionAnalyzer.relativeRoll * 100)
                     )
-                    .animation(.easeOut(duration: 0.05), value: motionManager.wobble)
+                    .animation(.easeOut(duration: 0.05), value: motionAnalyzer.wobble)
 
                 // Center target
                 Circle()
@@ -279,7 +277,7 @@ struct StressInoculationDrillView: View {
                             .fill(Color.gray.opacity(0.2))
                         Rectangle()
                             .fill(stabilityColor)
-                            .frame(width: geo.size.width * min(1, (1 - motionManager.wobble * 5)))
+                            .frame(width: geo.size.width * min(1, (1 - motionAnalyzer.wobble * 5)))
                     }
                 }
                 .frame(height: 16)
@@ -298,7 +296,7 @@ struct StressInoculationDrillView: View {
                         .foregroundStyle(.secondary)
                 }
                 VStack {
-                    Text(String(format: "%.2f°", motionManager.wobble * 57.3))
+                    Text(String(format: "%.2f°", motionAnalyzer.wobble * 57.3))
                         .font(.headline.monospacedDigit())
                     Text("Wobble")
                         .font(.caption)
@@ -438,7 +436,7 @@ struct StressInoculationDrillView: View {
         shootingTime = 0
         stabilityHistory = []
         currentStability = 0
-        motionManager.startUpdates()
+        motionAnalyzer.startUpdates()
 
         // Strong haptic to signal start
         let generator = UINotificationFeedbackGenerator()
@@ -449,7 +447,7 @@ struct StressInoculationDrillView: View {
                 shootingTime += 0.1
 
                 // Calculate current stability from wobble
-                let wobbleStability = max(0, 100 - (motionManager.wobble * 200))
+                let wobbleStability = max(0, 100 - (motionAnalyzer.wobble * 200))
                 currentStability = currentStability * 0.8 + wobbleStability * 0.2
                 stabilityHistory.append(currentStability)
 
@@ -466,7 +464,7 @@ struct StressInoculationDrillView: View {
     private func endDrill() {
         timer?.invalidate()
         timer = nil
-        motionManager.stopUpdates()
+        motionAnalyzer.stopUpdates()
         cueSystem.reset()
         phase = .results
 
@@ -478,7 +476,7 @@ struct StressInoculationDrillView: View {
             duration: targetDuration + 30, // Include warmup
             score: avgStability,
             stabilityScore: avgStability,
-            averageWobble: motionManager.averageWobble
+            averageWobble: motionAnalyzer.averageWobble
         )
         modelContext.insert(session)
         try? modelContext.save()
@@ -496,53 +494,6 @@ struct StressInoculationDrillView: View {
     }
 }
 
-// MARK: - Stress Motion Manager
-
-@MainActor
-class StressMotionManager: ObservableObject {
-    private let motionManager = CMMotionManager()
-
-    @Published var pitch: Double = 0
-    @Published var roll: Double = 0
-    @Published var wobble: Double = 0
-    @Published var averageWobble: Double = 0
-
-    private var referencePitch: Double?
-    private var referenceRoll: Double?
-    private var wobbleSum: Double = 0
-    private var sampleCount: Int = 0
-
-    func startUpdates() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-
-        referencePitch = nil
-        referenceRoll = nil
-        wobbleSum = 0
-        sampleCount = 0
-
-        motionManager.deviceMotionUpdateInterval = 1/60
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let motion = motion, let self = self else { return }
-
-            if self.referencePitch == nil {
-                self.referencePitch = motion.attitude.pitch
-                self.referenceRoll = motion.attitude.roll
-            }
-
-            self.pitch = motion.attitude.pitch - (self.referencePitch ?? 0)
-            self.roll = motion.attitude.roll - (self.referenceRoll ?? 0)
-            self.wobble = sqrt(self.pitch * self.pitch + self.roll * self.roll)
-
-            self.wobbleSum += self.wobble
-            self.sampleCount += 1
-            self.averageWobble = self.wobbleSum / Double(self.sampleCount)
-        }
-    }
-
-    func stopUpdates() {
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 #Preview {
     StressInoculationDrillView()
