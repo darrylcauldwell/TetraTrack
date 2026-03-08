@@ -48,6 +48,9 @@ struct DisciplinesView: View {
                     NavigationLink(destination: RunningView()) {
                         quickActionButton(icon: "figure.run", label: "Run", color: AppColors.running)
                     }
+                    NavigationLink(destination: WalkingView()) {
+                        quickActionButton(icon: "figure.walk", label: "Walk", color: AppColors.walking)
+                    }
                     NavigationLink(destination: SwimmingView()) {
                         quickActionButton(icon: "figure.pool.swim", label: "Swim", color: AppColors.swimming)
                     }
@@ -116,6 +119,19 @@ struct DisciplinesView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Running")
                     .accessibilityHint("Record a running session with pace tracking")
+                    .hideInReadOnlyMode()
+
+                    NavigationLink(destination: WalkingView()) {
+                        DisciplineCard(
+                            title: "Walking",
+                            subtitle: "Track cadence, symmetry & routes",
+                            icon: "figure.walk",
+                            color: AppColors.walking
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Walking")
+                    .accessibilityHint("Track walking cadence, symmetry and routes")
                     .hideInReadOnlyMode()
 
                     NavigationLink(destination: SwimmingView()) {

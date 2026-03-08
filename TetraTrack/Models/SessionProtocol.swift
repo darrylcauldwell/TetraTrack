@@ -179,6 +179,7 @@ struct SessionStatistics {
 enum TrainingDiscipline: String, CaseIterable, Codable {
     case riding = "Riding"
     case running = "Running"
+    case walking = "Walking"
     case swimming = "Swimming"
     case shooting = "Shooting"
 
@@ -186,6 +187,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
         switch self {
         case .riding: return "figure.equestrian.sports"
         case .running: return "figure.run"
+        case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
         }
@@ -195,6 +197,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
         switch self {
         case .riding: return "brown"
         case .running: return "green"
+        case .walking: return "teal"
         case .swimming: return "blue"
         case .shooting: return "orange"
         }
@@ -204,6 +207,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
         switch self {
         case .riding: return .brown
         case .running: return .green
+        case .walking: return .teal
         case .swimming: return .blue
         case .shooting: return .orange
         }
@@ -211,7 +215,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
 
     var unitOfMeasure: String {
         switch self {
-        case .riding, .running: return "km"
+        case .riding, .running, .walking: return "km"
         case .swimming: return "m"
         case .shooting: return "points"
         }
@@ -219,7 +223,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
 
     var paceUnit: String {
         switch self {
-        case .riding, .running: return "/km"
+        case .riding, .running, .walking: return "/km"
         case .swimming: return "/100m"
         case .shooting: return ""
         }

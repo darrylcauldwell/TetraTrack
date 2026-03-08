@@ -186,6 +186,9 @@ struct AppColors {
               dark: .init(red: 0.35, green: 0.85, blue: 0.5))
     }
 
+    /// Walking discipline - teal (calm/outdoor)
+    static let walking: Color = .teal
+
     /// Running discipline - orange (energy/speed)
     static var running: Color {
         Color(light: .init(red: 0.95, green: 0.55, blue: 0.2),
@@ -211,6 +214,7 @@ struct AppColors {
         switch discipline.lowercased() {
         case "riding": return riding
         case "running": return running
+        case "walking": return walking
         case "swimming": return swimming
         case "shooting": return shooting
         default: return primary

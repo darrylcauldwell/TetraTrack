@@ -357,7 +357,7 @@ final class ArtifactStatisticsService {
             }
             return artifact.formattedDistance
 
-        case .running:
+        case .running, .walking:
             if let data = artifact.getRunningData() {
                 let paceMinutes = Int(data.averagePace) / 60
                 let paceSeconds = Int(data.averagePace) % 60
@@ -631,7 +631,7 @@ extension ArtifactStatisticsService {
                 let sessionType: WidgetSessionData.WidgetSessionType = {
                     switch artifact.discipline {
                     case .riding: return .ride
-                    case .running: return .run
+                    case .running, .walking: return .run
                     case .swimming: return .swim
                     case .shooting: return .shoot
                     }
@@ -667,7 +667,7 @@ extension ArtifactStatisticsService {
                 let sessionType: WidgetSessionData.WidgetSessionType = {
                     switch artifact.discipline {
                     case .riding: return .ride
-                    case .running: return .run
+                    case .running, .walking: return .run
                     case .swimming: return .swim
                     case .shooting: return .shoot
                     }

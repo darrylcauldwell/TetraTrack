@@ -14,6 +14,7 @@ import os
 enum WatchSessionDiscipline: String, Codable {
     case riding
     case running
+    case walking
     case swimming
     case shooting
 }
