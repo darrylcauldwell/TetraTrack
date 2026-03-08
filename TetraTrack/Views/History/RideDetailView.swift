@@ -77,6 +77,9 @@ struct RideDetailView: View {
                         StatCard(title: "Max Speed", value: ride.formattedMaxSpeed, icon: "gauge.with.dots.needle.100percent")
                         StatCard(title: "Elev. Gain", value: ride.formattedElevationGain, icon: "arrow.up.right")
                         StatCard(title: "Elev. Loss", value: ride.formattedElevationLoss, icon: "arrow.down.right")
+                        if ride.totalCalories > 0 {
+                            StatCard(title: "Calories", value: ride.formattedCalories, icon: "flame")
+                        }
                     }
 
                     badgesSection
@@ -137,6 +140,9 @@ struct RideDetailView: View {
                 StatCard(title: "Max Speed", value: ride.formattedMaxSpeed, icon: "gauge.with.dots.needle.100percent")
                 StatCard(title: "Elev. Gain", value: ride.formattedElevationGain, icon: "arrow.up.right")
                 StatCard(title: "Elev. Loss", value: ride.formattedElevationLoss, icon: "arrow.down.right")
+                if ride.totalCalories > 0 {
+                    StatCard(title: "Calories", value: ride.formattedCalories, icon: "flame")
+                }
             }
 
             badgesSection

@@ -428,13 +428,17 @@ final class WorkoutManager: NSObject {
     /// The workout is discarded (not saved to HealthKit) when stopped,
     /// since the iPhone handles HealthKit saving.
     func startHeartRateMonitoring(type: WatchActivityType = .riding) async {
-        guard !isWorkoutActive else { return }
+        guard !isWorkoutActive else {
+            Log.health.info("startHeartRateMonitoring skipped — workout already active (companion=\(self.isCompanionMode), mirrored=\(self.isMirroredSession))")
+            return
+        }
 
         let authorized = await requestAuthorization()
         guard authorized else {
-            Log.health.warning("Not authorized for companion HR monitoring")
+            Log.health.warning("Not authorized for companion HR monitoring — check Health permissions on Watch")
             return
         }
+        Log.health.info("HealthKit authorized for companion HR — creating \(type.rawValue) workout session")
 
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = type.healthKitType
@@ -739,7 +743,10 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     }
 
     private func processHeartRateStatistics(_ statistics: HKStatistics?) {
-        guard let statistics = statistics else { return }
+        guard let statistics = statistics else {
+            Log.health.debug("processHeartRateStatistics: nil statistics")
+            return
+        }
 
         let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
 
@@ -748,6 +755,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                 let bpm = Int(mostRecent.doubleValue(for: heartRateUnit))
                 self.currentHeartRate = bpm
                 self.heartRateSamples.append(bpm)
+                Log.health.debug("Watch HR collected: \(bpm) bpm, callback set: \(self.onHeartRateUpdate != nil)")
                 self.onHeartRateUpdate?(bpm)
             }
 

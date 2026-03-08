@@ -83,8 +83,10 @@ final class WorkoutLifecycleService: NSObject {
         // Send session control commands to Watch before HealthKit setup
         // so the Watch transitions even if HealthKit fails
         self.currentActivityType = configuration.activityType
-        watchConnectivity.sendCommand(.startRide)
-        watchConnectivity.startMotionTracking(mode: watchMotionMode)
+        let motionMode = watchMotionMode
+        let reachable = watchConnectivity.isReachable
+        Log.health.info("WorkoutLifecycle: sending Watch commands — activity=\(configuration.activityType.rawValue), motionMode=\(motionMode.rawValue), reachable=\(reachable)")
+        watchConnectivity.startMotionTracking(mode: motionMode)
 
         do {
             // Create workout session
@@ -228,7 +230,6 @@ final class WorkoutLifecycleService: NSObject {
     func endAndSave(metadata: [String: Any]? = nil) async -> HKWorkout? {
         // Stop watch session (always, even if HealthKit session is nil)
         watchConnectivity.stopMotionTracking()
-        watchConnectivity.sendCommand(.stopRide)
 
         guard let session = workoutSession,
               let builder = workoutBuilder else {
@@ -280,7 +281,6 @@ final class WorkoutLifecycleService: NSObject {
     func discard() async {
         // Stop watch session (always, even if HealthKit session is nil)
         watchConnectivity.stopMotionTracking()
-        watchConnectivity.sendCommand(.stopRide)
 
         guard let session = workoutSession else {
             cleanup()
@@ -330,25 +330,6 @@ final class WorkoutLifecycleService: NSObject {
         Task {
             try? await session.sendToRemoteWorkoutSession(data: data)
         }
-    }
-
-    // MARK: - Send Idle State to Watch
-
-    /// Send idle state to Watch to return UI to summary view.
-    func sendIdleStateToWatch() {
-        watchConnectivity.sendStatusUpdate(
-            rideState: .idle,
-            duration: 0,
-            distance: 0,
-            speed: 0,
-            gait: "Stationary",
-            heartRate: nil,
-            heartRateZone: nil,
-            averageHeartRate: nil,
-            maxHeartRate: nil,
-            horseName: nil,
-            rideType: nil
-        )
     }
 
     // MARK: - Crash Recovery (iOS 26+)

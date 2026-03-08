@@ -78,8 +78,6 @@ public enum WatchMessageKey: String {
 // MARK: - Commands
 
 public enum WatchCommand: String, Codable, Sendable {
-    case startRide = "startRide"
-    case stopRide = "stopRide"
     case pauseRide = "pauseRide"
     case resumeRide = "resumeRide"
     case requestStatus = "requestStatus"

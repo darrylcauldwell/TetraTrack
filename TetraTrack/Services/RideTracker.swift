@@ -412,10 +412,6 @@ final class RideTracker {
                 lastSeq = wm.commandSequence
                 guard let command = wm.lastReceivedCommand else { continue }
                 switch command {
-                case .startRide:
-                    await self.startRide()
-                case .stopRide:
-                    self.stopRide()
                 case .requestStatus:
                     self.sendStatusToWatch()
                 default:
@@ -902,6 +898,13 @@ final class RideTracker {
             }
         }
 
+        // Persist total calories to ride model
+        let totalCalories = calorieSamples.reduce(0.0) { sum, sample in
+            guard let quantitySample = sample as? HKQuantitySample else { return sum }
+            return sum + quantitySample.quantity.doubleValue(for: .kilocalorie())
+        }
+        currentRide?.totalCalories = totalCalories
+
         // Build metadata
         var rideMetadata: [String: Any] = [
             HKMetadataKeyIndoorWorkout: false
@@ -929,7 +932,6 @@ final class RideTracker {
                     self.currentRide?.healthKitWorkoutUUID = workout.uuid.uuidString
                 }
             }
-            workoutLifecycle.sendIdleStateToWatch()
         }
         activeBackgroundTasks.append(endWorkoutTask)
 
@@ -1145,7 +1147,6 @@ final class RideTracker {
         // Discard workout lifecycle (stops Watch mirroring)
         let discardWorkoutTask = Task {
             await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
         }
         activeBackgroundTasks.append(discardWorkoutTask)
 

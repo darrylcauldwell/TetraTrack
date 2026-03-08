@@ -435,7 +435,6 @@ struct WalkingLiveView: View {
         ]
         Task {
             _ = await workoutLifecycle.endAndSave(metadata: walkingMetadata)
-            workoutLifecycle.sendIdleStateToWatch()
         }
 
         // Audio coach - session end

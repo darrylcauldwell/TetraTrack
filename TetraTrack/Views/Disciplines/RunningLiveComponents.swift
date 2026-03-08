@@ -742,7 +742,6 @@ struct RunningLiveView: View {
                     session.healthKitWorkoutUUID = workout.uuid.uuidString
                 }
             }
-            workoutLifecycle.sendIdleStateToWatch()
         }
 
         watchManager.stopMotionTracking()
@@ -1976,7 +1975,6 @@ struct RunningLiveView: View {
         // Discard workout lifecycle (don't save)
         Task {
             await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
             Log.tracking.info("Discarded workout lifecycle for running")
         }
 
@@ -2728,7 +2726,6 @@ struct TreadmillLiveView: View {
                     session.healthKitWorkoutUUID = workout.uuid.uuidString
                 }
             }
-            workoutLifecycle.sendIdleStateToWatch()
         }
 
         stopHeartRateTracking()
@@ -2761,7 +2758,6 @@ struct TreadmillLiveView: View {
         // Discard workout lifecycle (don't save)
         Task {
             await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
             Log.tracking.info("Discarded workout lifecycle for treadmill")
         }
 

@@ -426,6 +426,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             if command == .heartRateUpdate, let hr = watchMessage.heartRate {
                 lastReceivedHeartRate = hr
                 heartRateSequence += 1
+                Log.watch.debug("iPhone received HR from Watch: \(hr) bpm (seq=\(self.heartRateSequence))")
             }
 
             // Handle voice note from Watch

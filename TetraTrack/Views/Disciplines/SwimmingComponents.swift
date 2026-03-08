@@ -1656,7 +1656,6 @@ struct SwimmingLiveView: View {
                     session.healthKitWorkoutUUID = workout.uuid.uuidString
                 }
             }
-            workoutLifecycle.sendIdleStateToWatch()
         }
 
         session.totalDistance = totalDistance
@@ -1759,7 +1758,6 @@ struct SwimmingLiveView: View {
         // Discard workout lifecycle (don't save)
         Task {
             await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
             Log.tracking.info("Discarded workout lifecycle for swimming")
         }
 

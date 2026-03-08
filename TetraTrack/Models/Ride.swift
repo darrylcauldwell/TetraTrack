@@ -54,6 +54,9 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
     var heartRateSamplesData: Data?  // Encoded [HeartRateSample]
     var recoveryMetricsData: Data?   // Encoded RecoveryMetrics
 
+    // Calorie tracking
+    var totalCalories: Double = 0.0  // kcal, gait-adjusted
+
     // Weather tracking
     var startWeatherData: Data?  // Encoded WeatherConditions at ride start
     var endWeatherData: Data?    // Encoded WeatherConditions at ride end
@@ -517,6 +520,12 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
     var formattedMinHeartRate: String {
         guard minHeartRate > 0 else { return "--" }
         return "\(minHeartRate) bpm"
+    }
+
+    /// Formatted calorie total
+    var formattedCalories: String {
+        guard totalCalories > 0 else { return "--" }
+        return "\(Int(totalCalories)) kcal"
     }
 
     // MARK: - Weather
