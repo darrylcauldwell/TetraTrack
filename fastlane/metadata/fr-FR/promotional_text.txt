@@ -1,0 +1,1 @@
+Enfin ! Une app qui distingue le trot du galop "enthousiaste". Coaching IA, détection des allures, alerte chute. Votre cheval approuve. Probablement.

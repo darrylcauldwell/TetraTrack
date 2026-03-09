@@ -1,0 +1,28 @@
+What's New in Version 0.0.123
+
+BACKGROUND GPS — FIXED FOR GOOD
+
+The big one. GPS tracking now works reliably when your phone screen locks during riding, running, and open water swimming sessions. No more starting a hack, locking your phone, and returning to find only 4 metres of data. Background tracking now works with "When In Use" location permission — no need for "Always Allow".
+
+• Riding sessions continue recording GPS, gait, and all sensor data through screen lock
+• Running sessions maintain location and motion tracking in background
+• Open water swimming keeps GPS tracking active when screen sleeps
+• Treadmill sessions maintain Watch heart rate connection through screen lock
+• Screen stays awake during active sessions to prevent accidental sleep
+
+SENSOR DATA EXPORT
+
+Export your riding session data for analysis in external tools:
+• JSON export with full gait segments, transitions, biomechanics, and GPS points
+• CSV export for spreadsheet analysis
+• GPX export for route mapping in third-party apps
+
+APP STORE READY
+
+• Added privacy manifest for iOS 17.4+ compliance
+• Export compliance declaration included
+• Crash-resistant data handling improvements
+
+Thanks for riding with us. Every update is shaped by feedback from riders, runners, swimmers, and shooters like you.
+
+Train. Track. Triumph.
