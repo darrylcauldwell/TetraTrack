@@ -735,20 +735,11 @@ struct RunningLiveView: View {
             }
         }
 
-        // End workout lifecycle and save to HealthKit
-        Task {
-            if !hkEvents.isEmpty {
-                await workoutLifecycle.addWorkoutEvents(hkEvents)
-            }
-            let workout = await workoutLifecycle.endAndSave(metadata: runMetadata)
-            if let workout {
-                Log.tracking.info("Running workout saved via WorkoutLifecycleService: \(workout.uuid.uuidString)")
-                await MainActor.run {
-                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                }
-            }
-            workoutLifecycle.sendIdleStateToWatch()
-        }
+        // Begin non-blocking workout save (awaited in parent view's onEnd)
+        workoutLifecycle.beginEndAndSave(
+            metadata: runMetadata,
+            events: hkEvents.isEmpty ? nil : hkEvents
+        )
 
         watchManager.stopMotionTracking()
         sensorAnalyzer.stopSession()
@@ -2724,17 +2715,8 @@ struct TreadmillLiveView: View {
             treadmillMetadata["TreadmillIncline"] = inclinePercentage
         }
 
-        // End workout lifecycle and save to HealthKit
-        Task {
-            let workout = await workoutLifecycle.endAndSave(metadata: treadmillMetadata)
-            if let workout {
-                Log.tracking.info("Treadmill workout saved via WorkoutLifecycleService: \(workout.uuid.uuidString)")
-                await MainActor.run {
-                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                }
-            }
-            workoutLifecycle.sendIdleStateToWatch()
-        }
+        // Begin non-blocking workout save (awaited in parent view's onEnd)
+        workoutLifecycle.beginEndAndSave(metadata: treadmillMetadata)
 
         stopHeartRateTracking()
         UIApplication.shared.isIdleTimerDisabled = false

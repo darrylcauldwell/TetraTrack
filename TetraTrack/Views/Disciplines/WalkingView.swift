@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
+import HealthKit
 
 struct WalkingView: View {
     @Environment(\.dismiss) private var dismiss
@@ -69,35 +70,10 @@ struct WalkingView: View {
                     shareWithFamily: shareWithFamily,
                     targetCadence: session.targetCadence,
                     onEnd: {
+                        // Sync: walking scores, skill scores, route matching, save, navigate
                         let walkingService = WalkingAnalysisService()
                         let scores = walkingService.computeScores(from: session)
                         walkingService.applyScores(scores, to: session)
-
-                        Task {
-                            let healthKit = HealthKitManager.shared
-                            try? await Task.sleep(for: .seconds(2))
-                            if let endDate = session.endDate {
-                                let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
-                                let walkingMetrics = await healthKit.fetchWalkingMetrics(from: session.startDate, to: endDate)
-                                await MainActor.run {
-                                    session.healthKitAsymmetry = metrics.asymmetryPercentage
-                                    session.healthKitStrideLength = metrics.strideLength
-                                    session.healthKitStepCount = metrics.stepCount
-
-                                    session.healthKitDoubleSupportPercentage = walkingMetrics.doubleSupportPercentage
-                                    session.healthKitWalkingSpeed = walkingMetrics.walkingSpeed
-                                    session.healthKitWalkingStepLength = walkingMetrics.walkingStepLength
-                                    session.healthKitWalkingSteadiness = walkingMetrics.walkingSteadiness
-                                    session.healthKitWalkingHeartRateAvg = walkingMetrics.walkingHeartRateAverage
-
-                                    if metrics.asymmetryPercentage != nil || walkingMetrics.hasData {
-                                        let updatedScores = walkingService.computeScores(from: session)
-                                        walkingService.applyScores(updatedScores, to: session)
-                                    }
-                                    try? modelContext.save()
-                                }
-                            }
-                        }
 
                         let skillService = SkillDomainService()
                         let skillScores = skillService.computeScores(from: session, score: nil)
@@ -123,13 +99,48 @@ struct WalkingView: View {
                         }
 
                         try? modelContext.save()
-                        Task {
-                            await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
-                        }
                         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
                         completedSession = session
                         activeSession = nil
                         selectedWalkingRoute = nil
+
+                        // Background: await workout save → fetch HealthKit → recompute scores → save → artifact sync
+                        let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
+                        Task {
+                            let workoutLifecycle = WorkoutLifecycleService.shared
+                            let workout = await workoutLifecycle.awaitWorkoutSave()
+                            if let workout {
+                                await MainActor.run {
+                                    session.healthKitWorkoutUUID = workout.uuid.uuidString
+                                }
+                            }
+
+                            let healthKit = HealthKitManager.shared
+                            if let endDate = session.endDate {
+                                let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
+                                let walkingMetrics = await healthKit.fetchWalkingMetrics(from: session.startDate, to: endDate)
+                                await MainActor.run {
+                                    session.healthKitAsymmetry = metrics.asymmetryPercentage
+                                    session.healthKitStrideLength = metrics.strideLength
+                                    session.healthKitStepCount = metrics.stepCount
+
+                                    session.healthKitDoubleSupportPercentage = walkingMetrics.doubleSupportPercentage
+                                    session.healthKitWalkingSpeed = walkingMetrics.walkingSpeed
+                                    session.healthKitWalkingStepLength = walkingMetrics.walkingStepLength
+                                    session.healthKitWalkingSteadiness = walkingMetrics.walkingSteadiness
+                                    session.healthKitWalkingHeartRateAvg = walkingMetrics.walkingHeartRateAverage
+
+                                    if metrics.asymmetryPercentage != nil || walkingMetrics.hasData {
+                                        let updatedScores = walkingService.computeScores(from: session)
+                                        walkingService.applyScores(updatedScores, to: session)
+                                    }
+                                    try? modelContext.save()
+                                }
+                            }
+
+                            await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
+                            UIApplication.shared.endBackgroundTask(bgTaskID)
+                        }
                     },
                     onDiscard: {
                         modelContext.delete(session)

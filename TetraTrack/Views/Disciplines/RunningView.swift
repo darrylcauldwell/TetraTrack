@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import CoreLocation
 import WidgetKit
+import HealthKit
 import os
 
 // MARK: - Setup Config
@@ -191,15 +192,32 @@ struct RunningView: View {
                         session: session,
                         targetCadence: session.targetCadence,
                         onEnd: {
-                            // HealthKit workout save is handled by WorkoutLifecycleService.endAndSave()
-                            // Fetch HealthKit running metrics from Apple Watch
+                            // Sync: skill scores, save, navigate
+                            let skillService = SkillDomainService()
+                            let skillScores = skillService.computeScores(from: session, score: nil)
+                            for skillScore in skillScores {
+                                modelContext.insert(skillScore)
+                            }
+                            try? modelContext.save()
+                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
+                            completedSession = session
+                            activeSession = nil
+
+                            // Background: await workout save → fetch HealthKit → save → artifact sync
+                            let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
                             Task {
+                                let workoutLifecycle = WorkoutLifecycleService.shared
+                                let workout = await workoutLifecycle.awaitWorkoutSave()
+                                if let workout {
+                                    await MainActor.run {
+                                        session.healthKitWorkoutUUID = workout.uuid.uuidString
+                                    }
+                                }
+
                                 let healthKit = HealthKitManager.shared
-                                try? await Task.sleep(for: .seconds(2))
                                 if let endDate = session.endDate {
                                     let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
                                     await MainActor.run {
-                                        // Store all HealthKit metrics (more accurate than phone)
                                         session.healthKitAsymmetry = metrics.asymmetryPercentage
                                         session.healthKitStrideLength = metrics.strideLength
                                         session.healthKitPower = metrics.power
@@ -216,7 +234,6 @@ struct RunningView: View {
                                         try? modelContext.save()
                                     }
 
-                                    // Delayed re-fetch for HR recovery (Apple may need time)
                                     if metrics.heartRateRecoveryOneMinute == nil {
                                         try? await Task.sleep(for: .seconds(30))
                                         let hrRecovery = await healthKit.fetchHeartRateRecoveryOneMinute(from: session.startDate, to: endDate)
@@ -228,19 +245,10 @@ struct RunningView: View {
                                         }
                                     }
                                 }
-                            }
-                            let skillService = SkillDomainService()
-                            let skillScores = skillService.computeScores(from: session, score: nil)
-                            for skillScore in skillScores {
-                                modelContext.insert(skillScore)
-                            }
-                            try? modelContext.save()
-                            Task {
+
                                 await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
+                                UIApplication.shared.endBackgroundTask(bgTaskID)
                             }
-                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-                            completedSession = session
-                            activeSession = nil
                         },
                         onDiscard: {
                             modelContext.delete(session)
@@ -257,15 +265,49 @@ struct RunningView: View {
                         shareWithFamily: shareWithFamily,
                         targetCadence: session.targetCadence,
                         onEnd: {
-                            // HealthKit workout save is handled by WorkoutLifecycleService.endAndSave()
-                            // Fetch HealthKit running metrics from Apple Watch
+                            // Sync: skill scores, segment PBs, save, navigate
+                            let skillService = SkillDomainService()
+                            let skillScores = skillService.computeScores(from: session, score: nil)
+                            for skillScore in skillScores {
+                                modelContext.insert(skillScore)
+                            }
+
+                            // Analyze segment PBs for outdoor GPS runs longer than 1200m
+                            if session.runMode == .outdoor && session.totalDistance > 1200 {
+                                nonisolated(unsafe) let points = session.sortedLocationPoints
+                                let pbs = RunningPersonalBests.shared
+                                let segmentResults = SegmentPBAnalyzer.analyze(
+                                    locationPoints: points,
+                                    totalDistance: session.totalDistance,
+                                    personalBests: pbs
+                                )
+                                if !segmentResults.isEmpty {
+                                    session.segmentPBResults = segmentResults
+                                }
+                            }
+
+                            try? modelContext.save()
+                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
+                            completedSession = session
+                            activeSession = nil
+                            activeIntervalSettings = nil
+                            activeProgramIntervals = nil
+
+                            // Background: await workout save → fetch HealthKit → save → artifact sync
+                            let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
                             Task {
+                                let workoutLifecycle = WorkoutLifecycleService.shared
+                                let workout = await workoutLifecycle.awaitWorkoutSave()
+                                if let workout {
+                                    await MainActor.run {
+                                        session.healthKitWorkoutUUID = workout.uuid.uuidString
+                                    }
+                                }
+
                                 let healthKit = HealthKitManager.shared
-                                try? await Task.sleep(for: .seconds(2))
                                 if let endDate = session.endDate {
                                     let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
                                     await MainActor.run {
-                                        // Store all HealthKit metrics (more accurate than phone)
                                         session.healthKitAsymmetry = metrics.asymmetryPercentage
                                         session.healthKitStrideLength = metrics.strideLength
                                         session.healthKitPower = metrics.power
@@ -273,7 +315,6 @@ struct RunningView: View {
                                         session.healthKitStepCount = metrics.stepCount
                                         session.healthKitHRRecoveryOneMinute = metrics.heartRateRecoveryOneMinute
 
-                                        // Update watch-derived metrics if HealthKit has better data
                                         if let gct = metrics.groundContactTime, gct > 0 {
                                             session.averageGroundContactTime = gct
                                         }
@@ -283,7 +324,6 @@ struct RunningView: View {
                                         try? modelContext.save()
                                     }
 
-                                    // Delayed re-fetch for HR recovery (Apple may need time)
                                     if metrics.heartRateRecoveryOneMinute == nil {
                                         try? await Task.sleep(for: .seconds(30))
                                         let hrRecovery = await healthKit.fetchHeartRateRecoveryOneMinute(from: session.startDate, to: endDate)
@@ -295,41 +335,10 @@ struct RunningView: View {
                                         }
                                     }
                                 }
-                            }
-                            let skillService = SkillDomainService()
-                            let skillScores = skillService.computeScores(from: session, score: nil)
-                            for skillScore in skillScores {
-                                modelContext.insert(skillScore)
-                            }
-                            try? modelContext.save()
-                            Task {
+
                                 await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
+                                UIApplication.shared.endBackgroundTask(bgTaskID)
                             }
-                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-
-                            // Analyze segment PBs for outdoor GPS runs longer than 1200m
-                            if session.runMode == .outdoor && session.totalDistance > 1200 {
-                                Task { @MainActor in
-                                    nonisolated(unsafe) let points = session.sortedLocationPoints
-                                    let pbs = RunningPersonalBests.shared
-                                    let segmentResults = SegmentPBAnalyzer.analyze(
-                                        locationPoints: points,
-                                        totalDistance: session.totalDistance,
-                                        personalBests: pbs
-                                    )
-                                    if !segmentResults.isEmpty {
-                                        await MainActor.run {
-                                            session.segmentPBResults = segmentResults
-                                            try? modelContext.save()
-                                        }
-                                    }
-                                }
-                            }
-
-                            completedSession = session
-                            activeSession = nil
-                            activeIntervalSettings = nil
-                            activeProgramIntervals = nil
                         },
                         onDiscard: {
                             modelContext.delete(session)

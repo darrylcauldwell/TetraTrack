@@ -485,24 +485,28 @@ struct ShootingCompetitionView: View {
             "XCount": card2Scores.filter({ $0 == 10 }).count
         ]))
 
-        // End the workout with enrichment data
+        // Begin non-blocking workout save
+        workoutLifecycle.beginEndAndSave(
+            metadata: shootingMetadata,
+            events: hkEvents.isEmpty ? nil : hkEvents
+        )
+
+        // Sync to widgets
+        WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
+
+        // Background: await workout save → fetch HR → save → artifact sync
+        let capturedEndDate = endDate
+        let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
         Task {
-            if !hkEvents.isEmpty {
-                await workoutLifecycle.addWorkoutEvents(hkEvents)
-            }
-            let workout = await workoutLifecycle.endAndSave(metadata: shootingMetadata)
+            let workout = await workoutLifecycle.awaitWorkoutSave()
             if let workout {
                 await MainActor.run {
                     session.healthKitWorkoutUUID = workout.uuid.uuidString
                 }
             }
-        }
 
-        // Fetch heart rate data from HealthKit (auto-collected by HKLiveWorkoutBuilder)
-        Task {
             let healthKit = HealthKitManager.shared
-            try? await Task.sleep(for: .seconds(2))  // Wait for HealthKit to finalize
-            let hr = await healthKit.fetchShootingHeartRate(from: session.startDate, to: endDate)
+            let hr = await healthKit.fetchShootingHeartRate(from: session.startDate, to: capturedEndDate)
             await MainActor.run {
                 if hr.average > 0 {
                     session.averageHeartRate = hr.average
@@ -511,15 +515,10 @@ struct ShootingCompetitionView: View {
                     try? modelContext.save()
                 }
             }
-        }
 
-        // Convert to TrainingArtifact and sync to CloudKit for family sharing
-        Task {
             await ArtifactConversionService.shared.convertAndSyncShootingSession(session)
+            UIApplication.shared.endBackgroundTask(bgTaskID)
         }
-
-        // Sync to widgets
-        WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
 
         // Update personal best
         ShootingPersonalBests.shared.updatePersonalBest(rawScore: totalRawScore)
