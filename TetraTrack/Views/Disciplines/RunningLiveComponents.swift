@@ -32,33 +32,49 @@ struct RunningLiveView: View {
     let onEnd: () -> Void
     var onDiscard: (() -> Void)?
 
+    @Environment(RunningTracker.self) private var tracker: RunningTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
-    @Environment(\.modelContext) private var modelContext
 
-    @State private var isRunning = true
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var timerSource: DispatchSourceTimer?
     @State private var showingCancelConfirmation = false
+    @State private var showingVehicleAlert = false
+    @State private var selectedTab: RunningTab = .stats
+    @State private var hasStartedServices = false
 
-    // Track mode lap detection via LapDetector
-    private var lapDetector: LapDetector { LapDetector.shared }
+    // Interval tracking (UI coaching concern)
+    @State private var intervalCount = 1
+    @State private var isWorkPhase = true
+    @State private var phaseTime: TimeInterval = 0
+    @State private var workoutPhase: IntervalWorkoutPhase = .warmup
+    @State private var phaseTransitions: [(phase: IntervalWorkoutPhase, start: Date)] = []
+    @State private var lastAnnouncedCountdown: Int = Int.max
 
-    // Km split tracking (outdoor runs)
-    @State private var lastAnnouncedKm: Int = 0
-    @State private var lastKmSplitTime: TimeInterval = 0
-
-    // PB race coaching (time trials)
+    // PB coaching (UI concern)
     @State private var lastAnnouncedCheckpointIndex: Int = -1
     @State private var lastPBEncouragementPercent: Int = 0
 
-    // Virtual pacer audio tracking
+    // Virtual pacer audio (UI concern)
     @State private var lastPacerAnnouncementTime: TimeInterval = 0
 
-    // Interval countdown tracking
-    @State private var lastAnnouncedCountdown: Int = Int.max
+    // Program interval tracking (UI concern)
+    @State private var programAudioCoach = ProgramAudioCoach()
+    @State private var lastProgramPhaseIndex: Int = -1
+    @State private var lastProgramCountdown: Int = Int.max
+
+    // Coaching data collection
+    @State private var coachingData = RunningCoachingSummary()
+
+    // UI timer for coaching announcements
+    @State private var timerSource: DispatchSourceTimer?
+    @State private var lastElapsedTime: TimeInterval = 0
+
+    // Weather (fetched for display)
+    @State private var currentWeather: WeatherConditions?
 
     private var personalBests: RunningPersonalBests { RunningPersonalBests.shared }
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
+    private let watchManager = WatchConnectivityManager.shared
+    private let weatherService = WeatherService.shared
 
     // Tetrathlon scoring context
     @AppStorage("selectedCompetitionLevel") private var selectedLevelRaw: String = "Junior"
@@ -74,81 +90,16 @@ struct RunningLiveView: View {
         )
     }
 
-    // Watch motion tracking
-    @State private var verticalOscillation: Double = 0.0  // cm
-    @State private var groundContactTime: Double = 0.0    // ms
-    @State private var cadence: Int = 0                   // steps per minute
-
-    // Tracking arrays for session averages
-    @State private var cadenceReadings: [Int] = []
-    @State private var oscillationReadings: [Double] = []
-    @State private var gctReadings: [Double] = []
-    @State private var formSamples: [RunningFormSample] = []
-
-    // Form degradation detection
-    @State private var lastDegradationCheckCount: Int = 0
-    @State private var lastDegradationAlertTime: Date = .distantPast
-
-    // Recovery tracking
-    @State private var isRecoveryPhase = false
-    @State private var recoveryTimer: DispatchSourceTimer?
-
-    // Watch heart rate tracking
-    @State private var currentHeartRate: Int = 0
-    @State private var maxHeartRate: Int = 0
-    @State private var minHeartRate: Int = Int.max
-    @State private var heartRateReadings: [Int] = []
-    @State private var heartRateSamples: [HeartRateSample] = []
-    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
-    private var estimatedMaxHR: Int { 190 }
-
-    // Enhanced sensor data from Watch
-    private let sensorAnalyzer = WatchSensorAnalyzer.shared
-
-    // Coaching data collection
-    @State private var coachingData = RunningCoachingSummary()
-
-    // Weather tracking
-    @State private var currentWeather: WeatherConditions?
-
-    // Watch status update timer
-    @State private var watchUpdateTimer: DispatchSourceTimer?
-
-    private let watchManager = WatchConnectivityManager.shared
-    private let weatherService = WeatherService.shared
-    private let workoutLifecycle = WorkoutLifecycleService.shared
-
-    // Interval tracking
-    @State private var intervalCount = 1
-    @State private var isWorkPhase = true
-    @State private var phaseTime: TimeInterval = 0
-    @State private var workoutPhase: IntervalWorkoutPhase = .warmup
-    @State private var phaseTransitions: [(phase: IntervalWorkoutPhase, start: Date)] = []
-
-    // Program interval tracking
-    @State private var programAudioCoach = ProgramAudioCoach()
-    @State private var lastProgramPhaseIndex: Int = -1
-    @State private var lastProgramCountdown: Int = Int.max
-
-    // Tab selection for swipeable stats/map
-    @State private var selectedTab: RunningTab = .stats
-
-    // Track whether services have been started (to avoid restarting on re-appear after screen lock)
-    @State private var hasStartedServices = false
-
-    // Vehicle detection
-    @State private var showingVehicleAlert = false
-    @State private var highSpeedStartTime: Date?
-    private let vehicleSpeedThreshold: Double = 7.0  // ~25 km/h
-    private let vehicleDetectionDuration: TimeInterval = 10  // 10 seconds sustained
-
-    // Family sharing
-    private let sharingCoordinator = UnifiedSharingCoordinator.shared
-    @State private var lastSharingUpdateTime: Date = .distantPast
-    private let sharingUpdateInterval: TimeInterval = 10
-
-    // GPS session delegate adapter (strong ref to prevent dealloc while tracker holds weak ref)
-    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
+    // Computed properties from tracker (keeps UI code unchanged)
+    private var isRunning: Bool { tracker?.sessionState == .tracking }
+    private var elapsedTime: TimeInterval { tracker?.elapsedTime ?? 0 }
+    private var currentHeartRate: Int { tracker?.currentHeartRate ?? 0 }
+    private var maxHeartRate: Int { tracker?.maxHeartRate ?? 0 }
+    private var cadence: Int { tracker?.currentCadence ?? 0 }
+    private var verticalOscillation: Double { tracker?.verticalOscillation ?? 0 }
+    private var groundContactTime: Double { tracker?.groundContactTime ?? 0 }
+    private var averageHeartRate: Int { tracker?.averageHeartRate ?? 0 }
+    private var lapDetector: LapDetector { LapDetector.shared }
 
     enum IntervalWorkoutPhase {
         case warmup, work, rest, cooldown, finished
@@ -203,50 +154,15 @@ struct RunningLiveView: View {
             .ignoresSafeArea()
         )
         .onAppear {
-            Log.location.info("Running: onAppear fired, hasStartedServices=\(hasStartedServices), timerSource=\(timerSource == nil ? "nil" : "set")")
             if !hasStartedServices {
-                Log.location.info("Running: starting services (location, motion)")
-                startMotionTracking()
-                startLocationTracking()
-                hasStartedServices = true
-
-                // Start family sharing if enabled
-                if shareWithFamily {
-                    Task { await sharingCoordinator.startSharingLocation(activityType: "running") }
-                }
+                startSession()
             }
             if timerSource == nil {
-                Log.location.info("Running: starting timer")
                 startTimer()
             }
+
+            // Track mode audio announcement
             if isTrackMode {
-                lapDetector.configure(trackLength: session.trackLength)
-                lapDetector.onLapCompleted = { lapNumber, lapTime in
-                    // Persist lap as RunningSplit
-                    let split = RunningSplit(orderIndex: lapNumber - 1, distance: session.trackLength)
-                    split.duration = lapTime
-                    if currentHeartRate > 0 { split.heartRate = currentHeartRate }
-                    if cadence > 0 { split.cadence = cadence }
-                    split.session = session
-                    if session.splits == nil { session.splits = [] }
-                    session.splits?.append(split)
-                    modelContext.insert(split)
-
-                    // Haptic feedback
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    watchManager.sendCommand(.hapticMilestone)
-
-                    // Audio coaching
-                    if AudioCoachManager.shared.announceRunningLaps {
-                        let previousLapTime: TimeInterval? = lapDetector.lapTimes.count >= 2
-                            ? lapDetector.lapTimes[lapDetector.lapTimes.count - 2] : nil
-                        let isFastest = lapDetector.lapTimes.count > 1 && lapTime == lapDetector.fastestLap
-                        AudioCoachManager.shared.announceLapWithComparison(
-                            lapNumber, lapTime: lapTime,
-                            previousLapTime: previousLapTime, isFastest: isFastest
-                        )
-                    }
-                }
                 AudioCoachManager.shared.announceTrackModeStart()
             }
 
@@ -271,75 +187,15 @@ struct RunningLiveView: View {
             AudioCoachManager.shared.resetSessionAnnouncementCount()
 
             fetchWeather()
-            UIApplication.shared.isIdleTimerDisabled = true
-            AudioCoachManager.shared.startRunningFormReminders()
         }
         .onDisappear {
             timerSource?.cancel()
-            AudioCoachManager.shared.stopRunningFormReminders()
         }
-        .onChange(of: watchManager.motionUpdateSequence) {
-            guard watchManager.currentMotionMode == .running else { return }
-            var sampleCadence: Int = 0
-            var sampleOsc: Double = 0
-            var sampleGCT: Double = 0
-
-            let osc = watchManager.verticalOscillation
-            if osc > 0 {
-                verticalOscillation = osc
-                oscillationReadings.append(osc)
-                sampleOsc = osc
+        .onChange(of: tracker?.showingVehicleAlert) { _, newValue in
+            if newValue == true {
+                showingVehicleAlert = true
+                tracker?.dismissVehicleAlert()
             }
-            let gctVal = watchManager.groundContactTime
-            if gctVal > 0 {
-                groundContactTime = gctVal
-                gctReadings.append(gctVal)
-                sampleGCT = gctVal
-            }
-            let cadVal = watchManager.cadence
-            if cadVal > 0 {
-                cadence = cadVal
-                cadenceReadings.append(cadVal)
-                sampleCadence = cadVal
-            }
-
-            if sampleCadence > 0 || sampleOsc > 0 || sampleGCT > 0 {
-                formSamples.append(RunningFormSample(
-                    timestamp: Date(),
-                    cadence: sampleCadence,
-                    oscillation: sampleOsc,
-                    groundContactTime: sampleGCT
-                ))
-            }
-
-            if sampleCadence > 0 && AudioCoachManager.shared.announceCadenceFeedback {
-                AudioCoachManager.shared.processCadence(sampleCadence, target: targetCadence)
-            }
-            if sampleGCT > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                AudioCoachManager.shared.processGroundContactTime(sampleGCT)
-            }
-            if sampleOsc > 0 && AudioCoachManager.shared.announceRunningBiomechanics {
-                AudioCoachManager.shared.processVerticalOscillation(sampleOsc)
-            }
-            let stability = sensorAnalyzer.postureStability
-            if stability > 0 {
-                AudioCoachManager.shared.processRunningStability(stability)
-            }
-            checkFormDegradation()
-        }
-        .onChange(of: watchManager.heartRateSequence) {
-            let bpm = watchManager.lastReceivedHeartRate
-            guard bpm > 0 else { return }
-            hasWCSessionHR = true
-            currentHeartRate = bpm
-            heartRateReadings.append(bpm)
-            if bpm > maxHeartRate { maxHeartRate = bpm }
-            if bpm < minHeartRate { minHeartRate = bpm }
-            heartRateSamples.append(HeartRateSample(
-                timestamp: Date(),
-                bpm: bpm,
-                maxHeartRate: estimatedMaxHR
-            ))
         }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
@@ -356,10 +212,7 @@ struct RunningLiveView: View {
             Button("Stop & Save") {
                 endSession()
             }
-            Button("Keep Tracking", role: .cancel) {
-                // Reset detection so it doesn't immediately trigger again
-                highSpeedStartTime = nil
-            }
+            Button("Keep Tracking", role: .cancel) {}
         } message: {
             Text("It looks like you're traveling at vehicle speed. Would you like to stop tracking?")
         }
@@ -540,337 +393,27 @@ struct RunningLiveView: View {
         )
     }
 
-    // MARK: - Location Tracking
+    // MARK: - Session Lifecycle
 
-    private func startLocationTracking() {
-        guard usesGPS, let tracker = gpsTracker else {
-            Log.location.error("Running: startLocationTracking skipped — usesGPS=\(usesGPS), gpsTracker=\(gpsTracker == nil ? "nil" : "set")")
+    private func startSession() {
+        guard !hasStartedServices else { return }
+        hasStartedServices = true
+
+        guard let tracker else {
+            Log.tracking.error("RunningLiveView: RunningTracker not available")
             return
         }
 
-        Log.location.info("Running: setting up GPS session tracker")
+        let mode: RunningTracker.ActivityMode = isTrackMode ? .track : .outdoor
 
-        let adapter = GPSSessionDelegateAdapter(
-            onCreate: { [self] location in
-                let point = RunningLocationPoint(from: location)
-                point.session = self.session
-                return point
-            },
-            onProcess: { [self] location, distanceDelta, tracker in
-                // Sync distance and elevation from tracker (Kalman-filtered)
-                self.session.totalDistance = tracker.totalDistance
-                self.session.totalAscent = tracker.elevationGain
-                self.session.totalDescent = tracker.elevationLoss
-
-                // Outdoor run: detect km boundary crossing for split announcements
-                if !self.isTrackMode {
-                    let currentKm = Int(self.session.totalDistance / 1000)
-                    if currentKm > self.lastAnnouncedKm && currentKm > 0 {
-                        let splitDuration = self.elapsedTime - self.lastKmSplitTime
-                        self.lastAnnouncedKm = currentKm
-                        self.lastKmSplitTime = self.elapsedTime
-
-                        let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
-                        split.duration = splitDuration
-                        if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
-                        if self.cadence > 0 { split.cadence = self.cadence }
-                        split.session = self.session
-                        if self.session.splits == nil { self.session.splits = [] }
-                        self.session.splits?.append(split)
-                        self.modelContext.insert(split)
-
-                        if AudioCoachManager.shared.announceRunningPace {
-                            let splitPace = splitDuration
-                            let remaining = self.targetDistance > 0
-                                ? self.targetDistance - self.session.totalDistance : nil
-                            AudioCoachManager.shared.announceKmSplit(
-                                km: currentKm,
-                                averagePace: splitPace,
-                                gapMeters: nil,
-                                remaining: remaining
-                            )
-                        }
-
-                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                        generator.impactOccurred()
-                    }
-                }
-
-                // Update virtual pacer with current distance
-                if VirtualPacer.shared.isActive {
-                    VirtualPacer.shared.update(distance: self.session.totalDistance, elapsedTime: self.elapsedTime)
-                }
-
-                // Vehicle detection
-                self.checkForVehicleSpeed(location.speed)
-
-                // Track mode: auto-detect laps via LapDetector
-                if self.isTrackMode {
-                    self.lapDetector.processLocation(location, elapsedTime: self.elapsedTime)
-                }
-
-                // Family sharing location update (throttled every 10 seconds)
-                if self.shareWithFamily {
-                    let now = Date()
-                    if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
-                        self.lastSharingUpdateTime = now
-                        let currentSpeed = location.speed >= 0 ? location.speed : 0
-                        let gait = RunningPhase.fromGPSSpeed(currentSpeed).toGaitType
-                        Task {
-                            await self.sharingCoordinator.updateSharedLocation(
-                                location: location,
-                                gait: gait,
-                                distance: self.session.totalDistance,
-                                duration: self.elapsedTime
-                            )
-                        }
-                    }
-                }
-            }
-        )
-        gpsDelegateAdapter = adapter
-
-        Log.location.info("Running: starting GPS session tracker")
-        let config = GPSSessionConfig(
-            subscriberId: "running",
-            activityType: .running,
-            checkpointInterval: 30,
-            modelContext: modelContext,
-            workoutLifecycle: workoutLifecycle
-        )
         Task {
-            await tracker.start(config: config, delegate: adapter)
-            Log.location.info("Running: GPS session tracker started")
+            await tracker.startSession(
+                session,
+                mode: mode,
+                shareWithFamily: shareWithFamily,
+                targetCadence: targetCadence
+            )
         }
-    }
-
-    private func checkForVehicleSpeed(_ speed: Double) {
-        if speed > vehicleSpeedThreshold {
-            if highSpeedStartTime == nil {
-                highSpeedStartTime = Date()
-            } else if let start = highSpeedStartTime,
-                      Date().timeIntervalSince(start) > vehicleDetectionDuration {
-                // Sustained high speed detected - show alert
-                if !showingVehicleAlert {
-                    showingVehicleAlert = true
-                    AudioCoachManager.shared.announce("It looks like you may be in a vehicle. Would you like to stop tracking?")
-                }
-            }
-        } else {
-            // Speed dropped below threshold - reset detection
-            highSpeedStartTime = nil
-        }
-    }
-
-    private func stopLocationTracking() {
-        gpsTracker?.stop()
-    }
-
-    // Watch motion & HR callbacks removed — using .onChange(of:) modifiers
-
-    private func startMotionTracking() {
-        // Start workout lifecycle for Watch mirroring + HealthKit tracking
-        Task {
-            do {
-                let config = HKWorkoutConfiguration()
-                config.activityType = .running
-                config.locationType = usesGPS ? .outdoor : .indoor
-                try await workoutLifecycle.startWorkout(configuration: config)
-                Log.tracking.info("Started workout lifecycle for running with Watch mirroring")
-            } catch {
-                Log.tracking.error("Failed to start workout lifecycle: \(error)")
-            }
-        }
-
-        watchManager.resetMotionMetrics()
-        // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
-        sensorAnalyzer.startSession(discipline: .running)
-        startWatchStatusUpdates()
-    }
-
-    private func stopMotionTracking() {
-        var runMetadata: [String: Any] = [
-            HKMetadataKeyIndoorWorkout: !usesGPS,
-            "SessionType": session.sessionType.rawValue
-        ]
-        if let weather = currentWeather {
-            runMetadata["Temperature"] = weather.temperature
-            runMetadata["Humidity"] = weather.humidity
-        }
-
-        // Build interval segment events for HealthKit
-        var hkEvents: [HKWorkoutEvent] = []
-        if intervalSettings != nil && phaseTransitions.count > 1 {
-            for i in 0..<(phaseTransitions.count - 1) {
-                let transition = phaseTransitions[i]
-                let nextStart = phaseTransitions[i + 1].start
-                let interval = DateInterval(start: transition.start, end: nextStart)
-                let event = HKWorkoutEvent(type: .segment, dateInterval: interval, metadata: [
-                    "Phase": "\(transition.phase)",
-                    "IntervalIndex": i + 1
-                ])
-                hkEvents.append(event)
-            }
-            // Last phase segment up to now
-            if let last = phaseTransitions.last {
-                let interval = DateInterval(start: last.start, end: Date())
-                hkEvents.append(HKWorkoutEvent(type: .segment, dateInterval: interval, metadata: [
-                    "Phase": "\(last.phase)",
-                    "IntervalIndex": phaseTransitions.count
-                ]))
-            }
-        }
-
-        // Track mode: add lap events to HealthKit
-        if isTrackMode && !lapDetector.lapTimes.isEmpty {
-            var lapStartDate = session.startDate
-            for (index, duration) in lapDetector.lapTimes.enumerated() {
-                let lapEndDate = lapStartDate.addingTimeInterval(duration)
-                let interval = DateInterval(start: lapStartDate, end: lapEndDate)
-                hkEvents.append(HKWorkoutEvent(type: .lap, dateInterval: interval, metadata: [
-                    "LapIndex": index + 1,
-                    "LapDistance": session.trackLength
-                ]))
-                lapStartDate = lapEndDate
-            }
-        }
-
-        // End workout lifecycle and save to HealthKit
-        Task {
-            if !hkEvents.isEmpty {
-                await workoutLifecycle.addWorkoutEvents(hkEvents)
-            }
-            let workout = await workoutLifecycle.endAndSave(metadata: runMetadata)
-            if let workout {
-                Log.tracking.info("Running workout saved via WorkoutLifecycleService: \(workout.uuid.uuidString)")
-                await MainActor.run {
-                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                }
-            }
-            workoutLifecycle.sendIdleStateToWatch()
-        }
-
-        watchManager.stopMotionTracking()
-        sensorAnalyzer.stopSession()
-        stopWatchStatusUpdates()
-
-        // Save heart rate data to session
-        if !heartRateReadings.isEmpty {
-            session.averageHeartRate = heartRateReadings.reduce(0, +) / heartRateReadings.count
-            session.maxHeartRate = maxHeartRate
-            session.minHeartRate = minHeartRate == Int.max ? 0 : minHeartRate
-        }
-
-        // Save timestamped heart rate samples
-        if !heartRateSamples.isEmpty {
-            session.heartRateSamples = heartRateSamples
-        }
-
-        // Save cadence data to session
-        if !cadenceReadings.isEmpty {
-            session.averageCadence = cadenceReadings.reduce(0, +) / cadenceReadings.count
-            session.maxCadence = cadenceReadings.max() ?? 0
-        }
-
-        // Save running form metrics to session
-        if !oscillationReadings.isEmpty {
-            session.averageVerticalOscillation = oscillationReadings.reduce(0, +) / Double(oscillationReadings.count)
-        }
-        if !gctReadings.isEmpty {
-            session.averageGroundContactTime = gctReadings.reduce(0, +) / Double(gctReadings.count)
-        }
-
-        // Save timestamped form samples
-        if !formSamples.isEmpty {
-            session.runningFormSamples = formSamples
-        }
-
-        // Capture peak HR at end for recovery calculation
-        session.peakHeartRateAtEnd = currentHeartRate > 0 ? currentHeartRate : maxHeartRate
-
-        // Start recovery HR tracking (keep listening for 60s)
-        startRecoveryTracking()
-
-        // Save enhanced sensor data from WatchSensorAnalyzer
-        let runningSummary = sensorAnalyzer.getRunningSummary()
-        if runningSummary.averageBreathingRate > 0 {
-            session.averageBreathingRate = runningSummary.averageBreathingRate
-        }
-        if runningSummary.currentSpO2 > 0 {
-            session.averageSpO2 = runningSummary.currentSpO2
-        }
-        if runningSummary.minSpO2 < 100 {
-            session.minSpO2 = runningSummary.minSpO2
-        }
-        session.endFatigueScore = runningSummary.fatigueScore
-        session.postureStability = runningSummary.postureStability
-        session.trainingLoadScore = runningSummary.trainingLoadScore
-
-        // Save elevation data from sensor analyzer only as fallback
-        // GPSSessionTracker barometric elevation (~0.3m accuracy) is preferred
-        if session.totalAscent == 0 && runningSummary.totalElevationGain > 0 {
-            session.totalAscent = runningSummary.totalElevationGain
-        }
-        if session.totalDescent == 0 && runningSummary.totalElevationLoss > 0 {
-            session.totalDescent = runningSummary.totalElevationLoss
-        }
-
-        // Save weather to session
-        if let weather = currentWeather {
-            session.startWeather = weather
-        }
-    }
-
-    // MARK: - Watch Status Updates
-
-    private func startWatchStatusUpdates() {
-        // Send initial status
-        sendStatusToWatch()
-
-        // Start periodic updates on background queue
-        let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchUpdate", qos: .utility)
-        let source = DispatchSource.makeTimerSource(queue: queue)
-        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
-        source.setEventHandler { [self] in
-            DispatchQueue.main.async {
-                self.sendStatusToWatch()
-            }
-        }
-        source.resume()
-        watchUpdateTimer = source
-    }
-
-    private func stopWatchStatusUpdates() {
-        watchUpdateTimer?.cancel()
-        watchUpdateTimer = nil
-    }
-
-    private func sendStatusToWatch() {
-        watchManager.sendStatusUpdate(
-            rideState: .tracking,
-            duration: elapsedTime,
-            distance: session.totalDistance,
-            speed: session.totalDistance > 0 && elapsedTime > 0 ? session.totalDistance / elapsedTime : 0,
-            gait: "Running",
-            heartRate: currentHeartRate > 0 ? currentHeartRate : nil,
-            heartRateZone: heartRateZone,
-            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
-            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
-            horseName: nil,
-            rideType: session.sessionType.rawValue,
-            runningPhase: nil,
-            asymmetryIndex: nil  // Phone IMU can't reliably compute - use HealthKit post-session
-        )
-    }
-
-    private var heartRateZone: Int {
-        // Simple zone calculation based on heart rate
-        guard currentHeartRate > 0 else { return 1 }
-        if currentHeartRate < 100 { return 1 }
-        if currentHeartRate < 120 { return 2 }
-        if currentHeartRate < 150 { return 3 }
-        if currentHeartRate < 170 { return 4 }
-        return 5
     }
 
     private var pacerGapColor: Color {
@@ -882,29 +425,6 @@ struct RunningLiveView: View {
         }
     }
 
-    // MARK: - Recovery HR Tracking
-
-    private func startRecoveryTracking() {
-        isRecoveryPhase = true
-        // HR updates flow via .onChange(of: watchManager.heartRateSequence) —
-        // the modifier keeps currentHeartRate updated during recovery.
-        // After 60 seconds, capture recovery HR.
-        let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.recoveryTimer", qos: .utility)
-        let source = DispatchSource.makeTimerSource(queue: queue)
-        source.schedule(deadline: .now() + 60.0, repeating: .never, leeway: .milliseconds(500))
-        source.setEventHandler { [self] in
-            DispatchQueue.main.async {
-                if self.currentHeartRate > 0 {
-                    self.session.recoveryHeartRate = self.currentHeartRate
-                }
-                self.isRecoveryPhase = false
-                self.recoveryTimer = nil
-            }
-        }
-        source.resume()
-        recoveryTimer = source
-    }
-
     // MARK: - Weather
 
     private func fetchWeather() {
@@ -912,8 +432,7 @@ struct RunningLiveView: View {
 
         Task {
             do {
-                // Use location from LocationManager or default
-                let location = CLLocation(latitude: 51.5074, longitude: -0.1278)  // Default to London
+                let location = locationManager?.currentLocation ?? CLLocation(latitude: 51.5074, longitude: -0.1278)
                 let weather = try await weatherService.fetchWeather(for: location)
                 await MainActor.run {
                     currentWeather = weather
@@ -923,11 +442,6 @@ struct RunningLiveView: View {
                 Log.services.error("RunningLiveView: Failed to fetch weather - \(error)")
             }
         }
-    }
-
-    private var averageHeartRate: Int {
-        guard !heartRateReadings.isEmpty else { return 0 }
-        return heartRateReadings.reduce(0, +) / heartRateReadings.count
     }
 
     // MARK: - Session Color
@@ -1544,36 +1058,6 @@ struct RunningLiveView: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    // MARK: - Form Degradation Detection
-
-    private func checkFormDegradation() {
-        // Need at least 20 samples and check every 10 new samples (~30s at 3s intervals)
-        guard formSamples.count >= 20,
-              formSamples.count - lastDegradationCheckCount >= 10 else { return }
-        lastDegradationCheckCount = formSamples.count
-
-        // Throttle alerts to at most once per 90 seconds
-        guard Date().timeIntervalSince(lastDegradationAlertTime) > 90 else { return }
-
-        let bio = RunnerBiomechanics()
-        let analysis = bio.formDegradation(
-            oscillationSamples: formSamples.map(\.oscillation),
-            gctSamples: formSamples.map(\.groundContactTime),
-            cadenceSamples: formSamples.map { Double($0.cadence) }
-        )
-
-        guard analysis.hasDegradation else { return }
-        lastDegradationAlertTime = Date()
-
-        if analysis.cadenceDegraded {
-            AudioCoachManager.shared.announce("Cadence dropping — focus on quick, light steps")
-        } else if analysis.gctDegraded {
-            AudioCoachManager.shared.announce("Ground contact rising — think hot coals, quick feet")
-        } else if analysis.oscillationDegraded {
-            AudioCoachManager.shared.announce("Bouncing more — run tall, engage your core")
-        }
-    }
-
     // MARK: - Timer & Actions
 
     private func startTimer() {
@@ -1584,39 +1068,15 @@ struct RunningLiveView: View {
             phaseTransitions = [(phase: initialPhase, start: Date())]
         }
 
-        Log.location.info("Running: startTimer() called")
-
         timerSource?.cancel()
         let source = DispatchSource.makeTimerSource(queue: .main)
         source.schedule(deadline: .now(), repeating: .seconds(1))
         source.setEventHandler { [self] in
             guard isRunning else { return }
-            let newElapsed = gpsTracker?.elapsedTime ?? 0
-            let delta = newElapsed - elapsedTime
-            elapsedTime = newElapsed
+            let newElapsed = tracker?.elapsedTime ?? 0
+            let delta = newElapsed - lastElapsedTime
+            lastElapsedTime = newElapsed
             phaseTime += delta
-            session.totalDuration = elapsedTime
-
-            // Sync distance during pedometer fallback (GPS gaps)
-            if let tracker = gpsTracker, tracker.isUsingPedometerFallback {
-                session.totalDistance = tracker.totalDistance
-            }
-
-            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
-            if !hasWCSessionHR {
-                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
-                if lifecycleHR > 0 {
-                    currentHeartRate = lifecycleHR
-                    heartRateReadings.append(lifecycleHR)
-                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
-                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
-                    heartRateSamples.append(HeartRateSample(
-                        timestamp: Date(),
-                        bpm: lifecycleHR,
-                        maxHeartRate: estimatedMaxHR
-                    ))
-                }
-            }
 
             // Handle automatic phase transitions for intervals
             if intervalSettings != nil {
@@ -1630,7 +1090,6 @@ struct RunningLiveView: View {
                     let checkpoints = PacerSettings.pbCheckpointFractions
                     let percentComplete = session.totalDistance / targetDistance
 
-                    // Distance-based checkpoint announcements with tetrathlon points
                     for (index, fraction) in checkpoints.enumerated() {
                         if percentComplete >= fraction && index > lastAnnouncedCheckpointIndex {
                             lastAnnouncedCheckpointIndex = index
@@ -1643,7 +1102,6 @@ struct RunningLiveView: View {
                                 standardTime: standardTime
                             )
 
-                            // Capture PB checkpoint for post-session insights
                             coachingData.pbCheckpoints.append(PBCheckpointRecord(
                                 distanceFraction: fraction,
                                 distanceMeters: session.totalDistance,
@@ -1653,7 +1111,6 @@ struct RunningLiveView: View {
                         }
                     }
 
-                    // Encouragement at 25%, 50%, 75%, 90%
                     let percentInt = Int(percentComplete * 100)
                     let encouragementThresholds = [25, 50, 75, 90]
                     for threshold in encouragementThresholds {
@@ -1681,7 +1138,6 @@ struct RunningLiveView: View {
                         isAhead: VirtualPacer.shared.isAhead
                     )
 
-                    // Capture pacer gap for post-session insights
                     coachingData.pacerGapSnapshots.append(PacerGapSnapshot(
                         elapsedTime: elapsedTime,
                         gapSeconds: VirtualPacer.shared.gapTime,
@@ -1689,7 +1145,6 @@ struct RunningLiveView: View {
                         isAhead: VirtualPacer.shared.isAhead
                     ))
 
-                    // Pace alert when significantly off target (>15s/km difference)
                     let paceNow = averagePaceSeconds
                     let pacerTarget = VirtualPacer.shared.targetPace
                     if paceNow > 0 && pacerTarget > 0 && abs(paceNow - pacerTarget) > 15 {
@@ -1712,7 +1167,7 @@ struct RunningLiveView: View {
                 }
             }
 
-            // Program interval coaching: phase transitions and countdowns
+            // Program interval coaching
             if let intervals = programIntervals, !intervals.isEmpty {
                 processProgramIntervalCoaching(intervals: intervals)
             }
@@ -1886,38 +1341,24 @@ struct RunningLiveView: View {
     }
 
     private func pauseSession() {
-        isRunning = false
-        gpsTracker?.pause()
-        workoutLifecycle.pause()
+        tracker?.pause()
     }
 
     private func resumeSession() {
-        gpsTracker?.resume()
-        workoutLifecycle.resume()
-        isRunning = true
+        tracker?.resume()
     }
 
     private func endSession() {
         timerSource?.cancel()
-        stopMotionTracking()
-        stopLocationTracking()
         VirtualPacer.shared.stop()
-        UIApplication.shared.isIdleTimerDisabled = false
-        session.endDate = Date()
-        session.totalDuration = elapsedTime
 
-        // Stop family sharing
-        if shareWithFamily {
-            Task { await sharingCoordinator.stopSharingLocation() }
-        }
-
-        // Stop LapDetector and announce track session complete
+        // Track session complete announcement
         if isTrackMode && lapDetector.lapCount > 0 {
             AudioCoachManager.shared.announceTrackSessionComplete(lapCount: lapDetector.lapCount)
             lapDetector.stop()
         }
 
-        // Audio coaching: tetrathlon race complete for time trials
+        // Tetrathlon race complete for time trials
         if session.sessionType == .timeTrial && targetDistance > 0 && AudioCoachManager.shared.announcePBRaceCoaching {
             let pbTime = personalBests.personalBest(for: targetDistance)
             let isNewPB = pbTime > 0 ? elapsedTime < pbTime : true
@@ -1929,7 +1370,7 @@ struct RunningLiveView: View {
             )
         }
 
-        // Audio coaching: announce run complete summary
+        // Run complete summary
         if AudioCoachManager.shared.announceSessionStartEnd && session.totalDistance > 100 {
             AudioCoachManager.shared.announceRunComplete(
                 distance: session.totalDistance,
@@ -1957,7 +1398,12 @@ struct RunningLiveView: View {
         coachingData.announcementCount = AudioCoachManager.shared.sessionAnnouncementCount
         session.coachingSummary = coachingData
 
-        // Fetch end weather for outdoor sessions
+        // Save weather
+        if let weather = currentWeather {
+            session.startWeather = weather
+        }
+
+        // Fetch end weather
         if session.isOutdoor {
             Task {
                 do {
@@ -1972,33 +1418,14 @@ struct RunningLiveView: View {
             }
         }
 
+        tracker?.stop()
         onEnd()
     }
 
     private func discardSession() {
         timerSource?.cancel()
-
-        // Discard workout lifecycle (don't save)
-        Task {
-            await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
-            Log.tracking.info("Discarded workout lifecycle for running")
-        }
-
-        // Stop tracking
-        watchManager.stopMotionTracking()
-        sensorAnalyzer.stopSession()
-        stopWatchStatusUpdates()
-
-        stopLocationTracking()
         VirtualPacer.shared.stop()
-        UIApplication.shared.isIdleTimerDisabled = false
-
-        // Stop family sharing
-        if shareWithFamily {
-            Task { await sharingCoordinator.stopSharingLocation() }
-        }
-
+        tracker?.discard()
         onDiscard?()
     }
 

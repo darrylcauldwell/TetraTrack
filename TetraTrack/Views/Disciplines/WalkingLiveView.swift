@@ -5,12 +5,14 @@
 //  Live walking session view with cadence display, symmetry indicator,
 //  and route-colored map.
 //
+//  Session management (GPS, HealthKit, Watch, timer, splits, sharing)
+//  is handled by RunningTracker — this view only owns UI layout.
+//
 
 import SwiftUI
 import SwiftData
 import CoreLocation
 import MapKit
-import HealthKit
 import os
 
 struct WalkingLiveView: View {
@@ -21,78 +23,28 @@ struct WalkingLiveView: View {
     let onEnd: () -> Void
     var onDiscard: (() -> Void)?
 
+    @Environment(RunningTracker.self) private var tracker: RunningTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
-    @Environment(\.modelContext) private var modelContext
 
-    @State private var isRunning = true
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var timerSource: DispatchSourceTimer?
-    @State private var showingCancelConfirmation = false
-
-    // Wall-clock timer state (independent of GPS tracker)
-    @State private var timerStartDate: Date?
-    @State private var pausedAccumulated: TimeInterval = 0
-    @State private var lastPauseDate: Date?
-
-    // Cadence tracking
-    @State private var currentCadence: Int = 0
-    @State private var cadenceReadings: [Int] = []
-
-    // Heart rate
-    @State private var currentHeartRate: Int = 0
-    @State private var maxHeartRate: Int = 0
-    @State private var minHeartRate: Int = Int.max
-    @State private var heartRateReadings: [Int] = []
-    @State private var heartRateSamples: [HeartRateSample] = []
-    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
-
-    // Map
     @State private var selectedTab: RunningTab = .stats
-
-
-    // Km split tracking
-    @State private var lastAnnouncedKm: Int = 0
-    @State private var lastKmSplitTime: TimeInterval = 0
-
-    // Last cadence announcement time
-    @State private var lastCadenceAnnouncementMark: Int = 0
-
-    // Symmetry check tracking (every 5 minutes)
-    @State private var lastSymmetryCheckMark: Int = 0
-
-    // Watch
-    private let watchManager = WatchConnectivityManager.shared
-    private let workoutLifecycle = WorkoutLifecycleService.shared
-
-    // Watch status updates
-    @State private var watchUpdateTimer: DispatchSourceTimer?
-
-    // Service startup guard
+    @State private var showingCancelConfirmation = false
     @State private var hasStartedServices = false
+
+    // Cadence feedback timing (view-only UI concern)
+    @State private var lastCadenceAnnouncementMark: Int = 0
+    @State private var lastSymmetryCheckMark: Int = 0
 
     // Route matching state
     @State private var matchedRouteName: String?
 
-    // Family sharing
-    private let sharingCoordinator = UnifiedSharingCoordinator.shared
-    @State private var lastSharingUpdateTime: Date = .distantPast
-    private let sharingUpdateInterval: TimeInterval = 10
-
-    // GPS session delegate adapter
-    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
-
-    private var estimatedMaxHR: Int { 190 }
-
     var body: some View {
         GeometryReader { _ in
             VStack(spacing: 0) {
-                // Header
                 headerView
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
 
-                // Main content - swipeable stats/map
                 TabView(selection: $selectedTab) {
                     walkingStatsView
                         .tag(RunningTab.stats)
@@ -109,37 +61,14 @@ struct WalkingLiveView: View {
             if !hasStartedServices {
                 startSession()
             }
-            if timerSource == nil {
-                startTimer()
-            }
-        }
-        .onDisappear { cleanup() }
-        .onChange(of: watchManager.heartRateSequence) {
-            let bpm = watchManager.lastReceivedHeartRate
-            guard bpm > 0 else { return }
-            hasWCSessionHR = true
-            currentHeartRate = bpm
-            heartRateReadings.append(bpm)
-            if bpm > maxHeartRate { maxHeartRate = bpm }
-            if bpm < minHeartRate { minHeartRate = bpm }
-            heartRateSamples.append(HeartRateSample(
-                timestamp: Date(),
-                bpm: bpm,
-                maxHeartRate: estimatedMaxHR
-            ))
-        }
-        .onChange(of: watchManager.motionUpdateSequence) {
-            let cad = watchManager.cadence
-            if cad > 0 {
-                currentCadence = cad
-                cadenceReadings.append(cad)
-            }
         }
         .confirmationDialog("End Walking Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
-                endSession()
+                tracker?.stop()
+                onEnd()
             }
             Button("Discard", role: .destructive) {
+                tracker?.discard()
                 onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
@@ -150,7 +79,6 @@ struct WalkingLiveView: View {
 
     private var headerView: some View {
         HStack {
-            // Page indicators
             HStack(spacing: 6) {
                 Circle()
                     .fill(selectedTab == .stats ? Color.teal : Color.gray.opacity(0.3))
@@ -162,7 +90,6 @@ struct WalkingLiveView: View {
 
             Spacer()
 
-            // Route match banner
             if let routeName = matchedRouteName {
                 HStack(spacing: 4) {
                     Image(systemName: "repeat")
@@ -178,7 +105,6 @@ struct WalkingLiveView: View {
 
             Spacer()
 
-            // Close button
             Button {
                 showingCancelConfirmation = true
             } label: {
@@ -195,19 +121,17 @@ struct WalkingLiveView: View {
         VStack(spacing: 16) {
             Spacer()
 
-            // Elapsed time
             VStack(spacing: 4) {
                 Text("WALKING")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(formatTime(elapsedTime))
+                Text(formatTime(tracker?.elapsedTime ?? 0))
                     .scaledFont(size: 56, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
             }
 
-            // Distance
             VStack(spacing: 4) {
-                Text(formatDistance(session.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
                     .foregroundStyle(.teal)
@@ -216,28 +140,25 @@ struct WalkingLiveView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Cadence with target indicator
             cadenceDisplay
 
-            // Secondary metrics row
             HStack(spacing: 24) {
                 metricColumn(
-                    value: session.totalDistance > 50 ? formatPace(session.averagePace) : "--",
+                    value: (tracker?.totalDistance ?? 0) > 50 ? formatPace(session.averagePace) : "--",
                     label: "Pace"
                 )
                 metricColumn(
-                    value: currentHeartRate > 0 ? "\(currentHeartRate)" : "--",
+                    value: (tracker?.currentHeartRate ?? 0) > 0 ? "\(tracker?.currentHeartRate ?? 0)" : "--",
                     label: "Heart Rate"
                 )
                 metricColumn(
-                    value: session.totalAscent > 0 ? String(format: "%.0f m", session.totalAscent) : "--",
+                    value: (tracker?.elevationGain ?? 0) > 0 ? String(format: "%.0f m", tracker?.elevationGain ?? 0) : "--",
                     label: "Ascent"
                 )
             }
 
             Spacer()
 
-            // Pause/Stop controls
             controlButtons
                 .padding(.bottom, 32)
         }
@@ -247,7 +168,8 @@ struct WalkingLiveView: View {
     // MARK: - Cadence Display
 
     private var cadenceDisplay: some View {
-        VStack(spacing: 8) {
+        let currentCadence = tracker?.currentCadence ?? 0
+        return VStack(spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(currentCadence > 0 ? "\(currentCadence)" : "--")
                     .scaledFont(size: 36, weight: .bold, design: .rounded, relativeTo: .title)
@@ -257,15 +179,12 @@ struct WalkingLiveView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Cadence target zone bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Background
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.white.opacity(0.1))
                         .frame(height: 8)
 
-                    // Target zone highlight (±10 SPM from target)
                     let zoneStart = max(0, CGFloat(targetCadence - 10 - 80) / 80.0)
                     let zoneEnd = min(1, CGFloat(targetCadence + 10 - 80) / 80.0)
                     RoundedRectangle(cornerRadius: 4)
@@ -273,7 +192,6 @@ struct WalkingLiveView: View {
                         .frame(width: geo.size.width * (zoneEnd - zoneStart), height: 8)
                         .offset(x: geo.size.width * zoneStart)
 
-                    // Current cadence marker
                     if currentCadence > 0 {
                         let position = min(1, max(0, CGFloat(currentCadence - 80) / 80.0))
                         Circle()
@@ -293,6 +211,7 @@ struct WalkingLiveView: View {
     }
 
     private var cadenceColor: Color {
+        let currentCadence = tracker?.currentCadence ?? 0
         guard currentCadence > 0 else { return .gray }
         let deviation = abs(currentCadence - targetCadence)
         if deviation <= 5 { return .green }
@@ -318,22 +237,25 @@ struct WalkingLiveView: View {
     // MARK: - Control Buttons
 
     private var controlButtons: some View {
-        HStack(spacing: 40) {
-            // Pause/Resume
+        let isTracking = tracker?.sessionState == .tracking
+        return HStack(spacing: 40) {
             Button {
-                togglePause()
+                if isTracking {
+                    tracker?.pause()
+                } else {
+                    tracker?.resume()
+                }
             } label: {
                 ZStack {
                     Circle()
-                        .fill(isRunning ? Color.yellow : Color.teal)
+                        .fill(isTracking ? Color.yellow : Color.teal)
                         .frame(width: 70, height: 70)
-                    Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                    Image(systemName: isTracking ? "pause.fill" : "play.fill")
                         .font(.system(size: 28))
                         .foregroundStyle(.black)
                 }
             }
 
-            // Stop
             Button {
                 showingCancelConfirmation = true
             } label: {
@@ -366,325 +288,26 @@ struct WalkingLiveView: View {
     // MARK: - Session Lifecycle
 
     private func startSession() {
-        guard !hasStartedServices else {
-            Log.location.warning("Walking: startSession() skipped — services already started")
-            return
-        }
+        guard !hasStartedServices else { return }
         hasStartedServices = true
-        Log.location.info("Walking: startSession() beginning")
 
-        session.startDate = Date()
-
-        // Set selected route if any
         if let route = selectedRoute {
             session.matchedRouteId = route.id
             matchedRouteName = route.name
         }
 
-        // Start location tracking (callback-based, matching RunningLiveView pattern)
-        startLocationTracking()
-
-        // Start Watch status updates (HR/cadence handled by .onChange modifiers)
-        startWatchStatusUpdates()
-
-        // Start HealthKit workout
-        let config = HKWorkoutConfiguration()
-        config.activityType = .walking
-        config.locationType = .outdoor
-        Task {
-            try? await workoutLifecycle.startWorkout(configuration: config)
-        }
-
-        // Audio coach - session start
-        AudioCoachManager.shared.announceWalkingSessionStart(routeName: selectedRoute?.name)
-
-        // Note: startTimer() is called from onAppear, not here,
-        // so it can recover if SwiftUI triggers onDisappear/onAppear cycles
-    }
-
-    private func endSession() {
-        stopTimer()
-        stopLocationTracking()
-
-        session.endDate = Date()
-        session.totalDuration = elapsedTime
-
-        // Finalize cadence
-        if !cadenceReadings.isEmpty {
-            session.averageCadence = cadenceReadings.reduce(0, +) / cadenceReadings.count
-            session.maxCadence = cadenceReadings.max() ?? 0
-        }
-
-        // Finalize heart rate
-        if !heartRateReadings.isEmpty {
-            session.averageHeartRate = heartRateReadings.reduce(0, +) / heartRateReadings.count
-            session.maxHeartRate = maxHeartRate
-            session.minHeartRate = heartRateReadings.filter { $0 > 0 }.min() ?? 0
-        }
-        session.heartRateSamples = heartRateSamples
-
-        // Clean up Watch status updates
-        stopWatchStatusUpdates()
-
-        // Stop family sharing
-        if shareWithFamily {
-            Task { await sharingCoordinator.stopSharingLocation() }
-        }
-
-        // End HealthKit workout with metadata
-        let walkingMetadata: [String: Any] = [
-            "SessionType": "walking",
-            HKMetadataKeyIndoorWorkout: false
-        ]
-        Task {
-            _ = await workoutLifecycle.endAndSave(metadata: walkingMetadata)
-            workoutLifecycle.sendIdleStateToWatch()
-        }
-
-        // Audio coach - session end
-        AudioCoachManager.shared.announceWalkingSessionEnd(
-            distance: session.totalDistance,
-            duration: elapsedTime,
-            averageCadence: session.averageCadence
-        )
-
-        try? modelContext.save()
-        onEnd()
-    }
-
-    private func cleanup() {
-        // Only stop the timer — location tracking continues in background.
-        // The timer is restarted in onAppear if SwiftUI triggers a
-        // disappear/appear cycle (e.g. from the paged TabView).
-        stopTimer()
-    }
-
-    // MARK: - Location Tracking
-
-    private func startLocationTracking() {
-        guard let tracker = gpsTracker else {
-            Log.location.error("Walking: gpsTracker is nil — cannot start tracking")
+        guard let tracker else {
+            Log.location.error("Walking: RunningTracker not available")
             return
         }
 
-        Log.location.info("Walking: setting up GPS session tracker")
-
-        let adapter = GPSSessionDelegateAdapter(
-            onCreate: { [self] location in
-                let point = RunningLocationPoint(from: location)
-                point.session = self.session
-                return point
-            },
-            onProcess: { [self] location, _, tracker in
-                guard self.isRunning else { return }
-
-                // Sync distance and elevation from tracker (Kalman-filtered)
-                self.session.totalDistance = tracker.totalDistance
-                self.session.totalAscent = tracker.elevationGain
-                self.session.totalDescent = tracker.elevationLoss
-
-                // Km split detection
-                let currentKm = Int(self.session.totalDistance / 1000)
-                if currentKm > self.lastAnnouncedKm && currentKm > 0 {
-                    let splitDuration = self.elapsedTime - self.lastKmSplitTime
-                    self.lastAnnouncedKm = currentKm
-                    self.lastKmSplitTime = self.elapsedTime
-
-                    let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
-                    split.duration = splitDuration
-                    if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
-                    if self.currentCadence > 0 { split.cadence = self.currentCadence }
-                    split.session = self.session
-                    if self.session.splits == nil { self.session.splits = [] }
-                    self.session.splits?.append(split)
-                    self.modelContext.insert(split)
-
-                    AudioCoachManager.shared.announceWalkingMilestone(
-                        km: currentKm,
-                        splitTime: splitDuration,
-                        totalDistance: self.session.totalDistance,
-                        cadence: self.session.averageCadence
-                    )
-
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                }
-
-                // Family sharing (throttled)
-                if self.shareWithFamily {
-                    let now = Date()
-                    if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
-                        self.lastSharingUpdateTime = now
-                        let gait = RunningPhase.fromGPSSpeed(max(0, location.speed)).toGaitType
-                        Task {
-                            await self.sharingCoordinator.updateSharedLocation(
-                                location: location,
-                                gait: gait,
-                                distance: self.session.totalDistance,
-                                duration: self.elapsedTime
-                            )
-                        }
-                    }
-                }
-            }
-        )
-        gpsDelegateAdapter = adapter
-
-        Log.location.info("Walking: starting GPS session tracker")
-        let config = GPSSessionConfig(
-            subscriberId: "walking",
-            activityType: .walking,
-            checkpointInterval: 30,
-            modelContext: modelContext,
-            workoutLifecycle: workoutLifecycle
-        )
         Task {
-            await tracker.start(config: config, delegate: adapter)
-            Log.location.info("Walking: GPS session tracker started")
-        }
-    }
-
-    private func stopLocationTracking() {
-        gpsTracker?.stop()
-    }
-
-    // Watch callbacks removed — using .onChange(of:) modifiers on watchManager properties
-
-    // MARK: - Watch Status Updates
-
-    private func startWatchStatusUpdates() {
-        sendStatusToWatch()
-
-        let queue = DispatchQueue(label: "dev.dreamfold.tetratrack.walkingWatchUpdate", qos: .utility)
-        let source = DispatchSource.makeTimerSource(queue: queue)
-        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
-        source.setEventHandler { [self] in
-            DispatchQueue.main.async {
-                self.sendStatusToWatch()
-            }
-        }
-        source.resume()
-        watchUpdateTimer = source
-    }
-
-    private func stopWatchStatusUpdates() {
-        watchUpdateTimer?.cancel()
-        watchUpdateTimer = nil
-    }
-
-    private func sendStatusToWatch() {
-        watchManager.sendStatusUpdate(
-            rideState: .tracking,
-            duration: elapsedTime,
-            distance: session.totalDistance,
-            speed: session.totalDistance > 0 && elapsedTime > 0 ? session.totalDistance / elapsedTime : 0,
-            gait: "Walking",
-            heartRate: currentHeartRate > 0 ? currentHeartRate : nil,
-            heartRateZone: nil,
-            averageHeartRate: nil,
-            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
-            horseName: nil,
-            rideType: "Walking"
-        )
-    }
-
-    // MARK: - Timer
-
-    private func startTimer() {
-        timerSource?.cancel()
-        let start = Date()
-        timerStartDate = start
-        pausedAccumulated = 0
-
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now(), repeating: .seconds(1))
-        timer.setEventHandler { [self] in
-            guard isRunning else { return }
-            elapsedTime = Date().timeIntervalSince(start) - pausedAccumulated
-            session.totalDuration = elapsedTime
-
-            // Distance/elevation sync now handled by GPSSessionDelegate callback
-
-            // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing.
-            // When mirroring is active, Watch skips companion HR (no WCSession messages),
-            // but HKLiveWorkoutDataSource still collects HR on iPhone.
-            if !hasWCSessionHR {
-                let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
-                if lifecycleHR > 0 {
-                    currentHeartRate = lifecycleHR
-                    heartRateReadings.append(lifecycleHR)
-                    if lifecycleHR > maxHeartRate { maxHeartRate = lifecycleHR }
-                    if lifecycleHR < minHeartRate { minHeartRate = lifecycleHR }
-                    heartRateSamples.append(HeartRateSample(
-                        timestamp: Date(),
-                        bpm: lifecycleHR,
-                        maxHeartRate: estimatedMaxHR
-                    ))
-                }
-            }
-
-            checkCadenceFeedback()
-            checkSymmetryFeedback()
-        }
-        timer.resume()
-        timerSource = timer
-    }
-
-    private func stopTimer() {
-        timerSource?.cancel()
-        timerSource = nil
-    }
-
-    private func togglePause() {
-        if isRunning {
-            gpsTracker?.pause()
-            workoutLifecycle.pause()
-            lastPauseDate = Date()
-            isRunning = false
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        } else {
-            if let pauseDate = lastPauseDate {
-                pausedAccumulated += Date().timeIntervalSince(pauseDate)
-            }
-            lastPauseDate = nil
-            gpsTracker?.resume()
-            workoutLifecycle.resume()
-            isRunning = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        }
-    }
-
-    // MARK: - Cadence Feedback
-
-    private func checkCadenceFeedback() {
-        // Cadence feedback every 2 minutes
-        let twoMinMark = Int(elapsedTime) / 120
-        if twoMinMark > lastCadenceAnnouncementMark && currentCadence > 0 {
-            lastCadenceAnnouncementMark = twoMinMark
-            AudioCoachManager.shared.announceWalkingCadenceFeedback(
-                currentCadence: currentCadence,
+            await tracker.startSession(
+                session,
+                mode: .walking,
+                shareWithFamily: shareWithFamily,
                 targetCadence: targetCadence
             )
-        }
-    }
-
-    // MARK: - Symmetry Feedback
-
-    private func checkSymmetryFeedback() {
-        // Symmetry check every 5 minutes
-        let fiveMinMark = Int(elapsedTime) / 300
-        guard fiveMinMark > lastSymmetryCheckMark else { return }
-        lastSymmetryCheckMark = fiveMinMark
-
-        Task {
-            let healthKit = HealthKitManager.shared
-            if let asymmetry = await healthKit.fetchRunningAsymmetry(
-                from: session.startDate,
-                to: Date()
-            ), asymmetry > 10 {
-                await MainActor.run {
-                    AudioCoachManager.shared.announceWalkingSymmetryAlert(asymmetry: asymmetry)
-                }
-            }
         }
     }
 

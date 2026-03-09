@@ -57,29 +57,6 @@ protocol GPSSessionDelegate: AnyObject {
     func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker)
 }
 
-/// Closure-based adapter for GPSSessionDelegate, used by SwiftUI View structs
-/// that cannot directly conform to AnyObject protocols.
-final class GPSSessionDelegateAdapter: GPSSessionDelegate {
-    private let onCreate: (CLLocation) -> (any PersistentModel)?
-    private let onProcess: ((CLLocation, Double, GPSSessionTracker) -> Void)?
-
-    init(
-        onCreate: @escaping (CLLocation) -> (any PersistentModel)?,
-        onProcess: ((CLLocation, Double, GPSSessionTracker) -> Void)? = nil
-    ) {
-        self.onCreate = onCreate
-        self.onProcess = onProcess
-    }
-
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
-        onCreate(location)
-    }
-
-    func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker) {
-        onProcess?(location, distanceDelta, tracker)
-    }
-}
-
 /// Configuration for starting a GPS session
 struct GPSSessionConfig {
     let subscriberId: String
@@ -149,7 +126,10 @@ final class GPSSessionTracker {
     // MARK: - Delegate
 
     /// Discipline-specific delegate for location point creation and analysis
-    weak var delegate: GPSSessionDelegate?
+    /// Strong reference — lifecycle is symmetric: set on start(), cleared on stop().
+    /// All delegates (RideTracker, RunningTracker, SwimmingTracker) are long-lived
+    /// @Observable services, so no retain cycle risk.
+    var delegate: GPSSessionDelegate?
 
     // MARK: - Dependencies
 

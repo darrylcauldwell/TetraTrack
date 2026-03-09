@@ -150,6 +150,8 @@ struct TetraTrackApp: App {
     @State private var locationManager = LocationManager()
     @State private var gpsTracker: GPSSessionTracker?
     @State private var rideTracker: RideTracker?
+    @State private var runningTracker: RunningTracker?
+    @State private var swimmingTracker: SwimmingTracker?
     @State private var isConfigured = false
     @State private var showShareLinkAlert = false
     @State private var shareLinkAlertMessage = ""
@@ -171,6 +173,8 @@ struct TetraTrackApp: App {
             .environment(locationManager)
             .environment(gpsTracker)
             .environment(rideTracker)
+            .environment(runningTracker)
+            .environment(swimmingTracker)
             .viewContext(viewContext)
             .onAppear(perform: handleAppear)
             .task { await handleInitialSetup() }
@@ -212,6 +216,16 @@ struct TetraTrackApp: App {
             rideTracker = tracker
             Log.app.info("RideTracker created")
         }
+        if runningTracker == nil, let gps = gpsTracker {
+            Log.app.info("Creating RunningTracker...")
+            runningTracker = RunningTracker(locationManager: locationManager, gpsTracker: gps)
+            Log.app.info("RunningTracker created")
+        }
+        if swimmingTracker == nil, let gps = gpsTracker {
+            Log.app.info("Creating SwimmingTracker...")
+            swimmingTracker = SwimmingTracker(locationManager: locationManager, gpsTracker: gps)
+            Log.app.info("SwimmingTracker created")
+        }
         configureAppIfNeeded()
     }
 
@@ -223,13 +237,16 @@ struct TetraTrackApp: App {
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
         let hasActiveRide = rideTracker?.rideState == .tracking || rideTracker?.rideState == .paused
+        let hasActiveSession = hasActiveRide
+            || runningTracker?.sessionState.isActive == true
+            || swimmingTracker?.sessionState.isActive == true
 
         switch newPhase {
         case .background:
-            // Only stop audio if there is no active ride.
-            // During an active ride, audio coaching and safety announcements
+            // Only stop audio if there is no active session.
+            // During an active session, audio coaching and safety announcements
             // must continue playing with the screen off.
-            if !hasActiveRide {
+            if !hasActiveSession {
                 AudioCoachManager.shared.stopSpeaking()
             }
 
@@ -240,10 +257,18 @@ struct TetraTrackApp: App {
                 locationManager.stopTracking()
             }
 
-            // Checkpoint save ride data when entering background
+            // Checkpoint save active session data when entering background
             if hasActiveRide {
                 rideTracker?.checkpointSave()
                 Log.app.info("Checkpoint save triggered for active ride entering background")
+            }
+            if runningTracker?.sessionState.isActive == true {
+                runningTracker?.checkpointSave()
+                Log.app.info("Checkpoint save triggered for active running/walking session entering background")
+            }
+            if swimmingTracker?.sessionState.isActive == true {
+                swimmingTracker?.checkpointSave()
+                Log.app.info("Checkpoint save triggered for active swimming session entering background")
             }
 
             // Suspend family location refresh loop to prevent battery drain
@@ -254,8 +279,8 @@ struct TetraTrackApp: App {
             Log.app.info("App entered background - active ride: \(hasActiveRide)")
 
         case .inactive:
-            // Only stop audio when no ride is active
-            if !hasActiveRide {
+            // Only stop audio when no session is active
+            if !hasActiveSession {
                 AudioCoachManager.shared.stopSpeaking()
             }
 
@@ -284,8 +309,10 @@ struct TetraTrackApp: App {
         guard !isConfigured else { return }
         guard let tracker = rideTracker else { return }
 
-        // Configure RideTracker with model context
+        // Configure trackers with model context
         tracker.configure(with: sharedModelContainer.mainContext)
+        runningTracker?.configure(with: sharedModelContainer.mainContext)
+        swimmingTracker?.configure(with: sharedModelContainer.mainContext)
 
         // Auto-generate screenshot data when launched with -screenshotMode
         if ProcessInfo.processInfo.arguments.contains("-screenshotMode") {

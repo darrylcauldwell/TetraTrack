@@ -34,5 +34,7 @@ struct ContentView: View {
         .environment(locManager)
         .environment(gpsTracker)
         .environment(RideTracker(locationManager: locManager, gpsTracker: gpsTracker))
+        .environment(RunningTracker(locationManager: locManager, gpsTracker: gpsTracker))
+        .environment(SwimmingTracker(locationManager: locManager, gpsTracker: gpsTracker))
         .modelContainer(for: [Ride.self, LocationPoint.self, GaitSegment.self, FlatworkExercise.self], inMemory: true)
 }
