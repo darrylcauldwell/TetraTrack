@@ -14,7 +14,7 @@ enum Log {
     /// General app logging
     static nonisolated let app = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TetraTrack", category: "App")
 
-    /// Services layer logging (RideTracker, etc.)
+    /// Services layer logging (SessionTracker, etc.)
     static nonisolated let services = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TetraTrack", category: "Services")
 
     /// Ride tracking logging (start, stop, state changes)
