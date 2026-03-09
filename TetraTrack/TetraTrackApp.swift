@@ -149,7 +149,7 @@ struct TetraTrackApp: App {
 
     @State private var locationManager = LocationManager()
     @State private var gpsTracker: GPSSessionTracker?
-    @State private var rideTracker: RideTracker?
+    @State private var sessionTracker: SessionTracker?
     @State private var isConfigured = false
     @State private var showShareLinkAlert = false
     @State private var shareLinkAlertMessage = ""
@@ -170,12 +170,12 @@ struct TetraTrackApp: App {
             .environment(\.locale, LocalizationManager.shared.locale)
             .environment(locationManager)
             .environment(gpsTracker)
-            .environment(rideTracker)
+            .environment(sessionTracker)
             .viewContext(viewContext)
             .onAppear(perform: handleAppear)
             .task { await handleInitialSetup() }
             .modifier(SiriNotificationModifier(
-                rideTracker: $rideTracker,
+                sessionTracker: $sessionTracker,
                 onStartRide: handleStartRide,
                 onAnnounceStatus: announceCurrentStatus,
                 onSetAudio: setAudioCoaching,
@@ -200,17 +200,17 @@ struct TetraTrackApp: App {
     }
 
     private func handleAppear() {
-        Log.app.info("ContentView.onAppear - rideTracker is \(rideTracker == nil ? "nil" : "set")")
+        Log.app.info("ContentView.onAppear - sessionTracker is \(sessionTracker == nil ? "nil" : "set")")
         if gpsTracker == nil {
             Log.app.info("Creating GPSSessionTracker...")
             gpsTracker = GPSSessionTracker(locationManager: locationManager)
             Log.app.info("GPSSessionTracker created")
         }
-        if rideTracker == nil, let gps = gpsTracker {
-            Log.app.info("Creating RideTracker...")
-            let tracker = RideTracker(locationManager: locationManager, gpsTracker: gps)
-            rideTracker = tracker
-            Log.app.info("RideTracker created")
+        if sessionTracker == nil, let gps = gpsTracker {
+            Log.app.info("Creating SessionTracker...")
+            let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gps)
+            sessionTracker = tracker
+            Log.app.info("SessionTracker created")
         }
         configureAppIfNeeded()
     }
@@ -222,28 +222,28 @@ struct TetraTrackApp: App {
     }
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
-        let hasActiveRide = rideTracker?.rideState == .tracking || rideTracker?.rideState == .paused
+        let hasActiveSession = sessionTracker?.sessionState.isActive ?? false
 
         switch newPhase {
         case .background:
-            // Only stop audio if there is no active ride.
-            // During an active ride, audio coaching and safety announcements
+            // Only stop audio if there is no active session.
+            // During an active session, audio coaching and safety announcements
             // must continue playing with the screen off.
-            if !hasActiveRide {
+            if !hasActiveSession {
                 AudioCoachManager.shared.stopSpeaking()
             }
 
             // Only clean up location tracking if nothing is actively using it.
             // Running and swimming sessions also use LocationManager, not just rides.
             // Each session is responsible for stopping tracking on end/discard.
-            if rideTracker?.rideState == .idle && !locationManager.isTracking {
+            if sessionTracker?.sessionState == .idle && !locationManager.isTracking {
                 locationManager.stopTracking()
             }
 
-            // Checkpoint save ride data when entering background
-            if hasActiveRide {
-                rideTracker?.checkpointSave()
-                Log.app.info("Checkpoint save triggered for active ride entering background")
+            // Checkpoint save session data when entering background
+            if hasActiveSession {
+                sessionTracker?.checkpointSave()
+                Log.app.info("Checkpoint save triggered for active session entering background")
             }
 
             // Suspend family location refresh loop to prevent battery drain
@@ -251,11 +251,11 @@ struct TetraTrackApp: App {
                 UnifiedSharingCoordinator.shared.suspendWatchingForBackground()
             }
 
-            Log.app.info("App entered background - active ride: \(hasActiveRide)")
+            Log.app.info("App entered background - active session: \(hasActiveSession)")
 
         case .inactive:
-            // Only stop audio when no ride is active
-            if !hasActiveRide {
+            // Only stop audio when no session is active
+            if !hasActiveSession {
                 AudioCoachManager.shared.stopSpeaking()
             }
 
@@ -282,9 +282,9 @@ struct TetraTrackApp: App {
     private func configureAppIfNeeded() {
         // Only run one-time setup once
         guard !isConfigured else { return }
-        guard let tracker = rideTracker else { return }
+        guard let tracker = sessionTracker else { return }
 
-        // Configure RideTracker with model context
+        // Configure SessionTracker with model context
         tracker.configure(with: sharedModelContainer.mainContext)
 
         // Auto-generate screenshot data when launched with -screenshotMode
@@ -411,12 +411,12 @@ struct TetraTrackApp: App {
         let audioCoach = AudioCoachManager.shared
         let fallDetectionActive = FallDetectionManager.shared.isMonitoring
 
-        if rideTracker?.rideState == .tracking {
+        if sessionTracker?.sessionState == .tracking {
             audioCoach.announceSafetyStatus(fallDetectionActive: fallDetectionActive)
-        } else if rideTracker?.rideState == .paused {
-            audioCoach.announce("Ride is paused. Tracking will resume when you continue.")
+        } else if sessionTracker?.sessionState == .paused {
+            audioCoach.announce("Session is paused. Tracking will resume when you continue.")
         } else {
-            audioCoach.announce("No ride in progress. Say start my ride to begin tracking.")
+            audioCoach.announce("No session in progress. Say start my ride to begin tracking.")
         }
     }
 
@@ -444,15 +444,16 @@ struct TetraTrackApp: App {
     }
 
     private func handleStartRide(notification: Notification) {
-        guard let tracker = rideTracker else { return }
+        guard let tracker = sessionTracker else { return }
 
+        let plugin = RidingPlugin()
         if let rideTypeRaw = notification.userInfo?["rideType"] as? String,
            let rideType = RideType(rawValue: rideTypeRaw) {
-            tracker.selectedRideType = rideType
+            plugin.selectedRideType = rideType
         }
 
         Task {
-            await tracker.startRide()
+            await tracker.startSession(plugin: plugin)
         }
     }
 
@@ -545,7 +546,7 @@ struct TetraTrackApp: App {
 /// Extracts Siri .onReceive handlers into a ViewModifier to reduce type-checker
 /// complexity in the main App body.
 private struct SiriNotificationModifier: ViewModifier {
-    @Binding var rideTracker: RideTracker?
+    @Binding var sessionTracker: SessionTracker?
     var onStartRide: (Notification) -> Void
     var onAnnounceStatus: () -> Void
     var onSetAudio: (Bool) -> Void
@@ -557,13 +558,13 @@ private struct SiriNotificationModifier: ViewModifier {
                 onStartRide(notification)
             }
             .onReceive(NotificationCenter.default.publisher(for: .stopRideFromSiri)) { _ in
-                rideTracker?.stopRide()
+                sessionTracker?.stopSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: .pauseRideFromSiri)) { _ in
-                rideTracker?.pauseRide()
+                sessionTracker?.pauseSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: .resumeRideFromSiri)) { _ in
-                rideTracker?.resumeRide()
+                sessionTracker?.resumeSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
                 onAnnounceStatus()

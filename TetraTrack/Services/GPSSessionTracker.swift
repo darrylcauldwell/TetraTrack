@@ -59,6 +59,7 @@ protocol GPSSessionDelegate: AnyObject {
 
 /// Closure-based adapter for GPSSessionDelegate, used by SwiftUI View structs
 /// that cannot directly conform to AnyObject protocols.
+@available(*, deprecated, message: "Use SessionTracker instead. Walking, Running, Swimming plugins will be created in Phases 2-4.")
 final class GPSSessionDelegateAdapter: GPSSessionDelegate {
     private let onCreate: (CLLocation) -> (any PersistentModel)?
     private let onProcess: ((CLLocation, Double, GPSSessionTracker) -> Void)?
@@ -200,6 +201,7 @@ final class GPSSessionTracker {
         self.delegate = delegate
         self.subscriberId = config.subscriberId
         self.currentActivityType = config.activityType
+        Log.location.info("GPS session starting: delegate=\(type(of: delegate)), subscriber=\(config.subscriberId), activity=\(String(describing: config.activityType))")
 
         // Reset state
         totalDistance = 0
@@ -307,6 +309,16 @@ final class GPSSessionTracker {
         // Reset filter
         filter.reset()
 
+        // Log integrity report
+        let duration = Int(elapsedTime)
+        let raw = diagnostics.totalRawReceived
+        let accepted = diagnostics.totalFilterAccepted
+        let rejected = diagnostics.totalFilterRejected
+        let persisted = diagnostics.totalPersisted
+        let checkpoints = diagnostics.checkpointCount
+        let pedFallback = isUsingPedometerFallback ? "active" : "inactive"
+        Log.location.info("GPS session stopped: duration=\(duration)s, raw=\(raw), accepted=\(accepted), rejected=\(rejected), persisted=\(persisted), checkpoints=\(checkpoints), pedometer=\(pedFallback)")
+
         // Clear config and delegate
         subscriberId = nil
         config = nil
@@ -338,7 +350,12 @@ final class GPSSessionTracker {
         }
 
         // Update warm-up state from filter
+        let wasWarmedUp = isWarmedUp
         isWarmedUp = filter.isWarmedUp
+        if !wasWarmedUp && isWarmedUp {
+            let rawCount = diagnostics.totalRawReceived
+            Log.location.info("GPS filter warmed up after \(rawCount) raw locations")
+        }
 
         // Record that GPS filter accepted a point
         let wasInPedometerFallback = isUsingPedometerFallback
@@ -354,6 +371,8 @@ final class GPSSessionTracker {
 
         // Recovery from pedometer gap: skip GPS jump delta to avoid double-counting
         if wasInPedometerFallback {
+            let gapDist = String(format: "%.1f", pedometerGapAccumulated)
+            Log.location.info("Pedometer fallback deactivated: GPS recovered, gap distance=\(gapDist)m")
             isUsingPedometerFallback = false
             pedometerGapAccumulated = 0
 
@@ -426,6 +445,17 @@ final class GPSSessionTracker {
             guard let self, let start = self.sessionStartTime, !self.isPaused else { return }
             self.elapsedTime = Date().timeIntervalSince(start) - self.pausedAccumulated
 
+            // Periodic filter stats (every 30s)
+            if Int(self.elapsedTime) > 0, Int(self.elapsedTime) % 30 == 0 {
+                let total = self.diagnostics.totalFilterAccepted + self.diagnostics.totalFilterRejected
+                if total > 0 {
+                    let rejectRate = Double(self.diagnostics.totalFilterRejected) / Double(total) * 100
+                    if rejectRate > 50 {
+                        Log.location.warning("GPS filter rejection rate high: \(String(format: "%.0f", rejectRate))% (\(self.diagnostics.totalFilterRejected)/\(total))")
+                    }
+                }
+            }
+
             // Checkpoint save at configured interval
             if let config = self.config {
                 let interval = config.checkpointInterval
@@ -452,9 +482,15 @@ final class GPSSessionTracker {
     /// Persist a filtered location point via delegate. GPSSessionTracker owns the insert.
     private func persistLocationPoint(_ location: CLLocation) {
         guard let config else { return }
-        if let point = delegate?.createLocationPoint(from: location) {
+        guard let delegate else {
+            Log.location.error("persistLocationPoint: delegate is nil — location point will be lost")
+            return
+        }
+        if let point = delegate.createLocationPoint(from: location) {
             config.modelContext.insert(point)
             diagnostics.recordPersisted()
+        } else {
+            Log.location.error("persistLocationPoint: delegate returned nil point")
         }
     }
 
@@ -557,6 +593,10 @@ final class GPSSessionTracker {
 
         let gapDuration = Date().timeIntervalSince(lastAccept)
         if gapDuration > Self.gpsGapThreshold && pedometerDelta > 0 {
+            if !isUsingPedometerFallback {
+                let gap = String(format: "%.1f", gapDuration)
+                Log.location.info("Pedometer fallback activated: GPS gap \(gap)s")
+            }
             totalDistance += pedometerDelta
             pedometerGapAccumulated += pedometerDelta
             isUsingPedometerFallback = true

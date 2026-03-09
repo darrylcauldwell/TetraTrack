@@ -9,7 +9,7 @@ import SwiftUI
 import os
 
 struct FamilyView: View {
-    @Environment(RideTracker.self) private var rideTracker: RideTracker?
+    @Environment(SessionTracker.self) private var sessionTracker: SessionTracker?
     private let sharingCoordinator = UnifiedSharingCoordinator.shared
     private let notificationManager = NotificationManager.shared
     private let syncMonitor = SyncStatusMonitor.shared
@@ -36,7 +36,7 @@ struct FamilyView: View {
                         // Has contacts - show merged sharing status and contacts
                         SharingWithCard(
                             contacts: trustedContacts,
-                            rideTracker: rideTracker,
+                            sessionTracker: sessionTracker,
                             notificationManager: notificationManager,
                             sharingCoordinator: sharingCoordinator,
                             onAddMember: { showingAddMember = true },
@@ -356,7 +356,7 @@ struct ActiveRideCard: View {
 
 struct SharingWithCard: View {
     let contacts: [SharingRelationship]
-    let rideTracker: RideTracker?
+    let sessionTracker: SessionTracker?
     let notificationManager: NotificationManager
     let sharingCoordinator: UnifiedSharingCoordinator
     let onAddMember: () -> Void
@@ -381,20 +381,20 @@ struct SharingWithCard: View {
             }
 
             // Current sharing status
-            if let tracker = rideTracker {
+            if let tracker = sessionTracker {
                 HStack(spacing: 8) {
-                    Image(systemName: tracker.rideState == .tracking ? "antenna.radiowaves.left.and.right" : "circle")
+                    Image(systemName: tracker.sessionState == .tracking ? "antenna.radiowaves.left.and.right" : "circle")
                         .font(.caption)
-                        .foregroundStyle(tracker.rideState == .tracking ? AppColors.active : .secondary)
+                        .foregroundStyle(tracker.sessionState == .tracking ? AppColors.active : .secondary)
 
-                    Text(tracker.rideState == .tracking ? "Currently sharing your ride" : "Not currently riding")
+                    Text(tracker.sessionState == .tracking ? "Currently sharing your ride" : "Not currently riding")
                         .font(.caption)
-                        .foregroundStyle(tracker.rideState == .tracking ? AppColors.active : .secondary)
+                        .foregroundStyle(tracker.sessionState == .tracking ? AppColors.active : .secondary)
                 }
                 .padding(.top, 8)
 
                 // Show error indicator when location updates are failing
-                if tracker.rideState == .tracking && sharingCoordinator.hasLocationUpdateError {
+                if tracker.sessionState == .tracking && sharingCoordinator.hasLocationUpdateError {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -1420,5 +1420,5 @@ struct BulletPoint: View {
     let locManager = LocationManager()
     let gpsTracker = GPSSessionTracker(locationManager: locManager)
     FamilyView()
-        .environment(RideTracker(locationManager: locManager, gpsTracker: gpsTracker))
+        .environment(SessionTracker(locationManager: locManager, gpsTracker: gpsTracker))
 }
