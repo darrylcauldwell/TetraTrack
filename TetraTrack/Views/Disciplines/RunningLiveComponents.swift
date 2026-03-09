@@ -147,6 +147,9 @@ struct RunningLiveView: View {
     @State private var lastSharingUpdateTime: Date = .distantPast
     private let sharingUpdateInterval: TimeInterval = 10
 
+    // GPS session delegate adapter (strong ref to prevent dealloc while tracker holds weak ref)
+    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
+
     enum IntervalWorkoutPhase {
         case warmup, work, rest, cooldown, finished
     }
@@ -547,94 +550,96 @@ struct RunningLiveView: View {
 
         Log.location.info("Running: setting up GPS session tracker")
 
-        // Persist filtered locations as RunningLocationPoints
-        tracker.insertLocationPoint = { [self] location, ctx in
-            let point = RunningLocationPoint(from: location)
-            point.session = self.session
-            ctx.insert(point)
-        }
+        let adapter = GPSSessionDelegateAdapter(
+            onCreate: { [self] location in
+                let point = RunningLocationPoint(from: location)
+                point.session = self.session
+                return point
+            },
+            onProcess: { [self] location, distanceDelta, tracker in
+                // Sync distance and elevation from tracker (Kalman-filtered)
+                self.session.totalDistance = tracker.totalDistance
+                self.session.totalAscent = tracker.elevationGain
+                self.session.totalDescent = tracker.elevationLoss
 
-        // Running-specific logic after each filtered GPS point
-        tracker.onLocationProcessed = { [self] location, distanceDelta in
-            // Sync distance and elevation from tracker (Kalman-filtered)
-            self.session.totalDistance = tracker.totalDistance
-            self.session.totalAscent = tracker.elevationGain
-            self.session.totalDescent = tracker.elevationLoss
+                // Outdoor run: detect km boundary crossing for split announcements
+                if !self.isTrackMode {
+                    let currentKm = Int(self.session.totalDistance / 1000)
+                    if currentKm > self.lastAnnouncedKm && currentKm > 0 {
+                        let splitDuration = self.elapsedTime - self.lastKmSplitTime
+                        self.lastAnnouncedKm = currentKm
+                        self.lastKmSplitTime = self.elapsedTime
 
-            // Outdoor run: detect km boundary crossing for split announcements
-            if !self.isTrackMode {
-                let currentKm = Int(self.session.totalDistance / 1000)
-                if currentKm > self.lastAnnouncedKm && currentKm > 0 {
-                    let splitDuration = self.elapsedTime - self.lastKmSplitTime
-                    self.lastAnnouncedKm = currentKm
-                    self.lastKmSplitTime = self.elapsedTime
+                        let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
+                        split.duration = splitDuration
+                        if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
+                        if self.cadence > 0 { split.cadence = self.cadence }
+                        split.session = self.session
+                        if self.session.splits == nil { self.session.splits = [] }
+                        self.session.splits?.append(split)
+                        self.modelContext.insert(split)
 
-                    let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
-                    split.duration = splitDuration
-                    if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
-                    if self.cadence > 0 { split.cadence = self.cadence }
-                    split.session = self.session
-                    if self.session.splits == nil { self.session.splits = [] }
-                    self.session.splits?.append(split)
-                    self.modelContext.insert(split)
+                        if AudioCoachManager.shared.announceRunningPace {
+                            let splitPace = splitDuration
+                            let remaining = self.targetDistance > 0
+                                ? self.targetDistance - self.session.totalDistance : nil
+                            AudioCoachManager.shared.announceKmSplit(
+                                km: currentKm,
+                                averagePace: splitPace,
+                                gapMeters: nil,
+                                remaining: remaining
+                            )
+                        }
 
-                    if AudioCoachManager.shared.announceRunningPace {
-                        let splitPace = splitDuration
-                        let remaining = self.targetDistance > 0
-                            ? self.targetDistance - self.session.totalDistance : nil
-                        AudioCoachManager.shared.announceKmSplit(
-                            km: currentKm,
-                            averagePace: splitPace,
-                            gapMeters: nil,
-                            remaining: remaining
-                        )
-                    }
-
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-                }
-            }
-
-            // Update virtual pacer with current distance
-            if VirtualPacer.shared.isActive {
-                VirtualPacer.shared.update(distance: self.session.totalDistance, elapsedTime: self.elapsedTime)
-            }
-
-            // Vehicle detection
-            self.checkForVehicleSpeed(location.speed)
-
-            // Track mode: auto-detect laps via LapDetector
-            if self.isTrackMode {
-                self.lapDetector.processLocation(location, elapsedTime: self.elapsedTime)
-            }
-
-            // Family sharing location update (throttled every 10 seconds)
-            if self.shareWithFamily {
-                let now = Date()
-                if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
-                    self.lastSharingUpdateTime = now
-                    let currentSpeed = location.speed >= 0 ? location.speed : 0
-                    let gait = RunningPhase.fromGPSSpeed(currentSpeed).toGaitType
-                    Task {
-                        await self.sharingCoordinator.updateSharedLocation(
-                            location: location,
-                            gait: gait,
-                            distance: self.session.totalDistance,
-                            duration: self.elapsedTime
-                        )
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                        generator.impactOccurred()
                     }
                 }
+
+                // Update virtual pacer with current distance
+                if VirtualPacer.shared.isActive {
+                    VirtualPacer.shared.update(distance: self.session.totalDistance, elapsedTime: self.elapsedTime)
+                }
+
+                // Vehicle detection
+                self.checkForVehicleSpeed(location.speed)
+
+                // Track mode: auto-detect laps via LapDetector
+                if self.isTrackMode {
+                    self.lapDetector.processLocation(location, elapsedTime: self.elapsedTime)
+                }
+
+                // Family sharing location update (throttled every 10 seconds)
+                if self.shareWithFamily {
+                    let now = Date()
+                    if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
+                        self.lastSharingUpdateTime = now
+                        let currentSpeed = location.speed >= 0 ? location.speed : 0
+                        let gait = RunningPhase.fromGPSSpeed(currentSpeed).toGaitType
+                        Task {
+                            await self.sharingCoordinator.updateSharedLocation(
+                                location: location,
+                                gait: gait,
+                                distance: self.session.totalDistance,
+                                duration: self.elapsedTime
+                            )
+                        }
+                    }
+                }
             }
-        }
+        )
+        gpsDelegateAdapter = adapter
 
         Log.location.info("Running: starting GPS session tracker")
+        let config = GPSSessionConfig(
+            subscriberId: "running",
+            activityType: .running,
+            checkpointInterval: 30,
+            modelContext: modelContext,
+            workoutLifecycle: workoutLifecycle
+        )
         Task {
-            await tracker.start(
-                subscriberId: "running",
-                activityType: .running,
-                modelContext: modelContext,
-                workoutLifecycle: workoutLifecycle
-            )
+            await tracker.start(config: config, delegate: adapter)
             Log.location.info("Running: GPS session tracker started")
         }
     }

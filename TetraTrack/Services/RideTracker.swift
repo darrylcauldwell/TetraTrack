@@ -318,7 +318,6 @@ final class RideTracker {
         self.fallDetectionManager = fallDetection
         self.audioCoach = audioCoach
         self.weatherService = weatherService
-        setupLocationCallback()
         setupMotionCallback()
         setupGaitCallback()
         setupReinCallback()
@@ -337,20 +336,7 @@ final class RideTracker {
         healthCoordinator.configure(riderProfile: riderProfile)
     }
 
-    private func setupLocationCallback() {
-        // Persist filtered locations as LocationPoints
-        gpsTracker.insertLocationPoint = { [weak self] location, ctx in
-            guard let self, let ride = self.currentRide else { return }
-            let point = LocationPoint(from: location)
-            point.ride = ride
-            ctx.insert(point)
-        }
-
-        // Riding-specific analysis after each filtered GPS point
-        gpsTracker.onLocationProcessed = { [weak self] location, distanceDelta in
-            self?.handleRidingAnalysis(location, distanceDelta: distanceDelta)
-        }
-    }
+    // setupLocationCallback removed — RideTracker conforms to GPSSessionDelegate
 
     private func setupMotionCallback() {
         motionManager.onMotionUpdate = { [weak self] sample in
@@ -640,17 +626,20 @@ final class RideTracker {
         // Clear tracked points for fresh route display
         locationManager.clearTrackedPoints()
 
-        // Re-establish GPS tracker callbacks (in case they were overwritten by another view)
-        setupLocationCallback()
-
-        // Start GPS session tracker (handles location subscription, filtering, timer)
+        // Start GPS session tracker with delegate pattern
         Log.tracking.debug("Starting GPS session tracker...")
-        await gpsTracker.start(
+        guard let ctx = modelContext else {
+            Log.tracking.error("startRide() aborted - no modelContext")
+            return
+        }
+        let gpsConfig = GPSSessionConfig(
             subscriberId: "ride",
             activityType: .riding,
-            modelContext: modelContext,
+            checkpointInterval: 30,
+            modelContext: ctx,
             workoutLifecycle: workoutLifecycle
         )
+        await gpsTracker.start(config: gpsConfig, delegate: self)
         Log.tracking.debug("GPS session tracker started")
 
         // Auto-enable family sharing if any contacts have live tracking permission
@@ -1517,11 +1506,7 @@ final class RideTracker {
                     self.processXCTimingAlerts()
                 }
 
-                // Periodic checkpoint save every 30 seconds
-                self.timerTickCount += 1
-                if self.timerTickCount % 30 == 0 {
-                    self.checkpointSave()
-                }
+                // Checkpoint saves now handled by GPSSessionTracker
             }
         }
         source.resume()
@@ -1737,5 +1722,20 @@ final class RideTracker {
             timeDifference: timeDiff,
             elevation: elev
         )
+    }
+}
+
+// MARK: - GPSSessionDelegate
+
+extension RideTracker: GPSSessionDelegate {
+    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+        guard let ride = currentRide else { return nil }
+        let point = LocationPoint(from: location)
+        point.ride = ride
+        return point
+    }
+
+    func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker) {
+        handleRidingAnalysis(location, distanceDelta: distanceDelta)
     }
 }

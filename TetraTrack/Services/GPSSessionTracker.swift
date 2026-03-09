@@ -9,11 +9,91 @@ import Observation
 import SwiftData
 import os
 
+/// GPS session diagnostics for debugging location persistence issues
+@Observable
+final class GPSDiagnostics {
+    private(set) var totalRawReceived: Int = 0
+    private(set) var totalFilterAccepted: Int = 0
+    private(set) var totalFilterRejected: Int = 0
+    private(set) var totalPersisted: Int = 0
+    private(set) var lastRejectReason: GPSFilterRejectReason?
+    private(set) var lastPersistedAt: Date?
+    private(set) var lastCheckpointAt: Date?
+    private(set) var checkpointCount: Int = 0
+
+    func recordRawReceived() { totalRawReceived += 1 }
+    func recordAccepted() { totalFilterAccepted += 1 }
+    func recordRejected(_ reason: GPSFilterRejectReason) {
+        totalFilterRejected += 1
+        lastRejectReason = reason
+    }
+    func recordPersisted() {
+        totalPersisted += 1
+        lastPersistedAt = Date()
+    }
+    func recordCheckpoint() {
+        checkpointCount += 1
+        lastCheckpointAt = Date()
+    }
+    func reset() {
+        totalRawReceived = 0
+        totalFilterAccepted = 0
+        totalFilterRejected = 0
+        totalPersisted = 0
+        lastRejectReason = nil
+        lastPersistedAt = nil
+        lastCheckpointAt = nil
+        checkpointCount = 0
+    }
+}
+
+/// Delegate for discipline-specific GPS session behavior.
+/// GPSSessionTracker owns persistence and checkpoint saves; disciplines provide
+/// location point creation and analysis logic.
+protocol GPSSessionDelegate: AnyObject {
+    /// Create a discipline-specific location point model. GPSSessionTracker inserts it.
+    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)?
+    /// Called after location is processed and persisted. For discipline-specific analysis.
+    func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker)
+}
+
+/// Closure-based adapter for GPSSessionDelegate, used by SwiftUI View structs
+/// that cannot directly conform to AnyObject protocols.
+final class GPSSessionDelegateAdapter: GPSSessionDelegate {
+    private let onCreate: (CLLocation) -> (any PersistentModel)?
+    private let onProcess: ((CLLocation, Double, GPSSessionTracker) -> Void)?
+
+    init(
+        onCreate: @escaping (CLLocation) -> (any PersistentModel)?,
+        onProcess: ((CLLocation, Double, GPSSessionTracker) -> Void)? = nil
+    ) {
+        self.onCreate = onCreate
+        self.onProcess = onProcess
+    }
+
+    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+        onCreate(location)
+    }
+
+    func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker) {
+        onProcess?(location, distanceDelta, tracker)
+    }
+}
+
+/// Configuration for starting a GPS session
+struct GPSSessionConfig {
+    let subscriberId: String
+    let activityType: GPSActivityType
+    let checkpointInterval: TimeInterval
+    let modelContext: ModelContext
+    let workoutLifecycle: WorkoutLifecycleService?
+}
+
 /// Shared GPS session tracker used by all disciplines (riding, running, walking, swimming).
 /// Manages filtered location tracking, distance accumulation, route storage, wall-clock timer,
-/// elevation tracking (barometric + GPS fallback), and GPS signal quality.
+/// elevation tracking (barometric + GPS fallback), GPS signal quality, persistence, and checkpoint saves.
 ///
-/// Discipline-specific logic hooks in via `onLocationProcessed` callback.
+/// Discipline-specific logic hooks in via `GPSSessionDelegate`.
 @Observable
 final class GPSSessionTracker {
     // MARK: - Observable State (views bind to these)
@@ -63,15 +143,13 @@ final class GPSSessionTracker {
     /// Cumulative pedometer step count this session
     private(set) var pedometerSteps: Int = 0
 
-    // MARK: - Discipline Hooks
+    /// GPS diagnostics for debugging persistence issues
+    private(set) var diagnostics = GPSDiagnostics()
 
-    /// Called after filtering for each valid location.
-    /// Parameters: (filteredLocation, distanceDelta)
-    var onLocationProcessed: ((CLLocation, Double) -> Void)?
+    // MARK: - Delegate
 
-    /// Called for each valid location to persist discipline-specific location points.
-    /// Parameters: (filteredLocation, modelContext)
-    var insertLocationPoint: ((CLLocation, ModelContext) -> Void)?
+    /// Discipline-specific delegate for location point creation and analysis
+    weak var delegate: GPSSessionDelegate?
 
     // MARK: - Dependencies
 
@@ -86,7 +164,8 @@ final class GPSSessionTracker {
     private var sessionStartTime: Date?
     private var pausedAccumulated: TimeInterval = 0
     private var lastPauseTime: Date?
-    private var modelContext: ModelContext?
+    private var config: GPSSessionConfig?
+    private var lastCheckpointTime: TimeInterval = 0
 
     // Barometric elevation
     private let altimeter = CMAltimeter()
@@ -107,31 +186,20 @@ final class GPSSessionTracker {
     private static let pedometerCorrectionFactor: Double = 0.90
     private static let gpsGapThreshold: TimeInterval = 5.0
 
-    // Workout route builder integration
-    private var workoutLifecycle: WorkoutLifecycleService?
-
     init(locationManager: LocationManager) {
         self.locationManager = locationManager
     }
 
     // MARK: - Session Lifecycle
 
-    /// Start a GPS tracking session.
-    /// - Parameters:
-    ///   - subscriberId: Unique ID for the LocationManager subscriber (e.g. "ride", "running")
-    ///   - activityType: The activity type for GPS filtering thresholds
-    ///   - modelContext: SwiftData context for persisting location points
-    ///   - workoutLifecycle: Optional workout lifecycle for HealthKit route data
-    func start(
-        subscriberId: String,
-        activityType: GPSActivityType,
-        modelContext: ModelContext? = nil,
-        workoutLifecycle: WorkoutLifecycleService? = nil
-    ) async {
-        self.subscriberId = subscriberId
-        self.modelContext = modelContext
-        self.workoutLifecycle = workoutLifecycle
-        self.currentActivityType = activityType
+    /// Start a GPS tracking session with config and delegate.
+    /// GPSSessionTracker owns persistence and checkpoint saves; the delegate provides
+    /// location point creation and discipline-specific analysis.
+    func start(config: GPSSessionConfig, delegate: GPSSessionDelegate) async {
+        self.config = config
+        self.delegate = delegate
+        self.subscriberId = config.subscriberId
+        self.currentActivityType = config.activityType
 
         // Reset state
         totalDistance = 0
@@ -153,6 +221,8 @@ final class GPSSessionTracker {
         lastBarometricRelativeAltitude = 0
         barometerReferenceAltitude = nil
         lastGPSAltitude = nil
+        lastCheckpointTime = 0
+        diagnostics.reset()
 
         // Reset pedometer state
         isUsingPedometerFallback = false
@@ -165,11 +235,11 @@ final class GPSSessionTracker {
         isPedometerActive = false
 
         // Configure and start filter
-        filter.configure(activityType: activityType)
+        filter.configure(activityType: config.activityType)
         filter.start()
 
         // Subscribe to location updates
-        locationManager.subscribe(id: subscriberId) { [weak self] location in
+        locationManager.subscribe(id: config.subscriberId) { [weak self] location in
             self?.handleRawLocation(location)
         }
 
@@ -237,10 +307,10 @@ final class GPSSessionTracker {
         // Reset filter
         filter.reset()
 
-        // Clear hooks
+        // Clear config and delegate
         subscriberId = nil
-        modelContext = nil
-        workoutLifecycle = nil
+        config = nil
+        delegate = nil
         currentActivityType = nil
     }
 
@@ -249,12 +319,23 @@ final class GPSSessionTracker {
     private func handleRawLocation(_ location: CLLocation) {
         guard !isPaused else { return }
 
+        diagnostics.recordRawReceived()
+
         // Update GPS signal quality (always, even if filtered out)
         gpsHorizontalAccuracy = location.horizontalAccuracy
         gpsSignalQuality = GPSSignalQuality(horizontalAccuracy: location.horizontalAccuracy)
 
-        // Run through filter pipeline
-        guard let filtered = filter.processLocation(location) else { return }
+        // Run through filter pipeline with reject reason tracking
+        let result = filter.processLocationWithReason(location)
+        let filtered: CLLocation
+        switch result {
+        case .success(let loc):
+            filtered = loc
+            diagnostics.recordAccepted()
+        case .failure(let reason):
+            diagnostics.recordRejected(reason)
+            return
+        }
 
         // Update warm-up state from filter
         isWarmedUp = filter.isWarmedUp
@@ -285,17 +366,15 @@ final class GPSSessionTracker {
                 trackGPSElevation(altitude: filtered.altitude)
             }
             currentElevation = filtered.altitude
-            if let ctx = modelContext {
-                insertLocationPoint?(filtered, ctx)
-            }
-            if let lifecycle = workoutLifecycle {
+            persistLocationPoint(filtered)
+            if let lifecycle = config?.workoutLifecycle {
                 Task {
                     await lifecycle.addRouteData([filtered])
                 }
             }
 
             // Notify with zero delta — pedometer already counted the gap
-            onLocationProcessed?(filtered, 0)
+            delegate?.didProcessLocation(filtered, distanceDelta: 0, tracker: self)
             return
         }
 
@@ -317,13 +396,11 @@ final class GPSSessionTracker {
         }
         currentElevation = filtered.altitude
 
-        // Persist location point via discipline hook
-        if let ctx = modelContext {
-            insertLocationPoint?(filtered, ctx)
-        }
+        // Persist location point via delegate
+        persistLocationPoint(filtered)
 
         // Feed to workout route builder
-        if let lifecycle = workoutLifecycle {
+        if let lifecycle = config?.workoutLifecycle {
             Task {
                 await lifecycle.addRouteData([filtered])
             }
@@ -332,7 +409,7 @@ final class GPSSessionTracker {
         lastFilteredLocation = filtered
 
         // Notify discipline-specific handler
-        onLocationProcessed?(filtered, distanceDelta)
+        delegate?.didProcessLocation(filtered, distanceDelta: distanceDelta, tracker: self)
     }
 
     // MARK: - Timer (Wall-Clock)
@@ -348,9 +425,37 @@ final class GPSSessionTracker {
         source.setEventHandler { [weak self] in
             guard let self, let start = self.sessionStartTime, !self.isPaused else { return }
             self.elapsedTime = Date().timeIntervalSince(start) - self.pausedAccumulated
+
+            // Checkpoint save at configured interval
+            if let config = self.config {
+                let interval = config.checkpointInterval
+                if interval > 0,
+                   self.elapsedTime >= interval,
+                   Int(self.elapsedTime / interval) > Int(self.lastCheckpointTime / interval) {
+                    self.lastCheckpointTime = self.elapsedTime
+                    do {
+                        try config.modelContext.save()
+                        self.diagnostics.recordCheckpoint()
+                        Log.location.debug("GPS checkpoint: \(self.diagnostics.totalPersisted) points, \(Int(self.elapsedTime))s")
+                    } catch {
+                        Log.location.error("GPS checkpoint save failed: \(error)")
+                    }
+                }
+            }
         }
         source.resume()
         timerSource = source
+    }
+
+    // MARK: - Persistence
+
+    /// Persist a filtered location point via delegate. GPSSessionTracker owns the insert.
+    private func persistLocationPoint(_ location: CLLocation) {
+        guard let config else { return }
+        if let point = delegate?.createLocationPoint(from: location) {
+            config.modelContext.insert(point)
+            diagnostics.recordPersisted()
+        }
     }
 
     // MARK: - Barometric Elevation
