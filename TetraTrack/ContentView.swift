@@ -9,16 +9,16 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(RideTracker.self) private var rideTracker: RideTracker?
+    @Environment(SessionTracker.self) private var sessionTracker: SessionTracker?
     @Environment(\.viewContext) private var viewContext
 
     var body: some View {
         Group {
             // iPad review-only mode: always show DisciplinesView (no tracking)
-            // iPhone: show TrackingView if there's an active ride session
+            // iPhone: show TrackingView if there's an active session
             if viewContext.canCapture,
-               let tracker = rideTracker,
-               tracker.rideState.isActive {
+               let tracker = sessionTracker,
+               tracker.sessionState.isActive {
                 TrackingView()
             } else {
                 DisciplinesView()
@@ -33,6 +33,6 @@ struct ContentView: View {
     ContentView()
         .environment(locManager)
         .environment(gpsTracker)
-        .environment(RideTracker(locationManager: locManager, gpsTracker: gpsTracker))
+        .environment(SessionTracker(locationManager: locManager, gpsTracker: gpsTracker))
         .modelContainer(for: [Ride.self, LocationPoint.self, GaitSegment.self, FlatworkExercise.self], inMemory: true)
 }

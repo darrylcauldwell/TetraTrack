@@ -1,13 +1,12 @@
 //
-//  RideTracker+Formatters.swift
+//  SessionTracker+Formatters.swift
 //  TetraTrack
 //
-//  Formatted value extensions for RideTracker
-//
+//  Common formatted value extensions for SessionTracker
 
 import Foundation
 
-extension RideTracker {
+extension SessionTracker {
     // MARK: - Time Formatting
 
     var formattedElapsedTime: String {
@@ -56,29 +55,5 @@ extension RideTracker {
 
     var formattedElevationLoss: String {
         return String(format: "-%.0f m", elevationLoss)
-    }
-
-    // MARK: - XC Time Formatting
-
-    var xcTimeDifferenceFormatted: String {
-        let diff = xcTimeDifference
-        let absDiff = abs(Int(diff))
-        if diff > 0 {
-            return "+\(absDiff)s"
-        } else if diff < 0 {
-            return "-\(absDiff)s"
-        }
-        return "0s"
-    }
-
-    // MARK: - Gradient Formatting
-
-    var currentGradientFormatted: String {
-        if currentGradient > 0 {
-            return String(format: "+%.0f%%", currentGradient)
-        } else if currentGradient < 0 {
-            return String(format: "%.0f%%", currentGradient)
-        }
-        return "0%"
     }
 }

@@ -2,14 +2,14 @@
 //  RideTrackerTests.swift
 //  TetraTrackTests
 //
-//  Tests for RideTracker state and calculations
+//  Tests for SessionTracker and RidingPlugin state and calculations
 //
 
 import Testing
 import Foundation
 @testable import TetraTrack
 
-// MARK: - RideState Tests
+// MARK: - SessionState Tests (RideState is a typealias)
 
 struct RideStateTests {
 
@@ -48,52 +48,36 @@ struct RideStateTests {
     }
 }
 
-// MARK: - RideTracker Tests
+// MARK: - SessionTracker Tests
 
 @MainActor
-struct RideTrackerTests {
-
-    // Note: RideTracker requires LocationManager and other dependencies
-    // These tests focus on initialization and state properties
+struct SessionTrackerTests {
 
     @Test func initialState() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
-        #expect(tracker.rideState == .idle)
-        #expect(tracker.currentRide == nil)
+        #expect(tracker.sessionState == .idle)
         #expect(tracker.elapsedTime == 0)
         #expect(tracker.totalDistance == 0)
         #expect(tracker.currentSpeed == 0)
-        #expect(tracker.currentGait == .stationary)
     }
 
     @Test func initialElevationState() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
         #expect(tracker.currentElevation == 0)
         #expect(tracker.elevationGain == 0)
         #expect(tracker.elevationLoss == 0)
     }
 
-    @Test func initialGaitTimeState() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.walkTime == 0)
-        #expect(tracker.trotTime == 0)
-        #expect(tracker.canterTime == 0)
-        #expect(tracker.gallopTime == 0)
-    }
-
     @Test func initialHeartRateState() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
         #expect(tracker.currentHeartRate == 0)
         #expect(tracker.averageHeartRate == 0)
@@ -101,30 +85,10 @@ struct RideTrackerTests {
         #expect(tracker.currentHeartRateZone == .zone1)
     }
 
-    @Test func initialXCState() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.xcOptimumTime == 0)
-        #expect(tracker.xcCourseDistance == 0)
-    }
-
-    @Test func initialLiveMetricsState() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.currentLead == .unknown)
-        #expect(tracker.currentRein == .straight)
-        #expect(tracker.currentSymmetry == 0.0)
-        #expect(tracker.currentRhythm == 0.0)
-    }
-
     @Test func initialFallDetectionState() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
         #expect(tracker.fallDetected == false)
         #expect(tracker.fallAlertCountdown == 30)
@@ -134,33 +98,86 @@ struct RideTrackerTests {
     @Test func initialVehicleDetectionState() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
         #expect(tracker.showingVehicleAlert == false)
-    }
-
-    @Test func defaultRideType() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.selectedRideType == .hack)
-    }
-
-    @Test func selectedHorseIsNil() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.selectedHorse == nil)
     }
 
     @Test func familySharingDisabledByDefault() {
         let locationManager = LocationManager()
         let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
 
         #expect(tracker.isSharingWithFamily == false)
+    }
+
+    @Test func initialWeatherState() {
+        let locationManager = LocationManager()
+        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+
+        #expect(tracker.currentWeather == nil)
+        #expect(tracker.weatherError == nil)
+    }
+
+    @Test func dismissVehicleAlert() {
+        let locationManager = LocationManager()
+        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
+        let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+
+        #expect(tracker.showingVehicleAlert == false)
+        tracker.dismissVehicleAlert()
+        #expect(tracker.showingVehicleAlert == false)
+    }
+}
+
+// MARK: - RidingPlugin Tests
+
+@MainActor
+struct RidingPluginTests {
+
+    @Test func initialGaitState() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.currentGait == .stationary)
+        #expect(plugin.walkTime == 0)
+        #expect(plugin.trotTime == 0)
+        #expect(plugin.canterTime == 0)
+        #expect(plugin.gallopTime == 0)
+    }
+
+    @Test func initialXCState() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.xcOptimumTime == 0)
+        #expect(plugin.xcCourseDistance == 0)
+    }
+
+    @Test func initialLiveMetricsState() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.currentLead == .unknown)
+        #expect(plugin.currentRein == .straight)
+        #expect(plugin.currentSymmetry == 0.0)
+        #expect(plugin.currentRhythm == 0.0)
+    }
+
+    @Test func defaultRideType() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.selectedRideType == .hack)
+    }
+
+    @Test func selectedHorseIsNil() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.selectedHorse == nil)
+    }
+
+    @Test func currentRideIsNil() {
+        let plugin = RidingPlugin()
+
+        #expect(plugin.currentRide == nil)
     }
 }
 
@@ -170,21 +187,15 @@ struct RideTrackerTests {
 struct GaitPercentageCalculationTests {
 
     @Test func totalMovingTimeCalculation() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        // Access internal state through reflection or by testing computed properties
-        // Since we can't directly set internal state, test the formula via the computed property
-        #expect(tracker.totalMovingTime == 0)
+        #expect(plugin.totalMovingTime == 0)
     }
 
     @Test func gaitPercentagesWithNoTime() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        let percentages = tracker.gaitPercentages
+        let percentages = plugin.gaitPercentages
 
         #expect(percentages.walk == 0)
         #expect(percentages.trot == 0)
@@ -193,14 +204,12 @@ struct GaitPercentageCalculationTests {
     }
 
     @Test func individualGaitPercentagesWithNoTime() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        #expect(tracker.walkPercent == 0)
-        #expect(tracker.trotPercent == 0)
-        #expect(tracker.canterPercent == 0)
-        #expect(tracker.gallopPercent == 0)
+        #expect(plugin.walkPercent == 0)
+        #expect(plugin.trotPercent == 0)
+        #expect(plugin.canterPercent == 0)
+        #expect(plugin.gallopPercent == 0)
     }
 }
 
@@ -210,23 +219,19 @@ struct GaitPercentageCalculationTests {
 struct ReinPercentageTests {
 
     @Test func reinPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        let percentages = tracker.reinPercentages
+        let percentages = plugin.reinPercentages
 
         #expect(percentages.left == 0)
         #expect(percentages.right == 0)
     }
 
     @Test func individualReinPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        #expect(tracker.leftReinPercent == 0)
-        #expect(tracker.rightReinPercent == 0)
+        #expect(plugin.leftReinPercent == 0)
+        #expect(plugin.rightReinPercent == 0)
     }
 }
 
@@ -236,23 +241,19 @@ struct ReinPercentageTests {
 struct TurnPercentageTests {
 
     @Test func turnPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        let percentages = tracker.turnPercentages
+        let percentages = plugin.turnPercentages
 
         #expect(percentages.left == 0)
         #expect(percentages.right == 0)
     }
 
     @Test func individualTurnPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        #expect(tracker.leftTurnPercent == 0)
-        #expect(tracker.rightTurnPercent == 0)
+        #expect(plugin.leftTurnPercent == 0)
+        #expect(plugin.rightTurnPercent == 0)
     }
 }
 
@@ -262,23 +263,19 @@ struct TurnPercentageTests {
 struct LeadPercentageTests {
 
     @Test func leadPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        let percentages = tracker.leadPercentages
+        let percentages = plugin.leadPercentages
 
         #expect(percentages.left == 0)
         #expect(percentages.right == 0)
     }
 
     @Test func individualLeadPercentagesWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        #expect(tracker.leftLeadPercent == 0)
-        #expect(tracker.rightLeadPercent == 0)
+        #expect(plugin.leftLeadPercent == 0)
+        #expect(plugin.rightLeadPercent == 0)
     }
 }
 
@@ -288,54 +285,15 @@ struct LeadPercentageTests {
 struct XCTimingTests {
 
     @Test func xcTimeDifferenceWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
-        #expect(tracker.xcTimeDifference == 0)
+        #expect(plugin.xcTimeDifference == 0)
     }
 
     @Test func xcIsAheadOfTimeWithNoData() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
+        let plugin = RidingPlugin()
 
         // With 0 difference, not ahead
-        #expect(tracker.xcIsAheadOfTime == false)
-    }
-}
-
-// MARK: - Weather State Tests
-
-@MainActor
-struct RideWeatherStateTests {
-
-    @Test func initialWeatherState() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        #expect(tracker.currentWeather == nil)
-        #expect(tracker.weatherError == nil)
-    }
-}
-
-// MARK: - Dismiss Vehicle Alert Tests
-
-@MainActor
-struct VehicleAlertTests {
-
-    @Test func dismissVehicleAlert() {
-        let locationManager = LocationManager()
-        let gpsTracker = GPSSessionTracker(locationManager: locationManager)
-        let tracker = RideTracker(locationManager: locationManager, gpsTracker: gpsTracker)
-
-        // Initially not showing
-        #expect(tracker.showingVehicleAlert == false)
-
-        // Dismiss is safe to call even when not showing
-        tracker.dismissVehicleAlert()
-
-        #expect(tracker.showingVehicleAlert == false)
+        #expect(plugin.xcIsAheadOfTime == false)
     }
 }
