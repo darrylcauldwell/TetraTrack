@@ -139,36 +139,59 @@ TetraTrack/
 
 All disciplines share a unified `SessionTracker` (`@Observable @MainActor`, ~960 lines) that owns common session concerns. Discipline-specific logic lives in `DisciplinePlugin` protocol conformances.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  SessionTracker (common infrastructure)             │
-│  ├── Session state (idle/tracking/paused)            │
-│  ├── GPS (via GPSSessionTracker delegate)            │
-│  ├── Timer (1Hz DispatchSourceTimer, wall-clock)     │
-│  ├── Heart rate (Watch + WorkoutLifecycle fallback)  │
-│  ├── Elevation (barometric + GPS fallback)           │
-│  ├── Fall detection & vehicle detection              │
-│  ├── Weather (WeatherKit)                            │
-│  ├── Family sharing (live location, 10s throttle)    │
-│  ├── Watch connectivity (1Hz status updates)         │
-│  └── Checkpoint saves (30s interval)                 │
-├─────────────────────────────────────────────────────┤
-│  DisciplinePlugin protocol                          │
-│  ├── Identity (subscriberId, activityType)           │
-│  ├── Feature flags (GPS, fall detection, etc.)       │
-│  ├── Session model creation                          │
-│  ├── Lifecycle hooks (start/pause/resume/stop)       │
-│  ├── Per-tick hooks (location, timer, heart rate)    │
-│  └── Watch status fields                             │
-├─────────────────────────────────────────────────────┤
-│  RidingPlugin (riding-specific, ~998 lines)         │
-│  ├── Gait detection (CoreMotion → DSP → HMM)        │
-│  ├── Lead/rein/symmetry/rhythm analysis              │
-│  ├── Phase management (warmup/round/rest/cooldown)   │
-│  ├── Dressage test practice                          │
-│  ├── XC timing                                       │
-│  └── Post-session AI summary & skill scoring         │
-└─────────────────────────────────────────────────────┘
+```mermaid
+classDiagram
+    class SessionTracker {
+        <<@Observable @MainActor>>
+        Session state (idle/tracking/paused)
+        GPS via GPSSessionTracker delegate
+        Timer 1Hz DispatchSourceTimer wall-clock
+        Heart rate Watch + WorkoutLifecycle fallback
+        Elevation barometric + GPS fallback
+        Fall detection and vehicle detection
+        Weather WeatherKit
+        Family sharing live location 10s throttle
+        Watch connectivity 1Hz status updates
+        Checkpoint saves 30s interval
+    }
+
+    class DisciplinePlugin {
+        <<protocol>>
+        Identity subscriberId activityType
+        Feature flags GPS fall detection etc
+        Session model creation
+        Lifecycle hooks start/pause/resume/stop
+        Per-tick hooks location timer heart rate
+        Watch status fields
+    }
+
+    class RidingPlugin {
+        <<@Observable @MainActor>>
+        Gait detection CoreMotion → DSP → HMM
+        Lead/rein/symmetry/rhythm analysis
+        Phase management warmup/round/rest/cooldown
+        Dressage test practice
+        XC timing
+        Post-session AI summary and skill scoring
+    }
+
+    class WalkingPlugin {
+        <<planned>>
+    }
+
+    class RunningPlugin {
+        <<planned>>
+    }
+
+    class SwimmingPlugin {
+        <<planned>>
+    }
+
+    SessionTracker --> DisciplinePlugin : activePlugin
+    RidingPlugin ..|> DisciplinePlugin
+    WalkingPlugin ..|> DisciplinePlugin
+    RunningPlugin ..|> DisciplinePlugin
+    SwimmingPlugin ..|> DisciplinePlugin
 ```
 
 Views access common metrics from `SessionTracker` and discipline-specific data via typed downcast:
@@ -184,13 +207,13 @@ let ridingPlugin = tracker?.plugin(as: RidingPlugin.self)
 
 The `GPSSessionTracker` (~624 lines) provides a unified GPS pipeline used by all disciplines:
 
-```
-CLLocationUpdate.liveUpdates(.fitness)
-    → GPSLocationFilter (accuracy/speed/distance validation)
-    → Warm-up phase (discards initial low-quality fixes)
-    → GPSSessionDelegate.createLocationPoint() → SwiftData persist
-    → GPSSessionDelegate.didProcessLocation() → distance/speed/elevation
-    → Checkpoint save (ModelContext.save() every 30s)
+```mermaid
+flowchart LR
+    A[CLLocationUpdate\nliveUpdates .fitness] --> B[GPSLocationFilter\naccuracy/speed/distance]
+    B --> C[Warm-up phase\ndiscard initial fixes]
+    C --> D[createLocationPoint\nSwiftData persist]
+    D --> E[didProcessLocation\ndistance/speed/elevation]
+    E --> F[Checkpoint save\nModelContext.save 30s]
 ```
 
 **Key features:**
@@ -213,12 +236,13 @@ Physics-based signal processing for biomechanical analysis, implemented in `Serv
 | `FrameTransformer` | 470 | Rotation matrices | Phone-to-horse coordinate transformation |
 
 **Gait analysis pipeline:**
-```
-CoreMotion (~100Hz) → FrameTransformer (phone-to-horse coordinates)
-    → Window-based FFT (2.5s windows, 80% overlap)
-    → Feature extraction (stride frequency, harmonic ratios H2/H3, spectral entropy)
-    → Coherence analysis (vertical-lateral coupling)
-    → HMM classification (walk/trot/canter/gallop, 2-4Hz updates)
+```mermaid
+flowchart LR
+    A[CoreMotion\n~100Hz] --> B[FrameTransformer\nphone-to-horse coords]
+    B --> C[FFT\n2.5s windows\n80% overlap]
+    C --> D[Feature extraction\nstride frequency\nH2/H3 harmonics\nspectral entropy]
+    D --> E[Coherence analysis\nvertical-lateral\ncoupling]
+    E --> F[HMM classification\nwalk/trot/canter/gallop\n2-4Hz updates]
 ```
 
 The HMM constrains transitions to physically possible sequences (no walk→gallop). Horse profile parameters (breed, height, weight) scale stride thresholds and provide breed-specific frequency priors.
@@ -279,18 +303,22 @@ Watch sessions can run independently (GPS + HR on Watch), then sync to iPhone vi
 
 ### CloudKit Architecture
 
-```
-Private Database (per user)
-├── FamilySharing Zone (custom zone)
-│   ├── LiveTrackingSession records
-│   ├── FamilyMember records
-│   ├── TrainingArtifact records
-│   └── SharedCompetition records
-└── Default Zone (SwiftData automatic sync)
-    └── All 35 SwiftData models
-
-Shared Database (accepted shares)
-└── Access to other users' FamilySharing zones
+```mermaid
+flowchart TB
+    subgraph Private["Private Database (per user)"]
+        subgraph FSZ["FamilySharing Zone (custom)"]
+            LT[LiveTrackingSession]
+            FM[FamilyMember]
+            TA[TrainingArtifact]
+            SC[SharedCompetition]
+        end
+        subgraph DZ["Default Zone (SwiftData auto sync)"]
+            M[All 35 SwiftData models]
+        end
+    end
+    subgraph Shared["Shared Database (accepted shares)"]
+        Access[Other users FamilySharing zones]
+    end
 ```
 
 Fallback: if CloudKit initialisation fails, switches to local-only `ModelConfiguration` and notifies `SyncStatusMonitor`.
