@@ -15,12 +15,15 @@
 #   --ipad-only      Only capture iPad screenshots
 #   --skip-tests     Skip running tests, just extract from existing .xcresult
 #
+# Output goes to fastlane/screenshots/en-GB/ (and copied to en-US/).
+# The fastlane upload_metadata lane reads from there.
+#
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-OUTPUT_DIR="${PROJECT_DIR}/AppStoreScreenshots"
+OUTPUT_DIR="${PROJECT_DIR}/fastlane/screenshots"
 
 IPHONE_RESULT="/tmp/TetraTrackScreenshots.xcresult"
 IPAD_RESULT="/tmp/TetraTrackiPadScreenshots.xcresult"
@@ -46,9 +49,9 @@ echo "TetraTrack Automated Screenshot Pipeline"
 echo "==============================================="
 echo ""
 
-# Create output directories
-mkdir -p "${OUTPUT_DIR}/iPhone_6.9"
-mkdir -p "${OUTPUT_DIR}/iPad_13"
+# Create output directories (en-GB is primary, en-US is copied after)
+mkdir -p "${OUTPUT_DIR}/en-GB"
+mkdir -p "${OUTPUT_DIR}/en-US"
 
 # -----------------------------------------------
 # Step 1: Run UI Tests
@@ -202,15 +205,23 @@ print(f'Extracted {count} screenshots to {dest_dir}')
 }
 
 if [ "$RUN_IPHONE" = true ]; then
-    extract_screenshots "$IPHONE_RESULT" "iPhone_6.9" "iPhone"
+    extract_screenshots "$IPHONE_RESULT" "en-GB" "iPhone"
 fi
 
 if [ "$RUN_IPAD" = true ]; then
-    extract_screenshots "$IPAD_RESULT" "iPad_13" "iPad"
+    extract_screenshots "$IPAD_RESULT" "en-GB" "iPad"
 fi
 
 # -----------------------------------------------
-# Step 3: Summary
+# Step 3: Copy en-GB to en-US
+# -----------------------------------------------
+
+echo ""
+echo "Copying en-GB screenshots to en-US..."
+cp -f "${OUTPUT_DIR}/en-GB/"*.png "${OUTPUT_DIR}/en-US/" 2>/dev/null || true
+
+# -----------------------------------------------
+# Step 4: Summary
 # -----------------------------------------------
 
 echo ""
@@ -219,27 +230,16 @@ echo "Screenshot Pipeline Complete"
 echo "==============================================="
 echo ""
 
-if [ "$RUN_IPHONE" = true ] && [ -d "${OUTPUT_DIR}/iPhone_6.9" ]; then
-    iphone_count=$(ls -1 "${OUTPUT_DIR}/iPhone_6.9/"*.png 2>/dev/null | wc -l | tr -d ' ')
-    echo "iPhone (6.9\"): ${iphone_count} screenshots"
-    ls -1 "${OUTPUT_DIR}/iPhone_6.9/"*.png 2>/dev/null | while read f; do echo "  $(basename "$f")"; done
+if [ -d "${OUTPUT_DIR}/en-GB" ]; then
+    total_count=$(ls -1 "${OUTPUT_DIR}/en-GB/"*.png 2>/dev/null | wc -l | tr -d ' ')
+    echo "Total: ${total_count} screenshots in en-GB/ (copied to en-US/)"
+    echo ""
+    ls -1 "${OUTPUT_DIR}/en-GB/"*.png 2>/dev/null | while read f; do echo "  $(basename "$f")"; done
     echo ""
 fi
 
-if [ "$RUN_IPAD" = true ] && [ -d "${OUTPUT_DIR}/iPad_13" ]; then
-    ipad_count=$(ls -1 "${OUTPUT_DIR}/iPad_13/"*.png 2>/dev/null | wc -l | tr -d ' ')
-    echo "iPad (13\"): ${ipad_count} screenshots"
-    ls -1 "${OUTPUT_DIR}/iPad_13/"*.png 2>/dev/null | while read f; do echo "  $(basename "$f")"; done
-    echo ""
-fi
-
-if [ -d "${OUTPUT_DIR}/Apple_Watch_46mm" ]; then
-    watch_count=$(ls -1 "${OUTPUT_DIR}/Apple_Watch_46mm/"*.png 2>/dev/null | wc -l | tr -d ' ')
-    echo "Apple Watch (46mm): ${watch_count} screenshots (manual capture - no UI test automation for watchOS)"
-    echo ""
-fi
-
-echo "Output directory: ${OUTPUT_DIR}"
+echo "Output: ${OUTPUT_DIR}/en-GB/ and ${OUTPUT_DIR}/en-US/"
 echo ""
-echo "These screenshots are symlinked into fastlane/screenshots/en-GB/"
-echo "for App Store Connect upload via 'fastlane deliver'."
+echo "Note: Watch screenshots must be captured manually (no UI test automation for watchOS)."
+echo ""
+echo "Upload to App Store Connect with: fastlane upload_metadata"
