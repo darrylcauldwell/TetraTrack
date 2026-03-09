@@ -2,7 +2,7 @@
 //  RideHealthCoordinator.swift
 //  TetraTrack
 //
-//  Extracted from RideTracker to handle heart rate and recovery services
+//  Heart rate and recovery services for ride sessions
 
 import Foundation
 import os

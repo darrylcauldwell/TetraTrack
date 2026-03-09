@@ -1,5 +1,5 @@
 //
-//  RideTrackerTests.swift
+//  SessionTrackerTests.swift
 //  TetraTrackTests
 //
 //  Tests for SessionTracker and RidingPlugin state and calculations
