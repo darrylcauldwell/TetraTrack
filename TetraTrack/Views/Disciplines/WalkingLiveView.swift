@@ -79,6 +79,9 @@ struct WalkingLiveView: View {
     @State private var lastSharingUpdateTime: Date = .distantPast
     private let sharingUpdateInterval: TimeInterval = 10
 
+    // GPS session delegate adapter
+    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
+
     private var estimatedMaxHR: Int { 190 }
 
     var body: some View {
@@ -466,74 +469,76 @@ struct WalkingLiveView: View {
 
         Log.location.info("Walking: setting up GPS session tracker")
 
-        // Persist filtered locations as RunningLocationPoints
-        tracker.insertLocationPoint = { [self] location, ctx in
-            let point = RunningLocationPoint(from: location)
-            point.session = self.session
-            ctx.insert(point)
-        }
+        let adapter = GPSSessionDelegateAdapter(
+            onCreate: { [self] location in
+                let point = RunningLocationPoint(from: location)
+                point.session = self.session
+                return point
+            },
+            onProcess: { [self] location, _, tracker in
+                guard self.isRunning else { return }
 
-        // Walking-specific logic after each filtered GPS point
-        tracker.onLocationProcessed = { [self] location, distanceDelta in
-            guard self.isRunning else { return }
+                // Sync distance and elevation from tracker (Kalman-filtered)
+                self.session.totalDistance = tracker.totalDistance
+                self.session.totalAscent = tracker.elevationGain
+                self.session.totalDescent = tracker.elevationLoss
 
-            // Sync distance and elevation from tracker (Kalman-filtered)
-            self.session.totalDistance = tracker.totalDistance
-            self.session.totalAscent = tracker.elevationGain
-            self.session.totalDescent = tracker.elevationLoss
+                // Km split detection
+                let currentKm = Int(self.session.totalDistance / 1000)
+                if currentKm > self.lastAnnouncedKm && currentKm > 0 {
+                    let splitDuration = self.elapsedTime - self.lastKmSplitTime
+                    self.lastAnnouncedKm = currentKm
+                    self.lastKmSplitTime = self.elapsedTime
 
-            // Km split detection
-            let currentKm = Int(self.session.totalDistance / 1000)
-            if currentKm > self.lastAnnouncedKm && currentKm > 0 {
-                let splitDuration = self.elapsedTime - self.lastKmSplitTime
-                self.lastAnnouncedKm = currentKm
-                self.lastKmSplitTime = self.elapsedTime
+                    let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
+                    split.duration = splitDuration
+                    if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
+                    if self.currentCadence > 0 { split.cadence = self.currentCadence }
+                    split.session = self.session
+                    if self.session.splits == nil { self.session.splits = [] }
+                    self.session.splits?.append(split)
+                    self.modelContext.insert(split)
 
-                let split = RunningSplit(orderIndex: currentKm - 1, distance: 1000)
-                split.duration = splitDuration
-                if self.currentHeartRate > 0 { split.heartRate = self.currentHeartRate }
-                if self.currentCadence > 0 { split.cadence = self.currentCadence }
-                split.session = self.session
-                if self.session.splits == nil { self.session.splits = [] }
-                self.session.splits?.append(split)
-                self.modelContext.insert(split)
+                    AudioCoachManager.shared.announceWalkingMilestone(
+                        km: currentKm,
+                        splitTime: splitDuration,
+                        totalDistance: self.session.totalDistance,
+                        cadence: self.session.averageCadence
+                    )
 
-                AudioCoachManager.shared.announceWalkingMilestone(
-                    km: currentKm,
-                    splitTime: splitDuration,
-                    totalDistance: self.session.totalDistance,
-                    cadence: self.session.averageCadence
-                )
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
 
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            }
-
-            // Family sharing (throttled)
-            if self.shareWithFamily {
-                let now = Date()
-                if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
-                    self.lastSharingUpdateTime = now
-                    let gait = RunningPhase.fromGPSSpeed(max(0, location.speed)).toGaitType
-                    Task {
-                        await self.sharingCoordinator.updateSharedLocation(
-                            location: location,
-                            gait: gait,
-                            distance: self.session.totalDistance,
-                            duration: self.elapsedTime
-                        )
+                // Family sharing (throttled)
+                if self.shareWithFamily {
+                    let now = Date()
+                    if now.timeIntervalSince(self.lastSharingUpdateTime) >= self.sharingUpdateInterval {
+                        self.lastSharingUpdateTime = now
+                        let gait = RunningPhase.fromGPSSpeed(max(0, location.speed)).toGaitType
+                        Task {
+                            await self.sharingCoordinator.updateSharedLocation(
+                                location: location,
+                                gait: gait,
+                                distance: self.session.totalDistance,
+                                duration: self.elapsedTime
+                            )
+                        }
                     }
                 }
             }
-        }
+        )
+        gpsDelegateAdapter = adapter
 
         Log.location.info("Walking: starting GPS session tracker")
+        let config = GPSSessionConfig(
+            subscriberId: "walking",
+            activityType: .walking,
+            checkpointInterval: 30,
+            modelContext: modelContext,
+            workoutLifecycle: workoutLifecycle
+        )
         Task {
-            await tracker.start(
-                subscriberId: "walking",
-                activityType: .walking,
-                modelContext: modelContext,
-                workoutLifecycle: workoutLifecycle
-            )
+            await tracker.start(config: config, delegate: adapter)
             Log.location.info("Walking: GPS session tracker started")
         }
     }
@@ -597,12 +602,7 @@ struct WalkingLiveView: View {
             elapsedTime = Date().timeIntervalSince(start) - pausedAccumulated
             session.totalDuration = elapsedTime
 
-            // Sync distance and elevation from GPS tracker
-            if let tracker = gpsTracker {
-                session.totalDistance = tracker.totalDistance
-                session.totalAscent = tracker.elevationGain
-                session.totalDescent = tracker.elevationLoss
-            }
+            // Distance/elevation sync now handled by GPSSessionDelegate callback
 
             // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing.
             // When mirroring is active, Watch skips companion HR (no WCSession messages),

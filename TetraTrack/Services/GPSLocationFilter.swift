@@ -135,6 +135,17 @@ private struct KalmanState {
     }
 }
 
+/// Reason a raw GPS location was rejected by the filter pipeline
+enum GPSFilterRejectReason: Error {
+    case invalidAccuracy        // horizontalAccuracy < 0
+    case staleTimestamp          // older than 10s
+    case accuracyTooLow          // above activity threshold
+    case warmingUp               // within 5s warm-up window
+    case speedTooHigh            // exceeds activity max speed
+    case accelerationTooHigh     // physically impossible
+    case zeroTimeDelta           // duplicate timestamp
+}
+
 /// GPS filtering pipeline: staleness → accuracy gating → speed outlier rejection → Kalman smoothing.
 /// Produces cleaned CLLocations with reduced noise and eliminated outliers.
 @Observable
@@ -178,19 +189,28 @@ final class GPSLocationFilter {
     /// Process a raw CLLocation through the filter pipeline.
     /// Returns a smoothed CLLocation, or nil if the location was rejected.
     func processLocation(_ raw: CLLocation) -> CLLocation? {
+        switch processLocationWithReason(raw) {
+        case .success(let filtered): return filtered
+        case .failure: return nil
+        }
+    }
+
+    /// Process a raw CLLocation through the filter pipeline with reject reason.
+    /// Returns `.success` with a smoothed CLLocation, or `.failure` with the reject reason.
+    func processLocationWithReason(_ raw: CLLocation) -> Result<CLLocation, GPSFilterRejectReason> {
         // Stage 1: Timestamp & staleness
-        guard raw.horizontalAccuracy >= 0 else { return nil }
-        guard Date().timeIntervalSince(raw.timestamp) <= Self.stalenessThreshold else { return nil }
+        guard raw.horizontalAccuracy >= 0 else { return .failure(.invalidAccuracy) }
+        guard Date().timeIntervalSince(raw.timestamp) <= Self.stalenessThreshold else { return .failure(.staleTimestamp) }
 
         // Stage 2: Accuracy gating
-        guard raw.horizontalAccuracy <= activityType.accuracyRejectThreshold else { return nil }
+        guard raw.horizontalAccuracy <= activityType.accuracyRejectThreshold else { return .failure(.accuracyTooLow) }
 
         // Warm-up handling: buffer locations for first N seconds
         if let start = startTime, !isWarmedUp {
             let elapsed = Date().timeIntervalSince(start)
             if elapsed < Self.warmUpDuration {
                 warmUpBuffer.append(raw)
-                return nil
+                return .failure(.warmingUp)
             }
             // Warm-up period ended — find best-accuracy location to initialize
             let bestLocation = warmUpBuffer
@@ -202,7 +222,7 @@ final class GPSLocationFilter {
             isWarmedUp = true
             lastRawLocation = bestLocation
             lastFilteredLocation = bestLocation
-            return bestLocation
+            return .success(bestLocation)
         }
 
         // Stage 3: Speed-based outlier rejection
@@ -214,14 +234,14 @@ final class GPSLocationFilter {
 
                 // Reject if speed exceeds activity maximum
                 if impliedSpeed > activityType.maxSpeed {
-                    return nil
+                    return .failure(.speedTooHigh)
                 }
 
                 // Reject if acceleration is physically impossible
                 let lastSpeed = lastRaw.speed >= 0 ? lastRaw.speed : 0
                 let acceleration = abs(impliedSpeed - lastSpeed) / timeDelta
                 if acceleration > Self.maxAcceleration {
-                    return nil
+                    return .failure(.accelerationTooHigh)
                 }
             }
         }
@@ -232,11 +252,11 @@ final class GPSLocationFilter {
         if !kalman.isInitialized {
             initializeKalman(with: raw)
             lastFilteredLocation = raw
-            return raw
+            return .success(raw)
         }
 
         let dt = lastFilteredLocation.map { raw.timestamp.timeIntervalSince($0.timestamp) } ?? 1.0
-        guard dt > 0 else { return nil }
+        guard dt > 0 else { return .failure(.zeroTimeDelta) }
 
         // Predict
         kalman.predict(dt: dt, processNoise: activityType.processNoiseScalar)
@@ -271,7 +291,7 @@ final class GPSLocationFilter {
         )
 
         lastFilteredLocation = filtered
-        return filtered
+        return .success(filtered)
     }
 
     private func initializeKalman(with location: CLLocation) {

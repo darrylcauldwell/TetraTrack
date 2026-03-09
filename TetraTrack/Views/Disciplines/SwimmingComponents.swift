@@ -423,7 +423,8 @@ struct SwimmingLiveView: View {
 
     // Open water GPS tracking
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
-    @State private var locationPoints: [SwimmingLocationPoint] = []
+    @Environment(\.modelContext) private var modelContext
+    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
 
     // Stroke type tracking
     @State private var lengthStrokeTypes: [SwimmingStroke] = []
@@ -1706,13 +1707,8 @@ struct SwimmingLiveView: View {
             }
         }
 
-        // Save location points (open water)
-        if isOpenWater && !locationPoints.isEmpty {
-            if session.locationPoints == nil { session.locationPoints = [] }
-            for point in locationPoints {
-                session.locationPoints?.append(point)
-            }
-        }
+        // Location points (open water) are now persisted immediately by GPSSessionTracker
+        // via the delegate pattern — no bulk insert needed at session end
 
         // Save heart rate data
         if !heartRateReadings.isEmpty {
@@ -1789,21 +1785,24 @@ struct SwimmingLiveView: View {
     private func startLocationTracking() {
         guard let tracker = gpsTracker else { return }
 
-        // Persist filtered locations as SwimmingLocationPoints
-        tracker.insertLocationPoint = { [self] location, _ in
-            let point = SwimmingLocationPoint(from: location)
-            self.locationPoints.append(point)
-        }
+        let adapter = GPSSessionDelegateAdapter(
+            onCreate: { [self] location in
+                let point = SwimmingLocationPoint(from: location)
+                point.session = self.session
+                return point
+            }
+        )
+        gpsDelegateAdapter = adapter
 
-        // Swimming doesn't need per-location logic beyond distance (handled by tracker)
-        tracker.onLocationProcessed = nil
-
+        let config = GPSSessionConfig(
+            subscriberId: "swimming",
+            activityType: .swimming,
+            checkpointInterval: 30,
+            modelContext: modelContext,
+            workoutLifecycle: workoutLifecycle
+        )
         Task {
-            await tracker.start(
-                subscriberId: "swimming",
-                activityType: .swimming,
-                workoutLifecycle: workoutLifecycle
-            )
+            await tracker.start(config: config, delegate: adapter)
         }
     }
 
