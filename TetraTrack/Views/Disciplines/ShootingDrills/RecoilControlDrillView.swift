@@ -429,6 +429,7 @@ struct RecoilControlDrillView: View {
             recoveryScore: score,
             bestReactionTime: recoveryTimes.min() ?? 0
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

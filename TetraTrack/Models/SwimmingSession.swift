@@ -12,7 +12,7 @@ import CoreLocation
 // MARK: - Swimming Session
 
 @Model
-final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
+final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, SessionWritable {
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?
@@ -43,6 +43,18 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
     var minSpO2: Double = 0                     // percentage (0-100)
     var recoveryQuality: Double = 0             // 0-100
     var averageBreathingRate: Double = 0        // breaths per minute
+
+    // Training load metrics (from Watch)
+    var endFatigueScore: Double = 0
+    var trainingLoadScore: Double = 0
+    var activeTimePercent: Double = 0
+    var averageIntensity: Double = 0
+    var breathingRateTrend: Double = 0
+    var spo2Trend: Double = 0
+
+    // Weather tracking
+    var startWeatherData: Data?
+    var endWeatherData: Data?
 
     @Transient private var _cachedHeartRateSamples: [HeartRateSample]?
 
@@ -119,6 +131,36 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
 
     var isOpenWater: Bool {
         poolMode == .openWater
+    }
+
+    // MARK: - Weather
+
+    var startWeather: WeatherConditions? {
+        get {
+            guard let data = startWeatherData else { return nil }
+            return try? JSONDecoder().decode(WeatherConditions.self, from: data)
+        }
+        set {
+            startWeatherData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var endWeather: WeatherConditions? {
+        get {
+            guard let data = endWeatherData else { return nil }
+            return try? JSONDecoder().decode(WeatherConditions.self, from: data)
+        }
+        set {
+            endWeatherData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var hasWeatherData: Bool {
+        startWeather != nil
+    }
+
+    var weatherSummary: String? {
+        startWeather?.briefSummary
     }
 
     // MARK: - Route Data

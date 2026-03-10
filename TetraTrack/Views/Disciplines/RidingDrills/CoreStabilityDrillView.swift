@@ -416,6 +416,7 @@ struct CoreStabilityDrillView: View {
         session.averageRMS = motionAnalyzer.rmsMotion
         session.peakDeviation = abs(motionAnalyzer.leftRightAsymmetry)
 
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

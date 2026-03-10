@@ -6,11 +6,8 @@
 //
 
 import SwiftUI
-import SwiftData
 import CoreLocation
 import MapKit
-import HealthKit
-import os
 
 // MARK: - Swimming Watch Status Card
 
@@ -396,68 +393,95 @@ struct SwimmingLiveView: View {
     let onEnd: () -> Void
     var onDiscard: (() -> Void)? = nil
 
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var lengthCount: Int = 0
-    @State private var timer: Timer?
-    @State private var isRunning = false
-    @State private var hasStarted = false
-    @State private var testComplete = false
-    @State private var isArmedForSubmersion = false
-    @State private var sessionStartDate: Date?  // Wall-clock start for accurate timing
-    @State private var additionalMeters: Int = 0  // Extra meters from partial length
-
-    // Watch stroke tracking
-    @State private var strokeCount: Int = 0
-    @State private var strokeRate: Double = 0.0
-    @State private var lengthStrokes: [Int] = []  // Strokes per length for SWOLF
-    @State private var lengthTimes: [TimeInterval] = []  // Time per length for SWOLF
-    @State private var lastLengthTime: TimeInterval = 0
-    @State private var lastLengthStrokeCount: Int = 0
-
-    // Heart rate tracking
-    @State private var currentHeartRate: Int = 0
-    @State private var maxHeartRateReading: Int = 0
-    @State private var heartRateReadings: [Int] = []
-    @State private var heartRateSamples: [HeartRateSample] = []
-    @State private var hasWCSessionHR: Bool = false  // tracks whether WCSession is providing HR
-
-    // Open water GPS tracking
+    // Session infrastructure (managed by SessionTracker + SwimmingPlugin)
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
-    @Environment(\.modelContext) private var modelContext
-    @State private var gpsDelegateAdapter: GPSSessionDelegateAdapter?
+    @Environment(LocationManager.self) private var locationManager: LocationManager?
 
-    // Stroke type tracking
-    @State private var lengthStrokeTypes: [SwimmingStroke] = []
+    // Pure UI state
+    @State private var isArmedForSubmersion = false
+    @State private var additionalMeters: Int = 0  // Extra meters from partial length
     @State private var showStrokePicker: Bool = false
     @State private var strokePickerTimer: Timer?
-
-    // Auto lap detection
     @State private var lastSubmersionState: Bool = false
     @State private var showAutoLapHint: Bool = false
     @State private var autoLapDismissTimer: Timer?
+    @State private var showingCancelConfirmation = false
 
-    // Interval tracking
-    @State private var currentIntervalIndex: Int = 0
-    @State private var isResting: Bool = false
-    @State private var restTimeRemaining: TimeInterval = 0
-    @State private var restTimer: Timer?
-    @State private var intervalStartTime: TimeInterval = 0 // elapsed time when interval started
-    @State private var intervalStartLengthCount: Int = 0
-    @State private var intervalData: [(distance: Double, duration: TimeInterval, strokes: Int)] = []
-
-    // Watch status update timer
-    @State private var watchUpdateTimer: Timer?
-
+    // Watch & sensor references (for UI display only)
     private let watchManager = WatchConnectivityManager.shared
     private let sensorAnalyzer = WatchSensorAnalyzer.shared
-    private let workoutLifecycle = WorkoutLifecycleService.shared
+
+    // MARK: - Plugin Access
+
+    private var swimmingPlugin: SwimmingPlugin? {
+        tracker.plugin(as: SwimmingPlugin.self)
+    }
+
+    // MARK: - Computed Properties (UI)
 
     private var isOpenWater: Bool {
         session.poolMode == .openWater
     }
 
+    private var hasStarted: Bool {
+        tracker.sessionState != .idle
+    }
+
+    private var isRunning: Bool {
+        tracker.sessionState == .tracking
+    }
+
+    private var testComplete: Bool {
+        swimmingPlugin?.testComplete ?? false
+    }
+
+    private var lengthCount: Int {
+        swimmingPlugin?.completedLengths ?? 0
+    }
+
+    private var strokeCount: Int {
+        swimmingPlugin?.strokeCount ?? 0
+    }
+
+    private var strokeRate: Double {
+        swimmingPlugin?.strokeRate ?? 0.0
+    }
+
+    private var isResting: Bool {
+        swimmingPlugin?.isResting ?? false
+    }
+
+    private var restTimeRemaining: TimeInterval {
+        swimmingPlugin?.restTimeRemaining ?? 0
+    }
+
+    private var currentIntervalIndex: Int {
+        swimmingPlugin?.currentIntervalIndex ?? 0
+    }
+
     private var isIntervalMode: Bool {
-        intervalSettings != nil
+        swimmingPlugin?.isIntervalMode ?? (intervalSettings != nil)
+    }
+
+    private var allIntervalsComplete: Bool {
+        swimmingPlugin?.allIntervalsComplete ?? false
+    }
+
+    private var distanceInCurrentInterval: Double {
+        swimmingPlugin?.distanceInCurrentInterval ?? 0
+    }
+
+    private var lengthTimes: [TimeInterval] {
+        swimmingPlugin?.lengthTimes ?? []
+    }
+
+    private var lengthStrokes: [Int] {
+        swimmingPlugin?.lengthStrokes ?? []
+    }
+
+    private var averageSWOLF: Double {
+        swimmingPlugin?.averageSWOLF ?? 0
     }
 
     private var hasTimedTarget: Bool {
@@ -471,54 +495,45 @@ struct SwimmingLiveView: View {
 
     private var freeSwimTimeRemaining: TimeInterval {
         guard let target = freeSwimTargetDuration else { return 0 }
-        return max(0, target - elapsedTime)
-    }
-
-    private var distanceInCurrentInterval: Double {
-        Double(lengthCount - intervalStartLengthCount) * poolLength
-    }
-
-    private var intervalTargetReached: Bool {
-        guard let settings = intervalSettings else { return false }
-        return distanceInCurrentInterval >= settings.targetDistance
-    }
-
-    private var allIntervalsComplete: Bool {
-        guard let settings = intervalSettings else { return false }
-        return currentIntervalIndex >= settings.numberOfIntervals
-    }
-
-    // Calculate SWOLF score (strokes + time per length)
-    private var averageSWOLF: Double {
-        guard !lengthStrokes.isEmpty, !lengthTimes.isEmpty else { return 0 }
-        // Only include lengths with actual stroke data for SWOLF
-        let swolfScores = zip(lengthStrokes, lengthTimes)
-            .filter { $0.0 > 0 && $0.1 > 0 }
-            .map { Double($0) + $1 }
-        guard !swolfScores.isEmpty else { return 0 }
-        return swolfScores.reduce(0, +) / Double(swolfScores.count)
-    }
-
-    private var strokesPerLength: Double {
-        guard !lengthStrokes.isEmpty else { return 0 }
-        return Double(lengthStrokes.reduce(0, +)) / Double(lengthStrokes.count)
+        return max(0, target - tracker.elapsedTime)
     }
 
     private var totalDistance: Double {
         if isOpenWater {
-            return gpsTracker?.totalDistance ?? 0
+            return tracker.totalDistance
         }
         return Double(lengthCount) * poolLength + Double(additionalMeters)
     }
 
     private var timeRemaining: TimeInterval {
-        max(0, testDuration - elapsedTime)
+        max(0, testDuration - tracker.elapsedTime)
     }
 
     private var currentPace: TimeInterval {
-        guard totalDistance > 0, elapsedTime > 0 else { return 0 }
-        return elapsedTime / (totalDistance / 100) // seconds per 100m
+        guard totalDistance > 0, tracker.elapsedTime > 0 else { return 0 }
+        return tracker.elapsedTime / (totalDistance / 100) // seconds per 100m
     }
+
+    private var currentPaceZone: SwimmingPaceZone? {
+        let threshold = SwimmingPersonalBests.shared.thresholdPace
+        guard threshold > 0, currentPace > 0 else { return nil }
+        return SwimmingPaceZone.zone(for: currentPace, thresholdPace: threshold)
+    }
+
+    // SWOLF color indicator - lower is better
+    private var swolfColor: Color {
+        if averageSWOLF < 40 { return .green }
+        if averageSWOLF < 55 { return .yellow }
+        return .orange
+    }
+
+    // Projected distance if current pace maintained for full test duration
+    private var projectedDistance: Double {
+        guard tracker.elapsedTime > 0, totalDistance > 0 else { return 0 }
+        return (totalDistance / tracker.elapsedTime) * testDuration
+    }
+
+    // MARK: - Body
 
     var body: some View {
         GeometryReader { geometry in
@@ -551,22 +566,23 @@ struct SwimmingLiveView: View {
             )
             .ignoresSafeArea()
         )
-        .onAppear {}
-        .onDisappear {
-            timer?.invalidate()
-            restTimer?.invalidate()
-            strokePickerTimer?.invalidate()
+        .onAppear {
+            // Pool mode: start session immediately (like WalkingLiveView)
+            if !isOpenWater && tracker.sessionState == .idle {
+                let plugin = SwimmingPlugin(
+                    session: session,
+                    intervalSettings: intervalSettings,
+                    isThreeMinuteTest: isThreeMinuteTest,
+                    testDuration: testDuration,
+                    freeSwimTargetDuration: freeSwimTargetDuration
+                )
+                Task {
+                    await tracker.startSession(plugin: plugin)
+                }
+            }
         }
-        .onChange(of: watchManager.motionUpdateSequence) {
-            guard watchManager.currentMotionMode == .swimming else { return }
-            let strokes = watchManager.strokeCount
-            if strokes > 0 {
-                strokeCount = strokes
-            }
-            let rate = watchManager.strokeRate
-            if rate > 0 {
-                strokeRate = rate
-            }
+        .onDisappear {
+            strokePickerTimer?.invalidate()
         }
         .onChange(of: watchManager.strokeDetectedSequence) {
             let generator = UIImpactFeedbackGenerator(style: .light)
@@ -593,21 +609,6 @@ struct SwimmingLiveView: View {
                 }
             }
             lastSubmersionState = currentlySubmerged
-        }
-        .onChange(of: watchManager.heartRateSequence) {
-            let bpm = watchManager.lastReceivedHeartRate
-            guard bpm > 0 else { return }
-            hasWCSessionHR = true
-            currentHeartRate = bpm
-            heartRateReadings.append(bpm)
-            if bpm > maxHeartRateReading {
-                maxHeartRateReading = bpm
-            }
-            heartRateSamples.append(HeartRateSample(
-                timestamp: Date(),
-                bpm: bpm,
-                maxHeartRate: estimatedMaxHR
-            ))
         }
         .overlay(alignment: .top) {
             VoiceNoteRecordingOverlay()
@@ -636,6 +637,17 @@ struct SwimmingLiveView: View {
                 .padding(.top, 60)
                 .padding(.horizontal)
             }
+        }
+        .confirmationDialog("End Swimming Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
+            Button("Save Session") {
+                tracker.stopSession()
+                onEnd()
+            }
+            Button("Discard", role: .destructive) {
+                tracker.discardSession()
+                onDiscard?()
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -674,7 +686,9 @@ struct SwimmingLiveView: View {
                 }
 
                 // Close button
-                Button(action: cancelSession) {
+                Button {
+                    showingCancelConfirmation = true
+                } label: {
                     Image(systemName: "xmark")
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
@@ -739,12 +753,12 @@ struct SwimmingLiveView: View {
             }
 
             // Live heart rate (when receiving data)
-            if currentHeartRate > 0 && hasStarted {
+            if tracker.currentHeartRate > 0 && hasStarted {
                 HeartRateDisplayView(
-                    heartRate: currentHeartRate,
-                    zone: HeartRateZone.zone(for: currentHeartRate, maxHR: estimatedMaxHR),
-                    averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
-                    maxHeartRate: maxHeartRateReading > 0 ? maxHeartRateReading : nil
+                    heartRate: tracker.currentHeartRate,
+                    zone: tracker.currentHeartRateZone,
+                    averageHeartRate: tracker.averageHeartRate > 0 ? tracker.averageHeartRate : nil,
+                    maxHeartRate: tracker.maxHeartRate > 0 ? tracker.maxHeartRate : nil
                 )
                 .padding()
                 .background(AppColors.cardBackground)
@@ -794,7 +808,7 @@ struct SwimmingLiveView: View {
                     )
                     .overlay(alignment: .bottomTrailing) {
                         VStack(spacing: 2) {
-                            Text(String(format: "%.0fm", gpsTracker?.totalDistance ?? 0))
+                            Text(String(format: "%.0fm", tracker.totalDistance))
                                 .font(.headline.bold())
                                 .monospacedDigit()
                             Text("GPS Distance")
@@ -852,7 +866,7 @@ struct SwimmingLiveView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Text(formatTime(elapsedTime))
+                Text(formatTime(tracker.elapsedTime))
                     .scaledFont(size: 64, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
             }
@@ -906,7 +920,7 @@ struct SwimmingLiveView: View {
 
     private var openWaterDistanceDisplay: some View {
         VStack(spacing: 4) {
-            Text(String(format: "%.0f", gpsTracker?.totalDistance ?? 0))
+            Text(String(format: "%.0f", tracker.totalDistance))
                 .scaledFont(size: 44, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                 .foregroundStyle(.blue)
             Text("Meters")
@@ -1148,9 +1162,9 @@ struct SwimmingLiveView: View {
 
     private func controlsView(geometry: GeometryProxy) -> some View {
         VStack(spacing: 12) {
-            if !hasStarted {
-                // Start button
-                Button(action: startSession) {
+            if isOpenWater && !hasStarted && !isArmedForSubmersion {
+                // Open water: Start button arms for submersion
+                Button(action: armForSubmersion) {
                     Label("Start", systemImage: "play.fill")
                         .font(.title3.bold())
                         .foregroundStyle(.white)
@@ -1172,7 +1186,10 @@ struct SwimmingLiveView: View {
                 }
             } else if testComplete {
                 // Finish button
-                Button(action: endSession) {
+                Button {
+                    tracker.stopSession()
+                    onEnd()
+                } label: {
                     Label("Save & Finish", systemImage: "checkmark.circle.fill")
                         .font(.title3.bold())
                         .foregroundStyle(.white)
@@ -1181,15 +1198,11 @@ struct SwimmingLiveView: View {
                         .background(.green)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-            } else {
+            } else if hasStarted {
                 // Stop button (for training or early end)
-                Button(action: {
-                    testComplete = true
-                    stopTimer()
-                    restTimer?.invalidate()
-                    restTimer = nil
-                    isResting = false
-                }) {
+                Button {
+                    showingCancelConfirmation = true
+                } label: {
                     Label("Stop", systemImage: "stop.fill")
                         .font(.headline)
                         .foregroundStyle(.white)
@@ -1203,227 +1216,56 @@ struct SwimmingLiveView: View {
         .padding(.horizontal)
     }
 
-    private var averageHeartRate: Int {
-        guard !heartRateReadings.isEmpty else { return 0 }
-        return heartRateReadings.reduce(0, +) / heartRateReadings.count
-    }
+    // MARK: - Session Lifecycle
 
-    private var heartRateZone: Int {
-        guard currentHeartRate > 0 else { return 1 }
-        if currentHeartRate < 100 { return 1 }
-        if currentHeartRate < 120 { return 2 }
-        if currentHeartRate < 150 { return 3 }
-        if currentHeartRate < 170 { return 4 }
-        return 5
-    }
+    private func armForSubmersion() {
+        // Start sensor analyzer for submersion detection before session starts
+        sensorAnalyzer.startSession(discipline: .swimming)
+        watchManager.resetMotionMetrics()
+        isArmedForSubmersion = true
 
-    private var estimatedMaxHR: Int { 190 }
-
-    private var currentPaceZone: SwimmingPaceZone? {
-        let threshold = SwimmingPersonalBests.shared.thresholdPace
-        guard threshold > 0, currentPace > 0 else { return nil }
-        return SwimmingPaceZone.zone(for: currentPace, thresholdPace: threshold)
-    }
-
-    // SWOLF color indicator - lower is better
-    private var swolfColor: Color {
-        if averageSWOLF < 40 { return .green }
-        if averageSWOLF < 55 { return .yellow }
-        return .orange
-    }
-
-    // Projected distance if current pace maintained for full test duration
-    private var projectedDistance: Double {
-        guard elapsedTime > 0, totalDistance > 0 else { return 0 }
-        return (totalDistance / elapsedTime) * testDuration
-    }
-
-    private func startSession() {
-        hasStarted = true
-        lastLengthTime = 0
-        lastLengthStrokeCount = 0
-        UIApplication.shared.isIdleTimerDisabled = true
-
-        // Start workout lifecycle for Watch mirroring + HealthKit tracking
-        Task {
-            do {
-                let config = HKWorkoutConfiguration()
-                config.activityType = .swimming
-                if isOpenWater {
-                    config.locationType = .outdoor
-                    config.swimmingLocationType = .openWater
-                } else {
-                    config.locationType = .indoor
-                    config.swimmingLocationType = .pool
-                    config.lapLength = HKQuantity(unit: .meter(), doubleValue: poolLength)
-                }
-                try await workoutLifecycle.startWorkout(configuration: config)
-                Log.tracking.info("Started workout lifecycle for swimming with Watch mirroring")
-            } catch {
-                Log.tracking.error("Failed to start workout lifecycle for swimming: \(error)")
-            }
-        }
-
-        // Start GPS for open water
-        if isOpenWater {
-            startLocationTracking()
-        }
-
-        // Start Watch motion tracking (needed for submersion detection)
-        startMotionTracking()
-
-        if isOpenWater {
-            // Arm session: sensors + GPS active, timer waits for submersion
-            isArmedForSubmersion = true
-            // Edge case: already submerged when Start tapped
-            if sensorAnalyzer.isSubmerged {
-                triggerSubmersionStart()
-            }
-        } else {
-            // Pool mode: start immediately
-            isRunning = true
-            startTimer()
+        // Edge case: already submerged when Start tapped
+        if sensorAnalyzer.isSubmerged {
+            triggerSubmersionStart()
         }
     }
 
     private func triggerSubmersionStart() {
         guard isArmedForSubmersion else { return }
         isArmedForSubmersion = false
-        isRunning = true
-        startTimer()
+
+        let plugin = SwimmingPlugin(
+            session: session,
+            intervalSettings: intervalSettings,
+            isThreeMinuteTest: isThreeMinuteTest,
+            testDuration: testDuration,
+            freeSwimTargetDuration: freeSwimTargetDuration
+        )
+        Task {
+            await tracker.startSession(plugin: plugin)
+        }
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-        // Watch state is already set by WorkoutLifecycleService — no duplicate send here
     }
 
     private func cancelArmedState() {
         isArmedForSubmersion = false
-        hasStarted = false
-        isRunning = false
-        stopMotionTracking()
-        if isOpenWater {
-            stopLocationTracking()
-        }
+        // Stop sensor analyzer that was started for submersion detection
+        sensorAnalyzer.stopSession()
+        watchManager.stopMotionTracking()
     }
 
-    private func startTimer() {
-        sessionStartDate = Date()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                guard let startDate = sessionStartDate else { return }
-                let previousElapsed = elapsedTime
-                elapsedTime = Date().timeIntervalSince(startDate)
-
-                // Update stroke data from Watch
-                strokeCount = watchManager.strokeCount
-                strokeRate = watchManager.strokeRate
-
-                // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
-                if !hasWCSessionHR {
-                    let lifecycleHR = Int(workoutLifecycle.liveHeartRate)
-                    if lifecycleHR > 0 {
-                        currentHeartRate = lifecycleHR
-                        heartRateReadings.append(lifecycleHR)
-                        if lifecycleHR > maxHeartRateReading { maxHeartRateReading = lifecycleHR }
-                        heartRateSamples.append(HeartRateSample(
-                            timestamp: Date(),
-                            bpm: lifecycleHR,
-                            maxHeartRate: estimatedMaxHR
-                        ))
-                    }
-                }
-
-                if isThreeMinuteTest {
-                    // Timed test: minute marks, 10s warning, completion
-                    let remaining = testDuration - elapsedTime
-                    let previousRemaining = testDuration - previousElapsed
-
-                    // Minute milestone: detect crossing a 60-second boundary
-                    if Int(elapsedTime) / 60 > Int(previousElapsed) / 60 && remaining > 0 {
-                        watchManager.sendCommand(.hapticMilestone)
-                    }
-                    // 10-second warning
-                    if previousRemaining > 10 && remaining <= 10 {
-                        watchManager.sendCommand(.hapticUrgent)
-                    }
-                    if elapsedTime >= testDuration {
-                        testComplete = true
-                        stopTimer()
-                        watchManager.sendCommand(.hapticComplete)
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }
-                } else if let target = freeSwimTargetDuration {
-                    // Free swim with target duration: 5-min marks, 1-min warning, completion
-                    let remaining = target - elapsedTime
-                    let previousRemaining = target - previousElapsed
-
-                    // 5-minute milestone: detect crossing a 300-second boundary
-                    if Int(elapsedTime) / 300 > Int(previousElapsed) / 300 && remaining > 0 {
-                        watchManager.sendCommand(.hapticMilestone)
-                    }
-                    // 1-minute warning
-                    if previousRemaining > 60 && remaining <= 60 {
-                        watchManager.sendCommand(.hapticUrgent)
-                    }
-                    if elapsedTime >= target {
-                        testComplete = true
-                        stopTimer()
-                        watchManager.sendCommand(.hapticComplete)
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }
-                } else if !isIntervalMode {
-                    // Free swim without target: milestone every 10 minutes
-                    if Int(elapsedTime) / 600 > Int(previousElapsed) / 600 {
-                        watchManager.sendCommand(.hapticMilestone)
-                    }
-                }
-            }
-        }
-    }
-
-    private func stopTimer() {
-        isRunning = false
-        timer?.invalidate()
-        timer = nil
-    }
+    // MARK: - Length Recording
 
     private func recordLength() {
-        guard !isResting else { return }
-
-        if !hasStarted {
-            startSession()
-        }
-
-        // Calculate strokes and time for this length (for SWOLF)
-        // Always append to both arrays to keep indices aligned
-        let lengthTime = elapsedTime - lastLengthTime
-        let lengthStrokeCount = max(0, strokeCount - lastLengthStrokeCount)
-
-        lengthTimes.append(lengthTime)
-        lengthStrokes.append(lengthStrokeCount)
-
-        // Update tracking for next length
-        lastLengthTime = elapsedTime
-        lastLengthStrokeCount = strokeCount
-
-        lengthCount += 1
+        swimmingPlugin?.recordLength(stroke: swimmingPlugin?.currentStroke ?? .freestyle, elapsedTime: tracker.elapsedTime)
 
         // Show stroke picker briefly
         showStrokeQuickPicker()
-
-        // Check interval target
-        if isIntervalMode && intervalTargetReached {
-            completeCurrentInterval()
-        }
     }
 
     private func showStrokeQuickPicker() {
-        // Default to freestyle
-        lengthStrokeTypes.append(.freestyle)
-
         withAnimation(.easeInOut(duration: 0.2)) {
             showStrokePicker = true
         }
@@ -1438,9 +1280,7 @@ struct SwimmingLiveView: View {
     }
 
     private func selectStrokeForLastLength(_ stroke: SwimmingStroke) {
-        if !lengthStrokeTypes.isEmpty {
-            lengthStrokeTypes[lengthStrokeTypes.count - 1] = stroke
-        }
+        swimmingPlugin?.updateLastLengthStroke(stroke)
         strokePickerTimer?.invalidate()
         withAnimation(.easeInOut(duration: 0.2)) {
             showStrokePicker = false
@@ -1455,306 +1295,7 @@ struct SwimmingLiveView: View {
         }
     }
 
-    // MARK: - Interval Management
-
-    private func completeCurrentInterval() {
-        guard let settings = intervalSettings else { return }
-
-        // Record interval data
-        let intervalDuration = elapsedTime - intervalStartTime
-        let intervalStrokes = strokeCount - (intervalData.isEmpty ? 0 :
-            intervalData.reduce(0) { $0 + $1.strokes })
-        intervalData.append((
-            distance: distanceInCurrentInterval,
-            duration: intervalDuration,
-            strokes: intervalStrokes
-        ))
-
-        currentIntervalIndex += 1
-
-        // Check if all intervals complete
-        if allIntervalsComplete {
-            testComplete = true
-            stopTimer()
-            watchManager.sendCommand(.hapticComplete)
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
-            return
-        }
-
-        // Start rest period
-        isResting = true
-        restTimeRemaining = settings.restDuration
-
-        // Haptic for rest start (Watch + iPhone)
-        watchManager.sendCommand(.hapticRestStart)
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.warning)
-
-        restTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                restTimeRemaining -= 1
-
-                // Watch haptic countdown at 5 and 3 seconds
-                if restTimeRemaining == 5 || restTimeRemaining == 3 {
-                    watchManager.sendCommand(.hapticUrgent)
-                    let gen = UIImpactFeedbackGenerator(style: .medium)
-                    gen.impactOccurred()
-                }
-
-                if restTimeRemaining <= 0 {
-                    endRestPeriod()
-                }
-            }
-        }
-    }
-
-    private func endRestPeriod() {
-        restTimer?.invalidate()
-        restTimer = nil
-        isResting = false
-
-        // Reset interval tracking
-        intervalStartTime = elapsedTime
-        intervalStartLengthCount = lengthCount
-
-        // Haptic for go (Watch + iPhone)
-        watchManager.sendCommand(.hapticRestEnd)
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
-
-    private func endSession() {
-        stopTimer()
-        restTimer?.invalidate()
-        restTimer = nil
-        strokePickerTimer?.invalidate()
-        strokePickerTimer = nil
-        stopMotionTracking()
-        if isOpenWater {
-            stopLocationTracking()
-        }
-        UIApplication.shared.isIdleTimerDisabled = false
-
-        // Build HealthKit enrichment data from local tracking arrays (available now)
-        var hkEvents: [HKWorkoutEvent] = []
-        var hkSamples: [HKSample] = []
-        let sessionStart = session.startDate
-
-        // Per-lap events and samples (pool mode)
-        if !isOpenWater {
-            let lapCount = min(lengthTimes.count, lengthCount)
-            var cumulativeTime: TimeInterval = 0
-            for i in 0..<lapCount {
-                let lapStart = sessionStart.addingTimeInterval(cumulativeTime)
-                let lapEnd = lapStart.addingTimeInterval(lengthTimes[i])
-                let interval = DateInterval(start: lapStart, end: lapEnd)
-
-                var lapMeta: [String: Any] = ["LapIndex": i + 1]
-                if i < lengthStrokes.count {
-                    lapMeta["StrokeCount"] = lengthStrokes[i]
-                    // SWOLF = strokes + seconds
-                    lapMeta["SWOLF"] = Double(lengthStrokes[i]) + lengthTimes[i]
-                }
-                if i < lengthStrokeTypes.count {
-                    lapMeta["StrokeType"] = lengthStrokeTypes[i].rawValue
-                }
-
-                hkEvents.append(HKWorkoutEvent(type: .lap, dateInterval: interval, metadata: lapMeta))
-
-                // Stroke count sample per lap
-                if i < lengthStrokes.count, lengthStrokes[i] > 0 {
-                    hkSamples.append(HKQuantitySample(
-                        type: HKQuantityType(.swimmingStrokeCount),
-                        quantity: HKQuantity(unit: .count(), doubleValue: Double(lengthStrokes[i])),
-                        start: lapStart,
-                        end: lapEnd
-                    ))
-                }
-
-                // Distance sample per lap
-                hkSamples.append(HKQuantitySample(
-                    type: HKQuantityType(.distanceSwimming),
-                    quantity: HKQuantity(unit: .meter(), doubleValue: poolLength),
-                    start: lapStart,
-                    end: lapEnd
-                ))
-
-                cumulativeTime += lengthTimes[i]
-            }
-        }
-
-        // Interval segment events
-        if !intervalData.isEmpty {
-            var intervalStart = sessionStart
-            for (index, data) in intervalData.enumerated() {
-                let intervalEnd = intervalStart.addingTimeInterval(data.duration)
-                let interval = DateInterval(start: intervalStart, end: intervalEnd)
-                hkEvents.append(HKWorkoutEvent(type: .segment, dateInterval: interval, metadata: [
-                    "IntervalIndex": index + 1,
-                    "Distance": data.distance,
-                    "Strokes": data.strokes
-                ]))
-                intervalStart = intervalEnd
-            }
-        }
-
-        // SpO2 sample (if available from Watch)
-        if sensorAnalyzer.oxygenSaturation > 0 && sensorAnalyzer.oxygenSaturation <= 100 {
-            hkSamples.append(HKQuantitySample(
-                type: HKQuantityType(.oxygenSaturation),
-                quantity: HKQuantity(unit: .percent(), doubleValue: sensorAnalyzer.oxygenSaturation / 100.0),
-                start: sessionStart,
-                end: Date()
-            ))
-        }
-
-        // Breathing rate sample (if available from Watch)
-        if sensorAnalyzer.breathingRate > 0 {
-            hkSamples.append(HKQuantitySample(
-                type: HKQuantityType(.respiratoryRate),
-                quantity: HKQuantity(unit: HKUnit.count().unitDivided(by: .minute()), doubleValue: sensorAnalyzer.breathingRate),
-                start: sessionStart,
-                end: Date()
-            ))
-        }
-
-        // Build metadata
-        var swimMetadata: [String: Any] = [
-            HKMetadataKeySwimmingLocationType: isOpenWater
-                ? NSNumber(value: HKWorkoutSwimmingLocationType.openWater.rawValue)
-                : NSNumber(value: HKWorkoutSwimmingLocationType.pool.rawValue)
-        ]
-        if !isOpenWater {
-            swimMetadata[HKMetadataKeyLapLength] = HKQuantity(unit: .meter(), doubleValue: poolLength)
-        }
-        if strokeCount > 0 {
-            swimMetadata["TotalStrokes"] = strokeCount
-        }
-        if averageSWOLF > 0 {
-            swimMetadata["AverageSWOLF"] = averageSWOLF
-        }
-        // Dominant stroke type
-        if !lengthStrokeTypes.isEmpty {
-            let strokeCounts = Dictionary(grouping: lengthStrokeTypes, by: { $0 }).mapValues { $0.count }
-            if let dominant = strokeCounts.max(by: { $0.value < $1.value }) {
-                swimMetadata["DominantStroke"] = dominant.key.rawValue
-            }
-        }
-
-        // Begin non-blocking workout save (awaited in parent view's onEnd)
-        workoutLifecycle.beginEndAndSave(
-            metadata: swimMetadata,
-            events: hkEvents.isEmpty ? nil : hkEvents,
-            samples: hkSamples.isEmpty ? nil : hkSamples
-        )
-
-        session.totalDistance = totalDistance
-        session.totalDuration = elapsedTime
-        session.totalStrokes = strokeCount
-        session.endDate = Date()
-
-        // Create SwimmingLap objects from tracked data (pool mode)
-        if !isOpenWater {
-            let lapCount = min(lengthTimes.count, lengthCount)
-            if lapCount > 0 {
-                if session.laps == nil { session.laps = [] }
-                for i in 0..<lapCount {
-                    let lap = SwimmingLap(orderIndex: i, distance: poolLength)
-                    lap.duration = lengthTimes[i]
-                    if i < lengthStrokes.count {
-                        lap.strokeCount = lengthStrokes[i]
-                    }
-                    if i < lengthStrokeTypes.count {
-                        lap.stroke = lengthStrokeTypes[i]
-                    }
-                    // Calculate start/end times
-                    let precedingTime = lengthTimes.prefix(i).reduce(0, +)
-                    lap.startTime = session.startDate.addingTimeInterval(precedingTime)
-                    lap.endTime = lap.startTime.addingTimeInterval(lengthTimes[i])
-                    session.laps?.append(lap)
-                }
-            }
-        }
-
-        // Create SwimmingInterval objects
-        if isIntervalMode, let settings = intervalSettings, !intervalData.isEmpty {
-            if session.intervals == nil { session.intervals = [] }
-            for (index, data) in intervalData.enumerated() {
-                let interval = SwimmingInterval(
-                    orderIndex: index,
-                    name: "Interval \(index + 1)",
-                    targetDistance: settings.targetDistance,
-                    targetPace: settings.targetPace,
-                    restDuration: settings.restDuration
-                )
-                interval.actualDistance = data.distance
-                interval.actualDuration = data.duration
-                interval.actualStrokes = data.strokes
-                interval.isCompleted = true
-                session.intervals?.append(interval)
-            }
-        }
-
-        // Location points (open water) are now persisted immediately by GPSSessionTracker
-        // via the delegate pattern — no bulk insert needed at session end
-
-        // Save heart rate data
-        if !heartRateReadings.isEmpty {
-            session.averageHeartRate = heartRateReadings.reduce(0, +) / heartRateReadings.count
-            session.maxHeartRate = maxHeartRateReading
-            session.minHeartRate = heartRateReadings.min() ?? 0
-            session.heartRateSamples = heartRateSamples
-        }
-
-        // Save enhanced sensor data from WatchSensorAnalyzer
-        let swimmingSummary = sensorAnalyzer.getSwimmingSummary()
-        if swimmingSummary.totalSubmergedTime > 0 {
-            session.totalSubmergedTime = swimmingSummary.totalSubmergedTime
-        }
-        if swimmingSummary.submersionCount > 0 {
-            session.submersionCount = swimmingSummary.submersionCount
-        }
-        if swimmingSummary.currentSpO2 > 0 {
-            session.averageSpO2 = swimmingSummary.currentSpO2
-        }
-        if swimmingSummary.minSpO2 < 100 {
-            session.minSpO2 = swimmingSummary.minSpO2
-        }
-        session.recoveryQuality = swimmingSummary.recoveryQuality
-        if sensorAnalyzer.breathingRate > 0 {
-            session.averageBreathingRate = sensorAnalyzer.breathingRate
-        }
-
-        onEnd()
-    }
-
-    private func cancelSession() {
-        stopTimer()
-        restTimer?.invalidate()
-        restTimer = nil
-        strokePickerTimer?.invalidate()
-        strokePickerTimer = nil
-        stopMotionTracking()
-        if isOpenWater {
-            stopLocationTracking()
-        }
-        UIApplication.shared.isIdleTimerDisabled = false
-
-        // Discard workout lifecycle (don't save)
-        Task {
-            await workoutLifecycle.discard()
-            workoutLifecycle.sendIdleStateToWatch()
-            Log.tracking.info("Discarded workout lifecycle for swimming")
-        }
-
-        // Use onDiscard if provided to properly delete session, otherwise just close
-        if let onDiscard = onDiscard {
-            onDiscard()
-        } else {
-            onEnd()
-        }
-    }
+    // MARK: - Formatters
 
     private func formatTime(_ interval: TimeInterval) -> String {
         let minutes = Int(interval) / 60
@@ -1767,108 +1308,6 @@ struct SwimmingLiveView: View {
         let mins = Int(secondsPer100m) / 60
         let secs = Int(secondsPer100m) % 60
         return String(format: "%d:%02d", mins, secs)
-    }
-
-    // MARK: - Location Tracking (Open Water)
-
-    private func startLocationTracking() {
-        guard let tracker = gpsTracker else { return }
-
-        let adapter = GPSSessionDelegateAdapter(
-            onCreate: { [self] location in
-                let point = SwimmingLocationPoint(from: location)
-                point.session = self.session
-                return point
-            }
-        )
-        gpsDelegateAdapter = adapter
-
-        let config = GPSSessionConfig(
-            subscriberId: "swimming",
-            activityType: .swimming,
-            checkpointInterval: 30,
-            modelContext: modelContext,
-            workoutLifecycle: workoutLifecycle
-        )
-        Task {
-            await tracker.start(config: config, delegate: adapter)
-        }
-    }
-
-    private func stopLocationTracking() {
-        gpsTracker?.stop()
-    }
-
-    // Watch motion & HR callbacks removed — using .onChange(of:) modifiers
-
-    private func startMotionTracking() {
-        watchManager.resetMotionMetrics()
-        // Motion tracking is started by WorkoutLifecycleService — no duplicate send here
-        sensorAnalyzer.startSession(discipline: .swimming)
-        startWatchStatusUpdates()
-    }
-
-    private func stopMotionTracking() {
-        watchManager.stopMotionTracking()
-        sensorAnalyzer.stopSession()
-        autoLapDismissTimer?.invalidate()
-        stopWatchStatusUpdates()
-
-        // Send idle state to Watch
-        watchManager.sendStatusUpdate(
-            rideState: .idle,
-            duration: 0,
-            distance: 0,
-            speed: 0,
-            gait: "Swimming",
-            heartRate: nil,
-            heartRateZone: nil,
-            averageHeartRate: nil,
-            maxHeartRate: nil,
-            horseName: nil,
-            rideType: "Swimming"
-        )
-    }
-
-    // MARK: - Watch Status Updates
-
-    private func startWatchStatusUpdates() {
-        // Send initial status
-        sendStatusToWatch()
-
-        // Start periodic updates
-        watchUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            sendStatusToWatch()
-        }
-    }
-
-    private func stopWatchStatusUpdates() {
-        watchUpdateTimer?.invalidate()
-        watchUpdateTimer = nil
-    }
-
-    private func sendStatusToWatch() {
-        let sessionName: String
-        if isThreeMinuteTest {
-            sessionName = "Timed Test"
-        } else if isIntervalMode {
-            sessionName = "Intervals"
-        } else {
-            sessionName = "Training"
-        }
-        watchManager.sendStatusUpdate(
-            rideState: isArmedForSubmersion ? .paused : .tracking,
-            duration: elapsedTime,
-            distance: totalDistance,
-            speed: totalDistance > 0 && elapsedTime > 0 ? totalDistance / elapsedTime : 0,
-            gait: isArmedForSubmersion ? "Awaiting Entry" : "Swimming",
-            heartRate: currentHeartRate > 0 ? currentHeartRate : nil,
-            heartRateZone: currentHeartRate > 0 ? heartRateZone : nil,
-            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
-            maxHeartRate: maxHeartRateReading > 0 ? maxHeartRateReading : nil,
-            horseName: nil,
-            rideType: sessionName
-        )
     }
 }
 

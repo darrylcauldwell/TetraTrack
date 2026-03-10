@@ -410,6 +410,7 @@ struct BreathingRhythmDrillView: View {
             breathingScore: avgScore,
             rhythmScore: avgScore
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

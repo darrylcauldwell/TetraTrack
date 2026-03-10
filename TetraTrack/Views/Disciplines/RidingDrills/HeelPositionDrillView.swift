@@ -337,6 +337,7 @@ struct HeelPositionDrillView: View {
             duration: targetDuration,
             score: avgStability * 100
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

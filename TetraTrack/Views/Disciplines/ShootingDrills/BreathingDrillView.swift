@@ -31,6 +31,7 @@ struct BreathingDrillView: View {
         case complete = "Complete"
     }
 
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
     private let inhaleDuration: TimeInterval = 4
     private let holdDuration: TimeInterval = 4
     private let exhaleDuration: TimeInterval = 4
@@ -299,6 +300,7 @@ struct BreathingDrillView: View {
     }
 
     private func startBreathing() {
+        sensorAnalyzer.startSession(discipline: .shooting)
         breathCount = 0
         runPhase(.inhale)
     }
@@ -354,12 +356,14 @@ struct BreathingDrillView: View {
                 phase = .complete
 
                 // Save drill session to history (4 seconds per phase × 4 phases × total breaths)
+                sensorAnalyzer.stopSession()
                 let duration = TimeInterval(totalBreaths * 16)
                 let session = ShootingDrillSession(
                     drillType: .breathing,
                     duration: duration,
                     score: 100  // Completed = 100%
                 )
+                DrillSensorEnrichment.enrich(session)
                 modelContext.insert(session)
                 try? modelContext.save()
 

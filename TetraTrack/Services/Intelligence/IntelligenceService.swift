@@ -643,6 +643,9 @@ private extension IntelligenceService {
         if avgSpO2 > 0 { sensorMetrics += "\nAverage SpO2: \(String(format: "%.0f", avgSpO2))%" }
         if avgBreathing > 0 { sensorMetrics += "\nAverage breathing rate: \(String(format: "%.0f", avgBreathing)) bpm" }
         if avgRecovery > 0 { sensorMetrics += "\nRecovery quality: \(String(format: "%.0f", avgRecovery))/100" }
+        let sessionsWithIntensity = recentSessions.filter { $0.averageIntensity > 0 }
+        let avgIntensity = sessionsWithIntensity.isEmpty ? 0 : sessionsWithIntensity.reduce(0) { $0 + $1.averageIntensity } / Double(sessionsWithIntensity.count)
+        if avgIntensity > 0 { sensorMetrics += "\nAverage intensity: \(String(format: "%.0f", avgIntensity))/100" }
 
         return """
         Analyze these recent swimming training sessions for a tetrathlon athlete:
@@ -693,6 +696,22 @@ private extension IntelligenceService {
             graceData = ""
         }
 
+        // Physiological sensor metrics
+        let sessionsWithBreathing = recentSessions.filter { $0.averageBreathingRate > 0 }
+        let avgBreathingRate = sessionsWithBreathing.isEmpty ? 0 : sessionsWithBreathing.reduce(0) { $0 + $1.averageBreathingRate } / Double(sessionsWithBreathing.count)
+        let sessionsWithSpO2 = recentSessions.filter { $0.averageSpO2 > 0 }
+        let avgSpO2 = sessionsWithSpO2.isEmpty ? 0 : sessionsWithSpO2.reduce(0) { $0 + $1.averageSpO2 } / Double(sessionsWithSpO2.count)
+        let sessionsWithRecovery = recentSessions.filter { $0.recoveryQuality > 0 }
+        let avgRecovery = sessionsWithRecovery.isEmpty ? 0 : sessionsWithRecovery.reduce(0) { $0 + $1.recoveryQuality } / Double(sessionsWithRecovery.count)
+        let sessionsWithIntensity = recentSessions.filter { $0.averageIntensity > 0 }
+        let avgIntensity = sessionsWithIntensity.isEmpty ? 0 : sessionsWithIntensity.reduce(0) { $0 + $1.averageIntensity } / Double(sessionsWithIntensity.count)
+
+        var sensorMetrics = ""
+        if avgBreathingRate > 0 { sensorMetrics += "\nAverage breathing rate: \(String(format: "%.0f", avgBreathingRate)) bpm" }
+        if avgSpO2 > 0 { sensorMetrics += "\nAverage SpO2: \(String(format: "%.0f", avgSpO2))%" }
+        if avgRecovery > 0 { sensorMetrics += "\nRecovery quality: \(String(format: "%.0f", avgRecovery))/100" }
+        if avgIntensity > 0 { sensorMetrics += "\nAverage intensity: \(String(format: "%.0f", avgIntensity))/100" }
+
         return """
         Analyze these recent shooting training sessions for a tetrathlon athlete:
 
@@ -701,6 +720,7 @@ private extension IntelligenceService {
         Average per arrow: \(String(format: "%.2f", avgPerArrow))
         Total X-ring hits: \(totalXCount)
         \(graceData)
+        \(sensorMetrics)
 
         For tetrathlon, shooting uses air pistols at 10m with time pressure.
 

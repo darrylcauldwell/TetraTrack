@@ -23,6 +23,7 @@ struct BalanceDrillView: View {
     @State private var targetDuration: TimeInterval = 30
     @State private var timer: Timer?
     @State private var results: [BalanceResult] = []
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -303,6 +304,7 @@ struct BalanceDrillView: View {
     }
 
     private func startDrill() {
+        sensorAnalyzer.startSession(discipline: .shooting)
         isRunning = true
         elapsedTime = 0
         motionAnalyzer.startUpdates()
@@ -336,12 +338,14 @@ struct BalanceDrillView: View {
         let avgStability = results.isEmpty ? 0.0 : results.map { $0.stability }.reduce(0, +) / Double(results.count)
 
         // Save drill session to history
+        sensorAnalyzer.stopSession()
         let session = ShootingDrillSession(
             drillType: .balance,
             duration: targetDuration,
             score: avgStability * 100
         )
         session.stabilityScore = avgStability * 100
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

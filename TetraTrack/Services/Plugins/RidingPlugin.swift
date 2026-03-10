@@ -225,7 +225,7 @@ final class RidingPlugin: DisciplinePlugin {
 
     // MARK: - DisciplinePlugin Protocol
 
-    func createSessionModel(in context: ModelContext) -> any PersistentModel {
+    func createSessionModel(in context: ModelContext) -> any SessionWritable {
         modelContext = context
         let ride = Ride()
         ride.startDate = Date()
@@ -412,14 +412,12 @@ final class RidingPlugin: DisciplinePlugin {
             enrichment.metadata[HKMetadataKeyElevationAscended] = HKQuantity(unit: .meter(), doubleValue: tracker.elevationGain)
         }
 
-        // Finalize ride model
+        // Finalize ride model (discipline-specific fields only — common fields
+        // like endDate, totalDistance, totalDuration, HR stats are written by SessionTracker)
         if let ride = currentRide {
-            ride.endDate = Date()
-            ride.totalDistance = tracker.totalDistance
-            ride.totalDuration = tracker.elapsedTime
             ride.maxSpeed = tracker.gpsTracker.maxSpeed
 
-            // Elevation
+            // Elevation (property names differ from RunningSession, so plugin writes these)
             ride.elevationGain = tracker.elevationGain
             ride.elevationLoss = tracker.elevationLoss
 
@@ -463,13 +461,6 @@ final class RidingPlugin: DisciplinePlugin {
                 }
             }
 
-            // Heart rate data
-            let hrStats = tracker.healthCoordinator.getFinalStatistics()
-            ride.averageHeartRate = hrStats.averageBPM
-            ride.maxHeartRate = hrStats.maxBPM
-            ride.minHeartRate = hrStats.minBPM
-            ride.heartRateSamples = Array(hrStats.samples)
-
             // Stride frequency
             ride.averageStrideFrequency = strideFrequency
 
@@ -477,6 +468,26 @@ final class RidingPlugin: DisciplinePlugin {
             let ridingSummary = watchSensorAnalyzer.getRidingSummary()
             ride.detectedJumpCount = ridingSummary.jumpCount
             ride.activeTimePercent = ridingSummary.activePercent
+            ride.sessionPostureStability = ridingSummary.postureStability
+            ride.goodPosturePercent = ridingSummary.goodPosturePercent
+            ride.endFatigueScore = ridingSummary.fatigueScore
+
+            // Training load and fatigue metrics
+            let trainingLoad = watchSensorAnalyzer.getTrainingLoadSummary()
+            ride.trainingLoadScore = trainingLoad.totalLoad
+            ride.recoveryQuality = trainingLoad.recoveryQuality
+            ride.averageIntensity = trainingLoad.averageIntensity
+            ride.breathingRateTrend = trainingLoad.breathingRateTrend
+            ride.spo2Trend = trainingLoad.spo2Trend
+
+            // Breathing and SpO2
+            ride.averageBreathingRate = watchSensorAnalyzer.breathingRate
+            if watchSensorAnalyzer.oxygenSaturation > 0 {
+                ride.averageSpO2 = watchSensorAnalyzer.oxygenSaturation
+            }
+            if watchSensorAnalyzer.minSpO2 < 100 {
+                ride.minSpO2 = watchSensorAnalyzer.minSpO2
+            }
 
             // Gait diagnostics for testing rides
             if selectedRideType == .gaitTesting && !gaitAnalyzer.diagnosticEntries.isEmpty {
@@ -546,15 +557,7 @@ final class RidingPlugin: DisciplinePlugin {
         watchGaitEnhancementTask?.cancel()
         watchGaitEnhancementTask = nil
 
-        // Delete the ride model
-        if let ride = currentRide {
-            modelContext?.delete(ride)
-            do {
-                try modelContext?.save()
-            } catch {
-                Log.tracking.error("Failed to save after discarding ride: \(error)")
-            }
-        }
+        // Model deletion is handled by SessionTracker.discardSession()
 
         // Reset riding state
         currentRide = nil

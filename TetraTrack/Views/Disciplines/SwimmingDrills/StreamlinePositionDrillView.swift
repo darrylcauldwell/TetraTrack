@@ -413,6 +413,7 @@ struct StreamlinePositionDrillView: View {
             enduranceScore: min(100, bestHoldTime / targetDuration * 100),
             averageRMS: motionAnalyzer.rmsMotion
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

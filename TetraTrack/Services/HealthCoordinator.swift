@@ -1,14 +1,15 @@
 //
-//  RideHealthCoordinator.swift
+//  HealthCoordinator.swift
 //  TetraTrack
 //
-//  Heart rate and recovery services for ride sessions
+//  Heart rate and recovery services for sessions
 
 import Foundation
 import os
 
-/// Coordinates heart rate monitoring and recovery analysis during rides
-final class RideHealthCoordinator {
+/// Coordinates heart rate accumulation and recovery analysis during sessions.
+/// HR data arrives exclusively from Apple Watch via WatchConnectivity.
+final class HealthCoordinator {
     private let heartRateService = HeartRateService()
     private let recoveryAnalyzer = RecoveryAnalyzer()
 
@@ -27,22 +28,10 @@ final class RideHealthCoordinator {
 
     // MARK: - Configuration
 
-    func configure(riderProfile: RiderProfile?) {
-        if let profile = riderProfile {
-            riderMaxHeartRate = profile.maxHeartRate
-            riderRestingHeartRate = profile.restingHeartRate
-            heartRateService.configure(maxHeartRate: riderMaxHeartRate)
-        }
-    }
-
-    // MARK: - Monitoring
-
-    func startMonitoring() async {
-        await heartRateService.startMonitoring()
-    }
-
-    func stopMonitoring() {
-        heartRateService.stopMonitoring()
+    func configure(maxHeartRate: Int, restingHeartRate: Int) {
+        riderMaxHeartRate = maxHeartRate
+        riderRestingHeartRate = restingHeartRate
+        heartRateService.configure(maxHeartRate: riderMaxHeartRate)
     }
 
     func resetState() {

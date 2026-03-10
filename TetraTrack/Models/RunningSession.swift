@@ -12,7 +12,7 @@ import CoreLocation
 // MARK: - Running Session
 
 @Model
-final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, ElevationSessionProtocol, HeartRateSessionProtocol, CadenceSessionProtocol {
+final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, ElevationSessionProtocol, HeartRateSessionProtocol, CadenceSessionProtocol, SessionWritable {
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?
@@ -67,6 +67,12 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     var endFatigueScore: Double = 0         // 0-100
     var postureStability: Double = 0        // 0-100
     var trainingLoadScore: Double = 0
+    var goodPosturePercent: Double = 0
+    var activeTimePercent: Double = 0
+    var recoveryQuality: Double = 0
+    var averageIntensity: Double = 0
+    var breathingRateTrend: Double = 0
+    var spo2Trend: Double = 0
 
     // Running form timeseries (from Watch)
     var runningFormSamplesData: Data?  // Encoded [RunningFormSample]

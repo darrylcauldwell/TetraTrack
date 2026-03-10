@@ -75,6 +75,7 @@ enum RidingDrillType: String, Codable, CaseIterable {
 }
 
 /// Records a completed off-horse riding drill session
+@available(*, deprecated, message: "Use UnifiedDrillSession")
 @Model
 final class RidingDrillSession {
     var id: UUID = UUID()

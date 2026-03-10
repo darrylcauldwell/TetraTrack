@@ -448,6 +448,7 @@ struct SplitTimeDrillView: View {
             transitionScore: score,
             averageSplitTime: avgSplit
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

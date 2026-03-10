@@ -23,6 +23,7 @@ struct SteadyHoldDrillView: View {
     @State private var timer: Timer?
     @State private var wobbleHistory: [Double] = []
     @State private var bestScore: Double = 0
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -276,6 +277,7 @@ struct SteadyHoldDrillView: View {
     }
 
     private func startDrill() {
+        sensorAnalyzer.startSession(discipline: .shooting)
         isRunning = true
         elapsedTime = 0
         wobbleHistory = []
@@ -309,6 +311,7 @@ struct SteadyHoldDrillView: View {
         let score = Double(max(0, 100 - Int(avgWobble * 200)))
 
         // Save drill session to history
+        sensorAnalyzer.stopSession()
         let session = ShootingDrillSession(
             drillType: .steadyHold,
             duration: targetDuration,
@@ -316,6 +319,7 @@ struct SteadyHoldDrillView: View {
         )
         session.stabilityScore = score
         session.averageWobble = avgWobble
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

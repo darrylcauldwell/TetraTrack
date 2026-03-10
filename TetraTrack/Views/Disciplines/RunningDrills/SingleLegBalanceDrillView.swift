@@ -458,6 +458,7 @@ struct SingleLegBalanceDrillView: View {
             enduranceScore: motionAnalyzer.scorer.endurance,
             averageRMS: motionAnalyzer.rmsMotion
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         let skillService = SkillDomainService()

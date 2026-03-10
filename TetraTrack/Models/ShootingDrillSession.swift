@@ -80,6 +80,7 @@ enum ShootingDrillType: String, Codable, CaseIterable {
 }
 
 /// Records a completed shooting training drill session
+@available(*, deprecated, message: "Use UnifiedDrillSession")
 @Model
 final class ShootingDrillSession {
     var id: UUID = UUID()

@@ -6,13 +6,9 @@
 //
 
 import SwiftUI
-import SwiftData
 import PhotosUI
 import AVFoundation
 import UniformTypeIdentifiers
-import WidgetKit
-import HealthKit
-import os
 
 // MARK: - Transferable Image Helper
 
@@ -40,7 +36,7 @@ struct ShootingCompetitionView: View {
     let onEnd: (Int) -> Void
     var onComplete: ((Int) -> Void)? = nil
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
 
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
@@ -50,8 +46,6 @@ struct ShootingCompetitionView: View {
     @State private var card2ScanAnalysisID: UUID?
     @State private var showingScanSheet = false
     @State private var scanningCard: Int = 1
-    @State private var workoutStarted = false
-    private let workoutLifecycle = WorkoutLifecycleService.shared
 
     enum ScoringMode: String, CaseIterable {
         case quickEntry = "Quick Entry"
@@ -141,26 +135,17 @@ struct ShootingCompetitionView: View {
             .padding(.top, 8)
         }
         .onAppear {
-            guard !workoutStarted else { return }
-            workoutStarted = true
-            Task {
-                let config = HKWorkoutConfiguration()
-                config.activityType = .other
-                config.locationType = .outdoor
-                do {
-                    try await workoutLifecycle.startWorkout(configuration: config)
-                } catch {
-                    Log.health.error("Failed to start shooting workout: \(error)")
+            if tracker.sessionState == .idle {
+                let plugin = ShootingPlugin(sessionContext: sessionContext)
+                Task {
+                    await tracker.startSession(plugin: plugin)
                 }
             }
         }
         .onDisappear {
-            // Discard workout if user closes without saving
-            guard workoutStarted else { return }
-            if workoutLifecycle.state == .active || workoutLifecycle.state == .paused {
-                Task {
-                    await workoutLifecycle.discard()
-                }
+            // Discard session if user closes without saving
+            if tracker.sessionState == .tracking || tracker.sessionState == .paused {
+                tracker.discardSession()
             }
         }
     }
@@ -384,144 +369,23 @@ struct ShootingCompetitionView: View {
         }
     }
 
+    // MARK: - Plugin Access
+
+    private var shootingPlugin: ShootingPlugin? {
+        tracker.plugin(as: ShootingPlugin.self)
+    }
+
     private func saveCompetitionSession() {
-        // Create a ShootingSession to persist the competition
-        let session = ShootingSession(
-            name: sessionContext == .competition ? "Competition" : "Tetrathlon Practice",
-            targetType: .olympic,
-            distance: 10.0,
-            numberOfEnds: 2,
-            arrowsPerEnd: 5,
-            sessionContext: sessionContext
-        )
-        session.endDate = Date()
-
-        // Create End 1 with shots
-        let end1 = ShootingEnd(orderIndex: 0)
-        end1.targetScanAnalysisID = card1ScanAnalysisID
-        end1.shots = []
-        for (index, score) in card1Scores.enumerated() {
-            let shot = Shot(orderIndex: index, score: score, isX: score == 10)
-            end1.shots?.append(shot)
-        }
-        if session.ends == nil { session.ends = [] }
-        session.ends?.append(end1)
-
-        // Create End 2 with shots
-        let end2 = ShootingEnd(orderIndex: 1)
-        end2.targetScanAnalysisID = card2ScanAnalysisID
-        end2.shots = []
-        for (index, score) in card2Scores.enumerated() {
-            let shot = Shot(orderIndex: index, score: score, isX: score == 10)
-            end2.shots?.append(shot)
-        }
-        session.ends?.append(end2)
-
-        // Wire Watch stance/tremor sensor data and run analysis
-        let watchManager = WatchConnectivityManager.shared
-        if watchManager.stanceStability > 0 {
-            session.averageStanceStability = watchManager.stanceStability
-        }
-        if watchManager.tremorLevel > 0 {
-            session.averageTremorLevel = watchManager.tremorLevel
-        }
-
-        // Apply per-shot sensor data and compute GRACE scores
-        let shotMetrics = watchManager.receivedShotMetrics
-        if !shotMetrics.isEmpty {
-            let allShots = (session.ends ?? []).flatMap { $0.shots ?? [] }
-            ShootingSensorAnalyzer.applyShotSensorData(shotMetrics, to: allShots)
-
-            let analysis = ShootingSensorAnalyzer.analyzeSession(
-                shotMetrics: shotMetrics,
-                sessionStanceStability: session.averageStanceStability,
-                averageHeartRate: session.averageHeartRate
-            )
-            ShootingSensorAnalyzer.applyAnalysis(analysis, to: session)
-            watchManager.clearShotMetrics()
-        }
-
-        // Insert into model context
-        modelContext.insert(session)
-        try? modelContext.save()
-
-        // Build HealthKit enrichment for the already-running workout
-        var shootingMetadata: [String: Any] = [
-            "TotalScore": totalRawScore,
-            "MaxPossibleScore": 100,
-            "ScorePercentage": Double(totalRawScore) / 100.0,
-            "TetrathlonPoints": tetrathlonPoints,
-            "SessionContext": sessionContext.rawValue
-        ]
-        // X count (shots scoring 10)
-        let xCount = card1Scores.filter({ $0 == 10 }).count + card2Scores.filter({ $0 == 10 }).count
-        shootingMetadata["XCount"] = xCount
-        if watchManager.stanceStability > 0 {
-            shootingMetadata["StanceStability"] = watchManager.stanceStability
-        }
-        if watchManager.tremorLevel > 0 {
-            shootingMetadata["TremorLevel"] = watchManager.tremorLevel
-        }
-
-        // Build segment events for each shooting end
-        var hkEvents: [HKWorkoutEvent] = []
-        let endDate = Date()
-        let sessionDuration = endDate.timeIntervalSince(session.startDate)
-        let halfDuration = sessionDuration / 2
-        // End 1 segment
-        let end1Start = session.startDate
-        let end1End = session.startDate.addingTimeInterval(halfDuration)
-        hkEvents.append(HKWorkoutEvent(type: .segment, dateInterval: DateInterval(start: end1Start, end: end1End), metadata: [
-            "EndIndex": 1,
-            "EndScore": card1Total,
-            "XCount": card1Scores.filter({ $0 == 10 }).count
-        ]))
-        // End 2 segment
-        let end2Start = end1End
-        let end2End = endDate
-        hkEvents.append(HKWorkoutEvent(type: .segment, dateInterval: DateInterval(start: end2Start, end: end2End), metadata: [
-            "EndIndex": 2,
-            "EndScore": card2Total,
-            "XCount": card2Scores.filter({ $0 == 10 }).count
-        ]))
-
-        // Begin non-blocking workout save
-        workoutLifecycle.beginEndAndSave(
-            metadata: shootingMetadata,
-            events: hkEvents.isEmpty ? nil : hkEvents
+        // Save scores via plugin (creates ends/shots, wires Watch data, runs GRACE analysis)
+        shootingPlugin?.saveScores(
+            card1Scores: card1Scores,
+            card2Scores: card2Scores,
+            card1ScanID: card1ScanAnalysisID,
+            card2ScanID: card2ScanAnalysisID
         )
 
-        // Sync to widgets
-        WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-
-        // Background: await workout save → fetch HR → save → artifact sync
-        let capturedEndDate = endDate
-        let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
-        Task {
-            let workout = await workoutLifecycle.awaitWorkoutSave()
-            if let workout {
-                await MainActor.run {
-                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                }
-            }
-
-            let healthKit = HealthKitManager.shared
-            let hr = await healthKit.fetchShootingHeartRate(from: session.startDate, to: capturedEndDate)
-            await MainActor.run {
-                if hr.average > 0 {
-                    session.averageHeartRate = hr.average
-                    session.maxHeartRate = hr.max
-                    session.minHeartRate = hr.min
-                    try? modelContext.save()
-                }
-            }
-
-            await ArtifactConversionService.shared.convertAndSyncShootingSession(session)
-            UIApplication.shared.endBackgroundTask(bgTaskID)
-        }
-
-        // Update personal best
-        ShootingPersonalBests.shared.updatePersonalBest(rawScore: totalRawScore)
+        // Stop session (triggers HealthKit enrichment, workout save, widget sync, artifact conversion)
+        tracker.stopSession()
 
         // Notify competition day view if callback provided
         onComplete?(totalRawScore)

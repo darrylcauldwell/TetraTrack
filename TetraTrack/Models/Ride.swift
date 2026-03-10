@@ -9,7 +9,7 @@ import CoreLocation
 import os
 
 @Model
-final class Ride: GaitTimeTracking, TrainingSessionProtocol {
+final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     // MARK: - Indexes for Query Performance
     // These indexes optimize frequently used queries (ride history, filtering by discipline)
     #Index<Ride>([\.startDate], [\.rideTypeValue])
@@ -76,6 +76,19 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol {
 
     /// Dressage test execution data (JSON-encoded DressageTestExecution)
     var dressageTestExecutionData: Data?
+
+    // Sensor metrics (from Watch)
+    var averageBreathingRate: Double = 0
+    var averageSpO2: Double = 0
+    var minSpO2: Double = 0
+    var endFatigueScore: Double = 0
+    var trainingLoadScore: Double = 0
+    var sessionPostureStability: Double = 0
+    var goodPosturePercent: Double = 0
+    var recoveryQuality: Double = 0
+    var averageIntensity: Double = 0
+    var breathingRateTrend: Double = 0
+    var spo2Trend: Double = 0
 
     /// Coaching notes from trusted contact (JSON-encoded [CoachingNote])
     var coachingNotesData: Data?
