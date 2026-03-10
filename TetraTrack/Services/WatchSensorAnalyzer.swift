@@ -330,8 +330,8 @@ final class WatchSensorAnalyzer: Resettable {
             )
         }
 
-        // Posture: riding, running, shooting
-        if [.riding, .running, .shooting].contains(discipline) {
+        // Posture: riding, running, walking, shooting
+        if [.riding, .running, .walking, .shooting].contains(discipline) {
             processPosture(
                 pitch: watchManager.posturePitch,
                 roll: watchManager.postureRoll,
@@ -355,8 +355,8 @@ final class WatchSensorAnalyzer: Resettable {
             dt: dt
         )
 
-        // SpO2: running, swimming
-        if [.running, .swimming].contains(discipline) {
+        // SpO2: riding, running, walking, swimming, shooting
+        if [.riding, .running, .walking, .swimming, .shooting].contains(discipline) {
             processSpO2(spo2: watchManager.oxygenSaturation)
         }
 

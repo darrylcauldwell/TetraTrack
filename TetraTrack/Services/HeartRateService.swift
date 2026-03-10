@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import HealthKit
 import Observation
 import os
 
@@ -19,16 +18,11 @@ final class HeartRateService {
     private(set) var maxHeartRate: Int = 0
     private(set) var minHeartRate: Int = 0
     private(set) var currentZone: HeartRateZone = .zone1
-    private(set) var isMonitoring: Bool = false
     private(set) var samples: [HeartRateSample] = []
 
     // MARK: - Configuration
 
     private var riderMaxHeartRate: Int = 180
-    private let healthStore = HKHealthStore()
-    private var observerQuery: HKObserverQuery?
-    private var anchoredQuery: HKAnchoredObjectQuery?
-    private var queryAnchor: HKQueryAnchor?
 
     // MARK: - Fall Detection Integration
 
@@ -45,50 +39,9 @@ final class HeartRateService {
         self.riderMaxHeartRate = maxHeartRate
     }
 
-    /// Start monitoring heart rate
-    func startMonitoring() async {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            Log.health.warning("HeartRateService: HealthKit not available")
-            return
-        }
-
-        // Request authorization if needed
-        let heartRateType = HKQuantityType(.heartRate)
-        do {
-            try await healthStore.requestAuthorization(toShare: [], read: [heartRateType])
-        } catch {
-            Log.health.error("HeartRateService: Authorization failed - \(error)")
-            return
-        }
-
-        resetState()
-        isMonitoring = true
-
-        // Start observer query for real-time updates
-        startObserverQuery()
-
-        // Also start anchored query for batch updates
-        startAnchoredQuery()
-    }
-
-    /// Stop monitoring heart rate
-    func stopMonitoring() {
-        isMonitoring = false
-
-        if let query = observerQuery {
-            healthStore.stop(query)
-            observerQuery = nil
-        }
-
-        if let query = anchoredQuery {
-            healthStore.stop(query)
-            anchoredQuery = nil
-        }
-    }
-
     /// Process a heart rate value received from Watch
     func processHeartRate(_ bpm: Int) {
-        guard isMonitoring, bpm > 0 else { return }
+        guard bpm > 0 else { return }
 
         // Validate the sample for fall detection
         let validation = validator.validate(bpm)
@@ -120,106 +73,10 @@ final class HeartRateService {
         minHeartRate = 0
         currentZone = .zone1
         samples = []
-        queryAnchor = nil
         validator.reset()
     }
 
     // MARK: - Private Methods
-
-    private func startObserverQuery() {
-        let heartRateType = HKQuantityType(.heartRate)
-
-        observerQuery = HKObserverQuery(
-            sampleType: heartRateType,
-            predicate: nil
-        ) { [weak self] _, completionHandler, error in
-            if let error = error {
-                Log.health.error("HeartRateService: Observer error - \(error)")
-                completionHandler()
-                return
-            }
-
-            // Fetch latest sample
-            self?.fetchLatestHeartRate()
-            completionHandler()
-        }
-
-        if let query = observerQuery {
-            healthStore.execute(query)
-        }
-    }
-
-    private func startAnchoredQuery() {
-        let heartRateType = HKQuantityType(.heartRate)
-        let now = Date()
-        let predicate = HKQuery.predicateForSamples(
-            withStart: now,
-            end: nil,
-            options: .strictStartDate
-        )
-
-        anchoredQuery = HKAnchoredObjectQuery(
-            type: heartRateType,
-            predicate: predicate,
-            anchor: queryAnchor,
-            limit: HKObjectQueryNoLimit
-        ) { [weak self] _, samples, _, anchor, error in
-            self?.handleAnchoredQueryResults(samples: samples, anchor: anchor, error: error)
-        }
-
-        anchoredQuery?.updateHandler = { [weak self] _, samples, _, anchor, error in
-            self?.handleAnchoredQueryResults(samples: samples, anchor: anchor, error: error)
-        }
-
-        if let query = anchoredQuery {
-            healthStore.execute(query)
-        }
-    }
-
-    private func handleAnchoredQueryResults(
-        samples: [HKSample]?,
-        anchor: HKQueryAnchor?,
-        error: Error?
-    ) {
-        if let error = error {
-            Log.health.error("HeartRateService: Anchored query error - \(error)")
-            return
-        }
-
-        queryAnchor = anchor
-
-        guard let heartRateSamples = samples as? [HKQuantitySample] else { return }
-
-        for sample in heartRateSamples {
-            let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
-            processHeartRate(bpm)
-        }
-    }
-
-    private func fetchLatestHeartRate() {
-        let heartRateType = HKQuantityType(.heartRate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        let query = HKSampleQuery(
-            sampleType: heartRateType,
-            predicate: nil,
-            limit: 1,
-            sortDescriptors: [sortDescriptor]
-        ) { [weak self] _, samples, error in
-            guard error == nil,
-                  let sample = samples?.first as? HKQuantitySample else {
-                return
-            }
-
-            let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
-
-            DispatchQueue.main.async {
-                self?.processHeartRate(bpm)
-            }
-        }
-
-        healthStore.execute(query)
-    }
 
     private func updateStatistics(with bpm: Int) {
         currentHeartRate = bpm

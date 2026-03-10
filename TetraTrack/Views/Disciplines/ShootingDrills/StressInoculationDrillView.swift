@@ -21,6 +21,7 @@ struct StressInoculationDrillView: View {
     @State private var timer: Timer?
     @State private var stabilityHistory: [Double] = []
     @State private var currentStability: Double = 0
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     enum DrillPhase {
         case instructions
@@ -436,6 +437,7 @@ struct StressInoculationDrillView: View {
         shootingTime = 0
         stabilityHistory = []
         currentStability = 0
+        sensorAnalyzer.startSession(discipline: .shooting)
         motionAnalyzer.startUpdates()
 
         // Strong haptic to signal start
@@ -471,6 +473,7 @@ struct StressInoculationDrillView: View {
         let avgStability = stabilityHistory.isEmpty ? 0 : stabilityHistory.reduce(0, +) / Double(stabilityHistory.count)
 
         // Save session
+        sensorAnalyzer.stopSession()
         let session = ShootingDrillSession(
             drillType: .stressInoculation,
             duration: targetDuration + 30, // Include warmup
@@ -478,6 +481,7 @@ struct StressInoculationDrillView: View {
             stabilityScore: avgStability,
             averageWobble: motionAnalyzer.averageWobble
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

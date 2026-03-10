@@ -80,7 +80,7 @@ protocol DisciplinePlugin: AnyObject {
     // MARK: - Session Model
 
     /// Create the discipline-specific session model (e.g. Ride, RunningSession)
-    func createSessionModel(in context: ModelContext) -> any PersistentModel
+    func createSessionModel(in context: ModelContext) -> any SessionWritable
 
     /// Create a location point for GPS persistence
     func createLocationPoint(from location: CLLocation) -> (any PersistentModel)?

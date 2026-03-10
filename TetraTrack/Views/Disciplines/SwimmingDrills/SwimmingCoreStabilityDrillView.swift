@@ -372,6 +372,7 @@ struct SwimmingCoreStabilityDrillView: View {
             enduranceScore: motionAnalyzer.scorer.endurance,
             averageRMS: motionAnalyzer.rmsMotion
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

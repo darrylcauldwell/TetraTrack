@@ -24,9 +24,10 @@ final class TrainingLoadService {
         var walkingTSS: Double = 0
         var swimmingTSS: Double = 0
         var shootingTSS: Double = 0
+        var drillTSS: Double = 0
 
         var totalTSS: Double {
-            ridingTSS + runningTSS + walkingTSS + swimmingTSS + shootingTSS
+            ridingTSS + runningTSS + walkingTSS + swimmingTSS + shootingTSS + drillTSS
         }
     }
 
@@ -76,6 +77,7 @@ final class TrainingLoadService {
         runs: [RunningSession],
         swims: [SwimmingSession],
         shoots: [ShootingSession],
+        drills: [UnifiedDrillSession] = [],
         days: Int = 90
     ) -> [DailyTSS] {
         let calendar = Calendar.current
@@ -157,6 +159,16 @@ final class TrainingLoadService {
             dailyMap[day]?.shootingTSS += hours * 20  // ~20 TSS/hour
         }
 
+        // Drill TSS (duration * 5 * intensityFactor)
+        for drill in drills {
+            let day = calendar.startOfDay(for: drill.startDate)
+            guard dailyMap[day] != nil else { continue }
+            let minutes = drill.duration / 60.0
+            guard minutes > 0 else { continue }
+            let intensityFactor = max(0.5, drill.score / 100.0)
+            dailyMap[day]?.drillTSS += minutes * 5 * intensityFactor
+        }
+
         return dailyMap.values.sorted { $0.date < $1.date }
     }
 
@@ -233,9 +245,9 @@ final class TrainingLoadService {
     }
 
     /// Weekly load summary per discipline
-    static func weeklyLoadSummary(dailyTSS: [DailyTSS], weeks: Int = 8) -> [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double)] {
+    static func weeklyLoadSummary(dailyTSS: [DailyTSS], weeks: Int = 8) -> [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double, drill: Double)] {
         let calendar = Calendar.current
-        var weeklyData: [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double)] = []
+        var weeklyData: [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double, drill: Double)] = []
 
         let endDate = calendar.startOfDay(for: Date())
 
@@ -252,7 +264,8 @@ final class TrainingLoadService {
                 running: weekDays.reduce(0) { $0 + $1.runningTSS },
                 walking: weekDays.reduce(0) { $0 + $1.walkingTSS },
                 swimming: weekDays.reduce(0) { $0 + $1.swimmingTSS },
-                shooting: weekDays.reduce(0) { $0 + $1.shootingTSS }
+                shooting: weekDays.reduce(0) { $0 + $1.shootingTSS },
+                drill: weekDays.reduce(0) { $0 + $1.drillTSS }
             ))
         }
 

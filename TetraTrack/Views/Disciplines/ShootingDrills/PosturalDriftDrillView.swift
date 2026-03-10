@@ -22,6 +22,7 @@ struct PosturalDriftDrillView: View {
     @State private var timer: Timer?
     @State private var stabilityHistory: [(time: TimeInterval, stability: Double)] = []
     @State private var currentStability: Double = 100
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -416,6 +417,7 @@ struct PosturalDriftDrillView: View {
     }
 
     private func startDrill() {
+        sensorAnalyzer.startSession(discipline: .shooting)
         isRunning = true
         elapsedTime = 0
         stabilityHistory = []
@@ -457,6 +459,7 @@ struct PosturalDriftDrillView: View {
         let enduranceScore = max(0, avgStability - (totalDrift * 0.5))
 
         // Save session
+        sensorAnalyzer.stopSession()
         let session = ShootingDrillSession(
             drillType: .posturalDrift,
             duration: targetDuration,
@@ -465,6 +468,7 @@ struct PosturalDriftDrillView: View {
             enduranceScore: enduranceScore,
             averageWobble: motionAnalyzer.averageWobble
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()
 

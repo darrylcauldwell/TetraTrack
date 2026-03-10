@@ -466,6 +466,7 @@ struct DryFireDrillView: View {
                 duration: TimeInterval(totalShots * 3),  // ~3s per shot
                 score: score
             )
+            DrillSensorEnrichment.enrich(session)
             modelContext.insert(session)
             try? modelContext.save()
 

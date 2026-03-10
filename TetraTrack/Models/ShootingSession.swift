@@ -70,7 +70,7 @@ enum ShootingSessionContext: String, Codable, CaseIterable {
 // MARK: - Shooting Session
 
 @Model
-final class ShootingSession: TrainingSessionProtocol {
+final class ShootingSession: TrainingSessionProtocol, SessionWritable {
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?
@@ -107,6 +107,11 @@ final class ShootingSession: TrainingSessionProtocol {
     var averageHeartRate: Int = 0
     var maxHeartRate: Int = 0
     var minHeartRate: Int = 0
+    var heartRateSamplesData: Data?
+
+    // Common session fields (SessionWritable)
+    var totalDistance: Double = 0
+    var storedTotalDuration: TimeInterval = 0
 
     // Session-level sensor metrics (from Watch shot detection)
     var averageHoldSteadiness: Double = 0
@@ -115,6 +120,24 @@ final class ShootingSession: TrainingSessionProtocol {
     var firstHalfSteadiness: Double = 0
     var secondHalfSteadiness: Double = 0
     var steadinessDegradation: Double = 0
+
+    // Sensor metrics (from Watch)
+    var averageBreathingRate: Double = 0
+    var averageSpO2: Double = 0
+    var minSpO2: Double = 0
+    var endFatigueScore: Double = 0
+    var postureStability: Double = 0
+    var trainingLoadScore: Double = 0
+    var goodPosturePercent: Double = 0
+    var activeTimePercent: Double = 0
+    var recoveryQuality: Double = 0
+    var averageIntensity: Double = 0
+    var breathingRateTrend: Double = 0
+    var spo2Trend: Double = 0
+
+    // Automated weather tracking (complements manual temperature/humidity/wind fields)
+    var startWeatherData: Data?
+    var endWeatherData: Data?
 
     // GRACE pillar scores (0-100 each)
     var graceStandTallScore: Double = 0
@@ -172,17 +195,18 @@ final class ShootingSession: TrainingSessionProtocol {
         self.sessionContextRaw = sessionContext.rawValue
     }
 
-    // MARK: - Protocol Conformance
+    // MARK: - Duration
 
-    /// Shooting doesn't track distance traveled - returns 0
-    var totalDistance: Double { 0 }
-
-    /// Total duration calculated from start/end dates
+    /// Total duration — returns stored value if set, otherwise computes from dates
     var totalDuration: TimeInterval {
-        guard let end = endDate else {
-            return Date().timeIntervalSince(startDate)
+        get {
+            if storedTotalDuration > 0 { return storedTotalDuration }
+            guard let end = endDate else {
+                return Date().timeIntervalSince(startDate)
+            }
+            return end.timeIntervalSince(startDate)
         }
-        return end.timeIntervalSince(startDate)
+        set { storedTotalDuration = newValue }
     }
 
     // MARK: - Computed Properties
@@ -235,6 +259,32 @@ final class ShootingSession: TrainingSessionProtocol {
 
     var formattedDate: String {
         Formatters.dateTime(startDate)
+    }
+
+    // MARK: - Automated Weather
+
+    var startWeather: WeatherConditions? {
+        get {
+            guard let data = startWeatherData else { return nil }
+            return try? JSONDecoder().decode(WeatherConditions.self, from: data)
+        }
+        set {
+            startWeatherData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var endWeather: WeatherConditions? {
+        get {
+            guard let data = endWeatherData else { return nil }
+            return try? JSONDecoder().decode(WeatherConditions.self, from: data)
+        }
+        set {
+            endWeatherData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    var hasWeatherData: Bool {
+        startWeather != nil
     }
 }
 

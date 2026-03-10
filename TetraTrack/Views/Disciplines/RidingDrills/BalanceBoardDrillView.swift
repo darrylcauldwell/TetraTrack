@@ -377,6 +377,7 @@ struct BalanceBoardDrillView: View {
             duration: targetDuration,
             score: avgAbsorption * 100
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

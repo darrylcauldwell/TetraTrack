@@ -268,7 +268,7 @@ The HMM constrains transitions to physically possible sequences (no walk→gallo
 
 **Discipline-specific services:**
 
-- **Riding (13):** `GaitAnalyzer`, `LeadAnalyzer`, `ReinAnalyzer`, `TurnAnalyzer`, `SymmetryAnalyzer`, `RhythmAnalyzer`, `MotionManager`, `TransitionAnalyzer`, `RideHealthCoordinator`, `HorseStatisticsManager`, `GaitLearningService`, `PostSessionSummaryService`, `HorseRoutingEngine`
+- **Riding (13):** `GaitAnalyzer`, `LeadAnalyzer`, `ReinAnalyzer`, `TurnAnalyzer`, `SymmetryAnalyzer`, `RhythmAnalyzer`, `MotionManager`, `TransitionAnalyzer`, `HealthCoordinator`, `HorseStatisticsManager`, `GaitLearningService`, `PostSessionSummaryService`, `HorseRoutingEngine`
 - **Running (6):** `LapDetector`, `VirtualPacer`, `TrainingProgramService`, `ProgramAudioCoach`, `RouteMatchingService`, `SegmentPBAnalyzer`
 - **Shooting (14+):** `EnhancedTargetScanner`, `AssistedHoleDetector`, `PatternAnalyzer`, `ShootingSensorAnalyzer`, `ShootingHistoryService` + Detection/ and MLTraining/ subdirectories
 - **Training (9):** `DrillScorer`, `CoachingEngine`, `AdaptiveDifficultyService`, `TrainingLoadService`, `CrossSportCorrelationService`, `TrendAnalyzer`
@@ -352,28 +352,14 @@ Independent Watch sessions with local storage and background sync. Shared types 
 
 ## Architectural Weaknesses
 
-### Incomplete plugin migration (3 disciplines)
-Walking, Running, and Swimming still use the deprecated `GPSSessionDelegateAdapter` stored in SwiftUI `@State`. This means their GPS delegate can be deallocated when SwiftUI reclaims views, silently dropping location data mid-session. This is the original bug that motivated the SessionTracker refactor. **Files affected:**
-- `WalkingLiveView.swift` — `@State private var gpsDelegateAdapter`
-- `RunningLiveComponents.swift` — `@State private var gpsDelegateAdapter`
-- `SwimmingComponents.swift` — `@State private var gpsDelegateAdapter`
-
-Migration to `WalkingPlugin`, `RunningPlugin`, and `SwimmingPlugin` is planned but not yet implemented.
-
 ### Singleton proliferation
 10 services use the `.shared` singleton pattern (`HealthKitManager`, `WatchConnectivityManager`, `AudioCoachManager`, `FallDetectionManager`, `UnifiedSharingCoordinator`, `WorkoutLifecycleService`, `IntelligenceService`, `NotificationManager`, `WidgetDataSyncService`, `SyncStatusMonitor`). While some are required by framework constraints (WCSession, HKHealthStore), others could be injected via `ServiceContainer` for better testability.
 
 ### Large file sizes
 Several files exceed 900 lines: `RidingPlugin.swift` (998), `SessionTracker.swift` (959), `ShootingSession.swift` (975), `RunningSession.swift` (984), `Competition.swift` (937), `AudioCoachManager.swift` (2,122), `HealthKitManager.swift` (1,345). These are candidates for decomposition.
 
-### Weak GPS delegate reference
-`GPSSessionTracker` holds `weak var delegate: GPSSessionDelegate?`. For `SessionTracker` this is safe (long-lived `@State` in `TetraTrackApp`). For the three deprecated adapters stored in view `@State`, it's the root cause of silent data loss. The delegate should become `strong` once all disciplines migrate to `SessionTracker`.
-
 ### Model layer complexity
 50 model files with 35 registered in the SwiftData schema. Some models have grown large (700-980 lines) with computed properties, encoded data accessors, and business logic that could be extracted to services. The JSON-encoded `Data?` pattern, while pragmatic for CloudKit, loses queryability and type safety at the storage layer.
-
-### Mixed view ownership of session lifecycle
-Riding sessions are owned by `SessionTracker` (correct — long-lived service). Walking, Running, and Swimming sessions are owned by their respective view hierarchies (fragile — tied to SwiftUI view lifecycle). This inconsistency is the primary migration debt.
 
 ### No integration or UI tests in CI
 Unit tests exist but CI skips them (simulator boot reliability). UI tests exist for screenshots but are not validated in CI. There is no automated regression testing beyond SwiftLint and build verification.

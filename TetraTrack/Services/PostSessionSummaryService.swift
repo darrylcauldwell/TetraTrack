@@ -310,6 +310,156 @@ final class PostSessionSummaryService {
         )
     }
 
+    // MARK: - Generate Summary for Shooting Session
+
+    func generateShootingSessionSummary(
+        session: ShootingSession,
+        voiceNotes: [String]
+    ) -> SessionSummary {
+        var praise: [String] = []
+        var improvements: [String] = []
+
+        let totalScore = session.totalScore
+        let maxPossible = session.maxPossibleScore
+        let scorePercentage = maxPossible > 0 ? Double(totalScore) / Double(maxPossible) * 100 : 0
+
+        // Score-based analysis
+        if scorePercentage >= 90 {
+            praise.append("outstanding accuracy")
+        } else if scorePercentage >= 80 {
+            praise.append("strong scoring")
+        } else if scorePercentage < 70 {
+            improvements.append("consistency across cards")
+        }
+
+        // X-count analysis
+        if session.xCount >= 5 {
+            praise.append("excellent precision with \(session.xCount) Xs")
+        }
+
+        // Stance stability
+        if session.averageStanceStability > 80 {
+            praise.append("rock-solid stance")
+        } else if session.averageStanceStability > 0 && session.averageStanceStability < 60 {
+            improvements.append("stance stability — try wider feet")
+        }
+
+        // Fatigue analysis from sorted ends
+        let ends = session.sortedEnds
+        if ends.count >= 2 {
+            let end1Score = (ends[0].shots ?? []).reduce(0) { $0 + $1.score }
+            let end2Score = (ends[1].shots ?? []).reduce(0) { $0 + $1.score }
+            if end2Score < end1Score - 5 {
+                improvements.append("maintaining focus on card 2")
+            } else if end2Score > end1Score {
+                praise.append("finishing stronger on card 2")
+            }
+        }
+
+        if praise.isEmpty {
+            praise.append("completing your shooting session")
+        }
+
+        let headline = "Shooting complete: \(totalScore)/\(maxPossible) (\(Int(scorePercentage))%)"
+
+        let encouragement = scorePercentage >= 85
+            ? "Great shooting today!"
+            : "Every session builds your foundation. Keep practising!"
+
+        let rating = min(5, max(1, 3 + praise.count - improvements.count))
+
+        var keyMetrics = [
+            "Score: \(totalScore)/\(maxPossible)",
+            "Percentage: \(Int(scorePercentage))%",
+            "X Count: \(session.xCount)"
+        ]
+        if session.averageStanceStability > 0 {
+            keyMetrics.append("Stance Stability: \(Int(session.averageStanceStability))%")
+        }
+
+        return SessionSummary(
+            generatedAt: Date(),
+            headline: headline,
+            praise: praise,
+            improvements: improvements,
+            keyMetrics: keyMetrics,
+            encouragement: encouragement,
+            overallRating: rating,
+            voiceNotesIncluded: voiceNotes
+        )
+    }
+
+    // MARK: - Generate Summary for Walking Session
+
+    func generateWalkingSessionSummary(
+        session: RunningSession,
+        voiceNotes: [String]
+    ) -> SessionSummary {
+        var praise: [String] = []
+        var improvements: [String] = []
+
+        // Distance analysis
+        if session.totalDistance > 3000 {
+            praise.append("covering good distance")
+        }
+
+        // Symmetry analysis
+        if session.walkingSymmetryScore > 85 {
+            praise.append("excellent walking symmetry")
+        } else if session.walkingSymmetryScore > 0 && session.walkingSymmetryScore < 70 {
+            improvements.append("evening out your stride")
+        }
+
+        // Rhythm analysis
+        if session.walkingRhythmScore > 85 {
+            praise.append("consistent walking rhythm")
+        } else if session.walkingRhythmScore > 0 && session.walkingRhythmScore < 70 {
+            improvements.append("maintaining a steady pace")
+        }
+
+        // Cadence
+        let avgCadence = session.averageCadence
+        if avgCadence >= 110 && avgCadence <= 130 {
+            praise.append("good walking cadence")
+        } else if avgCadence > 0 && avgCadence < 100 {
+            improvements.append("picking up your step rate")
+        }
+
+        if praise.isEmpty {
+            praise.append("getting your walk in")
+        }
+
+        let headline = "Walk complete: \(session.formattedDistance) in \(session.formattedDuration)"
+
+        let encouragement = session.totalDistance > 5000
+            ? "Excellent walking session!"
+            : "Every step builds fitness. Well done!"
+
+        let rating = min(5, max(1, 3 + praise.count - improvements.count))
+
+        var keyMetrics = [
+            "Distance: \(session.formattedDistance)",
+            "Duration: \(session.formattedDuration)"
+        ]
+        if avgCadence > 0 {
+            keyMetrics.append("Avg Cadence: \(avgCadence) spm")
+        }
+        if session.walkingSymmetryScore > 0 {
+            keyMetrics.append("Symmetry: \(Int(session.walkingSymmetryScore))%")
+        }
+
+        return SessionSummary(
+            generatedAt: Date(),
+            headline: headline,
+            praise: praise,
+            improvements: improvements,
+            keyMetrics: keyMetrics,
+            encouragement: encouragement,
+            overallRating: rating,
+            voiceNotesIncluded: voiceNotes
+        )
+    }
+
     // MARK: - Audio Readback
 
     /// Read the session summary aloud via AirPods

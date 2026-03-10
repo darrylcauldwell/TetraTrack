@@ -73,6 +73,26 @@ final class UnifiedDrillSession {
     /// Heart rate at end of drill
     var endHeartRate: Double = 0
 
+    // MARK: - Watch Sensor Metrics
+
+    /// Average breathing rate during drill (breaths per minute)
+    var averageBreathingRate: Double = 0
+
+    /// Average blood oxygen saturation during drill (%)
+    var averageSpO2: Double = 0
+
+    /// Posture stability during drill (0-100)
+    var postureStability: Double = 0
+
+    /// Average tremor level during drill (0-100, shooting drills)
+    var averageTremorLevel: Double = 0
+
+    /// Average stance stability during drill (0-100, shooting drills)
+    var averageStanceStability: Double = 0
+
+    /// Average heart rate during drill (bpm)
+    var averageHeartRateDrill: Double = 0
+
     // MARK: - Computed Properties
 
     /// Computed drill type from raw string

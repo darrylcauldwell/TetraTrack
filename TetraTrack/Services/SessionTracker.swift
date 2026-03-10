@@ -63,6 +63,7 @@ final class SessionTracker {
     // MARK: - Active Plugin
 
     private(set) var activePlugin: (any DisciplinePlugin)?
+    private(set) var currentSessionModel: (any SessionWritable)?
 
     // Fall detection callbacks
     var onFallDetected: (() -> Void)?
@@ -73,7 +74,7 @@ final class SessionTracker {
 
     let locationManager: LocationManager
     let gpsTracker: GPSSessionTracker
-    let healthCoordinator = RideHealthCoordinator()
+    let healthCoordinator = HealthCoordinator()
     private let watchManager = WatchConnectivityManager.shared
     private let workoutLifecycle = WorkoutLifecycleService.shared
 
@@ -90,7 +91,10 @@ final class SessionTracker {
     private var timerSource: DispatchSourceTimer?
     private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.sessionTimer", qos: .userInitiated)
     private var timerTickCount: Int = 0
-    private var hasWCSessionHR: Bool = false
+
+    // Wall-clock timer state for non-GPS disciplines
+    private var pausedAccumulated: TimeInterval = 0
+    private var lastPauseDate: Date?
 
     // Vehicle detection
     private var highSpeedStartTime: Date?
@@ -150,7 +154,9 @@ final class SessionTracker {
     }
 
     func configure(riderProfile: RiderProfile?) {
-        healthCoordinator.configure(riderProfile: riderProfile)
+        if let profile = riderProfile {
+            healthCoordinator.configure(maxHeartRate: profile.maxHeartRate, restingHeartRate: profile.restingHeartRate)
+        }
     }
 
     // MARK: - Plugin Access
@@ -175,15 +181,17 @@ final class SessionTracker {
         }
         cancelActiveTasks()
 
-        // Request permission if needed
-        if locationManager.needsPermission {
-            locationManager.requestPermission()
-            try? await Task.sleep(nanoseconds: 500_000_000)
-        }
+        // Request location permission only for GPS disciplines
+        if plugin.usesGPS {
+            if locationManager.needsPermission {
+                locationManager.requestPermission()
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
 
-        guard locationManager.hasPermission else {
-            Log.tracking.warning("startSession() aborted - no location permission")
-            return
+            guard locationManager.hasPermission else {
+                Log.tracking.warning("startSession() aborted - no location permission")
+                return
+            }
         }
 
         // Set active plugin
@@ -196,6 +204,7 @@ final class SessionTracker {
             return
         }
         let sessionModel = plugin.createSessionModel(in: ctx)
+        currentSessionModel = sessionModel
         ctx.insert(sessionModel)
 
         // Save immediately to prevent data loss on crash
@@ -223,24 +232,28 @@ final class SessionTracker {
         gpsHorizontalAccuracy = -1
         currentWeather = nil
         weatherError = nil
-        hasWCSessionHR = false
         startTime = Date()
         timerTickCount = 0
+        pausedAccumulated = 0
+        lastPauseDate = nil
         sessionState = .tracking
 
-        // Clear tracked points for fresh route display
-        locationManager.clearTrackedPoints()
+        // Start GPS if discipline uses it
+        if plugin.usesGPS {
+            // Clear tracked points for fresh route display
+            locationManager.clearTrackedPoints()
 
-        // Start GPS session tracker with delegate pattern
-        let gpsConfig = GPSSessionConfig(
-            subscriberId: plugin.subscriberId,
-            activityType: plugin.activityType,
-            checkpointInterval: 30,
-            modelContext: ctx,
-            workoutLifecycle: workoutLifecycle
-        )
-        await gpsTracker.start(config: gpsConfig, delegate: self)
-        Log.tracking.debug("GPS session tracker started")
+            // Start GPS session tracker with delegate pattern
+            let gpsConfig = GPSSessionConfig(
+                subscriberId: plugin.subscriberId,
+                activityType: plugin.activityType,
+                checkpointInterval: 30,
+                modelContext: ctx,
+                workoutLifecycle: workoutLifecycle
+            )
+            await gpsTracker.start(config: gpsConfig, delegate: self)
+            Log.tracking.debug("GPS session tracker started")
+        }
 
         // Auto-enable family sharing if plugin supports it
         if plugin.supportsFamilySharing && !isSharingWithFamily {
@@ -260,9 +273,6 @@ final class SessionTracker {
 
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
-
-        // Start heart rate monitoring
-        await healthCoordinator.startMonitoring()
 
         // Start workout lifecycle
         do {
@@ -288,8 +298,10 @@ final class SessionTracker {
         // Start Watch session for this discipline
         watchManager.startSession(discipline: plugin.watchDiscipline)
 
-        // Fetch weather for outdoor sessions
-        await fetchWeatherForSession()
+        // Fetch weather for outdoor sessions (only if GPS/outdoor)
+        if plugin.usesGPS {
+            await fetchWeatherForSession()
+        }
 
         // Start audio coaching session
         audioCoach.startSession()
@@ -304,7 +316,11 @@ final class SessionTracker {
     func pauseSession() {
         guard sessionState == .tracking else { return }
 
-        gpsTracker.pause()
+        if activePlugin?.usesGPS == true {
+            gpsTracker.pause()
+        } else {
+            lastPauseDate = Date()
+        }
         stopTimer()
         workoutLifecycle.pause()
 
@@ -316,7 +332,12 @@ final class SessionTracker {
     func resumeSession() {
         guard sessionState == .paused else { return }
 
-        gpsTracker.resume()
+        if activePlugin?.usesGPS == true {
+            gpsTracker.resume()
+        } else if let pauseDate = lastPauseDate {
+            pausedAccumulated += Date().timeIntervalSince(pauseDate)
+            lastPauseDate = nil
+        }
         startTimer()
         workoutLifecycle.resume()
 
@@ -353,8 +374,10 @@ final class SessionTracker {
             }
         }
 
-        // Stop GPS and timer
-        gpsTracker.stop()
+        // Stop GPS (if used) and timer
+        if plugin.usesGPS {
+            gpsTracker.stop()
+        }
         stopTimer()
 
         // Stop fall detection
@@ -365,27 +388,40 @@ final class SessionTracker {
         // End audio coaching
         audioCoach.endSession(distance: totalDistance, duration: elapsedTime)
 
-        // Stop heart rate monitoring and get final stats
-        healthCoordinator.stopMonitoring()
+        // Stop watch status updates
         watchUpdateTimer?.invalidate()
         watchUpdateTimer = nil
 
-        // Get HealthKit enrichment from plugin
+        // Write common fields to session model before plugin gets a chance to override
+        let hrStats = healthCoordinator.getFinalStatistics()
+        if let model = currentSessionModel {
+            model.endDate = Date()
+            model.totalDistance = totalDistance
+            model.totalDuration = elapsedTime
+            model.averageHeartRate = hrStats.averageBPM
+            model.maxHeartRate = hrStats.maxBPM
+            model.minHeartRate = hrStats.minBPM
+            model.heartRateSamplesData = try? JSONEncoder().encode(Array(hrStats.samples))
+        }
+
+        // Get HealthKit enrichment from plugin (can override common fields)
         let enrichment = plugin.onSessionStopping(tracker: self)
 
         // End workout lifecycle with enrichment data
-        let endWorkoutTask = Task {
+        let endWorkoutTask = Task { [weak self] in
+            guard let self else { return }
             if !enrichment.workoutEvents.isEmpty {
-                await workoutLifecycle.addWorkoutEvents(enrichment.workoutEvents)
+                await self.workoutLifecycle.addWorkoutEvents(enrichment.workoutEvents)
             }
             if !enrichment.calorieSamples.isEmpty {
-                await workoutLifecycle.addSamples(enrichment.calorieSamples)
+                await self.workoutLifecycle.addSamples(enrichment.calorieSamples)
             }
-            let workout = await workoutLifecycle.endAndSave(metadata: enrichment.metadata)
+            let workout = await self.workoutLifecycle.endAndSave(metadata: enrichment.metadata)
             if let workout {
+                self.currentSessionModel?.healthKitWorkoutUUID = workout.uuid.uuidString
                 Log.health.info("Session saved to Apple Health: \(workout.uuid.uuidString)")
             }
-            workoutLifecycle.sendIdleStateToWatch()
+            self.workoutLifecycle.sendIdleStateToWatch()
         }
         activeBackgroundTasks.append(endWorkoutTask)
 
@@ -410,8 +446,7 @@ final class SessionTracker {
             activeBackgroundTasks.append(weatherTask)
         }
 
-        // Save heart rate data
-        let hrStats = healthCoordinator.getFinalStatistics()
+        // Save heart rate samples for local display
         heartRateSamples = Array(hrStats.samples)
 
         // Start recovery analysis if we have HR data
@@ -462,6 +497,7 @@ final class SessionTracker {
         // Reset common state
         sessionState = .idle
         activePlugin = nil
+        currentSessionModel = nil
         currentSpeed = 0
         currentElevation = 0
         elevationGain = 0
@@ -474,6 +510,8 @@ final class SessionTracker {
         healthCoordinator.resetState()
         currentWeather = nil
         weatherError = nil
+        pausedAccumulated = 0
+        lastPauseDate = nil
 
         // Await all post-session tasks with background execution protection
         Task {
@@ -492,13 +530,14 @@ final class SessionTracker {
         cancelActiveTasks()
 
         // Stop all tracking services
-        gpsTracker.stop()
+        if plugin.usesGPS {
+            gpsTracker.stop()
+        }
         stopTimer()
         if plugin.usesFallDetection {
             fallDetectionManager.stopMonitoring()
         }
         audioCoach.endSession(distance: 0, duration: 0)
-        healthCoordinator.stopMonitoring()
         watchUpdateTimer?.invalidate()
         watchUpdateTimer = nil
 
@@ -511,6 +550,16 @@ final class SessionTracker {
 
         // Notify plugin
         plugin.onSessionDiscarded(tracker: self)
+
+        // Delete session model if present
+        if let model = currentSessionModel {
+            modelContext?.delete(model)
+            do {
+                try modelContext?.save()
+            } catch {
+                Log.tracking.error("Failed to delete discarded session model: \(error)")
+            }
+        }
 
         // Stop family sharing
         if isSharingWithFamily {
@@ -526,6 +575,7 @@ final class SessionTracker {
         // Reset state
         sessionState = .idle
         activePlugin = nil
+        currentSessionModel = nil
         currentSpeed = 0
         currentElevation = 0
         elevationGain = 0
@@ -538,6 +588,8 @@ final class SessionTracker {
         healthCoordinator.resetState()
         currentWeather = nil
         weatherError = nil
+        pausedAccumulated = 0
+        lastPauseDate = nil
     }
 
     // MARK: - Safety Actions
@@ -577,8 +629,14 @@ final class SessionTracker {
         source.setEventHandler { [weak self] in
             DispatchQueue.main.async {
                 guard let self else { return }
-                // Sync elapsed time from GPS session tracker (wall-clock based)
-                self.elapsedTime = self.gpsTracker.elapsedTime
+
+                // Elapsed time: GPS-based or wall-clock based
+                if self.activePlugin?.usesGPS == true {
+                    self.elapsedTime = self.gpsTracker.elapsedTime
+                } else {
+                    guard let start = self.startTime else { return }
+                    self.elapsedTime = Date().timeIntervalSince(start) - self.pausedAccumulated
+                }
 
                 self.timerTickCount += 1
 
@@ -592,24 +650,23 @@ final class SessionTracker {
                     fallDetectionActive: self.fallDetectionManager.isMonitoring
                 )
 
-                // HR fallback: use HKWorkoutBuilder HR when companion HR isn't flowing
-                if !self.hasWCSessionHR {
-                    let lifecycleHR = Int(self.workoutLifecycle.liveHeartRate)
-                    if lifecycleHR > 0 {
-                        self.handleHeartRateUpdate(lifecycleHR)
-                    }
-                }
-
                 // Session health log every 30s
                 if self.timerTickCount % 30 == 0 {
-                    let diag = self.gpsTracker.diagnostics
-                    Log.tracking.info("""
-                        Session health - elapsed: \(Int(self.elapsedTime))s, \
-                        distance: \(Int(self.totalDistance))m, \
-                        GPS persisted: \(diag.totalPersisted), \
-                        HR source: \(self.hasWCSessionHR ? "WCSession" : "WorkoutLifecycle"), \
-                        HR: \(self.currentHeartRate) bpm
-                        """)
+                    let hr = self.currentHeartRate
+                    if self.activePlugin?.usesGPS == true {
+                        let diag = self.gpsTracker.diagnostics
+                        Log.tracking.info("""
+                            Session health - elapsed: \(Int(self.elapsedTime))s, \
+                            distance: \(Int(self.totalDistance))m, \
+                            GPS persisted: \(diag.totalPersisted), \
+                            HR: \(hr) bpm
+                            """)
+                    } else {
+                        Log.tracking.info("""
+                            Session health - elapsed: \(Int(self.elapsedTime))s, \
+                            HR: \(hr) bpm
+                            """)
+                    }
                 }
 
                 // Notify plugin
@@ -675,23 +732,7 @@ final class SessionTracker {
         }
 
         // Observe heart rate
-        watchHeartRateTask = Task { @MainActor [weak self] in
-            let wm = WatchConnectivityManager.shared
-            var lastSeq = wm.heartRateSequence
-            while !Task.isCancelled {
-                await withCheckedContinuation { cont in
-                    withObservationTracking { _ = wm.heartRateSequence }
-                        onChange: { cont.resume() }
-                }
-                guard let self, !Task.isCancelled else { break }
-                guard wm.heartRateSequence != lastSeq else { continue }
-                lastSeq = wm.heartRateSequence
-                let hr = wm.lastReceivedHeartRate
-                guard hr > 0 else { continue }
-                self.hasWCSessionHR = true
-                self.handleHeartRateUpdate(hr)
-            }
-        }
+        startWatchHeartRateObservation()
 
         // Observe voice notes
         watchVoiceNoteTask = Task { @MainActor [weak self] in
@@ -706,6 +747,28 @@ final class SessionTracker {
                 guard wm.voiceNoteSequence != lastSeq else { continue }
                 lastSeq = wm.voiceNoteSequence
                 // Voice note handling is discipline-specific — plugin handles via onSessionStarted hooks
+            }
+        }
+    }
+
+    /// Start (or restart) the Watch heart rate observation task.
+    /// Called by `startWatchObservation()` to begin heart rate monitoring.
+    private func startWatchHeartRateObservation() {
+        watchHeartRateTask?.cancel()
+        watchHeartRateTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.heartRateSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.heartRateSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.heartRateSequence != lastSeq else { continue }
+                lastSeq = wm.heartRateSequence
+                let hr = wm.lastReceivedHeartRate
+                guard hr > 0 else { continue }
+                self.handleHeartRateUpdate(hr)
             }
         }
     }

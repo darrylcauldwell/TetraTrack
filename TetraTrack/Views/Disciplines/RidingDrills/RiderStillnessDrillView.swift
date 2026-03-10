@@ -415,6 +415,7 @@ struct RiderStillnessDrillView: View {
             averageRMS: motionAnalyzer.rmsMotion,
             peakDeviation: peakDeviation
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

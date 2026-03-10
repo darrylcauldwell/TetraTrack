@@ -34,7 +34,6 @@ final class WorkoutLifecycleService: NSObject {
     var error: String?
 
     // Live statistics from HKLiveWorkoutBuilder
-    var liveHeartRate: Double = 0
     var liveActiveCalories: Double = 0
     var liveDistance: Double = 0
 
@@ -462,7 +461,6 @@ final class WorkoutLifecycleService: NSObject {
         isOutdoorSession = false
         currentActivityType = nil
         state = .idle
-        liveHeartRate = 0
         liveActiveCalories = 0
         liveDistance = 0
     }
@@ -530,13 +528,6 @@ extension WorkoutLifecycleService: HKLiveWorkoutBuilderDelegate {
     ) {
         Task { @MainActor in
             // Extract live statistics from the builder
-            if let hrType = collectedTypes.first(where: { $0 == HKQuantityType(.heartRate) }) as? HKQuantityType {
-                if let stats = workoutBuilder.statistics(for: hrType) {
-                    let unit = HKUnit.count().unitDivided(by: .minute())
-                    self.liveHeartRate = stats.mostRecentQuantity()?.doubleValue(for: unit) ?? 0
-                }
-            }
-
             if let calType = collectedTypes.first(where: { $0 == HKQuantityType(.activeEnergyBurned) }) as? HKQuantityType {
                 if let stats = workoutBuilder.statistics(for: calType) {
                     self.liveActiveCalories = stats.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0

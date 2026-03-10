@@ -421,6 +421,7 @@ struct CadenceTrainingDrillView: View {
             rhythmAccuracy: accuracy,
             cadence: avgCadence
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

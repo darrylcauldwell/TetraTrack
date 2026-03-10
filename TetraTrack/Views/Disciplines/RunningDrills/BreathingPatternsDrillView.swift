@@ -24,6 +24,7 @@ struct BreathingPatternsDrillView: View {
     @State private var currentStep = 0
     @State private var breathingScores: [Double] = []
     @State private var cueSystem = RealTimeCueSystem()
+    private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     enum BreathPhase: String {
         case inhale = "Inhale"
@@ -354,6 +355,7 @@ struct BreathingPatternsDrillView: View {
     }
 
     private func startDrill() {
+        sensorAnalyzer.startSession(discipline: .running)
         isRunning = true
         elapsedTime = 0
         cycleCount = 0
@@ -397,6 +399,7 @@ struct BreathingPatternsDrillView: View {
 
     private func endDrill() {
         cleanup()
+        sensorAnalyzer.stopSession()
 
         let avgScore = breathingScores.isEmpty ? 80 : breathingScores.reduce(0, +) / Double(breathingScores.count)
 
@@ -408,6 +411,7 @@ struct BreathingPatternsDrillView: View {
             breathingScore: avgScore,
             rhythmScore: avgScore
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

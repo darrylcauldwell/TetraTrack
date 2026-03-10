@@ -1112,16 +1112,6 @@ final class HealthKitManager {
         )
     }
 
-    /// Fetch heart rate metrics for a shooting session time range
-    func fetchShootingHeartRate(from startDate: Date, to endDate: Date) async -> (average: Int, max: Int, min: Int) {
-        let (avg, maxVal, minVal) = await fetchHeartRateSamples(from: startDate, to: endDate)
-        return (
-            average: avg != nil ? Int(avg!) : 0,
-            max: maxVal != nil ? Int(maxVal!) : 0,
-            min: minVal != nil ? Int(minVal!) : 0
-        )
-    }
-
     /// Fetch heart rate samples for a time range, returning average/max/min
     private func fetchHeartRateSamples(from startDate: Date, to endDate: Date) async -> (average: Double?, max: Double?, min: Double?) {
         guard isAvailable else { return (nil, nil, nil) }

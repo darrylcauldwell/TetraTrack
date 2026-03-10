@@ -412,6 +412,7 @@ struct HipMobilityDrillView: View {
             coordinationScore: motionAnalyzer.scorer.coordination,
             averageRMS: motionAnalyzer.rmsMotion
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration

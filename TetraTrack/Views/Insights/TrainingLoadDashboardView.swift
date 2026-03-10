@@ -14,6 +14,7 @@ struct TrainingLoadDashboardView: View {
     @Query(sort: \RunningSession.startDate, order: .reverse) private var runs: [RunningSession]
     @Query(sort: \SwimmingSession.startDate, order: .reverse) private var swims: [SwimmingSession]
     @Query(sort: \ShootingSession.startDate, order: .reverse) private var shoots: [ShootingSession]
+    @Query(sort: \UnifiedDrillSession.startDate, order: .reverse) private var drills: [UnifiedDrillSession]
 
     private var dailyTSS: [TrainingLoadService.DailyTSS] {
         TrainingLoadService.computeDailyTSS(
@@ -21,6 +22,7 @@ struct TrainingLoadDashboardView: View {
             runs: runs,
             swims: swims,
             shoots: shoots,
+            drills: drills,
             days: 90
         )
     }
@@ -34,7 +36,7 @@ struct TrainingLoadDashboardView: View {
         return TrainingLoadService.formStatus(tsb: latest.tsb)
     }
 
-    private var weeklyData: [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double)] {
+    private var weeklyData: [(week: String, riding: Double, running: Double, walking: Double, swimming: Double, shooting: Double, drill: Double)] {
         TrainingLoadService.weeklyLoadSummary(dailyTSS: dailyTSS)
     }
 
@@ -227,6 +229,13 @@ struct TrainingLoadDashboardView: View {
                             )
                             .foregroundStyle(by: .value("Discipline", "Shooting"))
                         }
+                        if week.drill > 0 {
+                            BarMark(
+                                x: .value("Week", week.week),
+                                y: .value("TSS", week.drill)
+                            )
+                            .foregroundStyle(by: .value("Discipline", "Drills"))
+                        }
                     }
                 }
                 .chartForegroundStyleScale([
@@ -234,7 +243,8 @@ struct TrainingLoadDashboardView: View {
                     "Running": Color.green,
                     "Walking": Color.mint,
                     "Swimming": Color.blue,
-                    "Shooting": Color.purple
+                    "Shooting": Color.purple,
+                    "Drills": Color.orange
                 ])
                 .frame(height: 150)
             }

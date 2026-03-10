@@ -363,6 +363,7 @@ struct ReactionDrillView: View {
                 score: score
             )
             session.bestReactionTime = reactionTimes.min() ?? 0
+            DrillSensorEnrichment.enrich(session)
             modelContext.insert(session)
             try? modelContext.save()
 

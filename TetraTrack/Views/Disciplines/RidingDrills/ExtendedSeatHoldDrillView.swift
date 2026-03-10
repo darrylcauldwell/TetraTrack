@@ -483,6 +483,7 @@ struct ExtendedSeatHoldDrillView: View {
             coordinationScore: motionAnalyzer.scorer.coordination,
             averageRMS: motionAnalyzer.rmsMotion
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         let skillService = SkillDomainService()

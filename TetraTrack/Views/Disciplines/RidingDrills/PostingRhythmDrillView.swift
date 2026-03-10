@@ -500,6 +500,7 @@ struct PostingRhythmDrillView: View {
             averageRMS: motionAnalyzer.rmsMotion,
             rhythmAccuracy: avgAccuracy
         )
+        DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
 
         // Compute and save skill domain scores for profile integration
