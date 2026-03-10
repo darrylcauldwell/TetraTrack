@@ -705,13 +705,15 @@ final class SessionTracker {
                     }
                 }
 
-                // HKLiveWorkoutBuilder baseline: fill in HR from the phone-side builder
-                // when WCSession hasn't delivered (e.g. walking discipline)
-                if self.currentHeartRate == 0 {
-                    let builderHR = self.workoutLifecycle.liveHeartRate
-                    if builderHR > 0 {
-                        self.handleHeartRateUpdate(builderHR)
-                    }
+                // Heart rate from HKLiveWorkoutBuilder (primary source).
+                // The builder's HKLiveWorkoutDataSource auto-collects HR from paired
+                // Apple Watch via HealthKit. This replaced the old HKObserverQuery/
+                // HKAnchoredObjectQuery approach in HeartRateService.
+                // WCSession heartRateUpdate commands are a secondary source handled
+                // by the Watch observation task.
+                let builderHR = self.workoutLifecycle.liveHeartRate
+                if builderHR > 0 {
+                    self.handleHeartRateUpdate(builderHR)
                 }
 
                 // Notify plugin
