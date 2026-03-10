@@ -8,6 +8,8 @@ DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
+xcresulttool/
+xcrun/
 
 # User-specific
 xcuserdata/
