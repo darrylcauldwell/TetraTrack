@@ -525,10 +525,12 @@ final class AIDataCollector {
             vibrationLevel: variance,
             stabilityIndex: stability,
             jerkMagnitude: jerk,
-            stationaryConfidence: 0,
-            walkingConfidence: 0,
-            runningConfidence: 0,
-            unknownConfidence: 0
+            stationaryConfidence: ActivityClassificationService.shared.currentActivity.map { $0.isStationary ? $0.confidenceValue : 0 } ?? 0,
+            walkingConfidence: ActivityClassificationService.shared.currentActivity.map { $0.isWalking ? $0.confidenceValue : 0 } ?? 0,
+            runningConfidence: ActivityClassificationService.shared.currentActivity.map { $0.isRunning ? $0.confidenceValue : 0 } ?? 0,
+            unknownConfidence: ActivityClassificationService.shared.currentActivity.map { activity in
+                (activity.isStationary || activity.isWalking || activity.isRunning || activity.isCycling || activity.isAutomotive) ? 0 : 1.0
+            } ?? 1.0
         )
     }
 

@@ -24,6 +24,16 @@ final class SessionTracker {
     var totalDistance: Double = 0
     var currentSpeed: Double = 0  // m/s
 
+    // MARK: - Pedometer
+
+    var pedometerCadence: Int = 0
+    var pedometerFloorsAscended: Int = 0
+    var pedometerFloorsDescended: Int = 0
+
+    // MARK: - Activity Classification
+
+    var currentActivityClassification: ActivityClassification?
+
     // MARK: - Elevation
 
     var currentElevation: Double = 0  // meters
@@ -77,6 +87,7 @@ final class SessionTracker {
     let healthCoordinator = HealthCoordinator()
     private let watchManager = WatchConnectivityManager.shared
     private let workoutLifecycle = WorkoutLifecycleService.shared
+    private let activityClassifier = ActivityClassificationService.shared
 
     // Injected services
     private let sharingCoordinator: UnifiedSharingCoordinator
@@ -295,6 +306,9 @@ final class SessionTracker {
             fallDetectionManager.startMonitoring()
         }
 
+        // Start activity classification (negligible battery cost)
+        activityClassifier.startMonitoring()
+
         // Start Watch session for this discipline
         watchManager.startSession(discipline: plugin.watchDiscipline)
 
@@ -384,6 +398,9 @@ final class SessionTracker {
         if plugin.usesFallDetection {
             fallDetectionManager.stopMonitoring()
         }
+
+        // Stop activity classification
+        activityClassifier.stopMonitoring()
 
         // End audio coaching
         audioCoach.endSession(distance: totalDistance, duration: elapsedTime)
@@ -502,6 +519,10 @@ final class SessionTracker {
         currentElevation = 0
         elevationGain = 0
         elevationLoss = 0
+        pedometerCadence = 0
+        pedometerFloorsAscended = 0
+        pedometerFloorsDescended = 0
+        currentActivityClassification = nil
         currentHeartRate = 0
         averageHeartRate = 0
         maxHeartRate = 0
@@ -537,6 +558,7 @@ final class SessionTracker {
         if plugin.usesFallDetection {
             fallDetectionManager.stopMonitoring()
         }
+        activityClassifier.stopMonitoring()
         audioCoach.endSession(distance: 0, duration: 0)
         watchUpdateTimer?.invalidate()
         watchUpdateTimer = nil
@@ -580,6 +602,10 @@ final class SessionTracker {
         currentElevation = 0
         elevationGain = 0
         elevationLoss = 0
+        pedometerCadence = 0
+        pedometerFloorsAscended = 0
+        pedometerFloorsDescended = 0
+        currentActivityClassification = nil
         currentHeartRate = 0
         averageHeartRate = 0
         maxHeartRate = 0
@@ -640,6 +666,16 @@ final class SessionTracker {
 
                 self.timerTickCount += 1
 
+                // Sync pedometer metrics from GPS tracker
+                if self.activePlugin?.usesGPS == true {
+                    self.pedometerCadence = self.gpsTracker.pedometerCadence
+                    self.pedometerFloorsAscended = self.gpsTracker.pedometerFloorsAscended
+                    self.pedometerFloorsDescended = self.gpsTracker.pedometerFloorsDescended
+                }
+
+                // Sync activity classification
+                self.currentActivityClassification = self.activityClassifier.currentActivity
+
                 // Audio coaching for milestones
                 self.audioCoach.processTime(self.elapsedTime)
                 self.audioCoach.processDistance(self.totalDistance)
@@ -666,6 +702,15 @@ final class SessionTracker {
                             Session health - elapsed: \(Int(self.elapsedTime))s, \
                             HR: \(hr) bpm
                             """)
+                    }
+                }
+
+                // HKLiveWorkoutBuilder baseline: fill in HR from the phone-side builder
+                // when WCSession hasn't delivered (e.g. walking discipline)
+                if self.currentHeartRate == 0 {
+                    let builderHR = self.workoutLifecycle.liveHeartRate
+                    if builderHR > 0 {
+                        self.handleHeartRateUpdate(builderHR)
                     }
                 }
 
@@ -864,6 +909,15 @@ final class SessionTracker {
 
     func checkForVehicleSpeed(_ speed: Double) {
         guard activePlugin?.usesVehicleDetection == true else { return }
+
+        // Fast path: activity classifier detects vehicle before speed threshold
+        if let activity = currentActivityClassification, activity.isInVehicle {
+            if !showingVehicleAlert {
+                showingVehicleAlert = true
+                audioCoach.announce("It looks like you may be in a vehicle. Would you like to stop tracking?")
+            }
+            return
+        }
 
         if speed > vehicleSpeedThreshold {
             if highSpeedStartTime == nil {
