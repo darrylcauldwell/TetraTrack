@@ -36,6 +36,14 @@ final class WorkoutLifecycleService: NSObject {
     // Live statistics from HKLiveWorkoutBuilder
     var liveActiveCalories: Double = 0
     var liveDistance: Double = 0
+    var liveHeartRate: Int = 0
+    var liveStepCount: Int = 0
+    var liveSwimmingStrokeCount: Int = 0
+    var liveRunningSpeed: Double = 0
+    var liveRunningPower: Double = 0
+    var liveRunningStrideLength: Double = 0
+    var liveGroundContactTime: Double = 0
+    var liveVerticalOscillation: Double = 0
 
     // Internal HealthKit objects
     private let healthStore = HKHealthStore()
@@ -463,6 +471,14 @@ final class WorkoutLifecycleService: NSObject {
         state = .idle
         liveActiveCalories = 0
         liveDistance = 0
+        liveHeartRate = 0
+        liveStepCount = 0
+        liveSwimmingStrokeCount = 0
+        liveRunningSpeed = 0
+        liveRunningPower = 0
+        liveRunningStrideLength = 0
+        liveGroundContactTime = 0
+        liveVerticalOscillation = 0
     }
 }
 
@@ -527,25 +543,76 @@ extension WorkoutLifecycleService: HKLiveWorkoutBuilderDelegate {
         didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
         Task { @MainActor in
-            // Extract live statistics from the builder
-            if let calType = collectedTypes.first(where: { $0 == HKQuantityType(.activeEnergyBurned) }) as? HKQuantityType {
-                if let stats = workoutBuilder.statistics(for: calType) {
-                    self.liveActiveCalories = stats.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-                }
+            // Heart rate
+            if let hrType = collectedTypes.first(where: { $0 == HKQuantityType(.heartRate) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: hrType),
+               let mostRecent = stats.mostRecentQuantity() {
+                self.liveHeartRate = Int(mostRecent.doubleValue(for: HKUnit.count().unitDivided(by: .minute())))
+            }
+
+            // Active calories
+            if let calType = collectedTypes.first(where: { $0 == HKQuantityType(.activeEnergyBurned) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: calType) {
+                self.liveActiveCalories = stats.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
             }
 
             // Distance (walking/running)
-            if let distType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceWalkingRunning) }) as? HKQuantityType {
-                if let stats = workoutBuilder.statistics(for: distType) {
-                    self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
-                }
+            if let distType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceWalkingRunning) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: distType) {
+                self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
             }
 
             // Distance (swimming)
-            if let swimDistType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceSwimming) }) as? HKQuantityType {
-                if let stats = workoutBuilder.statistics(for: swimDistType) {
-                    self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
-                }
+            if let swimDistType = collectedTypes.first(where: { $0 == HKQuantityType(.distanceSwimming) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: swimDistType) {
+                self.liveDistance = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
+            }
+
+            // Step count
+            if let stepType = collectedTypes.first(where: { $0 == HKQuantityType(.stepCount) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: stepType) {
+                self.liveStepCount = Int(stats.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+            }
+
+            // Swimming stroke count
+            if let strokeType = collectedTypes.first(where: { $0 == HKQuantityType(.swimmingStrokeCount) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: strokeType) {
+                self.liveSwimmingStrokeCount = Int(stats.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+            }
+
+            // Running speed
+            if let speedType = collectedTypes.first(where: { $0 == HKQuantityType(.runningSpeed) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: speedType),
+               let avg = stats.averageQuantity() {
+                self.liveRunningSpeed = avg.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
+            }
+
+            // Running power
+            if let powerType = collectedTypes.first(where: { $0 == HKQuantityType(.runningPower) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: powerType),
+               let avg = stats.averageQuantity() {
+                self.liveRunningPower = avg.doubleValue(for: .watt())
+            }
+
+            // Running stride length
+            if let strideType = collectedTypes.first(where: { $0 == HKQuantityType(.runningStrideLength) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: strideType),
+               let avg = stats.averageQuantity() {
+                self.liveRunningStrideLength = avg.doubleValue(for: .meter())
+            }
+
+            // Ground contact time
+            if let gctType = collectedTypes.first(where: { $0 == HKQuantityType(.runningGroundContactTime) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: gctType),
+               let avg = stats.averageQuantity() {
+                self.liveGroundContactTime = avg.doubleValue(for: .secondUnit(with: .milli))
+            }
+
+            // Vertical oscillation
+            if let oscType = collectedTypes.first(where: { $0 == HKQuantityType(.runningVerticalOscillation) }) as? HKQuantityType,
+               let stats = workoutBuilder.statistics(for: oscType),
+               let avg = stats.averageQuantity() {
+                self.liveVerticalOscillation = avg.doubleValue(for: HKUnit.meterUnit(with: .centi))
             }
         }
     }

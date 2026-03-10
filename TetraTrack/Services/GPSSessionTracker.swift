@@ -120,6 +120,15 @@ final class GPSSessionTracker {
     /// Cumulative pedometer step count this session
     private(set) var pedometerSteps: Int = 0
 
+    /// Current cadence in steps per minute (from pedometer)
+    private(set) var pedometerCadence: Int = 0
+
+    /// Cumulative floors ascended this session
+    private(set) var pedometerFloorsAscended: Int = 0
+
+    /// Cumulative floors descended this session
+    private(set) var pedometerFloorsDescended: Int = 0
+
     /// GPS diagnostics for debugging persistence issues
     private(set) var diagnostics = GPSDiagnostics()
 
@@ -206,6 +215,9 @@ final class GPSSessionTracker {
         isUsingPedometerFallback = false
         pedometerDistance = 0
         pedometerSteps = 0
+        pedometerCadence = 0
+        pedometerFloorsAscended = 0
+        pedometerFloorsDescended = 0
         lastPedometerDistance = 0
         pedometerDistanceOffset = 0
         pedometerGapAccumulated = 0
@@ -555,6 +567,13 @@ final class GPSSessionTracker {
         // Update diagnostic totals
         pedometerDistance = pedometerDistanceOffset + cumulativeDistance
         pedometerSteps = Int(truncating: data.numberOfSteps)
+
+        // Extract cadence and floor data
+        if let cadence = data.currentCadence {
+            pedometerCadence = Int(cadence.doubleValue * 60)  // steps/sec → steps/min
+        }
+        pedometerFloorsAscended = data.floorsAscended?.intValue ?? 0
+        pedometerFloorsDescended = data.floorsDescended?.intValue ?? 0
 
         // Check if we're in a GPS gap
         guard let lastAccept = lastGPSAcceptTime else {
