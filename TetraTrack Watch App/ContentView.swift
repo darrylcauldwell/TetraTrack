@@ -216,6 +216,7 @@ struct ContentView: View {
         switch workoutManager.activityType {
         case .riding: return "figure.equestrian.sports"
         case .running: return "figure.run"
+        case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
         case .none: return "figure.stand"
@@ -226,6 +227,7 @@ struct ContentView: View {
         switch workoutManager.activityType {
         case .riding: return "Riding"
         case .running: return "Running"
+        case .walking: return "Walking"
         case .swimming: return "Swimming"
         case .shooting: return "Shooting"
         case .none: return "Workout"
@@ -236,6 +238,7 @@ struct ContentView: View {
         switch workoutManager.activityType {
         case .riding: return WatchAppColors.riding
         case .running: return WatchAppColors.running
+        case .walking: return WatchAppColors.running
         case .swimming: return WatchAppColors.swimming
         case .shooting: return WatchAppColors.shooting
         case .none: return WatchAppColors.primary

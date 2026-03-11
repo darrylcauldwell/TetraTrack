@@ -357,6 +357,60 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         movementIntensity = 0.0
     }
 
+    /// Update heart rate from data received via HKWorkoutSession mirrored channel.
+    /// Converges with the WCSession `.heartRateUpdate` handler — both increment
+    /// `heartRateSequence` so SessionTracker observation handles them identically.
+    func updateFromMirroredHeartRate(_ bpm: Int) {
+        lastReceivedHeartRate = bpm
+        heartRateSequence += 1
+    }
+
+    /// Update motion metrics from a dictionary received via HKWorkoutSession mirrored channel.
+    /// The dictionary is a JSON-decoded `WatchMotionMetrics` from the Watch.
+    func updateFromMirroredMotionDict(_ dict: [String: Any]) {
+        let previousStrokeCount = strokeCount
+
+        // Map mode string
+        if let modeString = dict["mode"] as? String {
+            let mode: WatchMotionModeShared = switch modeString {
+            case "riding": .riding
+            case "running": .running
+            case "swimming": .swimming
+            case "shooting": .shooting
+            default: .idle
+            }
+            currentMotionMode = mode
+        }
+
+        // Core metrics
+        if let v = dict["stanceStability"] as? Double { stanceStability = v }
+        if let v = dict["strokeCount"] as? Int {
+            strokeCount = v
+            if v > previousStrokeCount {
+                strokeDetectedSequence += 1
+            }
+        }
+        if let v = dict["strokeRate"] as? Double { strokeRate = v }
+        if let v = dict["verticalOscillation"] as? Double { verticalOscillation = v }
+        if let v = dict["groundContactTime"] as? Double { groundContactTime = v }
+        if let v = dict["cadence"] as? Int { cadence = v }
+
+        // Enhanced sensor data
+        if let v = dict["relativeAltitude"] as? Double { relativeAltitude = v }
+        if let v = dict["altitudeChangeRate"] as? Double { altitudeChangeRate = v }
+        if let v = dict["barometricPressure"] as? Double { barometricPressure = v }
+        if let v = dict["isSubmerged"] as? Bool { isSubmerged = v }
+        if let v = dict["compassHeading"] as? Double { compassHeading = v }
+        if let v = dict["breathingRate"] as? Double { breathingRate = v }
+        if let v = dict["posturePitch"] as? Double { posturePitch = v }
+        if let v = dict["postureRoll"] as? Double { postureRoll = v }
+        if let v = dict["tremorLevel"] as? Double { tremorLevel = v }
+        if let v = dict["movementIntensity"] as? Double { movementIntensity = v }
+
+        motionUpdateSequence += 1
+        enhancedSensorSequence += 1
+    }
+
     // MARK: - Private Methods
 
     private func sendMessage(_ message: WatchMessage) {
