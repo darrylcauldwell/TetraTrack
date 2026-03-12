@@ -113,7 +113,7 @@ final class WorkoutManager: NSObject {
             guard let self else { return }
             Log.tracking.info("Received mirrored workout session from iPhone")
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.handleMirroredSession(mirroredSession)
             }
         }
@@ -202,6 +202,9 @@ final class WorkoutManager: NSObject {
             )
             workoutBuilder = builder
 
+            // Prepare session before starting activity
+            session.prepare()
+
             // Mirror session to iPhone
             try await session.startMirroringToCompanionDevice()
 
@@ -247,6 +250,7 @@ final class WorkoutManager: NSObject {
             // Start elapsed timer
             startElapsedTimer()
 
+            persistRecoveryContext()
             onWorkoutStateChanged?(true)
             Log.tracking.info("iPhone-triggered primary workout started: \(self.activityType?.rawValue ?? "unknown")")
 
@@ -285,6 +289,7 @@ final class WorkoutManager: NSObject {
         case .swimming: return .swimming
         case .walking: return .walking
         case .archery: return .shooting
+        case .other: return .shooting  // backward compat: iPhone ShootingPlugin used .other before alignment
         default: return .running
         }
     }
@@ -371,6 +376,9 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
 
+            // Prepare session before starting activity
+            workoutSession?.prepare()
+
             // Start the session
             let startDate = Date()
             workoutSession?.startActivity(with: startDate)
@@ -409,6 +417,7 @@ final class WorkoutManager: NSObject {
             // Create session in store
             _ = sessionStore.startSession(discipline: type.sessionDiscipline)
 
+            persistRecoveryContext()
             onWorkoutStateChanged?(true)
             Log.tracking.info("Started \(type.rawValue) workout (mirroring to iPhone)")
 
@@ -485,6 +494,7 @@ final class WorkoutManager: NSObject {
         }
 
         // Clean up
+        clearRecoveryContext()
         workoutSession = nil
         workoutBuilder = nil
         isWorkoutActive = false
@@ -517,6 +527,7 @@ final class WorkoutManager: NSObject {
         workoutBuilder?.discardWorkout()
 
         sessionStore.discardSession()
+        clearRecoveryContext()
 
         workoutSession = nil
         workoutBuilder = nil
@@ -529,6 +540,93 @@ final class WorkoutManager: NSObject {
 
         onWorkoutStateChanged?(false)
         Log.tracking.info("Workout discarded")
+    }
+
+    // MARK: - Crash Recovery
+
+    /// Persist minimal session context to UserDefaults for crash recovery.
+    private func persistRecoveryContext() {
+        guard let type = activityType, let start = startTime else { return }
+        UserDefaults.standard.set(type.rawValue, forKey: "activeWorkoutDiscipline")
+        UserDefaults.standard.set(start.timeIntervalSince1970, forKey: "activeWorkoutStartDate")
+        UserDefaults.standard.set(isMirroredFromiPhone, forKey: "activeWorkoutFromiPhone")
+    }
+
+    /// Clear persisted recovery context after normal workout completion.
+    private func clearRecoveryContext() {
+        UserDefaults.standard.removeObject(forKey: "activeWorkoutDiscipline")
+        UserDefaults.standard.removeObject(forKey: "activeWorkoutStartDate")
+        UserDefaults.standard.removeObject(forKey: "activeWorkoutFromiPhone")
+    }
+
+    /// Recover an active workout session after a Watch app crash or relaunch.
+    /// Called from WKApplicationDelegate.handleActiveWorkoutRecovery().
+    func recoverActiveWorkout() async {
+        do {
+            guard let session = try await healthStore.recoverActiveWorkoutSession() else {
+                Log.tracking.info("No active workout to recover")
+                clearRecoveryContext()
+                return
+            }
+
+            // Re-attach delegates
+            session.delegate = self
+            workoutSession = session
+
+            let builder = session.associatedWorkoutBuilder()
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore,
+                workoutConfiguration: session.workoutConfiguration
+            )
+            workoutBuilder = builder
+
+            // Restore state from persisted context or derive from session
+            let config = session.workoutConfiguration
+            if let disciplineRaw = UserDefaults.standard.string(forKey: "activeWorkoutDiscipline"),
+               let savedType = WatchActivityType(rawValue: disciplineRaw) {
+                activityType = savedType
+            } else {
+                activityType = mapActivityType(config.activityType)
+            }
+
+            let savedStartTimestamp = UserDefaults.standard.double(forKey: "activeWorkoutStartDate")
+            startTime = savedStartTimestamp > 0
+                ? Date(timeIntervalSince1970: savedStartTimestamp)
+                : (session.startDate ?? Date())
+
+            isMirroredFromiPhone = UserDefaults.standard.bool(forKey: "activeWorkoutFromiPhone")
+            isWorkoutActive = true
+            isPaused = session.state == .paused
+            isMirroringToiPhone = true
+
+            // Restart elapsed timer
+            if !isPaused {
+                startElapsedTimer()
+            }
+
+            // Restart motion data sending
+            startMotionDataSending()
+
+            // Restart motion tracking if applicable
+            if let type = activityType {
+                let motionMode: WatchMotionMode = switch type {
+                case .riding: .riding
+                case .running: .running
+                case .walking: .running
+                case .swimming: .swimming
+                case .shooting: .shooting
+                }
+                WatchMotionManager.shared.startTracking(mode: motionMode)
+            }
+
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Recovered active workout: \(self.activityType?.rawValue ?? "unknown")")
+
+        } catch {
+            Log.tracking.error("Failed to recover active workout: \(error.localizedDescription)")
+            clearRecoveryContext()
+        }
     }
 
     // MARK: - Heart Rate Monitoring (Companion Mode)
@@ -774,7 +872,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         from fromState: HKWorkoutSessionState,
         date: Date
     ) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             switch toState {
             case .running:
                 self.isPaused = false
@@ -815,7 +913,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
             guard let payload = try? JSONSerialization.jsonObject(with: item) as? [String: Any],
                   let type = payload["type"] as? String else { continue }
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 switch type {
                 case "statusUpdate":
                     // iPhone sent live stats update
@@ -844,9 +942,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                             self.resumeWorkout()
                             Log.tracking.info("Resume command from iPhone via mirrored session")
                         case "stop":
-                            Task {
-                                await self.stopWorkout()
-                            }
+                            await self.stopWorkout()
                             Log.tracking.info("Stop command from iPhone via mirrored session")
                         default:
                             break
@@ -875,7 +971,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             if quantityType == HKQuantityType(.activeEnergyBurned) {
                 let statistics = workoutBuilder.statistics(for: quantityType)
                 if let sum = statistics?.sumQuantity() {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self.activeCalories = sum.doubleValue(for: .kilocalorie())
                     }
                 }
@@ -885,7 +981,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             if quantityType == HKQuantityType(.swimmingStrokeCount) {
                 let statistics = workoutBuilder.statistics(for: quantityType)
                 if let sum = statistics?.sumQuantity() {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self.strokeCount = Int(sum.doubleValue(for: .count()))
                     }
                 }
@@ -894,7 +990,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             if quantityType == HKQuantityType(.distanceSwimming) {
                 let statistics = workoutBuilder.statistics(for: quantityType)
                 if let sum = statistics?.sumQuantity() {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self.swimmingDistance = sum.doubleValue(for: .meter())
                         // Calculate lap count from distance and pool length
                         self.lapCount = Int(self.swimmingDistance / self.poolLength)
@@ -910,18 +1006,11 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         guard !events.isEmpty else { return }
 
         for event in events {
-            if event.type == .lap {
-                // Lap completed
-                DispatchQueue.main.async {
-                    // Lap count is calculated from distance, but we can use events as backup
-                }
-            }
-
             // Check for swimming stroke style in event metadata
             if let metadata = event.metadata,
                let strokeStyleValue = metadata[HKMetadataKeySwimmingStrokeStyle] as? Int,
                let strokeStyle = HKSwimmingStrokeStyle(rawValue: strokeStyleValue) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.currentStrokeType = strokeStyle
                 }
             }
@@ -933,7 +1022,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
         let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if let mostRecent = statistics.mostRecentQuantity() {
                 let bpm = Int(mostRecent.doubleValue(for: heartRateUnit))
                 self.currentHeartRate = bpm

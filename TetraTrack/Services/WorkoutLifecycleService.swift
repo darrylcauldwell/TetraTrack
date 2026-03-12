@@ -111,6 +111,13 @@ final class WorkoutLifecycleService: NSObject {
         Log.health.info("WorkoutLifecycleService: requested Watch to start \(configuration.activityType.rawValue) workout")
     }
 
+    /// Register the mirroring handler at app launch so iPhone is always ready
+    /// to receive mirrored sessions from Watch-autonomous workouts.
+    func registerMirroringHandler() {
+        setupMirroringHandler()
+        Log.health.info("WorkoutLifecycleService: mirroring handler registered at launch")
+    }
+
     /// Set up handler to receive mirrored workout session from Watch.
     private func setupMirroringHandler() {
         healthStore.workoutSessionMirroringStartHandler = { [weak self] mirroredSession in
@@ -121,6 +128,27 @@ final class WorkoutLifecycleService: NSObject {
                 // No builder or data source — builder runs on Watch only
                 self.state = .active
                 self.error = nil
+
+                // If this session arrived without requestWatchWorkout() (autonomous Watch start),
+                // configure state so pause/resume/endAndSave use the correct Watch-primary path.
+                if !self.isWatchPrimary {
+                    self.isWatchPrimary = true
+                    let config = mirroredSession.workoutConfiguration
+                    self.currentActivityType = config.activityType
+                    self.isOutdoorSession = config.locationType == .outdoor
+
+                    // Create route builder for outdoor activities (iPhone captures GPS)
+                    if self.isOutdoorSession {
+                        self.routeBuilder = HKWorkoutRouteBuilder(healthStore: self.healthStore, device: .local())
+                    }
+
+                    self.persistSessionContext(
+                        discipline: "\(config.activityType.rawValue)",
+                        startDate: Date()
+                    )
+                    Log.health.info("WorkoutLifecycleService: configured Watch-primary state for autonomous workout")
+                }
+
                 Log.health.info("WorkoutLifecycleService: received mirrored session from Watch")
             }
         }
@@ -426,27 +454,24 @@ final class WorkoutLifecycleService: NSObject {
     }
 
     private func queryMostRecentWorkout() async -> HKWorkout? {
-        let workoutType = HKObjectType.workoutType()
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
         let predicate = HKQuery.predicateForSamples(
             withStart: Date().addingTimeInterval(-300), // Last 5 minutes
             end: nil,
             options: .strictStartDate
         )
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: workoutType,
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error {
-                    Log.health.error("WorkoutLifecycleService: workout query failed: \(error)")
-                }
-                continuation.resume(returning: samples?.first as? HKWorkout)
-            }
-            healthStore.execute(query)
+        let descriptor = HKSampleQueryDescriptor<HKWorkout>(
+            predicates: [.workout(predicate)],
+            sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)],
+            limit: 1
+        )
+
+        do {
+            let results = try await descriptor.result(for: healthStore)
+            return results.first
+        } catch {
+            Log.health.error("WorkoutLifecycleService: workout query failed: \(error)")
+            return nil
         }
     }
 

@@ -127,7 +127,7 @@ final class WatchConnectivityService: NSObject {
     // MARK: - SpO2 Monitoring
 
     /// Start monitoring oxygen saturation (requires HealthKit authorization)
-    func startSpO2Monitoring() {
+    func startSpO2Monitoring() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
             return
@@ -135,18 +135,13 @@ final class WatchConnectivityService: NSObject {
 
         healthStore = HKHealthStore()
 
-        guard let spo2Type = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) else {
-            Log.health.warning("SpO2 type not available")
-            return
-        }
+        let spo2Type = HKQuantityType(.oxygenSaturation)
 
-        // Request authorization
-        healthStore?.requestAuthorization(toShare: nil, read: [spo2Type]) { [weak self] success, error in
-            if success {
-                self?.startSpO2Query(spo2Type)
-            } else if let error = error {
-                Log.health.error("SpO2 auth error: \(error.localizedDescription)")
-            }
+        do {
+            try await healthStore?.requestAuthorization(toShare: Set(), read: [spo2Type])
+            startSpO2Query(spo2Type)
+        } catch {
+            Log.health.error("SpO2 auth error: \(error.localizedDescription)")
         }
     }
 
@@ -189,8 +184,8 @@ final class WatchConnectivityService: NSObject {
               let latest = quantitySamples.last else { return }
 
         let spo2 = latest.quantity.doubleValue(for: HKUnit.percent()) * 100
-        DispatchQueue.main.async { [weak self] in
-            self?.currentOxygenSaturation = spo2
+        Task { @MainActor in
+            self.currentOxygenSaturation = spo2
         }
     }
 

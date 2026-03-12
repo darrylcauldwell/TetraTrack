@@ -198,7 +198,7 @@ final class RecoveryAnalyzer: Resettable {
         self.samples.sort { $0.timestamp < $1.timestamp }
 
         // Update current session
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.currentSession = RecoverySession(
                 rideEndTime: rideEnd,
                 samples: self.samples,

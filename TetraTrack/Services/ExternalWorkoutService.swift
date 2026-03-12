@@ -39,25 +39,17 @@ final class ExternalWorkoutService {
             end: endDate,
             options: .strictStartDate
         )
-        let sortDescriptor = NSSortDescriptor(
-            key: HKSampleSortIdentifierStartDate,
-            ascending: false
-        )
 
-        let hkWorkouts: [HKWorkout] = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: HKObjectType.workoutType(),
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error {
-                    Log.health.error("Failed to fetch external workouts: \(error)")
-                }
-                let results = (samples as? [HKWorkout]) ?? []
-                continuation.resume(returning: results)
-            }
-            healthStore.execute(query)
+        let hkWorkouts: [HKWorkout]
+        do {
+            let descriptor = HKSampleQueryDescriptor<HKWorkout>(
+                predicates: [.workout(predicate)],
+                sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)]
+            )
+            hkWorkouts = try await descriptor.result(for: healthStore)
+        } catch {
+            Log.health.error("Failed to fetch external workouts: \(error)")
+            return
         }
 
         // Filter out TetraTrack's own workouts by bundle ID and UUID cross-reference
@@ -104,23 +96,21 @@ final class ExternalWorkoutService {
             options: .strictStartDate
         )
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: heartRateType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, _ in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
-                }
-                continuation.resume(returning: total / Double(samples.count))
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: heartRateType, predicate: predicate)],
+            sortDescriptors: []
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return nil }
+            let total = samples.reduce(0.0) { sum, sample in
+                sum + sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
             }
-            self.healthStore.execute(query)
+            return total / Double(samples.count)
+        } catch {
+            Log.health.error("Failed to fetch heart rate: \(error)")
+            return nil
         }
     }
 
@@ -131,16 +121,17 @@ final class ExternalWorkoutService {
         let routeType = HKSeriesType.workoutRoute()
         let predicate = HKQuery.predicateForObjects(from: workout)
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: routeType,
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: nil
-            ) { _, samples, _ in
-                continuation.resume(returning: (samples?.count ?? 0) > 0)
-            }
-            self.healthStore.execute(query)
+        let descriptor = HKSampleQueryDescriptor<HKSample>(
+            predicates: [.sample(type: routeType, predicate: predicate)],
+            sortDescriptors: [],
+            limit: 1
+        )
+
+        do {
+            let results = try await descriptor.result(for: healthStore)
+            return !results.isEmpty
+        } catch {
+            return false
         }
     }
 
@@ -151,35 +142,27 @@ final class ExternalWorkoutService {
         // First find the workout
         let predicate = HKQuery.predicateForObject(with: workoutId)
 
-        let workout: HKWorkout? = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: HKObjectType.workoutType(),
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: nil
-            ) { _, samples, _ in
-                continuation.resume(returning: samples?.first as? HKWorkout)
-            }
-            healthStore.execute(query)
-        }
+        let workoutDescriptor = HKSampleQueryDescriptor<HKWorkout>(
+            predicates: [.workout(predicate)],
+            sortDescriptors: [],
+            limit: 1
+        )
 
-        guard let workout else { return [] }
+        guard let workout = try? await workoutDescriptor.result(for: healthStore).first else {
+            return []
+        }
 
         // Fetch route samples
         let routeType = HKSeriesType.workoutRoute()
         let routePredicate = HKQuery.predicateForObjects(from: workout)
 
-        let routes: [HKWorkoutRoute] = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: routeType,
-                predicate: routePredicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, _ in
-                continuation.resume(returning: (samples as? [HKWorkoutRoute]) ?? [])
-            }
-            healthStore.execute(query)
-        }
+        let routeDescriptor = HKSampleQueryDescriptor<HKSample>(
+            predicates: [.sample(type: routeType, predicate: routePredicate)],
+            sortDescriptors: []
+        )
+
+        let routeSamples = (try? await routeDescriptor.result(for: healthStore)) ?? []
+        let routes = routeSamples.compactMap { $0 as? HKWorkoutRoute }
 
         // Extract coordinates from each route
         var allCoordinates: [CLLocationCoordinate2D] = []
@@ -193,21 +176,17 @@ final class ExternalWorkoutService {
 
     /// Extract CLLocation data from an HKWorkoutRoute
     private func fetchLocations(from route: HKWorkoutRoute) async -> [CLLocationCoordinate2D] {
-        await withCheckedContinuation { continuation in
-            var coordinates: [CLLocationCoordinate2D] = []
+        let descriptor = HKWorkoutRouteQueryDescriptor(route)
+        var coordinates: [CLLocationCoordinate2D] = []
 
-            let query = HKWorkoutRouteQuery(route: route) { _, locations, done, error in
-                if let error {
-                    Log.health.error("Route query error: \(error)")
-                }
-                if let locations {
-                    coordinates.append(contentsOf: locations.map { $0.coordinate })
-                }
-                if done {
-                    continuation.resume(returning: coordinates)
-                }
+        do {
+            for try await location in descriptor.results(for: healthStore) {
+                coordinates.append(location.coordinate)
             }
-            self.healthStore.execute(query)
+        } catch {
+            Log.health.error("Route query error: \(error)")
         }
+
+        return coordinates
     }
 }
