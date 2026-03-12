@@ -35,8 +35,8 @@ final class ShootingPlugin: DisciplinePlugin {
 
     var workoutConfiguration: HKWorkoutConfiguration {
         let config = HKWorkoutConfiguration()
-        config.activityType = .other
-        config.locationType = .outdoor
+        config.activityType = .archery
+        config.locationType = .indoor
         return config
     }
 

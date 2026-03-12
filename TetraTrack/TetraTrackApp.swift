@@ -303,6 +303,9 @@ struct TetraTrackApp: App {
         // Activate Watch connectivity
         WatchConnectivityManager.shared.activate()
 
+        // Register mirroring handler so iPhone is ready for Watch-autonomous workouts
+        WorkoutLifecycleService.shared.registerMirroringHandler()
+
         // Sync widget data on app launch
         WidgetDataSyncService.shared.syncAllWidgetData(context: sharedModelContainer.mainContext)
 

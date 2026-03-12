@@ -285,14 +285,20 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle
+        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone
         do {
-            try await workoutLifecycle.startWorkout(configuration: plugin.workoutConfiguration)
-            if plugin.disableAutoCalories {
-                workoutLifecycle.disableAutoCalories()
-            }
+            try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
+            // disableAutoCalories not needed — builder runs on Watch
         } catch {
-            Log.tracking.error("Failed to start workout lifecycle: \(error)")
+            Log.tracking.info("Watch unavailable, falling back to iPhone-primary workout")
+            do {
+                try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
+                if plugin.disableAutoCalories {
+                    workoutLifecycle.disableAutoCalories()
+                }
+            } catch {
+                Log.tracking.error("Failed to start workout lifecycle: \(error)")
+            }
         }
 
         // Start Watch status updates (1Hz)
@@ -705,15 +711,18 @@ final class SessionTracker {
                     }
                 }
 
-                // Heart rate from HKLiveWorkoutBuilder (primary source).
-                // The builder's HKLiveWorkoutDataSource auto-collects HR from paired
-                // Apple Watch via HealthKit. This replaced the old HKObserverQuery/
-                // HKAnchoredObjectQuery approach in HeartRateService.
-                // WCSession heartRateUpdate commands are a secondary source handled
-                // by the Watch observation task.
-                let builderHR = self.workoutLifecycle.liveHeartRate
-                if builderHR > 0 {
-                    self.handleHeartRateUpdate(builderHR)
+                // Heart rate arrives via Watch relay:
+                // Watch-primary: mirrored session → updateFromMirroredHeartRate() → heartRateSequence
+                // Fallback: WCSession → heartRateUpdate → heartRateSequence
+                // Both paths increment heartRateSequence → startWatchHeartRateObservation()
+                //   fires → handleHeartRateUpdate()
+                // The builder's liveHeartRate is also checked as a fallback for iPhone-only mode
+                // (e.g., BLE chest strap without Watch)
+                if !self.workoutLifecycle.isWatchPrimary {
+                    let builderHR = self.workoutLifecycle.liveHeartRate
+                    if builderHR > 0 {
+                        self.handleHeartRateUpdate(builderHR)
+                    }
                 }
 
                 // Notify plugin

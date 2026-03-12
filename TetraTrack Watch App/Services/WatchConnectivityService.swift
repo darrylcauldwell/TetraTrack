@@ -127,7 +127,7 @@ final class WatchConnectivityService: NSObject {
     // MARK: - SpO2 Monitoring
 
     /// Start monitoring oxygen saturation (requires HealthKit authorization)
-    func startSpO2Monitoring() {
+    func startSpO2Monitoring() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
             return
@@ -135,18 +135,13 @@ final class WatchConnectivityService: NSObject {
 
         healthStore = HKHealthStore()
 
-        guard let spo2Type = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) else {
-            Log.health.warning("SpO2 type not available")
-            return
-        }
+        let spo2Type = HKQuantityType(.oxygenSaturation)
 
-        // Request authorization
-        healthStore?.requestAuthorization(toShare: nil, read: [spo2Type]) { [weak self] success, error in
-            if success {
-                self?.startSpO2Query(spo2Type)
-            } else if let error = error {
-                Log.health.error("SpO2 auth error: \(error.localizedDescription)")
-            }
+        do {
+            try await healthStore?.requestAuthorization(toShare: Set(), read: [spo2Type])
+            startSpO2Query(spo2Type)
+        } catch {
+            Log.health.error("SpO2 auth error: \(error.localizedDescription)")
         }
     }
 
@@ -189,8 +184,8 @@ final class WatchConnectivityService: NSObject {
               let latest = quantitySamples.last else { return }
 
         let spo2 = latest.quantity.doubleValue(for: HKUnit.percent()) * 100
-        DispatchQueue.main.async { [weak self] in
-            self?.currentOxygenSaturation = spo2
+        Task { @MainActor in
+            self.currentOxygenSaturation = spo2
         }
     }
 
@@ -391,6 +386,8 @@ final class WatchConnectivityService: NSObject {
                         break
                     }
                     self.rideState = .idle
+                    WorkoutManager.shared.stopMotionDataSending()
+                    WorkoutManager.shared.onMotionDataSend = nil
                     WorkoutManager.shared.stopHeartRateMonitoring()
                     WorkoutManager.shared.onHeartRateUpdate = nil
                     // Reset session data
@@ -399,6 +396,7 @@ final class WatchConnectivityService: NSObject {
                     self.speed = 0
                     self.gait = "Stationary"
                     self.heartRate = 0
+                    // cadence/targetCadence are managed by WorkoutManager
                     self.horseName = nil
                     self.rideType = nil
                     Log.watch.info("Session stopped from iPhone")
@@ -423,39 +421,41 @@ final class WatchConnectivityService: NSObject {
                         case .idle: .idle
                         }
 
+                        // In Watch-primary mode, startWorkoutFromiPhone() handles all
+                        // sensor setup. This handler is a fallback for iPhone-only mode.
+                        guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                            Log.watch.debug("Ignoring startMotionTracking — Watch-primary session already active")
+                            break
+                        }
+
                         guard WatchMotionManager.shared.currentMode != mode else {
                             Log.watch.debug("Ignoring duplicate startMotionTracking — already in \(mode.rawValue)")
                             break
                         }
                         WatchMotionManager.shared.startTracking(mode: mode)
 
-                        // Start HR monitoring for active disciplines.
-                        // Delay 2s to let HKWorkoutSession mirroring establish first.
-                        // If mirroring is active, relay HR from the mirrored session instead
-                        // of starting a separate companion workout (which would create duplicates).
+                        // Start HR monitoring for active disciplines (fallback path).
                         if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
                             let activityType: WatchActivityType = switch sharedMode {
                             case .running: .running
                             case .swimming: .swimming
                             default: .riding
                             }
+                            WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
+                                self?.sendHeartRateUpdate(bpm)
+                            }
                             Task {
-                                try? await Task.sleep(for: .seconds(2))
-                                // Always wire up HR relay — mirrored sessions collect HR
-                                // but don't automatically send it to iPhone
-                                WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
-                                    self?.sendHeartRateUpdate(bpm)
-                                }
-                                if !WorkoutManager.shared.isWorkoutActive {
-                                    // No mirrored session — start companion HR as fallback
-                                    await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
-                                } else {
-                                    Log.watch.debug("Mirrored session active — relaying HR without companion workout")
-                                }
+                                await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
                             }
                         }
 
-                        Log.location.info("Motion tracking started - \(mode.rawValue)")
+                        // Wire up motion data sending (1Hz) — WCSession fallback
+                        WorkoutManager.shared.onMotionDataSend = { [weak self] in
+                            self?.sendMotionUpdate()
+                        }
+                        WorkoutManager.shared.startMotionDataSending()
+
+                        Log.location.info("Motion tracking started (WCSession fallback) - \(mode.rawValue)")
                     }
 
                 case .stopMotionTracking:
@@ -464,6 +464,8 @@ final class WatchConnectivityService: NSObject {
                         break
                     }
                     WatchMotionManager.shared.stopTracking()
+                    WorkoutManager.shared.stopMotionDataSending()
+                    WorkoutManager.shared.onMotionDataSend = nil
                     WorkoutManager.shared.stopHeartRateMonitoring()
                     WorkoutManager.shared.onHeartRateUpdate = nil
                     Log.location.info("Motion tracking stopped")

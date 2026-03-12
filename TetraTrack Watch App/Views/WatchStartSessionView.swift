@@ -67,7 +67,7 @@ struct WatchStartSessionView: View {
                 switch workoutManager.activityType {
                 case .riding:
                     showRideControl = true
-                case .running:
+                case .running, .walking:
                     showRunControl = true
                 case .swimming:
                     showSwimControl = true
@@ -92,6 +92,7 @@ struct WatchStartSessionView: View {
         switch workoutManager.activityType {
         case .riding: return "figure.equestrian.sports"
         case .running: return "figure.run"
+        case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
         case .none: return "figure.stand"
@@ -101,7 +102,7 @@ struct WatchStartSessionView: View {
     private var activityColor: Color {
         switch workoutManager.activityType {
         case .riding: return WatchAppColors.riding
-        case .running: return WatchAppColors.running
+        case .running, .walking: return WatchAppColors.running
         case .swimming: return WatchAppColors.swimming
         case .shooting: return WatchAppColors.shooting
         case .none: return WatchAppColors.primary

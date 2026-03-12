@@ -142,23 +142,22 @@ final class HealthKitManager {
         let ninetyDaysAgo = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: ninetyDaysAgo, end: Date(), options: .strictStartDate)
 
-        let hasWatchData: Bool = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: gctType,
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                let hasData = (samples?.count ?? 0) > 0 && error == nil
-                continuation.resume(returning: hasData)
-            }
-            healthStore.execute(query)
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: gctType, predicate: predicate)],
+            sortDescriptors: [],
+            limit: 1
+        )
+
+        let hasWatchData: Bool
+        do {
+            let results = try await descriptor.result(for: healthStore)
+            hasWatchData = !results.isEmpty
+        } catch {
+            hasWatchData = false
         }
 
-        await MainActor.run {
-            self.hasAppleWatchRunningData = hasWatchData
-            Log.health.info("Apple Watch running data detected: \(hasWatchData)")
-        }
+        self.hasAppleWatchRunningData = hasWatchData
+        Log.health.info("Apple Watch running data detected: \(hasWatchData)")
     }
 
     // MARK: - Read Body Measurements
@@ -175,59 +174,15 @@ final class HealthKitManager {
 
     /// Fetch most recent weight from HealthKit
     func fetchWeight() async {
-        guard isAvailable else { return }
-
-        let weightType = HKQuantityType(.bodyMass)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        let weightKg: Double? = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: weightType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let kg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
-                continuation.resume(returning: kg)
-            }
-            healthStore.execute(query)
-        }
-
-        if let weightKg {
-            self.healthKitWeight = weightKg
+        if let kg = await fetchMostRecentQuantity(type: HKQuantityType(.bodyMass), unit: .gramUnit(with: .kilo)) {
+            self.healthKitWeight = kg
         }
     }
 
     /// Fetch most recent height from HealthKit
     func fetchHeight() async {
-        guard isAvailable else { return }
-
-        let heightType = HKQuantityType(.height)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        let heightCm: Double? = await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: heightType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let cm = sample.quantity.doubleValue(for: .meterUnit(with: .centi))
-                continuation.resume(returning: cm)
-            }
-            healthStore.execute(query)
-        }
-
-        if let heightCm {
-            self.healthKitHeight = heightCm
+        if let cm = await fetchMostRecentQuantity(type: HKQuantityType(.height), unit: .meterUnit(with: .centi)) {
+            self.healthKitHeight = cm
         }
     }
 
@@ -446,127 +401,88 @@ final class HealthKitManager {
         }.sorted { $0.calories > $1.calories }
     }
 
+    // MARK: - Query Helpers
+
+    /// Fetch the average value of a quantity type over a date range.
+    /// Shared helper for the many "fetch all samples, compute average" queries.
+    private func fetchAverageQuantity(
+        type: HKQuantityType,
+        unit: HKUnit,
+        from startDate: Date,
+        to endDate: Date,
+        multiplier: Double = 1.0
+    ) async -> Double? {
+        guard isAvailable else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: []
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return nil }
+            let total = samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: unit) * multiplier }
+            return total / Double(samples.count)
+        } catch {
+            Log.health.error("Failed to fetch \(type): \(error)")
+            return nil
+        }
+    }
+
+    /// Fetch the most recent single sample of a quantity type.
+    private func fetchMostRecentQuantity(
+        type: HKQuantityType,
+        unit: HKUnit,
+        predicate: NSPredicate? = nil
+    ) async -> Double? {
+        guard isAvailable else { return nil }
+
+        let predicates: [HKSamplePredicate<HKQuantitySample>]
+        if let predicate {
+            predicates = [.quantitySample(type: type, predicate: predicate)]
+        } else {
+            predicates = [.quantitySample(type: type)]
+        }
+
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: predicates,
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)],
+            limit: 1
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard let sample = samples.first else { return nil }
+            return sample.quantity.doubleValue(for: unit)
+        } catch {
+            Log.health.error("Failed to fetch \(type): \(error)")
+            return nil
+        }
+    }
+
     // MARK: - Running Metrics from HealthKit (Apple Watch)
 
     /// Fetch average gait asymmetry from HealthKit for a time range
     /// Returns nil if no data available (e.g., no Apple Watch or no samples)
     func fetchRunningAsymmetry(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let asymmetryType = HKQuantityType(.walkingAsymmetryPercentage)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: asymmetryType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // Calculate average asymmetry from all samples
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .percent()) * 100
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.walkingAsymmetryPercentage), unit: .percent(), from: startDate, to: endDate, multiplier: 100)
     }
 
     /// Fetch average ground contact time from HealthKit for a time range (milliseconds)
     func fetchRunningGroundContactTime(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let gctType = HKQuantityType(.runningGroundContactTime)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: gctType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // Calculate average GCT from all samples (convert to ms)
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .secondUnit(with: .milli))
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.runningGroundContactTime), unit: .secondUnit(with: .milli), from: startDate, to: endDate)
     }
 
     /// Fetch average vertical oscillation from HealthKit for a time range (centimeters)
     func fetchRunningVerticalOscillation(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let oscillationType = HKQuantityType(.runningVerticalOscillation)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: oscillationType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // Calculate average oscillation from all samples (convert to cm)
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .meterUnit(with: .centi))
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.runningVerticalOscillation), unit: .meterUnit(with: .centi), from: startDate, to: endDate)
     }
 
     /// Fetch average stride length from HealthKit for a time range (meters)
     func fetchRunningStrideLength(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let strideType = HKQuantityType(.runningStrideLength)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: strideType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // Calculate average stride length from all samples
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .meter())
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.runningStrideLength), unit: .meter(), from: startDate, to: endDate)
     }
 
     /// Fetch all running metrics from HealthKit for a session
@@ -612,62 +528,14 @@ final class HealthKitManager {
 
     /// Fetch average running power from HealthKit for a time range (watts)
     func fetchRunningPower(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let powerType = HKQuantityType(.runningPower)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: powerType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .watt())
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.runningPower), unit: .watt(), from: startDate, to: endDate)
     }
 
     // MARK: - Running Speed
 
     /// Fetch average running speed from HealthKit for a time range (m/s)
     func fetchRunningSpeed(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let speedType = HKQuantityType(.runningSpeed)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: speedType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .meter().unitDivided(by: .second()))
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.runningSpeed), unit: .meter().unitDivided(by: .second()), from: startDate, to: endDate)
     }
 
     // MARK: - Step Count
@@ -676,27 +544,19 @@ final class HealthKitManager {
     func fetchStepCount(from startDate: Date, to endDate: Date) async -> Int? {
         guard isAvailable else { return nil }
 
-        let stepType = HKQuantityType(.stepCount)
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: .quantitySample(type: HKQuantityType(.stepCount), predicate: predicate),
+            options: .cumulativeSum
+        )
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: stepType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .count())
-                }
-                continuation.resume(returning: Int(total))
-            }
-            healthStore.execute(query)
+        do {
+            let result = try await descriptor.result(for: healthStore)
+            guard let sum = result?.sumQuantity() else { return nil }
+            return Int(sum.doubleValue(for: .count()))
+        } catch {
+            Log.health.error("Failed to fetch step count: \(error)")
+            return nil
         }
     }
 
@@ -704,172 +564,35 @@ final class HealthKitManager {
 
     /// Fetch walking double support percentage for a time range (% of stride with both feet on ground)
     func fetchWalkingDoubleSupportPercentage(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let dsType = HKQuantityType(.walkingDoubleSupportPercentage)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: dsType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .percent()) * 100
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.walkingDoubleSupportPercentage), unit: .percent(), from: startDate, to: endDate, multiplier: 100)
     }
 
     /// Fetch walking speed for a time range (m/s)
     func fetchWalkingSpeed(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let speedType = HKQuantityType(.walkingSpeed)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: speedType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .meter().unitDivided(by: .second()))
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.walkingSpeed), unit: .meter().unitDivided(by: .second()), from: startDate, to: endDate)
     }
 
     /// Fetch walking step length for a time range (meters)
     func fetchWalkingStepLength(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let stepLengthType = HKQuantityType(.walkingStepLength)
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: stepLengthType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .meter())
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        await fetchAverageQuantity(type: HKQuantityType(.walkingStepLength), unit: .meter(), from: startDate, to: endDate)
     }
 
     /// Fetch most recent Apple Walking Steadiness (0-100 percentage, background metric)
     func fetchAppleWalkingSteadiness() async -> Double? {
-        guard isAvailable else { return nil }
-
-        let steadinessType = HKQuantityType(.appleWalkingSteadiness)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: steadinessType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let value = sample.quantity.doubleValue(for: .percent()) * 100
-                continuation.resume(returning: value)
-            }
-            healthStore.execute(query)
-        }
+        guard let value = await fetchMostRecentQuantity(type: HKQuantityType(.appleWalkingSteadiness), unit: .percent()) else { return nil }
+        return value * 100
     }
 
     /// Fetch most recent walking heart rate average (bpm, background metric)
     func fetchWalkingHeartRateAverage() async -> Double? {
-        guard isAvailable else { return nil }
-
-        let walkHRType = HKQuantityType(.walkingHeartRateAverage)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: walkHRType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let bpm = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
-                continuation.resume(returning: bpm)
-            }
-            healthStore.execute(query)
-        }
+        await fetchMostRecentQuantity(type: HKQuantityType(.walkingHeartRateAverage), unit: .count().unitDivided(by: .minute()))
     }
 
     /// Fetch heart rate recovery one minute for a time range (bpm drop in 60s)
     /// Uses +5 min extension on end date since Apple may delay writing this metric
     func fetchHeartRateRecoveryOneMinute(from startDate: Date, to endDate: Date) async -> Double? {
-        guard isAvailable else { return nil }
-
-        let hrRecoveryType = HKQuantityType(.heartRateRecoveryOneMinute)
         let extendedEnd = endDate.addingTimeInterval(5 * 60) // +5 min for Apple processing delay
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: extendedEnd, options: .strictStartDate)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: hrRecoveryType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
-                }
-                let average = total / Double(samples.count)
-                continuation.resume(returning: average)
-            }
-            healthStore.execute(query)
-        }
+        return await fetchAverageQuantity(type: HKQuantityType(.heartRateRecoveryOneMinute), unit: .count().unitDivided(by: .minute()), from: startDate, to: extendedEnd)
     }
 
     /// Fetch all walking metrics from HealthKit for a session
@@ -893,82 +616,20 @@ final class HealthKitManager {
 
     /// Fetch the most recent VO2 Max value
     func fetchVO2Max() async -> Double? {
-        guard isAvailable else { return nil }
-
-        let vo2Type = HKQuantityType(.vo2Max)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: vo2Type,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                // VO2 Max unit: mL/(kg·min)
-                let unit = HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo)).unitDivided(by: .minute())
-                let value = sample.quantity.doubleValue(for: unit)
-                continuation.resume(returning: value)
-            }
-            healthStore.execute(query)
-        }
+        // VO2 Max unit: mL/(kg·min)
+        let unit = HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo)).unitDivided(by: .minute())
+        return await fetchMostRecentQuantity(type: HKQuantityType(.vo2Max), unit: unit)
     }
 
     /// Fetch the most recent resting heart rate
     func fetchRestingHeartRate() async -> Int? {
-        guard isAvailable else { return nil }
-
-        let rhrType = HKQuantityType(.restingHeartRate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: rhrType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let bpm = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
-                continuation.resume(returning: Int(bpm))
-            }
-            healthStore.execute(query)
-        }
+        guard let bpm = await fetchMostRecentQuantity(type: HKQuantityType(.restingHeartRate), unit: .count().unitDivided(by: .minute())) else { return nil }
+        return Int(bpm)
     }
 
     /// Fetch the most recent heart rate variability (SDNN)
     func fetchHeartRateVariability() async -> Double? {
-        guard isAvailable else { return nil }
-
-        let hrvType = HKQuantityType(.heartRateVariabilitySDNN)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: hrvType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let sample = samples?.first as? HKQuantitySample, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let ms = sample.quantity.doubleValue(for: .secondUnit(with: .milli))
-                continuation.resume(returning: ms)
-            }
-            healthStore.execute(query)
-        }
+        await fetchMostRecentQuantity(type: HKQuantityType(.heartRateVariabilitySDNN), unit: .secondUnit(with: .milli))
     }
 
     /// Fetch sleep analysis for the past night (hours of sleep)
@@ -981,63 +642,56 @@ final class HealthKitManager {
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .hour, value: -24, to: now)!
         let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: now, options: .strictStartDate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: sleepType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let samples = samples as? [HKCategorySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
+        let descriptor = HKSampleQueryDescriptor<HKCategorySample>(
+            predicates: [.categorySample(type: sleepType, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return nil }
+
+            var asleepDuration: TimeInterval = 0
+            var inBedDuration: TimeInterval = 0
+            var remDuration: TimeInterval = 0
+            var deepDuration: TimeInterval = 0
+            var coreDuration: TimeInterval = 0
+
+            for sample in samples {
+                let duration = sample.endDate.timeIntervalSince(sample.startDate)
+
+                switch sample.value {
+                case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                    asleepDuration += duration
+                case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
+                    coreDuration += duration
+                    asleepDuration += duration
+                case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                    deepDuration += duration
+                    asleepDuration += duration
+                case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                    remDuration += duration
+                    asleepDuration += duration
+                case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                    inBedDuration += duration
+                default:
+                    break
                 }
-
-                var asleepDuration: TimeInterval = 0
-                var inBedDuration: TimeInterval = 0
-                var remDuration: TimeInterval = 0
-                var deepDuration: TimeInterval = 0
-                var coreDuration: TimeInterval = 0
-
-                for sample in samples {
-                    let duration = sample.endDate.timeIntervalSince(sample.startDate)
-
-                    switch sample.value {
-                    case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
-                        asleepDuration += duration
-                    case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
-                        coreDuration += duration
-                        asleepDuration += duration
-                    case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
-                        deepDuration += duration
-                        asleepDuration += duration
-                    case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
-                        remDuration += duration
-                        asleepDuration += duration
-                    case HKCategoryValueSleepAnalysis.inBed.rawValue:
-                        inBedDuration += duration
-                    default:
-                        break
-                    }
-                }
-
-                guard asleepDuration > 0 || inBedDuration > 0 else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let analysis = SleepAnalysis(
-                    totalSleepHours: asleepDuration / 3600,
-                    inBedHours: inBedDuration / 3600,
-                    remHours: remDuration / 3600,
-                    deepHours: deepDuration / 3600,
-                    coreHours: coreDuration / 3600
-                )
-                continuation.resume(returning: analysis)
             }
-            healthStore.execute(query)
+
+            guard asleepDuration > 0 || inBedDuration > 0 else { return nil }
+
+            return SleepAnalysis(
+                totalSleepHours: asleepDuration / 3600,
+                inBedHours: inBedDuration / 3600,
+                remHours: remDuration / 3600,
+                deepHours: deepDuration / 3600,
+                coreHours: coreDuration / 3600
+            )
+        } catch {
+            Log.health.error("Failed to fetch sleep data: \(error)")
+            return nil
         }
     }
 
@@ -1048,30 +702,27 @@ final class HealthKitManager {
         let rhrType = HKQuantityType(.restingHeartRate)
         let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: rhrType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: [:])
-                    return
-                }
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: rhrType, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
 
-                var trend: [Date: Int] = [:]
-                for sample in samples {
-                    let day = Calendar.current.startOfDay(for: sample.startDate)
-                    let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
-                    // Keep the most recent reading for each day
-                    trend[day] = bpm
-                }
-                continuation.resume(returning: trend)
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return [:] }
+
+            var trend: [Date: Int] = [:]
+            for sample in samples {
+                let day = Calendar.current.startOfDay(for: sample.startDate)
+                let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
+                // Keep the most recent reading for each day
+                trend[day] = bpm
             }
-            healthStore.execute(query)
+            return trend
+        } catch {
+            Log.health.error("Failed to fetch resting heart rate trend: \(error)")
+            return [:]
         }
     }
 
@@ -1119,26 +770,22 @@ final class HealthKitManager {
         let hrType = HKQuantityType(.heartRate)
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: hrType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: (nil, nil, nil))
-                    return
-                }
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: hrType, predicate: predicate)],
+            sortDescriptors: []
+        )
 
-                let unit = HKUnit.count().unitDivided(by: .minute())
-                let values = samples.map { $0.quantity.doubleValue(for: unit) }
-                let avg = values.reduce(0, +) / Double(values.count)
-                let maxVal = values.max()
-                let minVal = values.min()
-                continuation.resume(returning: (avg, maxVal, minVal))
-            }
-            healthStore.execute(query)
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return (nil, nil, nil) }
+
+            let unit = HKUnit.count().unitDivided(by: .minute())
+            let values = samples.map { $0.quantity.doubleValue(for: unit) }
+            let avg = values.reduce(0, +) / Double(values.count)
+            return (avg, values.max(), values.min())
+        } catch {
+            Log.health.error("Failed to fetch heart rate samples: \(error)")
+            return (nil, nil, nil)
         }
     }
 
@@ -1146,27 +793,18 @@ final class HealthKitManager {
     private func fetchActiveCalories(from startDate: Date, to endDate: Date) async -> Double? {
         guard isAvailable else { return nil }
 
-        let calorieType = HKQuantityType(.activeEnergyBurned)
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: .quantitySample(type: HKQuantityType(.activeEnergyBurned), predicate: predicate),
+            options: .cumulativeSum
+        )
 
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: calorieType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, error in
-                guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let total = samples.reduce(0.0) { sum, sample in
-                    sum + sample.quantity.doubleValue(for: .kilocalorie())
-                }
-                continuation.resume(returning: total)
-            }
-            healthStore.execute(query)
+        do {
+            let result = try await descriptor.result(for: healthStore)
+            return result?.sumQuantity()?.doubleValue(for: .kilocalorie())
+        } catch {
+            Log.health.error("Failed to fetch active calories: \(error)")
+            return nil
         }
     }
 }
