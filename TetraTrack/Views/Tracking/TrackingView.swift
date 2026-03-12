@@ -32,14 +32,13 @@ struct TrackingView: View {
     var body: some View {
         ZStack {
             if let tracker = sessionTracker {
-                if tracker.sessionState == .tracking || tracker.sessionState == .paused {
-                    let plugin = ridingPlugin
+                let plugin = ridingPlugin
 
-                    // Pure black background
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
+                // Pure black background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-                    VStack(spacing: 0) {
+                VStack(spacing: 0) {
                         // Top bar with controls
                         HStack(spacing: 12) {
                             // Page indicator on left
@@ -164,10 +163,6 @@ struct TrackingView: View {
                             }
                             .tabViewStyle(.page(indexDisplayMode: .never))
                         }
-                    }
-                } else {
-                    // Idle state - setup view
-                    IdleSetupView(tracker: tracker)
                 }
             } else {
                 ProgressView()

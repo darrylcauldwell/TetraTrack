@@ -13,12 +13,11 @@ import HealthKit
 struct SwimmingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
 
-    @State private var activeSession: SwimmingSession?
     @State private var showingSettings = false
     @State private var showingIntervalSetup = false
     @State private var intervalSettings = SwimmingIntervalSettings()
-    @State private var activeIntervalSettings: SwimmingIntervalSettings?
     @AppStorage("swimmingPoolLength") private var poolLength: Double = 25
     @AppStorage("swimmingPoolMode") private var poolModeRaw: String = SwimmingPoolMode.pool.rawValue
     @AppStorage("selectedCompetitionLevel") private var selectedLevelRaw: String = CompetitionLevel.junior.rawValue
@@ -94,63 +93,7 @@ struct SwimmingView: View {
                     settings: $intervalSettings,
                     poolLength: poolLength,
                     onStart: {
-                        activeIntervalSettings = intervalSettings
                         startSession(type: .intervals)
-                    }
-                )
-            }
-            .fullScreenCover(item: $activeSession) { session in
-                SwimmingLiveView(
-                    session: session,
-                    poolLength: poolLength,
-                    isThreeMinuteTest: session.name.contains("Test"),
-                    testDuration: selectedLevel.swimDuration,
-                    freeSwimTargetDuration: freeSwimTargetDuration > 0 ? freeSwimTargetDuration : nil,
-                    intervalSettings: activeIntervalSettings,
-                    onEnd: {
-                        // Sync: PBs, skill scores, save, navigate
-                        activeIntervalSettings = nil
-                        if session.name.contains("Test") && session.totalDistance > 0 {
-                            var pbs = SwimmingPersonalBests.shared
-                            pbs.updateThresholdPace(
-                                from: session.totalDistance,
-                                testDuration: selectedLevel.swimDuration
-                            )
-                            pbs.updatePersonalBest(
-                                distance: session.totalDistance,
-                                time: session.totalDuration
-                            )
-                        }
-                        let skillService = SkillDomainService()
-                        let skillScores = skillService.computeScores(from: session, score: nil)
-                        for skillScore in skillScores {
-                            modelContext.insert(skillScore)
-                        }
-                        try? modelContext.save()
-                        WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-                        activeSession = nil
-
-                        // Background: await workout save → save UUID → artifact sync
-                        let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
-                        Task {
-                            let workoutLifecycle = WorkoutLifecycleService.shared
-                            let workout = await workoutLifecycle.awaitWorkoutSave()
-                            if let workout {
-                                await MainActor.run {
-                                    session.healthKitWorkoutUUID = workout.uuid.uuidString
-                                    try? modelContext.save()
-                                }
-                            }
-                            await ArtifactConversionService.shared.convertAndSyncSwimmingSession(session)
-                            UIApplication.shared.endBackgroundTask(bgTaskID)
-                        }
-                    },
-                    onDiscard: {
-                        // Delete without saving
-                        activeIntervalSettings = nil
-                        modelContext.delete(session)
-                        try? modelContext.save()
-                        activeSession = nil
                     }
                 )
             }
@@ -168,13 +111,25 @@ struct SwimmingView: View {
             name = "Intervals"
         }
 
+        let isTest = type == .threeMinuteTest
+
         let session = SwimmingSession(
             name: name,
             poolMode: poolMode,
             poolLength: poolLength
         )
         modelContext.insert(session)
-        activeSession = session
+
+        let plugin = SwimmingPlugin(
+            session: session,
+            intervalSettings: type == .intervals ? intervalSettings : nil,
+            isThreeMinuteTest: isTest,
+            testDuration: selectedLevel.swimDuration,
+            freeSwimTargetDuration: freeSwimTargetDuration > 0 ? freeSwimTargetDuration : nil
+        )
+        Task {
+            await tracker.startSession(plugin: plugin)
+        }
     }
 
     enum SwimSessionType: String {

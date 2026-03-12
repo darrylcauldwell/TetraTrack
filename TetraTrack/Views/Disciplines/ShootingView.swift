@@ -17,8 +17,8 @@ import WidgetKit
 struct ShootingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
 
-    @State private var showingCompetition = false
     @State private var showingFreePractice = false
     @State private var showingHistory = false
     @State private var showingSettings = false
@@ -45,8 +45,7 @@ struct ShootingView: View {
                 color: .orange,
                 requiresCapture: true,
                 action: {
-                    selectedContext = .competitionTraining
-                    showingCompetition = true
+                    startCompetitionSession(context: .competitionTraining)
                 }
             ),
             DisciplineMenuItem(
@@ -56,8 +55,7 @@ struct ShootingView: View {
                 color: .purple,
                 requiresCapture: true,
                 action: {
-                    selectedContext = .competition
-                    showingCompetition = true
+                    startCompetitionSession(context: .competition)
                 }
             ),
             DisciplineMenuItem(
@@ -82,14 +80,6 @@ struct ShootingView: View {
                 }
             }
         }
-            .fullScreenCover(isPresented: $showingCompetition) {
-                ShootingCompetitionView(
-                    sessionContext: selectedContext,
-                    onEnd: { _ in
-                        showingCompetition = false
-                    }
-                )
-            }
             .fullScreenCover(isPresented: $showingFreePractice) {
                 FreePracticeView(
                     sessionContext: selectedContext,
@@ -125,6 +115,15 @@ struct ShootingView: View {
                 ShootingSettingsView()
             }
         .presentationBackground(Color.black)
+    }
+
+    // MARK: - Start Competition
+
+    private func startCompetitionSession(context: ShootingSessionContext) {
+        let plugin = ShootingPlugin(sessionContext: context)
+        Task {
+            await tracker.startSession(plugin: plugin)
+        }
     }
 }
 

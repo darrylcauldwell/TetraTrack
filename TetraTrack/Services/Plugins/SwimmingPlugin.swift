@@ -87,7 +87,7 @@ final class SwimmingPlugin: DisciplinePlugin {
     private var modelContext: ModelContext?
 
     /// The session model
-    private var session: SwimmingSession
+    private(set) var session: SwimmingSession
 
     /// Interval training settings (nil = free swim or timed test)
     let intervalSettings: SwimmingIntervalSettings?
@@ -491,6 +491,19 @@ final class SwimmingPlugin: DisciplinePlugin {
         if !hkEvents.isEmpty { enrichment.workoutEvents = hkEvents }
         if !hkSamples.isEmpty { enrichment.calorieSamples = hkSamples }
 
+        // Update swimming personal bests (timed tests)
+        if isThreeMinuteTest && session.totalDistance > 0 {
+            var pbs = SwimmingPersonalBests.shared
+            pbs.updateThresholdPace(
+                from: session.totalDistance,
+                testDuration: testDuration
+            )
+            pbs.updatePersonalBest(
+                distance: session.totalDistance,
+                time: session.totalDuration
+            )
+        }
+
         // Compute skill domain scores
         if let ctx = modelContext {
             let skillService = SkillDomainService()
@@ -498,11 +511,11 @@ final class SwimmingPlugin: DisciplinePlugin {
             for score in scores {
                 ctx.insert(score)
             }
-            do {
-                try ctx.save()
-            } catch {
-                Log.tracking.error("Failed to save swimming skill domain scores: \(error)")
-            }
+        }
+
+        // Widget sync
+        if let ctx = modelContext {
+            WidgetDataSyncService.shared.syncRecentSessions(context: ctx)
         }
 
         Log.tracking.info("Swimming plugin stopped — \(self.completedLengths) lengths, \(self.strokeCount) strokes")

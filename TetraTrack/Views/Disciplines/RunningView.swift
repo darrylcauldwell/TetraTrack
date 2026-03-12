@@ -36,15 +36,12 @@ enum PendingRunStart {
 struct RunningView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
     @Query private var profiles: [RiderProfile]
     @Query private var sharingContacts: [SharingRelationship]
 
-    @State private var activeSession: RunningSession?
-    @State private var activeIntervalSettings: IntervalSettings?
-    @State private var activeProgramIntervals: [ProgramInterval]?
     @State private var pendingSetup: RunningSetupConfig?
     @State private var configToStart: RunningSetupConfig?
-    @State private var completedSession: RunningSession?
     @State private var showingTrainingPrograms = false
     @AppStorage("selectedCompetitionLevel") private var selectedLevelRaw: String = CompetitionLevel.junior.rawValue
 
@@ -162,9 +159,6 @@ struct RunningView: View {
         DisciplineMenuView(items: menuItems)
             .navigationTitle("Running")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(item: $completedSession) { session in
-                RunningSessionDetailView(session: session)
-            }
             .navigationDestination(isPresented: $showingTrainingPrograms) {
                 ProgramListView(onStartSession: { programSession in
                     startProgramSession(programSession)
@@ -186,170 +180,6 @@ struct RunningView: View {
                     }
                 )
             }
-            .fullScreenCover(item: $activeSession) { session in
-                if session.sessionType == .treadmill {
-                    TreadmillLiveView(
-                        session: session,
-                        targetCadence: session.targetCadence,
-                        onEnd: {
-                            // Sync: skill scores, save, navigate
-                            let skillService = SkillDomainService()
-                            let skillScores = skillService.computeScores(from: session, score: nil)
-                            for skillScore in skillScores {
-                                modelContext.insert(skillScore)
-                            }
-                            try? modelContext.save()
-                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-                            completedSession = session
-                            activeSession = nil
-
-                            // Background: await workout save → fetch HealthKit → save → artifact sync
-                            let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
-                            Task {
-                                let workoutLifecycle = WorkoutLifecycleService.shared
-                                let workout = await workoutLifecycle.awaitWorkoutSave()
-                                if let workout {
-                                    await MainActor.run {
-                                        session.healthKitWorkoutUUID = workout.uuid.uuidString
-                                    }
-                                }
-
-                                let healthKit = HealthKitManager.shared
-                                if let endDate = session.endDate {
-                                    let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
-                                    await MainActor.run {
-                                        session.healthKitAsymmetry = metrics.asymmetryPercentage
-                                        session.healthKitStrideLength = metrics.strideLength
-                                        session.healthKitPower = metrics.power
-                                        session.healthKitSpeed = metrics.speed
-                                        session.healthKitStepCount = metrics.stepCount
-                                        session.healthKitHRRecoveryOneMinute = metrics.heartRateRecoveryOneMinute
-
-                                        if let gct = metrics.groundContactTime, gct > 0 {
-                                            session.averageGroundContactTime = gct
-                                        }
-                                        if let osc = metrics.verticalOscillation, osc > 0 {
-                                            session.averageVerticalOscillation = osc
-                                        }
-                                        try? modelContext.save()
-                                    }
-
-                                    if metrics.heartRateRecoveryOneMinute == nil {
-                                        try? await Task.sleep(for: .seconds(30))
-                                        let hrRecovery = await healthKit.fetchHeartRateRecoveryOneMinute(from: session.startDate, to: endDate)
-                                        if let hrRecovery {
-                                            await MainActor.run {
-                                                session.healthKitHRRecoveryOneMinute = hrRecovery
-                                                try? modelContext.save()
-                                            }
-                                        }
-                                    }
-                                }
-
-                                await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
-                                UIApplication.shared.endBackgroundTask(bgTaskID)
-                            }
-                        },
-                        onDiscard: {
-                            modelContext.delete(session)
-                            try? modelContext.save()
-                            activeSession = nil
-                        }
-                    )
-                } else {
-                    RunningLiveView(
-                        session: session,
-                        intervalSettings: activeIntervalSettings,
-                        programIntervals: activeProgramIntervals,
-                        targetDistance: session.sessionType == .timeTrial ? selectedLevel.runDistance : 0,
-                        shareWithFamily: shareWithFamily,
-                        targetCadence: session.targetCadence,
-                        onEnd: {
-                            // Sync: skill scores, segment PBs, save, navigate
-                            let skillService = SkillDomainService()
-                            let skillScores = skillService.computeScores(from: session, score: nil)
-                            for skillScore in skillScores {
-                                modelContext.insert(skillScore)
-                            }
-
-                            // Analyze segment PBs for outdoor GPS runs longer than 1200m
-                            if session.runMode == .outdoor && session.totalDistance > 1200 {
-                                nonisolated(unsafe) let points = session.sortedLocationPoints
-                                let pbs = RunningPersonalBests.shared
-                                let segmentResults = SegmentPBAnalyzer.analyze(
-                                    locationPoints: points,
-                                    totalDistance: session.totalDistance,
-                                    personalBests: pbs
-                                )
-                                if !segmentResults.isEmpty {
-                                    session.segmentPBResults = segmentResults
-                                }
-                            }
-
-                            try? modelContext.save()
-                            WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
-                            completedSession = session
-                            activeSession = nil
-                            activeIntervalSettings = nil
-                            activeProgramIntervals = nil
-
-                            // Background: await workout save → fetch HealthKit → save → artifact sync
-                            let bgTaskID = UIApplication.shared.beginBackgroundTask(expirationHandler: nil)
-                            Task {
-                                let workoutLifecycle = WorkoutLifecycleService.shared
-                                let workout = await workoutLifecycle.awaitWorkoutSave()
-                                if let workout {
-                                    await MainActor.run {
-                                        session.healthKitWorkoutUUID = workout.uuid.uuidString
-                                    }
-                                }
-
-                                let healthKit = HealthKitManager.shared
-                                if let endDate = session.endDate {
-                                    let metrics = await healthKit.fetchRunningMetrics(from: session.startDate, to: endDate)
-                                    await MainActor.run {
-                                        session.healthKitAsymmetry = metrics.asymmetryPercentage
-                                        session.healthKitStrideLength = metrics.strideLength
-                                        session.healthKitPower = metrics.power
-                                        session.healthKitSpeed = metrics.speed
-                                        session.healthKitStepCount = metrics.stepCount
-                                        session.healthKitHRRecoveryOneMinute = metrics.heartRateRecoveryOneMinute
-
-                                        if let gct = metrics.groundContactTime, gct > 0 {
-                                            session.averageGroundContactTime = gct
-                                        }
-                                        if let osc = metrics.verticalOscillation, osc > 0 {
-                                            session.averageVerticalOscillation = osc
-                                        }
-                                        try? modelContext.save()
-                                    }
-
-                                    if metrics.heartRateRecoveryOneMinute == nil {
-                                        try? await Task.sleep(for: .seconds(30))
-                                        let hrRecovery = await healthKit.fetchHeartRateRecoveryOneMinute(from: session.startDate, to: endDate)
-                                        if let hrRecovery {
-                                            await MainActor.run {
-                                                session.healthKitHRRecoveryOneMinute = hrRecovery
-                                                try? modelContext.save()
-                                            }
-                                        }
-                                    }
-                                }
-
-                                await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
-                                UIApplication.shared.endBackgroundTask(bgTaskID)
-                            }
-                        },
-                        onDiscard: {
-                            modelContext.delete(session)
-                            try? modelContext.save()
-                            activeSession = nil
-                            activeIntervalSettings = nil
-                            activeProgramIntervals = nil
-                        }
-                    )
-                }
-            }
             .presentationBackground(Color.black)
     }
 
@@ -363,8 +193,18 @@ struct RunningView: View {
         )
         session.programSessionId = programSession.id
         modelContext.insert(session)
-        activeProgramIntervals = programSession.sessionDefinition
-        activeSession = session
+
+        tracker.isSharingWithFamily = shareWithFamily
+        let plugin = RunningPlugin(
+            session: session,
+            intervalSettings: nil,
+            programIntervals: programSession.sessionDefinition,
+            targetDistance: 0,
+            targetCadence: 0
+        )
+        Task {
+            await tracker.startSession(plugin: plugin)
+        }
     }
 
     private func startFromConfig(_ config: RunningSetupConfig) {
@@ -378,7 +218,18 @@ struct RunningView: View {
             session.targetCadence = config.targetCadence
             session.trackLength = config.trackLength
             modelContext.insert(session)
-            activeSession = session
+
+            tracker.isSharingWithFamily = shareWithFamily
+            let plugin = RunningPlugin(
+                session: session,
+                intervalSettings: nil,
+                programIntervals: nil,
+                targetDistance: type == .timeTrial ? selectedLevel.runDistance : 0,
+                targetCadence: config.targetCadence
+            )
+            Task {
+                await tracker.startSession(plugin: plugin)
+            }
 
         case .interval(let settings):
             let session = RunningSession(
@@ -388,8 +239,18 @@ struct RunningView: View {
             )
             session.targetCadence = config.targetCadence
             modelContext.insert(session)
-            activeIntervalSettings = settings
-            activeSession = session
+
+            tracker.isSharingWithFamily = shareWithFamily
+            let plugin = RunningPlugin(
+                session: session,
+                intervalSettings: settings,
+                programIntervals: nil,
+                targetDistance: 0,
+                targetCadence: config.targetCadence
+            )
+            Task {
+                await tracker.startSession(plugin: plugin)
+            }
 
         case .pacer(let settings):
             let session = RunningSession(
@@ -404,7 +265,18 @@ struct RunningView: View {
             } else {
                 VirtualPacer.shared.start(targetPace: settings.targetPace)
             }
-            activeSession = session
+
+            tracker.isSharingWithFamily = shareWithFamily
+            let plugin = RunningPlugin(
+                session: session,
+                intervalSettings: nil,
+                programIntervals: nil,
+                targetDistance: 0,
+                targetCadence: config.targetCadence
+            )
+            Task {
+                await tracker.startSession(plugin: plugin)
+            }
         }
     }
 }

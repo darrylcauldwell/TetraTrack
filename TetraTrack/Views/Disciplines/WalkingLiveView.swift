@@ -13,13 +13,6 @@ import MapKit
 import os
 
 struct WalkingLiveView: View {
-    @Bindable var session: RunningSession
-    var selectedRoute: WalkingRoute?
-    var shareWithFamily: Bool = false
-    var targetCadence: Int = 120
-    let onEnd: () -> Void
-    var onDiscard: (() -> Void)?
-
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Environment(SessionTracker.self) private var tracker: SessionTracker
@@ -48,27 +41,12 @@ struct WalkingLiveView: View {
         }
         .background(Color.black)
         .preferredColorScheme(.dark)
-        .onAppear {
-            if tracker.sessionState == .idle {
-                tracker.isSharingWithFamily = shareWithFamily
-                let plugin = WalkingPlugin(
-                    session: session,
-                    selectedRoute: selectedRoute,
-                    targetCadence: targetCadence
-                )
-                Task {
-                    await tracker.startSession(plugin: plugin)
-                }
-            }
-        }
         .confirmationDialog("End Walking Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
                 tracker.stopSession()
-                onEnd()
             }
             Button("Discard", role: .destructive) {
                 tracker.discardSession()
-                onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -78,6 +56,10 @@ struct WalkingLiveView: View {
 
     private var walkingPlugin: WalkingPlugin? {
         tracker.plugin(as: WalkingPlugin.self)
+    }
+
+    private var targetCadence: Int {
+        walkingPlugin?.targetCadence ?? 120
     }
 
     // MARK: - Header
