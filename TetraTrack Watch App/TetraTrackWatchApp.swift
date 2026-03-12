@@ -21,6 +21,13 @@ class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
             await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
         }
     }
+
+    func handleActiveWorkoutRecovery() {
+        Log.tracking.info("WKApplicationDelegate: recovering active workout after crash")
+        Task { @MainActor in
+            await WorkoutManager.shared.recoverActiveWorkout()
+        }
+    }
 }
 
 // MARK: - App
