@@ -64,13 +64,13 @@ final class WalkingPlugin: DisciplinePlugin {
     private var modelContext: ModelContext?
 
     /// The session model
-    private var session: RunningSession
+    private(set) var session: RunningSession
 
     /// Selected walking route (if any)
-    private let selectedRoute: WalkingRoute?
+    let selectedRoute: WalkingRoute?
 
     /// Target cadence for audio feedback
-    private let targetCadence: Int
+    let targetCadence: Int
 
     // MARK: - Services
 
@@ -322,6 +322,33 @@ final class WalkingPlugin: DisciplinePlugin {
             )
         }
 
+        // Compute walking analysis scores
+        let walkingService = WalkingAnalysisService()
+        let walkingScores = walkingService.computeScores(from: session)
+        walkingService.applyScores(walkingScores, to: session)
+
+        // Route matching
+        if let ctx = modelContext {
+            let routeService = RouteMatchingService()
+            if let route = selectedRoute {
+                if let comparison = routeService.recordAttempt(route: route, session: session, context: ctx) {
+                    if let encoded = try? JSONEncoder().encode(comparison) {
+                        session.routeComparisonData = encoded
+                    }
+                }
+            } else if (session.locationPoints ?? []).count >= 5 {
+                let descriptor = FetchDescriptor<WalkingRoute>()
+                let existingRoutes = (try? ctx.fetch(descriptor)) ?? []
+                if let matchedRoute = routeService.matchRoute(session: session, existingRoutes: existingRoutes, context: ctx) {
+                    if let comparison = routeService.recordAttempt(route: matchedRoute, session: session, context: ctx) {
+                        if let encoded = try? JSONEncoder().encode(comparison) {
+                            session.routeComparisonData = encoded
+                        }
+                    }
+                }
+            }
+        }
+
         // Compute skill domain scores
         if let ctx = modelContext {
             let skillService = SkillDomainService()
@@ -329,11 +356,11 @@ final class WalkingPlugin: DisciplinePlugin {
             for score in scores {
                 ctx.insert(score)
             }
-            do {
-                try ctx.save()
-            } catch {
-                Log.tracking.error("Failed to save walking skill domain scores: \(error)")
-            }
+        }
+
+        // Widget sync
+        if let ctx = modelContext {
+            WidgetDataSyncService.shared.syncRecentSessions(context: ctx)
         }
 
         Log.tracking.info("Walking plugin stopped")
@@ -341,6 +368,15 @@ final class WalkingPlugin: DisciplinePlugin {
     }
 
     func onSessionCompleted(tracker: SessionTracker) async {
+        // Recompute walking scores after HealthKit data has been written
+        await MainActor.run {
+            let walkingService = WalkingAnalysisService()
+            if session.healthKitAsymmetry != nil || session.healthKitDoubleSupportPercentage != nil {
+                let updatedScores = walkingService.computeScores(from: session)
+                walkingService.applyScores(updatedScores, to: session)
+                try? modelContext?.save()
+            }
+        }
         await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
     }
 

@@ -67,13 +67,11 @@ struct ShootingCompetitionDayView: View {
             }
             .fullScreenCover(isPresented: $showingScanView) {
                 ShootingCompetitionView(
-                    sessionContext: .competition,
+                    standaloneContext: .competition,
                     onEnd: { _ in
-                        // Dismiss handled here; score bridged via onComplete
                         showingScanView = false
                     },
                     onComplete: { totalScore in
-                        // Bridge score from ShootingSession to competition
                         competition.shootingScore = totalScore * 10
                         competition.shootingPoints = PonyClubScoringService.calculateShootingPoints(rawScore: totalScore * 10)
                         checkAutoCompletion()

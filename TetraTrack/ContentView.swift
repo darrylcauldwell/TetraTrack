@@ -19,7 +19,7 @@ struct ContentView: View {
             if viewContext.canCapture,
                let tracker = sessionTracker,
                tracker.sessionState.isActive {
-                TrackingView()
+                ActiveSessionView()
             } else {
                 DisciplinesView()
             }

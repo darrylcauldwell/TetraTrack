@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RidingView: View {
     @Environment(\.viewContext) private var viewContext
+    @Environment(SessionTracker.self) private var tracker: SessionTracker
 
     var body: some View {
         Group {
@@ -28,8 +29,8 @@ struct RidingView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // iPhone capture mode - show tracking view
-                TrackingView()
+                // iPhone capture mode - show ride setup
+                IdleSetupView(tracker: tracker)
             }
         }
         .navigationTitle("Riding")

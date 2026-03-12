@@ -121,19 +121,19 @@ final class RunningPlugin: DisciplinePlugin {
     private var modelContext: ModelContext?
 
     /// The session model
-    private var session: RunningSession
+    private(set) var session: RunningSession
 
     /// Interval settings (optional)
-    private let intervalSettings: IntervalSettings?
+    let intervalSettings: IntervalSettings?
 
     /// Program intervals (optional)
-    private let programIntervals: [ProgramInterval]?
+    let programIntervals: [ProgramInterval]?
 
     /// Target distance for time trials / goal runs
-    private let targetDistance: Double
+    let targetDistance: Double
 
     /// Target cadence for audio feedback
-    private let targetCadence: Int
+    let targetCadence: Int
 
     // MARK: - Services
 
@@ -753,6 +753,20 @@ final class RunningPlugin: DisciplinePlugin {
             }
         }
 
+        // Analyze segment PBs for outdoor GPS runs longer than 1200m
+        if session.runMode == .outdoor && tracker.totalDistance > 1200 {
+            nonisolated(unsafe) let points = session.sortedLocationPoints
+            let pbs = RunningPersonalBests.shared
+            let segmentResults = SegmentPBAnalyzer.analyze(
+                locationPoints: points,
+                totalDistance: tracker.totalDistance,
+                personalBests: pbs
+            )
+            if !segmentResults.isEmpty {
+                session.segmentPBResults = segmentResults
+            }
+        }
+
         // Compute skill domain scores
         if let ctx = modelContext {
             let skillService = SkillDomainService()
@@ -760,11 +774,11 @@ final class RunningPlugin: DisciplinePlugin {
             for score in scores {
                 ctx.insert(score)
             }
-            do {
-                try ctx.save()
-            } catch {
-                Log.tracking.error("Failed to save running skill domain scores: \(error)")
-            }
+        }
+
+        // Widget sync
+        if let ctx = modelContext {
+            WidgetDataSyncService.shared.syncRecentSessions(context: ctx)
         }
 
         let mode = session.runMode.rawValue
@@ -773,6 +787,19 @@ final class RunningPlugin: DisciplinePlugin {
     }
 
     func onSessionCompleted(tracker: SessionTracker) async {
+        // Retry HR recovery fetch if not captured during onSessionStopping
+        if session.healthKitHRRecoveryOneMinute == nil, let endDate = session.endDate {
+            try? await Task.sleep(for: .seconds(30))
+            let hrRecovery = await HealthKitManager.shared.fetchHeartRateRecoveryOneMinute(
+                from: session.startDate, to: endDate
+            )
+            if let hrRecovery {
+                await MainActor.run {
+                    session.healthKitHRRecoveryOneMinute = hrRecovery
+                    try? modelContext?.save()
+                }
+            }
+        }
         await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
     }
 

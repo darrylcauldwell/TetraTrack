@@ -51,7 +51,7 @@ final class ShootingPlugin: DisciplinePlugin {
     private var modelContext: ModelContext?
 
     /// Session context (competition, practice, etc.)
-    private let sessionContext: ShootingSessionContext
+    let sessionContext: ShootingSessionContext
 
     // MARK: - Services
 

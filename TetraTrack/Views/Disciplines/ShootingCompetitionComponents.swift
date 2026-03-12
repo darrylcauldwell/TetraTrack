@@ -32,8 +32,9 @@ struct TransferableImage: Transferable {
 // MARK: - Competition View
 
 struct ShootingCompetitionView: View {
-    var sessionContext: ShootingSessionContext = .competitionTraining
-    let onEnd: (Int) -> Void
+    /// When provided, runs in standalone mode (competition day): starts its own session
+    var standaloneContext: ShootingSessionContext? = nil
+    var onEnd: ((Int) -> Void)? = nil
     var onComplete: ((Int) -> Void)? = nil
 
     @Environment(SessionTracker.self) private var tracker: SessionTracker
@@ -74,6 +75,12 @@ struct ShootingCompetitionView: View {
         card1Scores.allSatisfy({ $0 > 0 }) && card2Scores.allSatisfy({ $0 > 0 })
     }
 
+    private var isStandalone: Bool { standaloneContext != nil }
+
+    private var sessionContext: ShootingSessionContext {
+        standaloneContext ?? shootingPlugin?.sessionContext ?? .competitionTraining
+    }
+
     private var contextColor: Color {
         switch sessionContext.color {
         case "blue": return .blue
@@ -110,7 +117,14 @@ struct ShootingCompetitionView: View {
 
                     Spacer()
 
-                    Button(action: { onEnd(0) }) {
+                    Button(action: {
+                        if isStandalone {
+                            tracker.discardSession()
+                            onEnd?(0)
+                        } else {
+                            tracker.discardSession()
+                        }
+                    }) {
                         Image(systemName: "xmark")
                             .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
@@ -135,16 +149,17 @@ struct ShootingCompetitionView: View {
             .padding(.top, 8)
         }
         .onAppear {
-            if tracker.sessionState == .idle {
-                let plugin = ShootingPlugin(sessionContext: sessionContext)
+            // Standalone mode (competition day): start session here
+            if let context = standaloneContext, tracker.sessionState == .idle {
+                let plugin = ShootingPlugin(sessionContext: context)
                 Task {
                     await tracker.startSession(plugin: plugin)
                 }
             }
         }
         .onDisappear {
-            // Discard session if user closes without saving
-            if tracker.sessionState == .tracking || tracker.sessionState == .paused {
+            // Standalone mode: discard if still active
+            if isStandalone && tracker.sessionState.isActive {
                 tracker.discardSession()
             }
         }
@@ -387,10 +402,11 @@ struct ShootingCompetitionView: View {
         // Stop session (triggers HealthKit enrichment, workout save, widget sync, artifact conversion)
         tracker.stopSession()
 
-        // Notify competition day view if callback provided
-        onComplete?(totalRawScore)
-
-        onEnd(totalRawScore)
+        // Standalone mode (competition day): bridge score back via callbacks
+        if isStandalone {
+            onComplete?(totalRawScore)
+            onEnd?(totalRawScore)
+        }
     }
 }
 

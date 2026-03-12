@@ -22,15 +22,6 @@ enum RunningTab {
 // MARK: - Running Live View
 
 struct RunningLiveView: View {
-    @Bindable var session: RunningSession
-    var intervalSettings: IntervalSettings?
-    var programIntervals: [ProgramInterval]?
-    var targetDistance: Double = 0
-    var shareWithFamily: Bool = false
-    var targetCadence: Int = 0
-    let onEnd: () -> Void
-    var onDiscard: (() -> Void)?
-
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
     @Environment(SessionTracker.self) private var tracker: SessionTracker
@@ -73,6 +64,26 @@ struct RunningLiveView: View {
         tracker.plugin(as: RunningPlugin.self)
     }
 
+    private var session: RunningSession {
+        runningPlugin!.session
+    }
+
+    private var intervalSettings: IntervalSettings? {
+        runningPlugin?.intervalSettings
+    }
+
+    private var programIntervals: [ProgramInterval]? {
+        runningPlugin?.programIntervals
+    }
+
+    private var targetDistance: Double {
+        runningPlugin?.targetDistance ?? 0
+    }
+
+    private var targetCadence: Int {
+        runningPlugin?.targetCadence ?? 0
+    }
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -113,29 +124,12 @@ struct RunningLiveView: View {
             )
             .ignoresSafeArea()
         )
-        .onAppear {
-            if tracker.sessionState == .idle {
-                tracker.isSharingWithFamily = shareWithFamily
-                let plugin = RunningPlugin(
-                    session: session,
-                    intervalSettings: intervalSettings,
-                    programIntervals: programIntervals,
-                    targetDistance: targetDistance,
-                    targetCadence: targetCadence
-                )
-                Task {
-                    await tracker.startSession(plugin: plugin)
-                }
-            }
-        }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
                 tracker.stopSession()
-                onEnd()
             }
             Button("Discard", role: .destructive) {
                 tracker.discardSession()
-                onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -147,7 +141,6 @@ struct RunningLiveView: View {
         )) {
             Button("Stop & Save") {
                 tracker.stopSession()
-                onEnd()
             }
             Button("Keep Tracking", role: .cancel) {}
         } message: {
@@ -268,11 +261,9 @@ struct RunningLiveView: View {
                 },
                 onStop: {
                     tracker.stopSession()
-                    onEnd()
                 },
                 onDiscard: {
                     tracker.discardSession()
-                    onDiscard?()
                 }
             )
             .padding(.bottom, 20)
@@ -1003,11 +994,6 @@ struct RunningLiveView: View {
 // MARK: - Treadmill Live View
 
 struct TreadmillLiveView: View {
-    @Bindable var session: RunningSession
-    var targetCadence: Int = 0
-    let onEnd: () -> Void
-    var onDiscard: (() -> Void)?
-
     @Environment(SessionTracker.self) private var tracker: SessionTracker
 
     @State private var showingCancelConfirmation = false
@@ -1020,10 +1006,18 @@ struct TreadmillLiveView: View {
     @State private var manualSpeedText: String = ""
     @State private var inclinePercentage: Double = 0.0
 
-    // MARK: - Plugin Accessor
+    // MARK: - Plugin Access
 
     private var runningPlugin: RunningPlugin? {
         tracker.plugin(as: RunningPlugin.self)
+    }
+
+    private var session: RunningSession {
+        runningPlugin!.session
+    }
+
+    private var targetCadence: Int {
+        runningPlugin?.targetCadence ?? 0
     }
 
     var body: some View {
@@ -1092,7 +1086,6 @@ struct TreadmillLiveView: View {
                     },
                     onDiscard: {
                         tracker.discardSession()
-                        onDiscard?()
                     }
                 )
                 .padding(.bottom, 20)
@@ -1114,20 +1107,7 @@ struct TreadmillLiveView: View {
             .ignoresSafeArea()
         )
         .onAppear {
-            if tracker.sessionState == .idle {
-                let plugin = RunningPlugin(
-                    session: session,
-                    intervalSettings: nil,
-                    programIntervals: nil,
-                    targetDistance: 0,
-                    targetCadence: targetCadence
-                )
-                Task { await tracker.startSession(plugin: plugin) }
-            }
             UIApplication.shared.isIdleTimerDisabled = true
-        }
-        .onDisappear {
-            // Audio form reminders are stopped by RunningPlugin.onSessionStopping
         }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
@@ -1135,7 +1115,6 @@ struct TreadmillLiveView: View {
             }
             Button("Discard", role: .destructive) {
                 tracker.discardSession()
-                onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -1360,7 +1339,6 @@ struct TreadmillLiveView: View {
         showingDistanceInput = false
         UIApplication.shared.isIdleTimerDisabled = false
         tracker.stopSession()
-        onEnd()
     }
 
     private func formatTime(_ interval: TimeInterval) -> String {

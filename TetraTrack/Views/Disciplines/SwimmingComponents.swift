@@ -384,16 +384,6 @@ struct SwimmingPersonalBests {
 // MARK: - Swimming Live View
 
 struct SwimmingLiveView: View {
-    @Bindable var session: SwimmingSession
-    let poolLength: Double
-    let isThreeMinuteTest: Bool
-    let testDuration: TimeInterval  // Configurable duration for timed tests
-    var freeSwimTargetDuration: TimeInterval? = nil  // Optional target for free swim
-    var intervalSettings: SwimmingIntervalSettings? = nil
-    let onEnd: () -> Void
-    var onDiscard: (() -> Void)? = nil
-
-    // Session infrastructure (managed by SessionTracker + SwimmingPlugin)
     @Environment(SessionTracker.self) private var tracker: SessionTracker
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
@@ -416,6 +406,30 @@ struct SwimmingLiveView: View {
 
     private var swimmingPlugin: SwimmingPlugin? {
         tracker.plugin(as: SwimmingPlugin.self)
+    }
+
+    private var session: SwimmingSession {
+        swimmingPlugin!.session
+    }
+
+    private var poolLength: Double {
+        swimmingPlugin?.poolLength ?? 25
+    }
+
+    private var isThreeMinuteTest: Bool {
+        swimmingPlugin?.isThreeMinuteTest ?? false
+    }
+
+    private var testDuration: TimeInterval {
+        swimmingPlugin?.testDuration ?? 180
+    }
+
+    private var freeSwimTargetDuration: TimeInterval? {
+        swimmingPlugin?.freeSwimTargetDuration
+    }
+
+    private var intervalSettings: SwimmingIntervalSettings? {
+        swimmingPlugin?.intervalSettings
     }
 
     // MARK: - Computed Properties (UI)
@@ -566,21 +580,6 @@ struct SwimmingLiveView: View {
             )
             .ignoresSafeArea()
         )
-        .onAppear {
-            // Pool mode: start session immediately (like WalkingLiveView)
-            if !isOpenWater && tracker.sessionState == .idle {
-                let plugin = SwimmingPlugin(
-                    session: session,
-                    intervalSettings: intervalSettings,
-                    isThreeMinuteTest: isThreeMinuteTest,
-                    testDuration: testDuration,
-                    freeSwimTargetDuration: freeSwimTargetDuration
-                )
-                Task {
-                    await tracker.startSession(plugin: plugin)
-                }
-            }
-        }
         .onDisappear {
             strokePickerTimer?.invalidate()
         }
@@ -641,11 +640,9 @@ struct SwimmingLiveView: View {
         .confirmationDialog("End Swimming Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
                 tracker.stopSession()
-                onEnd()
             }
             Button("Discard", role: .destructive) {
                 tracker.discardSession()
-                onDiscard?()
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -1188,7 +1185,6 @@ struct SwimmingLiveView: View {
                 // Finish button
                 Button {
                     tracker.stopSession()
-                    onEnd()
                 } label: {
                     Label("Save & Finish", systemImage: "checkmark.circle.fill")
                         .font(.title3.bold())
@@ -1233,17 +1229,6 @@ struct SwimmingLiveView: View {
     private func triggerSubmersionStart() {
         guard isArmedForSubmersion else { return }
         isArmedForSubmersion = false
-
-        let plugin = SwimmingPlugin(
-            session: session,
-            intervalSettings: intervalSettings,
-            isThreeMinuteTest: isThreeMinuteTest,
-            testDuration: testDuration,
-            freeSwimTargetDuration: freeSwimTargetDuration
-        )
-        Task {
-            await tracker.startSession(plugin: plugin)
-        }
 
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
