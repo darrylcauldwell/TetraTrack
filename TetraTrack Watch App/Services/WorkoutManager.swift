@@ -84,8 +84,10 @@ final class WorkoutManager: NSObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var heartRateSamples: [Int] = []
     private var startTime: Date?
-    private var elapsedTimer: Timer?
-    private var motionSendTimer: Timer?
+    private var elapsedTimer: DispatchSourceTimer?
+    private var motionSendTimer: DispatchSourceTimer?
+    private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchTimers", qos: .userInitiated)
+    private var motionSendTickCount: Int = 0
 
     // Dependencies
     private let locationManager = WatchLocationManager.shared
@@ -701,15 +703,28 @@ final class WorkoutManager: NSObject {
     /// Start sending motion + HR data at 1Hz via mirrored session or WC fallback.
     func startMotionDataSending() {
         stopMotionDataSending()
-        motionSendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.sendMirroredDataTick()
+        motionSendTickCount = 0
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.motionSendTickCount += 1
+                if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
+                    Log.tracking.debug("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
+                }
+                self.sendMirroredDataTick()
+            }
         }
-        Log.tracking.info("Motion data sending started (1Hz)")
+        source.resume()
+        motionSendTimer = source
+        Log.tracking.info("Motion data sending started (1Hz, DispatchSourceTimer)")
     }
 
     /// Stop motion data sending.
     func stopMotionDataSending() {
-        motionSendTimer?.invalidate()
+        motionSendTimer?.cancel()
         motionSendTimer = nil
     }
 
@@ -721,6 +736,8 @@ final class WorkoutManager: NSObject {
             // Also send HR via mirrored session
             if currentHeartRate > 0 {
                 sendHeartRateViaMirroredSession(currentHeartRate)
+            } else if motionSendTickCount % 30 == 0 {
+                Log.tracking.debug("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
             }
         } else {
             onMotionDataSend?()
@@ -752,14 +769,22 @@ final class WorkoutManager: NSObject {
     // MARK: - Elapsed Timer
 
     private func startElapsedTimer() {
-        elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self, let start = self.startTime, !self.isPaused else { return }
-            self.elapsedTime = Date().timeIntervalSince(start)
+        stopElapsedTimer()
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, let start = self.startTime, !self.isPaused else { return }
+                self.elapsedTime = Date().timeIntervalSince(start)
+            }
         }
+        source.resume()
+        elapsedTimer = source
     }
 
     private func stopElapsedTimer() {
-        elapsedTimer?.invalidate()
+        elapsedTimer?.cancel()
         elapsedTimer = nil
     }
 

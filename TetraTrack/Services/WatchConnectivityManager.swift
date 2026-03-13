@@ -363,6 +363,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     func updateFromMirroredHeartRate(_ bpm: Int) {
         lastReceivedHeartRate = bpm
         heartRateSequence += 1
+        let seq = heartRateSequence
+        Log.watch.debug("updateFromMirroredHeartRate: \(bpm) bpm, seq=\(seq)")
     }
 
     /// Update motion metrics from a dictionary received via HKWorkoutSession mirrored channel.
