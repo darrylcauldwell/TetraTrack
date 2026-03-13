@@ -324,6 +324,9 @@ final class RidingPlugin: DisciplinePlugin {
         if selectedRideType == .showjumping {
             startPhase(.warmup)
         }
+
+        // Audio announcement
+        audioCoach.announce("Ride started. Have a great ride!")
     }
 
     func onSessionPaused(tracker: SessionTracker) {
@@ -335,6 +338,16 @@ final class RidingPlugin: DisciplinePlugin {
     }
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
+        // Audio announcement
+        let distanceKm = tracker.totalDistance / 1000.0
+        let minutes = Int(tracker.elapsedTime) / 60
+        if distanceKm >= 1.0 {
+            audioCoach.announce("Ride complete. You covered \(String(format: "%.1f", distanceKm)) kilometres in \(minutes) minutes.")
+        } else {
+            let meters = Int(tracker.totalDistance)
+            audioCoach.announce("Ride complete. You covered \(meters) metres in \(minutes) minutes.")
+        }
+
         // End any active phase
         endCurrentPhase()
 

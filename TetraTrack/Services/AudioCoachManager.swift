@@ -400,28 +400,12 @@ final class AudioCoachManager: AudioCoaching {
         lastGaitAnnouncementTime = .distantPast
         announcementQueue.removeAll()
 
-        if isEnabled {
-            announce("Ride started. Have a great ride!")
-        }
+        // No generic start announcement — each plugin announces its own
     }
 
     func endSession(distance: Double, duration: TimeInterval) {
-        guard isEnabled else {
-            deactivateAudioSession()
-            return
-        }
-
-        let distanceKm = distance / 1000.0
-        let minutes = Int(duration) / 60
-
-        if distanceKm >= 1.0 {
-            announce("Ride complete. You covered \(String(format: "%.1f", distanceKm)) kilometres in \(minutes) minutes.")
-        } else {
-            let meters = Int(distance)
-            announce("Ride complete. You covered \(meters) metres in \(minutes) minutes.")
-        }
-
-        // Delay deactivation so the final announcement can finish playing
+        // No generic end announcement — each plugin announces its own
+        // Delay deactivation so any plugin announcement can finish playing
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
             self?.deactivateAudioSession()
         }
