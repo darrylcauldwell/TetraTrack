@@ -114,35 +114,44 @@ final class WatchConnectivityService: NSObject {
 
     // MARK: - Diagnostic Breadcrumbs
 
-    /// Queued breadcrumbs waiting for WCSession activation.
-    private static var pendingBreadcrumbs: [String] = []
+    /// Accumulated breadcrumb log — sent to iPhone via applicationContext (last value wins).
+    /// Using applicationContext instead of transferUserInfo because transferUserInfo
+    /// queues can get poisoned by burst sends, causing all transfers to silently fail.
+    private static var breadcrumbLog: [String] = []
 
-    /// Send a diagnostic message to iPhone via transferUserInfo.
-    /// These appear in iPhone Console.app since Watch Console.app is unavailable.
-    /// If WCSession isn't activated yet, the message is queued and flushed on activation.
+    /// Send a diagnostic message to iPhone via applicationContext.
+    /// Messages accumulate in a log array and are sent as a batch (last value wins).
+    /// This works even when isReachable is false, unlike sendMessage.
     static func sendDiagnostic(_ message: String) {
-        if WCSession.default.activationState == .activated {
-            let payload: [String: Any] = [
-                "diagnosticBreadcrumb": message,
-                "timestamp": Date().timeIntervalSince1970
-            ]
-            WCSession.default.transferUserInfo(payload)
-        } else {
-            pendingBreadcrumbs.append(message)
+        let timestamped = "\(Int(Date().timeIntervalSince1970)): \(message)"
+        breadcrumbLog.append(timestamped)
+        // Keep only the last 20 breadcrumbs to avoid payload size issues
+        if breadcrumbLog.count > 20 {
+            breadcrumbLog.removeFirst(breadcrumbLog.count - 20)
+        }
+
+        guard WCSession.default.activationState == .activated else { return }
+        do {
+            try WCSession.default.updateApplicationContext([
+                "diagnosticBreadcrumbs": breadcrumbLog,
+                "watchDiagnosticTimestamp": Date().timeIntervalSince1970
+            ])
+        } catch {
+            Log.watch.error("Failed to send diagnostic via applicationContext: \(error)")
         }
     }
 
-    /// Flush any breadcrumbs that were queued before WCSession activated.
+    /// Flush pending breadcrumbs on activation — just re-sends the current log.
     static func flushPendingBreadcrumbs() {
-        guard WCSession.default.activationState == .activated, !pendingBreadcrumbs.isEmpty else { return }
-        for msg in pendingBreadcrumbs {
-            let payload: [String: Any] = [
-                "diagnosticBreadcrumb": msg,
-                "timestamp": Date().timeIntervalSince1970
-            ]
-            WCSession.default.transferUserInfo(payload)
+        guard WCSession.default.activationState == .activated, !breadcrumbLog.isEmpty else { return }
+        do {
+            try WCSession.default.updateApplicationContext([
+                "diagnosticBreadcrumbs": breadcrumbLog,
+                "watchDiagnosticTimestamp": Date().timeIntervalSince1970
+            ])
+        } catch {
+            Log.watch.error("Failed to flush diagnostics via applicationContext: \(error)")
         }
-        pendingBreadcrumbs.removeAll()
     }
 
     // MARK: - Computed Properties
