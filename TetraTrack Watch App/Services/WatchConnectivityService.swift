@@ -112,6 +112,19 @@ final class WatchConnectivityService: NSObject {
         session?.activate()
     }
 
+    // MARK: - Diagnostic Breadcrumbs
+
+    /// Send a diagnostic message to iPhone via transferUserInfo.
+    /// These appear in iPhone Console.app since Watch Console.app is unavailable.
+    static func sendDiagnostic(_ message: String) {
+        guard WCSession.default.activationState == .activated else { return }
+        let payload: [String: Any] = [
+            "diagnosticBreadcrumb": message,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        WCSession.default.transferUserInfo(payload)
+    }
+
     // MARK: - Computed Properties
 
     /// Whether there is an active session on iPhone

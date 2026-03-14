@@ -671,6 +671,12 @@ extension WatchConnectivityManager: WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        // Handle diagnostic breadcrumbs from Watch (since Console.app can't see Watch logs)
+        if let breadcrumb = userInfo["diagnosticBreadcrumb"] as? String {
+            Log.watch.info("WATCH DIAGNOSTIC: \(breadcrumb)")
+            return
+        }
+
         // Handle Watch session sync via background transfer
         if let type = userInfo["type"] as? String, type == "watchSessionSync" {
             handleWatchSessionSync(userInfo)

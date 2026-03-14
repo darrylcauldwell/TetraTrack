@@ -17,10 +17,13 @@ import os
 class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
         Log.tracking.info("WKApplicationDelegate: received workout config — activity=\(workoutConfiguration.activityType.rawValue), location=\(workoutConfiguration.locationType.rawValue)")
+        WatchConnectivityService.sendDiagnostic("handle() called — activity=\(workoutConfiguration.activityType.rawValue)")
         Task { @MainActor in
             Log.tracking.info("WKApplicationDelegate: dispatching to WorkoutManager.startWorkoutFromiPhone()")
             await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
-            Log.tracking.info("WKApplicationDelegate: startWorkoutFromiPhone() completed, isActive=\(WorkoutManager.shared.isWorkoutActive)")
+            let isActive = WorkoutManager.shared.isWorkoutActive
+            Log.tracking.info("WKApplicationDelegate: startWorkoutFromiPhone() completed, isActive=\(isActive)")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone() done — isActive=\(isActive)")
         }
     }
 
@@ -48,6 +51,8 @@ struct TetraTrackWatchApp: App {
                 .environment(connectivityService)
                 .onAppear {
                     connectivityService.activate()
+                    // Send diagnostic breadcrumb confirming Watch app launched
+                    WatchConnectivityService.sendDiagnostic("Watch app launched, build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
                     // Legacy mirroring handler for backward compatibility
                     workoutManager.setupLegacyMirroringHandler()
                 }

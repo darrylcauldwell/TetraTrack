@@ -179,6 +179,7 @@ final class WorkoutManager: NSObject {
     /// Watch creates the session, builder, and data source, then mirrors to iPhone.
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async {
         Log.tracking.info("startWorkoutFromiPhone() called — activity: \(configuration.activityType.rawValue), location: \(configuration.locationType.rawValue)")
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: entry")
 
         // If we already have an active workout, discard it
         if isWorkoutActive {
@@ -189,6 +190,7 @@ final class WorkoutManager: NSObject {
         let authorized = await requestAuthorization()
         guard authorized else {
             Log.health.warning("startWorkoutFromiPhone: HealthKit NOT authorized — aborting")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: FAILED — HealthKit not authorized")
             return
         }
         Log.tracking.info("startWorkoutFromiPhone: HealthKit authorized OK")
@@ -216,8 +218,10 @@ final class WorkoutManager: NSObject {
 
             // Mirror session to iPhone
             Log.tracking.info("startWorkoutFromiPhone: calling startMirroringToCompanionDevice()...")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
             try await session.startMirroringToCompanionDevice()
             Log.tracking.info("startWorkoutFromiPhone: mirroring to companion device SUCCEEDED")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
 
             // Start the activity
             let startDate = Date()
@@ -268,6 +272,7 @@ final class WorkoutManager: NSObject {
 
         } catch {
             Log.tracking.error("Failed to start iPhone-triggered workout: \(error.localizedDescription)")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: FAILED — \(error.localizedDescription)")
         }
     }
 
@@ -730,6 +735,7 @@ final class WorkoutManager: NSObject {
         source.resume()
         motionSendTimer = source
         Log.tracking.info("Motion data sending started (1Hz, DispatchSourceTimer)")
+        WatchConnectivityService.sendDiagnostic("motionSend timer started (1Hz)")
     }
 
     /// Stop motion data sending.
