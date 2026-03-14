@@ -114,15 +114,35 @@ final class WatchConnectivityService: NSObject {
 
     // MARK: - Diagnostic Breadcrumbs
 
+    /// Queued breadcrumbs waiting for WCSession activation.
+    private static var pendingBreadcrumbs: [String] = []
+
     /// Send a diagnostic message to iPhone via transferUserInfo.
     /// These appear in iPhone Console.app since Watch Console.app is unavailable.
+    /// If WCSession isn't activated yet, the message is queued and flushed on activation.
     static func sendDiagnostic(_ message: String) {
-        guard WCSession.default.activationState == .activated else { return }
-        let payload: [String: Any] = [
-            "diagnosticBreadcrumb": message,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-        WCSession.default.transferUserInfo(payload)
+        if WCSession.default.activationState == .activated {
+            let payload: [String: Any] = [
+                "diagnosticBreadcrumb": message,
+                "timestamp": Date().timeIntervalSince1970
+            ]
+            WCSession.default.transferUserInfo(payload)
+        } else {
+            pendingBreadcrumbs.append(message)
+        }
+    }
+
+    /// Flush any breadcrumbs that were queued before WCSession activated.
+    static func flushPendingBreadcrumbs() {
+        guard WCSession.default.activationState == .activated, !pendingBreadcrumbs.isEmpty else { return }
+        for msg in pendingBreadcrumbs {
+            let payload: [String: Any] = [
+                "diagnosticBreadcrumb": msg,
+                "timestamp": Date().timeIntervalSince1970
+            ]
+            WCSession.default.transferUserInfo(payload)
+        }
+        pendingBreadcrumbs.removeAll()
     }
 
     // MARK: - Computed Properties
@@ -757,6 +777,9 @@ extension WatchConnectivityService: WCSessionDelegate {
         DispatchQueue.main.async {
             self.isReachable = session.isReachable
         }
+
+        // Flush any breadcrumbs that were queued before activation completed
+        WatchConnectivityService.flushPendingBreadcrumbs()
 
         // Request initial statistics on activation
         if session.isReachable {
