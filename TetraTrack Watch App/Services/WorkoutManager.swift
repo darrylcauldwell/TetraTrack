@@ -84,8 +84,10 @@ final class WorkoutManager: NSObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var heartRateSamples: [Int] = []
     private var startTime: Date?
-    private var elapsedTimer: Timer?
-    private var motionSendTimer: Timer?
+    private var elapsedTimer: DispatchSourceTimer?
+    private var motionSendTimer: DispatchSourceTimer?
+    private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchTimers", qos: .userInitiated)
+    private var motionSendTickCount: Int = 0
 
     // Dependencies
     private let locationManager = WatchLocationManager.shared
@@ -176,22 +178,29 @@ final class WorkoutManager: NSObject {
     /// Start a primary workout on Watch, triggered by iPhone via startWatchApp.
     /// Watch creates the session, builder, and data source, then mirrors to iPhone.
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async {
+        Log.tracking.info("startWorkoutFromiPhone() called — activity: \(configuration.activityType.rawValue), location: \(configuration.locationType.rawValue)")
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: entry")
+
         // If we already have an active workout, discard it
         if isWorkoutActive {
+            Log.tracking.info("startWorkoutFromiPhone: discarding existing active workout")
             discardWorkout()
         }
 
         let authorized = await requestAuthorization()
         guard authorized else {
-            Log.health.warning("Not authorized for iPhone-triggered workout")
+            Log.health.warning("startWorkoutFromiPhone: HealthKit NOT authorized — aborting")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: FAILED — HealthKit not authorized")
             return
         }
+        Log.tracking.info("startWorkoutFromiPhone: HealthKit authorized OK")
 
         do {
             // Create PRIMARY session on Watch
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             session.delegate = self
             workoutSession = session
+            Log.tracking.info("startWorkoutFromiPhone: HKWorkoutSession created")
 
             // Create builder with live data source for auto HR from wrist sensor
             let builder = session.associatedWorkoutBuilder()
@@ -201,17 +210,24 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
             workoutBuilder = builder
+            Log.tracking.info("startWorkoutFromiPhone: builder + data source created")
 
             // Prepare session before starting activity
             session.prepare()
+            Log.tracking.info("startWorkoutFromiPhone: session.prepare() called")
 
-            // Mirror session to iPhone
-            try await session.startMirroringToCompanionDevice()
-
-            // Start the activity
+            // Start the activity FIRST — session must be .running before mirroring
             let startDate = Date()
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
+            Log.tracking.info("startWorkoutFromiPhone: activity started, collection began")
+
+            // Mirror session to iPhone — must be called AFTER startActivity()
+            Log.tracking.info("startWorkoutFromiPhone: calling startMirroringToCompanionDevice()...")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
+            try await session.startMirroringToCompanionDevice()
+            Log.tracking.info("startWorkoutFromiPhone: mirroring to companion device SUCCEEDED")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
 
             // Map activity type
             activityType = mapActivityType(configuration.activityType)
@@ -256,6 +272,7 @@ final class WorkoutManager: NSObject {
 
         } catch {
             Log.tracking.error("Failed to start iPhone-triggered workout: \(error.localizedDescription)")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: FAILED — \(error.localizedDescription)")
         }
     }
 
@@ -701,15 +718,29 @@ final class WorkoutManager: NSObject {
     /// Start sending motion + HR data at 1Hz via mirrored session or WC fallback.
     func startMotionDataSending() {
         stopMotionDataSending()
-        motionSendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.sendMirroredDataTick()
+        motionSendTickCount = 0
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.motionSendTickCount += 1
+                if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
+                    Log.tracking.info("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
+                }
+                self.sendMirroredDataTick()
+            }
         }
-        Log.tracking.info("Motion data sending started (1Hz)")
+        source.resume()
+        motionSendTimer = source
+        Log.tracking.info("Motion data sending started (1Hz, DispatchSourceTimer)")
+        WatchConnectivityService.sendDiagnostic("motionSend timer started (1Hz)")
     }
 
     /// Stop motion data sending.
     func stopMotionDataSending() {
-        motionSendTimer?.invalidate()
+        motionSendTimer?.cancel()
         motionSendTimer = nil
     }
 
@@ -721,6 +752,8 @@ final class WorkoutManager: NSObject {
             // Also send HR via mirrored session
             if currentHeartRate > 0 {
                 sendHeartRateViaMirroredSession(currentHeartRate)
+            } else if motionSendTickCount % 30 == 0 {
+                Log.tracking.info("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
             }
         } else {
             onMotionDataSend?()
@@ -752,14 +785,22 @@ final class WorkoutManager: NSObject {
     // MARK: - Elapsed Timer
 
     private func startElapsedTimer() {
-        elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self, let start = self.startTime, !self.isPaused else { return }
-            self.elapsedTime = Date().timeIntervalSince(start)
+        stopElapsedTimer()
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, let start = self.startTime, !self.isPaused else { return }
+                self.elapsedTime = Date().timeIntervalSince(start)
+            }
         }
+        source.resume()
+        elapsedTimer = source
     }
 
     private func stopElapsedTimer() {
-        elapsedTimer?.invalidate()
+        elapsedTimer?.cancel()
         elapsedTimer = nil
     }
 

@@ -109,6 +109,17 @@ final class WorkoutLifecycleService: NSObject {
         )
 
         Log.health.info("WorkoutLifecycleService: requested Watch to start \(configuration.activityType.rawValue) workout")
+
+        // Diagnostic: check if mirrored session arrives within 10 seconds
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard let self else { return }
+            if self.workoutSession == nil {
+                Log.health.info("WorkoutLifecycleService: WARNING — mirrored session NOT received 10s after startWatchApp(). Watch may not have started the workout.")
+            } else {
+                Log.health.info("WorkoutLifecycleService: mirrored session confirmed active 10s after startWatchApp()")
+            }
+        }
     }
 
     /// Register the mirroring handler at app launch so iPhone is always ready
@@ -727,6 +738,7 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
             case "heartRate":
                 // HR sent from Watch via mirrored session
                 guard let bpm = payload["bpm"] as? Int, bpm > 0 else { continue }
+                Log.health.info("WorkoutLifecycleService: received mirrored HR \(bpm) bpm from Watch")
                 Task { @MainActor in
                     self.liveHeartRate = bpm
                     WatchConnectivityManager.shared.updateFromMirroredHeartRate(bpm)
@@ -739,8 +751,10 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 guard let metricsString = payload["metricsJSON"] as? String,
                       let metricsData = metricsString.data(using: .utf8),
                       let metricsDict = try? JSONSerialization.jsonObject(with: metricsData) as? [String: Any] else {
+                    Log.health.info("WorkoutLifecycleService: failed to decode mirrored motion data")
                     continue
                 }
+                Log.health.info("WorkoutLifecycleService: received mirrored motion data from Watch")
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
                 }
