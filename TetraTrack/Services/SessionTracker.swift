@@ -742,10 +742,10 @@ final class SessionTracker {
 
     func handleHeartRateUpdate(_ bpm: Int) {
         guard sessionState == .tracking else {
-            Log.tracking.debug("handleHeartRateUpdate: dropped HR \(bpm) bpm — sessionState is \(String(describing: self.sessionState))")
+            Log.tracking.info("handleHeartRateUpdate: dropped HR \(bpm) bpm — sessionState is \(String(describing: self.sessionState))")
             return
         }
-        Log.tracking.debug("handleHeartRateUpdate: processing HR \(bpm) bpm")
+        Log.tracking.info("handleHeartRateUpdate: processing HR \(bpm) bpm")
 
         healthCoordinator.processHeartRate(bpm)
 
@@ -827,7 +827,7 @@ final class SessionTracker {
                 guard wm.heartRateSequence != lastSeq else { continue }
                 lastSeq = wm.heartRateSequence
                 let hr = wm.lastReceivedHeartRate
-                Log.tracking.debug("startWatchHeartRateObservation: seq=\(lastSeq), hr=\(hr)")
+                Log.tracking.info("startWatchHeartRateObservation: seq=\(lastSeq), hr=\(hr)")
                 guard hr > 0 else { continue }
                 self.handleHeartRateUpdate(hr)
             }

@@ -712,7 +712,7 @@ final class WorkoutManager: NSObject {
                 guard let self else { return }
                 self.motionSendTickCount += 1
                 if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
-                    Log.tracking.debug("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
+                    Log.tracking.info("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
                 }
                 self.sendMirroredDataTick()
             }
@@ -737,7 +737,7 @@ final class WorkoutManager: NSObject {
             if currentHeartRate > 0 {
                 sendHeartRateViaMirroredSession(currentHeartRate)
             } else if motionSendTickCount % 30 == 0 {
-                Log.tracking.debug("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
+                Log.tracking.info("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
             }
         } else {
             onMotionDataSend?()

@@ -727,7 +727,7 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
             case "heartRate":
                 // HR sent from Watch via mirrored session
                 guard let bpm = payload["bpm"] as? Int, bpm > 0 else { continue }
-                Log.health.debug("WorkoutLifecycleService: received mirrored HR \(bpm) bpm from Watch")
+                Log.health.info("WorkoutLifecycleService: received mirrored HR \(bpm) bpm from Watch")
                 Task { @MainActor in
                     self.liveHeartRate = bpm
                     WatchConnectivityManager.shared.updateFromMirroredHeartRate(bpm)
@@ -740,10 +740,10 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 guard let metricsString = payload["metricsJSON"] as? String,
                       let metricsData = metricsString.data(using: .utf8),
                       let metricsDict = try? JSONSerialization.jsonObject(with: metricsData) as? [String: Any] else {
-                    Log.health.debug("WorkoutLifecycleService: failed to decode mirrored motion data")
+                    Log.health.info("WorkoutLifecycleService: failed to decode mirrored motion data")
                     continue
                 }
-                Log.health.debug("WorkoutLifecycleService: received mirrored motion data from Watch")
+                Log.health.info("WorkoutLifecycleService: received mirrored motion data from Watch")
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
                 }
