@@ -178,22 +178,27 @@ final class WorkoutManager: NSObject {
     /// Start a primary workout on Watch, triggered by iPhone via startWatchApp.
     /// Watch creates the session, builder, and data source, then mirrors to iPhone.
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async {
+        Log.tracking.info("startWorkoutFromiPhone() called — activity: \(configuration.activityType.rawValue), location: \(configuration.locationType.rawValue)")
+
         // If we already have an active workout, discard it
         if isWorkoutActive {
+            Log.tracking.info("startWorkoutFromiPhone: discarding existing active workout")
             discardWorkout()
         }
 
         let authorized = await requestAuthorization()
         guard authorized else {
-            Log.health.warning("Not authorized for iPhone-triggered workout")
+            Log.health.warning("startWorkoutFromiPhone: HealthKit NOT authorized — aborting")
             return
         }
+        Log.tracking.info("startWorkoutFromiPhone: HealthKit authorized OK")
 
         do {
             // Create PRIMARY session on Watch
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             session.delegate = self
             workoutSession = session
+            Log.tracking.info("startWorkoutFromiPhone: HKWorkoutSession created")
 
             // Create builder with live data source for auto HR from wrist sensor
             let builder = session.associatedWorkoutBuilder()
@@ -203,17 +208,22 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
             workoutBuilder = builder
+            Log.tracking.info("startWorkoutFromiPhone: builder + data source created")
 
             // Prepare session before starting activity
             session.prepare()
+            Log.tracking.info("startWorkoutFromiPhone: session.prepare() called")
 
             // Mirror session to iPhone
+            Log.tracking.info("startWorkoutFromiPhone: calling startMirroringToCompanionDevice()...")
             try await session.startMirroringToCompanionDevice()
+            Log.tracking.info("startWorkoutFromiPhone: mirroring to companion device SUCCEEDED")
 
             // Start the activity
             let startDate = Date()
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
+            Log.tracking.info("startWorkoutFromiPhone: activity started, collection began")
 
             // Map activity type
             activityType = mapActivityType(configuration.activityType)

@@ -16,9 +16,11 @@ import os
 /// When iPhone calls startWatchApp(toHandle:), watchOS delivers the configuration here.
 class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
-        Log.tracking.info("WKApplicationDelegate: received workout configuration from iPhone")
+        Log.tracking.info("WKApplicationDelegate: received workout config — activity=\(workoutConfiguration.activityType.rawValue), location=\(workoutConfiguration.locationType.rawValue)")
         Task { @MainActor in
+            Log.tracking.info("WKApplicationDelegate: dispatching to WorkoutManager.startWorkoutFromiPhone()")
             await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
+            Log.tracking.info("WKApplicationDelegate: startWorkoutFromiPhone() completed, isActive=\(WorkoutManager.shared.isWorkoutActive)")
         }
     }
 

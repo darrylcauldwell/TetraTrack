@@ -109,6 +109,17 @@ final class WorkoutLifecycleService: NSObject {
         )
 
         Log.health.info("WorkoutLifecycleService: requested Watch to start \(configuration.activityType.rawValue) workout")
+
+        // Diagnostic: check if mirrored session arrives within 10 seconds
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard let self else { return }
+            if self.workoutSession == nil {
+                Log.health.info("WorkoutLifecycleService: WARNING — mirrored session NOT received 10s after startWatchApp(). Watch may not have started the workout.")
+            } else {
+                Log.health.info("WorkoutLifecycleService: mirrored session confirmed active 10s after startWatchApp()")
+            }
+        }
     }
 
     /// Register the mirroring handler at app launch so iPhone is always ready
