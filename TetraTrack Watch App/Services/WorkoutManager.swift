@@ -212,22 +212,22 @@ final class WorkoutManager: NSObject {
             workoutBuilder = builder
             Log.tracking.info("startWorkoutFromiPhone: builder + data source created")
 
-            // Prepare session before starting activity
+            // Apple-recommended order: prepare → mirror → startActivity → beginCollection
             session.prepare()
             Log.tracking.info("startWorkoutFromiPhone: session.prepare() called")
 
-            // Start the activity FIRST — session must be .running before mirroring
-            let startDate = Date()
-            session.startActivity(with: startDate)
-            try await builder.beginCollection(at: startDate)
-            Log.tracking.info("startWorkoutFromiPhone: activity started, collection began")
-
-            // Mirror session to iPhone — must be called AFTER startActivity()
+            // Mirror BEFORE startActivity — Apple docs (WWDC23) require this order
             Log.tracking.info("startWorkoutFromiPhone: calling startMirroringToCompanionDevice()...")
             WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
             try await session.startMirroringToCompanionDevice()
             Log.tracking.info("startWorkoutFromiPhone: mirroring to companion device SUCCEEDED")
             WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
+
+            // Start the activity and collection AFTER mirroring is established
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            Log.tracking.info("startWorkoutFromiPhone: activity started, collection began")
 
             // Map activity type
             activityType = mapActivityType(configuration.activityType)

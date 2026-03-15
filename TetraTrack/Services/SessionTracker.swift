@@ -290,7 +290,7 @@ final class SessionTracker {
             try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
             // disableAutoCalories not needed — builder runs on Watch
         } catch {
-            Log.tracking.info("Watch unavailable, falling back to iPhone-primary workout")
+            Log.tracking.error("DIAG: Watch unavailable, falling back to iPhone-primary workout: \(error)")
             do {
                 try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
                 if plugin.disableAutoCalories {

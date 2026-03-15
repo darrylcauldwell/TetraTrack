@@ -59,6 +59,9 @@ final class WorkoutLifecycleService: NSObject {
     // Track activity type for watch motion mode mapping
     private var currentActivityType: HKWorkoutActivityType?
 
+    // Stored configuration for auto-fallback if mirrored session doesn't arrive
+    private var pendingWatchConfiguration: HKWorkoutConfiguration?
+
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
 
@@ -99,6 +102,9 @@ final class WorkoutLifecycleService: NSObject {
             routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
         }
 
+        // Store configuration for auto-fallback
+        pendingWatchConfiguration = configuration
+
         // Ask Watch to start the primary session
         try await healthStore.startWatchApp(toHandle: configuration)
 
@@ -108,17 +114,29 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        Log.health.info("WorkoutLifecycleService: requested Watch to start \(configuration.activityType.rawValue) workout")
+        // DIAG: error level so it appears in Console.app on physical devices
+        Log.health.error("DIAG: requestWatchWorkout succeeded — startWatchApp returned OK for activity \(configuration.activityType.rawValue)")
 
-        // Diagnostic: check if mirrored session arrives within 10 seconds
+        // Auto-fallback: if mirrored session doesn't arrive within 10 seconds,
+        // fall back to iPhone-primary mode to prevent Code 5 errors
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 10_000_000_000)
             guard let self else { return }
             if self.workoutSession == nil {
-                Log.health.info("WorkoutLifecycleService: WARNING — mirrored session NOT received 10s after startWatchApp(). Watch may not have started the workout.")
+                Log.health.error("DIAG: auto-fallback to iPhone-primary — mirrored session NOT received 10s after startWatchApp()")
+                self.isWatchPrimary = false
+                if let config = self.pendingWatchConfiguration {
+                    do {
+                        try await self.startWorkoutFallback(configuration: config)
+                        Log.health.error("DIAG: iPhone-primary fallback workout started successfully")
+                    } catch {
+                        Log.health.error("DIAG: iPhone-primary fallback ALSO failed: \(error)")
+                    }
+                }
             } else {
-                Log.health.info("WorkoutLifecycleService: mirrored session confirmed active 10s after startWatchApp()")
+                Log.health.error("DIAG: mirrored session confirmed active 10s after startWatchApp()")
             }
+            self.pendingWatchConfiguration = nil
         }
     }
 
@@ -139,6 +157,8 @@ final class WorkoutLifecycleService: NSObject {
                 // No builder or data source — builder runs on Watch only
                 self.state = .active
                 self.error = nil
+                // Clear pending config — mirrored session arrived, no fallback needed
+                self.pendingWatchConfiguration = nil
 
                 // If this session arrived without requestWatchWorkout() (autonomous Watch start),
                 // configure state so pause/resume/endAndSave use the correct Watch-primary path.
@@ -259,7 +279,8 @@ final class WorkoutLifecycleService: NSObject {
         do {
             try await routeBuilder.insertRouteData(locations)
         } catch {
-            Log.health.error("WorkoutLifecycleService: failed to insert route data: \(error)")
+            let hasSession = workoutSession != nil
+            Log.health.error("WorkoutLifecycleService: failed to insert route data: \(error) — isWatchPrimary=\(self.isWatchPrimary), hasWorkoutSession=\(hasSession)")
         }
     }
 
@@ -678,6 +699,7 @@ final class WorkoutLifecycleService: NSObject {
         isOutdoorSession = false
         isWatchPrimary = false
         currentActivityType = nil
+        pendingWatchConfiguration = nil
         state = .idle
         liveActiveCalories = 0
         liveDistance = 0
