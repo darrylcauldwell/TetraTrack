@@ -393,16 +393,16 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
 
-            // Prepare session before starting activity
+            // Apple-recommended order: prepare → mirror → startActivity → beginCollection
             workoutSession?.prepare()
 
-            // Start the session
+            // Mirror BEFORE startActivity (same fix as startWorkoutFromiPhone)
+            try await workoutSession?.startMirroringToCompanionDevice()
+
+            // Start the session AFTER mirroring is established
             let startDate = Date()
             workoutSession?.startActivity(with: startDate)
             try await workoutBuilder?.beginCollection(at: startDate)
-
-            // Mirror to iPhone so it receives live HR + motion data
-            try await workoutSession?.startMirroringToCompanionDevice()
 
             // Update state
             activityType = type
