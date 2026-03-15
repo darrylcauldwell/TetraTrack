@@ -166,6 +166,15 @@ struct ContentView: View {
                 }
             }
 
+            // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
+            HStack(spacing: 8) {
+                Text("T:\(workoutManager.motionSendTickCount)")
+                Text("HR:\(workoutManager.currentHeartRate)")
+                Text(workoutManager.isMirroringToiPhone ? "MIR" : "WC")
+            }
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.gray)
+
             Spacer()
 
             // Control buttons

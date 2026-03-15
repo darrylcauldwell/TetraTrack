@@ -87,7 +87,7 @@ final class WorkoutManager: NSObject {
     private var elapsedTimer: DispatchSourceTimer?
     private var motionSendTimer: DispatchSourceTimer?
     private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchTimers", qos: .userInitiated)
-    private var motionSendTickCount: Int = 0
+    private(set) var motionSendTickCount: Int = 0
 
     // Dependencies
     private let locationManager = WatchLocationManager.shared
