@@ -69,6 +69,16 @@ struct WatchHomeView: View {
             // Discipline-specific metrics
             fullScreenMetrics
 
+            // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
+            let wm = WorkoutManager.shared
+            HStack(spacing: 6) {
+                Text(wm.isWorkoutActive ? "WM:ON" : "WM:OFF")
+                Text("T:\(wm.motionSendTickCount)")
+                Text(wm.isMirroringToiPhone ? "MIR" : "WC")
+            }
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.gray)
+
             Spacer()
         }
         .padding(.horizontal, 8)
