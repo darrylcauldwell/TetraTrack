@@ -114,8 +114,8 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        // DIAG: error level so it appears in Console.app on physical devices
-        Log.health.error("DIAG: requestWatchWorkout succeeded — startWatchApp returned OK for activity \(configuration.activityType.rawValue)")
+        // TT: error level so it appears in Console.app on physical devices
+        Log.health.error("TT: requestWatchWorkout succeeded — startWatchApp returned OK for activity \(configuration.activityType.rawValue)")
 
         // Auto-fallback: if mirrored session doesn't arrive within 10 seconds,
         // fall back to iPhone-primary mode to prevent Code 5 errors
@@ -123,18 +123,18 @@ final class WorkoutLifecycleService: NSObject {
             try? await Task.sleep(nanoseconds: 10_000_000_000)
             guard let self else { return }
             if self.workoutSession == nil {
-                Log.health.error("DIAG: auto-fallback to iPhone-primary — mirrored session NOT received 10s after startWatchApp()")
+                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received 10s after startWatchApp()")
                 self.isWatchPrimary = false
                 if let config = self.pendingWatchConfiguration {
                     do {
                         try await self.startWorkoutFallback(configuration: config)
-                        Log.health.error("DIAG: iPhone-primary fallback workout started successfully")
+                        Log.health.error("TT: iPhone-primary fallback workout started successfully")
                     } catch {
-                        Log.health.error("DIAG: iPhone-primary fallback ALSO failed: \(error)")
+                        Log.health.error("TT: iPhone-primary fallback ALSO failed: \(error)")
                     }
                 }
             } else {
-                Log.health.error("DIAG: mirrored session confirmed active 10s after startWatchApp()")
+                Log.health.error("TT: mirrored session confirmed active 10s after startWatchApp()")
             }
             self.pendingWatchConfiguration = nil
         }
