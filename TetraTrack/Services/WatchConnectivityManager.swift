@@ -670,9 +670,9 @@ extension WatchConnectivityManager: WCSessionDelegate {
         // Handle diagnostic breadcrumbs from Watch (sent via applicationContext
         // because transferUserInfo queues can get poisoned by burst sends)
         if let breadcrumbs = applicationContext["diagnosticBreadcrumbs"] as? [String] {
-            Log.watch.info("WATCH DIAGNOSTICS (\(breadcrumbs.count) entries):")
+            Log.watch.error("TT: WATCH BREADCRUMBS (\(breadcrumbs.count) entries):")
             for crumb in breadcrumbs {
-                Log.watch.info("  WATCH: \(crumb)")
+                Log.watch.error("TT: WATCH: \(crumb)")
             }
             return
         }
