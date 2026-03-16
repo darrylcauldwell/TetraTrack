@@ -100,9 +100,7 @@ final class WorkoutLifecycleService: NSObject {
         setupMirroringHandler()
 
         // Create route builder for outdoor sessions (iPhone captures GPS)
-        if isOutdoorSession {
-            routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
-        }
+        routeBuilder = createRouteBuilderIfAuthorized()
 
         // Store configuration for auto-fallback
         pendingWatchConfiguration = configuration
@@ -203,9 +201,7 @@ final class WorkoutLifecycleService: NSObject {
                     self.isOutdoorSession = config.locationType == .outdoor
 
                     // Create route builder for outdoor activities (iPhone captures GPS)
-                    if self.isOutdoorSession {
-                        self.routeBuilder = HKWorkoutRouteBuilder(healthStore: self.healthStore, device: .local())
-                    }
+                    self.routeBuilder = self.createRouteBuilderIfAuthorized()
 
                     self.persistSessionContext(
                         discipline: "\(config.activityType.rawValue)",
@@ -276,10 +272,7 @@ final class WorkoutLifecycleService: NSObject {
             }
 
             // Create route builder for outdoor sessions
-            var route: HKWorkoutRouteBuilder?
-            if isOutdoorSession {
-                route = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
-            }
+            let route = createRouteBuilderIfAuthorized()
 
             // Store references after successful setup
             self.workoutSession = session
@@ -682,9 +675,7 @@ final class WorkoutLifecycleService: NSObject {
 
             let config = session.workoutConfiguration
             isOutdoorSession = config.locationType == .outdoor
-            if isOutdoorSession {
-                routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
-            }
+            routeBuilder = createRouteBuilderIfAuthorized()
 
             self.workoutSession = session
             self.workoutBuilder = builder
@@ -707,6 +698,18 @@ final class WorkoutLifecycleService: NSObject {
     }
 
     // MARK: - Private
+
+    /// Create a route builder only if the user authorized writing workout routes.
+    /// Returns nil if authorization is denied or session is indoor — GPS route
+    /// data is still saved to SwiftData independently of HealthKit.
+    private func createRouteBuilderIfAuthorized() -> HKWorkoutRouteBuilder? {
+        guard isOutdoorSession else { return nil }
+        guard healthStore.authorizationStatus(for: HKSeriesType.workoutRoute()) == .sharingAuthorized else {
+            Log.health.warning("Route write not authorized — GPS route will not be saved to HealthKit")
+            return nil
+        }
+        return HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+    }
 
     private var watchMotionMode: WatchMotionModeShared {
         switch currentActivityType {
