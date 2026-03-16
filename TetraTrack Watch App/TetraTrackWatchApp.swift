@@ -14,30 +14,30 @@ import os
 
 /// Handles iPhone-triggered workout sessions via healthStore.startWatchApp().
 /// When iPhone calls startWatchApp(toHandle:), watchOS delivers the configuration here.
+/// Matches Apple's MirroringWorkoutsSample reference: NO applicationDidFinishLaunching(),
+/// handle() resets then starts, WCSession activation happens in onAppear.
 class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
-    func applicationDidFinishLaunching() {
-        // Activate WCSession early — before handle() can be called.
-        // onAppear fires AFTER handle(), so activating there caused
-        // diagnostic breadcrumbs and WCSession sends to be dropped.
-        WatchConnectivityService.shared.activate()
-        WorkoutManager.shared.setupLegacyMirroringHandler()
-        Log.tracking.info("WKApplicationDelegate: applicationDidFinishLaunching — WCSession activated")
-    }
-
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
-        Log.tracking.info("WKApplicationDelegate: received workout config — activity=\(workoutConfiguration.activityType.rawValue), location=\(workoutConfiguration.locationType.rawValue)")
-        WatchConnectivityService.sendDiagnostic("handle() called — activity=\(workoutConfiguration.activityType.rawValue)")
-        Task { @MainActor in
-            Log.tracking.info("WKApplicationDelegate: dispatching to WorkoutManager.startWorkoutFromiPhone()")
-            await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
-            let isActive = WorkoutManager.shared.isWorkoutActive
-            Log.tracking.info("WKApplicationDelegate: startWorkoutFromiPhone() completed, isActive=\(isActive)")
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone() done — isActive=\(isActive)")
+        let activityRaw = workoutConfiguration.activityType.rawValue
+        let locationRaw = workoutConfiguration.locationType.rawValue
+        Log.tracking.error("TT: handle() called — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
+        WatchConnectivityService.sendDiagnostic("handle() called — activity=\(activityRaw)")
+        Task {
+            do {
+                WorkoutManager.shared.resetWorkout()
+                try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
+                Log.tracking.error("TT: handle() — workout started successfully")
+                WatchConnectivityService.sendDiagnostic("handle() — workout started successfully")
+            } catch {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: handle() — failed: \(errMsg, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("handle() — FAILED: \(errMsg)")
+            }
         }
     }
 
     func handleActiveWorkoutRecovery() {
-        Log.tracking.info("WKApplicationDelegate: recovering active workout after crash")
+        Log.tracking.error("TT: recovering active workout after crash")
         Task { @MainActor in
             await WorkoutManager.shared.recoverActiveWorkout()
         }
@@ -59,9 +59,10 @@ struct TetraTrackWatchApp: App {
                 .environment(workoutManager)
                 .environment(connectivityService)
                 .onAppear {
-                    // WCSession activation and legacy mirroring handler are set up
-                    // in applicationDidFinishLaunching() — before handle() can fire.
-                    // Send diagnostic breadcrumb confirming Watch UI appeared.
+                    // Activate WCSession here — Apple's reference has no applicationDidFinishLaunching()
+                    WatchConnectivityService.shared.activate()
+                    // Request HealthKit auth at launch, not during workout startup
+                    Task { _ = await WorkoutManager.shared.requestAuthorization() }
                     WatchConnectivityService.sendDiagnostic("Watch app launched, build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
                 }
         }

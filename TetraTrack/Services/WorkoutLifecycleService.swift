@@ -108,7 +108,11 @@ final class WorkoutLifecycleService: NSObject {
 
         // Log WCSession state before attempting Watch launch
         let wc = WCSession.default
-        Log.health.error("TT: WCSession state — paired=\(wc.isPaired), installed=\(wc.isWatchAppInstalled), reachable=\(wc.isReachable), activated=\(wc.activationState.rawValue)")
+        let paired = wc.isPaired
+        let installed = wc.isWatchAppInstalled
+        let reachable = wc.isReachable
+        let activated = wc.activationState.rawValue
+        Log.health.error("TT: WCSession state — paired=\(paired, privacy: .public), installed=\(installed, privacy: .public), reachable=\(reachable, privacy: .public), activated=\(activated, privacy: .public)")
 
         // Ask Watch to start the primary session
         try await healthStore.startWatchApp(toHandle: configuration)
@@ -120,7 +124,8 @@ final class WorkoutLifecycleService: NSObject {
         )
 
         // TT: error level so it appears in Console.app on physical devices
-        Log.health.error("TT: requestWatchWorkout succeeded — startWatchApp returned OK for activity \(configuration.activityType.rawValue)")
+        let activityRaw = configuration.activityType.rawValue
+        Log.health.error("TT: requestWatchWorkout succeeded — startWatchApp returned OK for activity \(activityRaw, privacy: .public)")
 
         // Auto-fallback: if mirrored session doesn't arrive within 10 seconds,
         // fall back to iPhone-primary mode to prevent Code 5 errors
@@ -135,7 +140,8 @@ final class WorkoutLifecycleService: NSObject {
                         try await self.startWorkoutFallback(configuration: config)
                         Log.health.error("TT: iPhone-primary fallback workout started successfully")
                     } catch {
-                        Log.health.error("TT: iPhone-primary fallback ALSO failed: \(error)")
+                        let errMsg = error.localizedDescription
+                        Log.health.error("TT: iPhone-primary fallback ALSO failed: \(errMsg, privacy: .public)")
                     }
                 }
             } else {
