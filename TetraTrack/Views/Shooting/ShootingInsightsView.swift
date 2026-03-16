@@ -136,7 +136,7 @@ struct ShootingInsightsView: View {
     // MARK: - Sensor Data Helpers
 
     private var sessionsWithSensorData: [ShootingSession] {
-        shootingSessions.filter { $0.graceOverallScore > 0 }
+        shootingSessions.filter { $0.overallBiomechanicalScore > 0 }
     }
 
     private var sensorSessionsByContext: [ShootingSessionContext: [ShootingSession]] {
@@ -247,13 +247,13 @@ struct ShootingInsightsView: View {
                         ForEach(Array(sorted.enumerated()), id: \.offset) { index, session in
                             LineMark(
                                 x: .value("Session", index + 1),
-                                y: .value("Composure", session.graceComposureScore)
+                                y: .value("Composure", session.composureScore)
                             )
                             .foregroundStyle(.red)
 
                             PointMark(
                                 x: .value("Session", index + 1),
-                                y: .value("Composure", session.graceComposureScore)
+                                y: .value("Composure", session.composureScore)
                             )
                             .foregroundStyle(contextColor(session.sessionContext))
                         }

@@ -47,9 +47,9 @@ struct WalkingDetailView: View {
                                 .font(.title2)
                                 .foregroundStyle(.teal)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("GRACE Insights")
+                                Text("Session Insights")
                                     .font(.headline)
-                                Text("Grow · Rhythm · Align · Circle · Enjoy")
+                                Text("Stability · Rhythm · Symmetry · Economy")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

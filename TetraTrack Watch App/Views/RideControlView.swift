@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import TetraTrackShared
 
 struct RideControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
@@ -82,8 +83,19 @@ struct RideControlView: View {
             Divider()
                 .padding(.vertical, 4)
 
+            // Current gait indicator
+            if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult, gaitResult.gaitState != "stationary" {
+                Text(gaitResult.gaitState.capitalized)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .background(watchGaitColor(gaitResult.gaitState))
+                    .clipShape(Capsule())
+            }
+
             // Metrics grid
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 // Speed
                 VStack(spacing: 2) {
                     Text(String(format: "%.1f", workoutManager.currentSpeed * 3.6))
@@ -93,18 +105,29 @@ struct RideControlView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Heart Rate (always visible for diagnostics)
+                // Heart Rate with zone badge
                 VStack(spacing: 2) {
                     HStack(spacing: 2) {
                         Image(systemName: "heart.fill")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.red)
                         Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
                             .font(.headline)
                     }
-                    Text("bpm")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if workoutManager.currentHeartRate > 0 {
+                        let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
+                        Text(zone.name)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(watchZoneColor(zone))
+                            .clipShape(Capsule())
+                    } else {
+                        Text("bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 // Elevation
@@ -157,6 +180,16 @@ struct RideControlView: View {
                 workoutManager.discardWorkout()
             }
             Button("Continue Riding", role: .cancel) {}
+        }
+    }
+
+    private func watchGaitColor(_ gait: String) -> Color {
+        switch gait {
+        case "walk": return .green
+        case "trot": return .blue
+        case "canter": return .orange
+        case "gallop": return .red
+        default: return .gray
         }
     }
 }

@@ -2,9 +2,10 @@
 //  RideInsightsView.swift
 //  TetraTrack
 //
-//  Ride insights using the GRACE framework.
-//  Pillars: Grow (ride tall/smoothness), Rhythm (gait rhythm),
-//  Align (balance), Circle (connection), Enjoy (effort).
+//  Ride insights using biomechanical pillars.
+//  Pillars: Stability (speed smoothness), Rhythm (HR/pace consistency),
+//  Symmetry (zone transition smoothness), Economy (pace consistency).
+//  Physiology section covers HR intensity zones.
 //  Adapts to GPS-only or Watch-enhanced data.
 //
 
@@ -22,24 +23,22 @@ struct RideInsightsView: View {
         ride.averageHeartRate > 0
     }
 
-    // MARK: - GRACE Scores
+    // MARK: - Biomechanical Scores
 
-    /// G: Grow — ride tall, measured by speed smoothness (less jerkiness = better posture)
-    private var growScore: Double {
+    /// Stability — speed smoothness (less jerkiness = better posture)
+    private var stabilityScore: Double {
         let points = ride.sortedLocationPoints
         guard points.count > 20 else { return 0 }
 
         let speeds = points.map { $0.speed }.filter { $0 > 0.5 }
         guard speeds.count > 10 else { return 0 }
 
-        // Measure average absolute speed change between points
         var totalJerk: Double = 0
         for i in 1..<speeds.count {
             totalJerk += abs(speeds[i] - speeds[i - 1])
         }
         let avgJerk = totalJerk / Double(speeds.count - 1)
 
-        // Lower jerk = smoother riding = higher score
         if avgJerk < 0.3 { return 95 }
         if avgJerk < 0.5 { return 85 }
         if avgJerk < 1.0 { return 70 }
@@ -47,7 +46,7 @@ struct RideInsightsView: View {
         return 40
     }
 
-    /// R: Rhythm — gait rhythm from HR consistency (Watch) or pace consistency (GPS)
+    /// Rhythm — HR consistency (Watch) or pace consistency (GPS)
     private var rhythmScore: Double {
         if hasWatchData {
             let samples = ride.heartRateSamples
@@ -68,15 +67,14 @@ struct RideInsightsView: View {
         }
     }
 
-    /// A: Align — balance from speed zone transition smoothness
-    private var alignScore: Double {
+    /// Symmetry — balance from speed zone transition smoothness
+    private var symmetryScore: Double {
         let points = ride.sortedLocationPoints
         guard points.count > 10 else { return 0 }
 
         let speeds = points.compactMap { $0.speed > 0.5 ? $0.speed : nil }
         guard speeds.count > 5 else { return 0 }
 
-        // Count zone transitions — fewer per point = more balanced riding
         var transitions = 0
         for i in 1..<speeds.count {
             let prevZone = speedZone(speeds[i - 1])
@@ -92,13 +90,13 @@ struct RideInsightsView: View {
         return 40
     }
 
-    /// C: Circle — connection from pace consistency (GPS speed variability)
-    private var circleScore: Double {
+    /// Economy — pace consistency (GPS speed variability)
+    private var economyScore: Double {
         paceConsistencyScore
     }
 
-    /// E: Enjoy — effort from HR zones (Watch) or speed zone intensity (GPS)
-    private var enjoyScore: Double {
+    /// Physiology — effort from HR zones (Watch) or speed zone intensity (GPS)
+    private var physiologyScore: Double {
         if hasWatchData {
             guard ride.averageHeartRate > 0, ride.maxHeartRate > 0 else { return 0 }
             let avgHR = Double(ride.averageHeartRate)
@@ -151,9 +149,9 @@ struct RideInsightsView: View {
     }
 
     private func speedZone(_ speed: Double) -> Int {
-        if speed < 1.94 { return 0 }      // Easy/walk
-        else if speed < 5.56 { return 1 }  // Working/trot
-        else { return 2 }                  // Fast/canter
+        if speed < 1.94 { return 0 }
+        else if speed < 5.56 { return 1 }
+        else { return 2 }
     }
 
     var body: some View {
@@ -164,7 +162,7 @@ struct RideInsightsView: View {
                 iPhoneContent
             }
         }
-        .navigationTitle("GRACE Insights")
+        .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
         .glassNavigation()
         .presentationBackground(Color.black)
@@ -174,7 +172,12 @@ struct RideInsightsView: View {
 
     private var iPadContent: some View {
         VStack(spacing: 20) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
 
             // Phase timeline (showjumping rides)
             if !ride.sortedPhases.isEmpty {
@@ -198,13 +201,13 @@ struct RideInsightsView: View {
                 GridItem(.flexible(), spacing: 16),
                 GridItem(.flexible(), spacing: 16)
             ], spacing: 16) {
-                growCard
+                stabilityCard
                 rhythmCard
-                alignCard
-                circleCard
+                symmetryCard
+                economyCard
             }
 
-            enjoyCard
+            physiologyCard
 
             if !hasWatchData {
                 watchPromptCard
@@ -217,7 +220,12 @@ struct RideInsightsView: View {
 
     private var iPhoneContent: some View {
         VStack(spacing: 16) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
 
             // Phase timeline (showjumping rides)
             if !ride.sortedPhases.isEmpty {
@@ -236,66 +244,17 @@ struct RideInsightsView: View {
 
             intensityZonesCard
             ElevationProfileView(profile: ride.elevationProfile)
-            growCard
+            stabilityCard
             rhythmCard
-            alignCard
-            circleCard
-            enjoyCard
+            symmetryCard
+            economyCard
+            physiologyCard
 
             if !hasWatchData {
                 watchPromptCard
             }
         }
         .padding()
-    }
-
-    // MARK: - Overall Score
-
-    private var overallGraceScore: some View {
-        let scores = [growScore, rhythmScore, alignScore, circleScore, enjoyScore].filter { $0 > 0 }
-        let overall = scores.isEmpty ? 0 : scores.reduce(0, +) / Double(scores.count)
-
-        return VStack(spacing: 8) {
-            Text("GRACE Score")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            Text("\(Int(overall))")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(scoreColor(overall))
-
-            HStack(spacing: 16) {
-                pillarMini("G", score: growScore)
-                pillarMini("R", score: rhythmScore)
-                pillarMini("A", score: alignScore)
-                pillarMini("C", score: circleScore)
-                pillarMini("E", score: enjoyScore)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func pillarMini(_ letter: String, score: Double) -> some View {
-        VStack(spacing: 4) {
-            Text(letter)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-            Text(score > 0 ? "\(Int(score))" : "-")
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-        }
-    }
-
-    private func scoreColor(_ score: Double) -> Color {
-        switch score {
-        case 80...: return .green
-        case 60..<80: return .blue
-        case 40..<60: return .yellow
-        default: return .orange
-        }
     }
 
     // MARK: - Intensity Zones Card (GPS Speed-based)
@@ -385,157 +344,110 @@ struct RideInsightsView: View {
         )
     }
 
-    // MARK: - G: Grow Card
+    // MARK: - Stability Card
 
-    private var growCard: some View {
-        let hasData = growScore > 0
+    private var stabilityCard: some View {
+        let hasData = stabilityScore > 0
 
-        let keyMetric: String = {
-            if hasData { return "\(Int(growScore))% smooth" }
-            return "Needs GPS data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "GPS tracks speed smoothness throughout ride" }
-            if growScore >= 80 { return "Very smooth riding — excellent posture and seat" }
-            if growScore >= 60 { return "Good smoothness — minor speed fluctuations" }
-            return "Jerky transitions — focus on smooth gait changes and steady seat"
-        }()
-
-        return pillarCard(
-            letter: "G",
-            title: "Grow",
-            subtitle: "Ride Tall",
-            score: growScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.up.circle.fill",
-            color: .green
+        return PillarScoreCard(
+            pillar: .stability,
+            subtitle: "Speed Smoothness",
+            score: stabilityScore,
+            keyMetric: hasData ? "\(Int(stabilityScore))% smooth" : "Needs GPS data",
+            tip: {
+                if !hasData { return "GPS tracks speed smoothness throughout ride" }
+                if stabilityScore >= 80 { return "Very smooth riding — excellent posture and seat" }
+                if stabilityScore >= 60 { return "Good smoothness — minor speed fluctuations" }
+                return "Jerky transitions — focus on smooth gait changes and steady seat"
+            }()
         )
     }
 
-    // MARK: - R: Rhythm Card
+    // MARK: - Rhythm Card
 
     private var rhythmCard: some View {
-        let keyMetric: String = {
-            if hasWatchData {
-                return "\(ride.averageHeartRate) avg bpm"
-            }
-            if rhythmScore > 0 { return "\(Int(rhythmScore))% consistent" }
-            return "Needs GPS data"
-        }()
-
-        let tip: String = {
-            if rhythmScore >= 80 { return "Excellent consistency — steady effort throughout" }
-            if rhythmScore >= 60 { return "Good rhythm — minor fluctuations" }
-            if rhythmScore > 0 { return "Variable effort — focus on maintaining steady pace" }
-            return "GPS tracks rhythm through pace consistency"
-        }()
-
-        return pillarCard(
-            letter: "R",
-            title: "Rhythm",
+        PillarScoreCard(
+            pillar: .rhythm,
             subtitle: "Gait Rhythm",
             score: rhythmScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "metronome.fill",
-            color: .indigo
+            keyMetric: {
+                if hasWatchData { return "\(ride.averageHeartRate) avg bpm" }
+                if rhythmScore > 0 { return "\(Int(rhythmScore))% consistent" }
+                return "Needs GPS data"
+            }(),
+            tip: {
+                if rhythmScore >= 80 { return "Excellent consistency — steady effort throughout" }
+                if rhythmScore >= 60 { return "Good rhythm — minor fluctuations" }
+                if rhythmScore > 0 { return "Variable effort — focus on maintaining steady pace" }
+                return "GPS tracks rhythm through pace consistency"
+            }()
         )
     }
 
-    // MARK: - A: Align Card
+    // MARK: - Symmetry Card
 
-    private var alignCard: some View {
-        let hasData = alignScore > 0
+    private var symmetryCard: some View {
+        let hasData = symmetryScore > 0
 
-        let keyMetric: String = {
-            if hasData { return "\(Int(alignScore))% balanced" }
-            return "Needs GPS data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "GPS measures balance through gait transition smoothness" }
-            if alignScore >= 80 { return "Excellent balance — smooth transitions between gaits" }
-            if alignScore >= 60 { return "Good balance — some abrupt speed changes" }
-            return "Frequent zone changes — work on gradual gait transitions"
-        }()
-
-        return pillarCard(
-            letter: "A",
-            title: "Align",
-            subtitle: "Balance",
-            score: alignScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "figure.equestrian.sports",
-            color: .orange
+        return PillarScoreCard(
+            pillar: .symmetry,
+            subtitle: "Gait Balance",
+            score: symmetryScore,
+            keyMetric: hasData ? "\(Int(symmetryScore))% balanced" : "Needs GPS data",
+            tip: {
+                if !hasData { return "GPS measures balance through gait transition smoothness" }
+                if symmetryScore >= 80 { return "Excellent balance — smooth transitions between gaits" }
+                if symmetryScore >= 60 { return "Good balance — some abrupt speed changes" }
+                return "Frequent zone changes — work on gradual gait transitions"
+            }()
         )
     }
 
-    // MARK: - C: Circle Card
+    // MARK: - Economy Card
 
-    private var circleCard: some View {
-        let hasData = circleScore > 0
+    private var economyCard: some View {
+        let hasData = economyScore > 0
 
-        let keyMetric: String = {
-            if hasData { return "\(Int(circleScore))% connected" }
-            return "Needs GPS data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "GPS tracks overall pace consistency" }
-            if circleScore >= 80 { return "Very steady pace — great connection with your horse" }
-            if circleScore >= 60 { return "Reasonably consistent — some pace changes" }
-            return "Variable pace — work on maintaining steady speed"
-        }()
-
-        return pillarCard(
-            letter: "C",
-            title: "Circle",
-            subtitle: "Connection",
-            score: circleScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.triangle.2.circlepath",
-            color: .purple
+        return PillarScoreCard(
+            pillar: .economy,
+            subtitle: "Pace Consistency",
+            score: economyScore,
+            keyMetric: hasData ? "\(Int(economyScore))% connected" : "Needs GPS data",
+            tip: {
+                if !hasData { return "GPS tracks overall pace consistency" }
+                if economyScore >= 80 { return "Very steady pace — great connection with your horse" }
+                if economyScore >= 60 { return "Reasonably consistent — some pace changes" }
+                return "Variable pace — work on maintaining steady speed"
+            }()
         )
     }
 
-    // MARK: - E: Enjoy Card
+    // MARK: - Physiology Card
 
-    private var enjoyCard: some View {
-        let keyMetric: String = {
-            if hasWatchData {
-                let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
-                return "\(Int(intensity))% of max HR"
-            }
-            if enjoyScore > 0 { return "\(Int(enjoyScore))% intensity" }
-            return "Needs data"
-        }()
-
-        let tip: String = {
-            if hasWatchData {
-                let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
-                if intensity >= 65 && intensity <= 80 { return "Ideal training zone — building fitness" }
-                if intensity > 85 { return "High intensity — allow recovery tomorrow" }
-                if intensity < 55 { return "Light session — good for recovery days" }
-                return "Moderate effort — consider pushing a bit more"
-            }
-            if enjoyScore >= 80 { return "Good training intensity — well-balanced zones" }
-            if enjoyScore >= 60 { return "Moderate intensity — consider more working trot" }
-            return "Mostly easy pace — push into working zones for training effect"
-        }()
-
-        return pillarCard(
-            letter: "E",
-            title: "Enjoy",
-            subtitle: "Effort",
-            score: enjoyScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "heart.fill",
-            color: .red
+    private var physiologyCard: some View {
+        PhysiologySectionCard(
+            score: physiologyScore,
+            keyMetric: {
+                if hasWatchData {
+                    let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
+                    return "\(Int(intensity))% of max HR"
+                }
+                if physiologyScore > 0 { return "\(Int(physiologyScore))% intensity" }
+                return "Needs data"
+            }(),
+            tip: {
+                if hasWatchData {
+                    let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
+                    if intensity >= 65 && intensity <= 80 { return "Ideal training zone — building fitness" }
+                    if intensity > 85 { return "High intensity — allow recovery tomorrow" }
+                    if intensity < 55 { return "Light session — good for recovery days" }
+                    return "Moderate effort — consider pushing a bit more"
+                }
+                if physiologyScore >= 80 { return "Good training intensity — well-balanced zones" }
+                if physiologyScore >= 60 { return "Moderate intensity — consider more working trot" }
+                return "Mostly easy pace — push into working zones for training effect"
+            }(),
+            subtitle: "HR Intensity"
         )
     }
 
@@ -572,59 +484,6 @@ struct RideInsightsView: View {
             Text(text)
                 .font(.subheadline)
         }
-    }
-
-    // MARK: - Pillar Card Template
-
-    private func pillarCard(
-        letter: String,
-        title: String,
-        subtitle: String,
-        score: Double,
-        keyMetric: String,
-        tip: String,
-        icon: String,
-        color: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(letter)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(color)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Text(score > 0 ? "\(Int(score))" : "-")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-            }
-
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Text(keyMetric)
-                    .font(.subheadline)
-            }
-
-            Text(tip)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

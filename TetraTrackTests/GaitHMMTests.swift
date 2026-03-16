@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 @testable import TetraTrack
+import TetraTrackShared
 
 struct GaitHMMTests {
 
@@ -208,12 +209,12 @@ struct GaitHMMTests {
     @Test func nonAdjacentTransitionRequiresIntermediateStates() {
         let hmm = GaitHMM()
         // From stationary, feed trot features
-        // Due to transition constraints, must pass through walk first
-        // After a few updates the HMM should not jump directly to trot
+        // Transition matrix has zero probability for stationary→trot directly
+        // After 1 update, can only reach walk (adjacent state), not trot
         hmm.update(with: trotFeatures())
-        hmm.update(with: trotFeatures())
-        // After only 2 updates, should not yet be in trot (must pass through walk)
         #expect(hmm.currentState != .trot)
+        // After 2+ updates the path stationary→walk→trot is valid,
+        // so the HMM may correctly classify trot with strong features
     }
 
     // MARK: - GPS Speed Constraint Tests
@@ -225,9 +226,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 0.0, gpsAccuracy: 3.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 3.0        )
         for _ in 0..<20 {
             hmm.update(with: features)
         }
@@ -242,9 +241,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 0.0, gpsAccuracy: 60.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 60.0        )
         for _ in 0..<20 {
             hmm.update(with: features)
         }
@@ -262,9 +259,7 @@ struct GaitHMMTests {
             strideFrequency: 0.2, h2Ratio: 0.15, h3Ratio: 0.15,
             spectralEntropy: 0.15, xyCoherence: 0.15, zYawCoherence: 0.15,
             normalizedVerticalRMS: 0.02, yawRateRMS: 0.05,
-            gpsSpeed: 0.0, gpsAccuracy: 3.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 3.0        )
         for _ in 0..<15 {
             hmm.update(with: stationaryWithGPS)
         }
@@ -294,9 +289,7 @@ struct GaitHMMTests {
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 5.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 5.0        )
         hmm.update(with: features)
         let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
         #expect(abs(sum - 1.0) < 1e-10)
@@ -307,7 +300,7 @@ struct GaitHMMTests {
     @Test func ponyHasHigherFrequencyRanges() {
         let defaultHMM = GaitHMM()
         let ponyHMM = GaitHMM()
-        ponyHMM.configure(for: .shetland)
+        ponyHMM.configure(with: HorseBreed.shetland.biomechanicalPriors)
 
         // Shetland pony walk frequency range is 1.3-2.5 (higher than default 1.0-2.2)
         // Feed features at f0=2.4 which is within pony range but near edge of default
@@ -315,9 +308,7 @@ struct GaitHMMTests {
             strideFrequency: 2.4, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             ponyHMM.update(with: highFreqWalk)
@@ -331,7 +322,7 @@ struct GaitHMMTests {
     @Test func warmbloodHasLowerFrequencyRanges() {
         let defaultHMM = GaitHMM()
         let warmbloodHMM = GaitHMM()
-        warmbloodHMM.configure(for: .warmblood)
+        warmbloodHMM.configure(with: HorseBreed.warmblood.biomechanicalPriors)
 
         // Warmblood trot frequency range is 1.8-3.5 (lower than default 2.0-3.8)
         // Feed features at f0=1.9 which is within warmblood range but near edge of default
@@ -339,9 +330,7 @@ struct GaitHMMTests {
             strideFrequency: 1.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             warmbloodHMM.update(with: lowFreqTrot)
@@ -354,19 +343,17 @@ struct GaitHMMTests {
 
     @Test(.disabled("Pre-existing failure")) func ageAdjustmentWidensRanges() {
         let normalHMM = GaitHMM()
-        normalHMM.configure(for: .thoroughbred, ageAdjustment: 1.0)
+        normalHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, ageAdjustment: 1.0)
 
         let youngHorseHMM = GaitHMM()
-        youngHorseHMM.configure(for: .thoroughbred, ageAdjustment: 1.15)
+        youngHorseHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, ageAdjustment: 1.15)
 
         // Feed features at edge of normal range
         let edgeFeatures = GaitFeatureVector(
             strideFrequency: 0.8, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             normalHMM.update(with: edgeFeatures)
@@ -380,7 +367,7 @@ struct GaitHMMTests {
     @Test(.disabled("Pre-existing failure")) func customTransitionProbabilityChangesSelfTransition() {
         let defaultHMM = GaitHMM()
         let customHMM = GaitHMM()
-        customHMM.configure(for: .thoroughbred, transitionProbability: 0.95)
+        customHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, transitionProbability: 0.95)
 
         // Both start stationary, feed walk features
         for _ in 0..<5 {
@@ -425,9 +412,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm1.update(with: features)
             hmm2.update(with: features)
@@ -450,9 +435,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm3.update(with: features)
             hmm10.update(with: features)
@@ -476,9 +459,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm20.update(with: features)
             hmm100.update(with: features)
@@ -504,9 +485,7 @@ struct GaitHMMTests {
             strideFrequency: 100.0, h2Ratio: 50.0, h3Ratio: 50.0,
             spectralEntropy: 1.0, xyCoherence: 1.0, zYawCoherence: 1.0,
             normalizedVerticalRMS: 10.0, yawRateRMS: 10.0,
-            gpsSpeed: 50.0, gpsAccuracy: 1.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 50.0, gpsAccuracy: 1.0        )
         hmm.update(with: extremeFeatures)
         let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
         #expect(abs(sum - 1.0) < 1e-10)
@@ -598,9 +577,7 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
         for _ in 0..<20 {
             hmm.update(with: ambiguousAtSlowSpeed)
         }
@@ -621,9 +598,7 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.15, yawRateRMS: 0.3,
-            gpsSpeed: 3.0, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 8.0        )
         for _ in 0..<20 {
             hmm.update(with: ambiguousAtTrotSpeed)
         }
@@ -647,16 +622,12 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
         let poorGPS = GaitFeatureVector(
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 25.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 25.0        )
 
         for _ in 0..<20 {
             hmm1.update(with: goodGPS)
@@ -667,6 +638,91 @@ struct GaitHMMTests {
         #expect(hmm1.probability(of: .trot) < hmm2.probability(of: .trot))
     }
 
+    // MARK: - Wrist Mount Tests
+
+    @Test func wristHMMInitializesWithValidParams() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+        #expect(hmm.currentState == .stationary)
+        #expect(hmm.probability(of: .stationary) == 1.0)
+    }
+
+    @Test func wristTrotH2MeanLowerThanTrunk() {
+        let trunkHMM = GaitHMM(sensorMount: .trunk)
+        let wristHMM = GaitHMM(sensorMount: .wrist)
+
+        // Feed identical trot-like features — wrist HMM should give different probabilities
+        // because its emission means are lower for h2
+        let features = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 0.9, h3Ratio: 0.4,
+            spectralEntropy: 0.5, xyCoherence: 0.6, zYawCoherence: 0.2,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            trunkHMM.update(with: features)
+            wristHMM.update(with: features)
+        }
+
+        // Wrist HMM should favor trot more for lower h2 values (its emission center is lower)
+        #expect(wristHMM.probability(of: .trot) > trunkHMM.probability(of: .trot))
+    }
+
+    @Test func wristStationaryHasWiderRMSRange() {
+        let wristHMM = GaitHMM(sensorMount: .wrist)
+
+        // Slightly elevated RMS that exceeds trunk stationary range (0-0.05) but fits wrist (0-0.08)
+        let features = GaitFeatureVector(
+            strideFrequency: 0.2, h2Ratio: 0.1, h3Ratio: 0.1,
+            spectralEntropy: 0.3, xyCoherence: 0.1, zYawCoherence: 0.1,
+            normalizedVerticalRMS: 0.06, yawRateRMS: 0.1,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            wristHMM.update(with: features)
+        }
+        #expect(wristHMM.currentState == .stationary)
+    }
+
+    @Test func wristClassifiesWalkWithAttenuatedFeatures() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+
+        // Wrist-appropriate walk features: lower h2/h3, lower RMS than trunk
+        let features = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.35, h3Ratio: 0.25,
+            spectralEntropy: 0.45, xyCoherence: 0.3, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.06, yawRateRMS: 0.11,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            hmm.update(with: features)
+        }
+        #expect(hmm.currentState == .walk)
+    }
+
+    @Test func wristDefaultTrunkUnchanged() {
+        // Verify default init still uses trunk params (backward compat)
+        let hmm = GaitHMM()
+        for _ in 0..<20 {
+            hmm.update(with: walkFeatures())
+        }
+        #expect(hmm.currentState == .walk)
+    }
+
+    @Test func wristProbabilitiesSumToOne() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+        let features = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 0.9, h3Ratio: 0.4,
+            spectralEntropy: 0.55, xyCoherence: 0.6, zYawCoherence: 0.2,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<5 {
+            hmm.update(with: features)
+        }
+        let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
+        #expect(abs(sum - 1.0) < 1e-10)
+    }
+
     // MARK: - Helpers
 
     private func stationaryFeatures() -> GaitFeatureVector {
@@ -674,9 +730,7 @@ struct GaitHMMTests {
             strideFrequency: 0.25, h2Ratio: 0.15, h3Ratio: 0.15,
             spectralEntropy: 0.15, xyCoherence: 0.15, zYawCoherence: 0.15,
             normalizedVerticalRMS: 0.025, yawRateRMS: 0.05,
-            gpsSpeed: 0.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 10.0        )
     }
 
     private func walkFeatures(gpsSpeed: Double = 1.5, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -684,9 +738,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func trotFeatures(gpsSpeed: Double = 3.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -694,9 +746,7 @@ struct GaitHMMTests {
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func canterFeatures(gpsSpeed: Double = 5.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -704,9 +754,7 @@ struct GaitHMMTests {
             strideFrequency: 2.4, h2Ratio: 0.7, h3Ratio: 1.5,
             spectralEntropy: 0.55, xyCoherence: 0.35, zYawCoherence: 0.75,
             normalizedVerticalRMS: 0.35, yawRateRMS: 0.6,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func gallopFeatures(gpsSpeed: Double = 9.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -714,8 +762,6 @@ struct GaitHMMTests {
             strideFrequency: 4.5, h2Ratio: 0.5, h3Ratio: 0.6,
             spectralEntropy: 0.75, xyCoherence: 0.25, zYawCoherence: 0.85,
             normalizedVerticalRMS: 0.475, yawRateRMS: 0.9,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 }

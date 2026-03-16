@@ -7,6 +7,7 @@
 //  the phase relationship between lateral acceleration and yaw rate.
 
 import Foundation
+import TetraTrackShared
 
 /// Analyzes motion data to detect which lead leg the horse is using during canter/gallop
 final class LeadAnalyzer: Resettable {

@@ -10,6 +10,7 @@ import Foundation
 import HealthKit
 import Observation
 import os
+import TetraTrackShared
 
 /// Activity type for Watch workouts
 enum WatchActivityType: String {
@@ -677,6 +678,10 @@ final class WorkoutManager: NSObject {
 
         if isMirroringToiPhone {
             sendMotionViaMirroredSession(metrics)
+            // Send gait classification result if available
+            if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult {
+                sendGaitResultViaMirroredSession(gaitResult)
+            }
             // Also send HR via mirrored session
             if currentHeartRate > 0 {
                 sendHeartRateViaMirroredSession(currentHeartRate)
@@ -685,6 +690,28 @@ final class WorkoutManager: NSObject {
             }
         } else {
             onMotionDataSend?()
+        }
+    }
+
+    private func sendGaitResultViaMirroredSession(_ result: WatchGaitResult) {
+        guard let session = workoutSession else { return }
+
+        guard let resultJSON = try? JSONEncoder().encode(result),
+              let resultString = String(data: resultJSON, encoding: .utf8) else { return }
+
+        let envelope: [String: Any] = [
+            "type": "gaitResult",
+            "resultJSON": resultString
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
+
+        Task {
+            do {
+                try await session.sendToRemoteWorkoutSession(data: data)
+            } catch {
+                Log.tracking.error("Failed to send gait result via mirrored session: \(error)")
+            }
         }
     }
 

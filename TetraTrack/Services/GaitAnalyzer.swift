@@ -8,6 +8,7 @@
 import CoreMotion
 import Observation
 import SwiftData
+import TetraTrackShared
 import os
 
 @Observable
@@ -92,14 +93,6 @@ final class GaitAnalyzer: Resettable {
     private var lastGPSSpeed: Double = 0
     private var lastGPSAccuracy: Double = 100.0  // Horizontal accuracy in meters
 
-    // MARK: - Apple Watch Data
-
-    /// Watch arm symmetry from WatchConnectivity (0-1, 0 if unavailable)
-    var watchArmSymmetry: Double = 0
-
-    /// Watch yaw energy from WatchConnectivity (rad/s RMS, 0 if unavailable)
-    var watchYawEnergy: Double = 0
-
     // Legacy buffers for backwards compatibility
     private var verticalAccelSamples: [Double] = []
     private var sampleTimestamps: [Date] = []
@@ -165,8 +158,7 @@ final class GaitAnalyzer: Resettable {
     /// Configure analyzer for a specific phone mount position
     func configure(mountPosition position: PhoneMountPosition) {
         mountPosition = position
-        frameTransformer.driftThreshold = position.driftThreshold
-        frameTransformer.mountPosition = position
+        frameTransformer.mountPosition = position.mountPosition
     }
 
     /// Configure analyzer with horse profile for breed-specific priors
@@ -175,7 +167,7 @@ final class GaitAnalyzer: Resettable {
         if let horse = horse {
             // Pass breed, age adjustment, and custom tuning to HMM
             hmm.configure(
-                for: horse.typedBreed,
+                with: horse.typedBreed.biomechanicalPriors,
                 ageAdjustment: horse.ageAdjustmentFactor,
                 customSpeedBounds: horse.hasCustomGaitSettings ? horse.adjustedSpeedBounds() : nil,
                 transitionProbability: horse.hasCustomGaitSettings ? horse.adjustedTransitionProbability : nil,
@@ -250,8 +242,6 @@ final class GaitAnalyzer: Resettable {
         gaitConfidence = 0
         leftRightSymmetry = 0
         verticalYawCoherence = 0
-        watchArmSymmetry = 0
-        watchYawEnergy = 0
         calibrationStatus = .pending
         recentVerticalRMS = 0
         recentRotationRates = []
@@ -467,9 +457,7 @@ final class GaitAnalyzer: Resettable {
             normalizedVerticalRMS: normalizedRMS,
             yawRateRMS: yawRMS,
             gpsSpeed: lastGPSSpeed,
-            gpsAccuracy: lastGPSAccuracy,
-            watchArmSymmetry: watchArmSymmetry,
-            watchYawEnergy: watchYawEnergy
+            gpsAccuracy: lastGPSAccuracy
         )
 
         // Update HMM
@@ -654,13 +642,19 @@ final class GaitAnalyzer: Resettable {
         currentSegment?.rhythmScore = score
     }
 
-    /// Update Apple Watch motion data for gait classification
-    /// - Parameters:
-    ///   - armSymmetry: Left-right arm swing symmetry (0-1)
-    ///   - yawEnergy: Watch yaw energy (rad/s RMS)
-    func updateWatchData(armSymmetry: Double, yawEnergy: Double) {
-        watchArmSymmetry = armSymmetry
-        watchYawEnergy = yawEnergy
+    /// Set gait state from Watch classification (Watch-primary mode)
+    /// Bypasses iPhone HMM and applies Watch result directly
+    func setGaitFromWatch(_ gait: GaitType, confidence: Double) {
+        let previousGait = currentGait
+        if gait != previousGait {
+            finalizeCurrentSegment()
+            currentGait = gait
+            gaitConfidence = confidence
+            startNewSegment(gait: gait)
+            onGaitChange?(previousGait, gait)
+        } else {
+            gaitConfidence = confidence
+        }
     }
 
     // MARK: - Diagnostic Methods (DEBUG)

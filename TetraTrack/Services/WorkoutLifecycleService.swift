@@ -105,7 +105,7 @@ final class WorkoutLifecycleService: NSObject {
 
         // Create route builder for outdoor sessions (iPhone captures GPS)
         if isOutdoorSession {
-            routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+            routeBuilder = createRouteBuilderIfAuthorized()
         }
 
         // Store configuration for auto-fallback
@@ -208,7 +208,7 @@ final class WorkoutLifecycleService: NSObject {
 
                     // Create route builder for outdoor activities (iPhone captures GPS)
                     if self.isOutdoorSession {
-                        self.routeBuilder = HKWorkoutRouteBuilder(healthStore: self.healthStore, device: .local())
+                        self.routeBuilder = self.createRouteBuilderIfAuthorized()
                     }
 
                     self.persistSessionContext(
@@ -286,7 +286,7 @@ final class WorkoutLifecycleService: NSObject {
             // Create route builder for outdoor sessions
             var route: HKWorkoutRouteBuilder?
             if isOutdoorSession {
-                route = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+                route = createRouteBuilderIfAuthorized()
             }
 
             // Store references after successful setup
@@ -313,6 +313,17 @@ final class WorkoutLifecycleService: NSObject {
     }
 
     // MARK: - Route Data
+
+    /// Create a route builder only if HealthKit write authorization for workoutRoute is granted.
+    private func createRouteBuilderIfAuthorized() -> HKWorkoutRouteBuilder? {
+        let routeType = HKSeriesType.workoutRoute()
+        let status = healthStore.authorizationStatus(for: routeType)
+        guard status == .sharingAuthorized else {
+            Log.health.warning("WorkoutLifecycleService: skipping route builder — workoutRoute write not authorized (status: \(status.rawValue))")
+            return nil
+        }
+        return HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+    }
 
     /// Add GPS locations incrementally during the session (outdoor sessions only).
     func addRouteData(_ locations: [CLLocation]) async {
@@ -691,7 +702,7 @@ final class WorkoutLifecycleService: NSObject {
             let config = session.workoutConfiguration
             isOutdoorSession = config.locationType == .outdoor
             if isOutdoorSession {
-                routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+                routeBuilder = createRouteBuilderIfAuthorized()
             }
 
             self.workoutSession = session
@@ -715,6 +726,18 @@ final class WorkoutLifecycleService: NSObject {
     }
 
     // MARK: - Private
+
+    /// Create a route builder only if the user authorized writing workout routes.
+    /// Returns nil if authorization is denied or session is indoor — GPS route
+    /// data is still saved to SwiftData independently of HealthKit.
+    private func createRouteBuilderIfAuthorized() -> HKWorkoutRouteBuilder? {
+        guard isOutdoorSession else { return nil }
+        guard healthStore.authorizationStatus(for: HKSeriesType.workoutRoute()) == .sharingAuthorized else {
+            Log.health.warning("Route write not authorized — GPS route will not be saved to HealthKit")
+            return nil
+        }
+        return HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
+    }
 
     private var watchMotionMode: WatchMotionModeShared {
         switch currentActivityType {
@@ -821,6 +844,18 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 Log.health.info("WorkoutLifecycleService: received mirrored motion data from Watch")
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
+                }
+            case "gaitResult":
+                // Decode Watch gait classification result
+                guard let resultString = payload["resultJSON"] as? String,
+                      let resultData = resultString.data(using: .utf8),
+                      let result = try? JSONDecoder().decode(WatchGaitResult.self, from: resultData) else {
+                    Log.health.info("WorkoutLifecycleService: failed to decode mirrored gait result")
+                    continue
+                }
+                Log.health.info("WorkoutLifecycleService: received Watch gait result: \(result.gaitState)")
+                Task { @MainActor in
+                    WatchConnectivityManager.shared.updateFromWatchGaitResult(result)
                 }
             default:
                 break
