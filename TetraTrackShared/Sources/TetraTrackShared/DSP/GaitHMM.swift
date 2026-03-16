@@ -185,39 +185,59 @@ public final class GaitHMM {
 
     // MARK: - Forward Algorithm
 
-    /// Update state probabilities with new observation using forward algorithm
+    /// Update state probabilities with new observation using log-space forward algorithm.
+    /// All intermediate computations use log probabilities to avoid numerical underflow.
     public func update(with features: GaitFeatureVector) {
-        var emissionProbs = [Double](repeating: 0, count: HMMGaitState.allCases.count)
+        let numStates = HMMGaitState.allCases.count
 
+        // Compute log emission probabilities (stay in log-space)
+        var logEmission = [Double](repeating: 0, count: numStates)
         for state in HMMGaitState.allCases {
-            emissionProbs[state.rawValue] = computeEmissionProbability(features, for: state)
+            logEmission[state.rawValue] = computeLogEmissionProbability(features, for: state)
         }
 
-        // Forward step: alpha(t) = sum_i(alpha(t-1, i) * A(i,j)) * B(j, obs)
-        var newProbs = [Double](repeating: 0, count: HMMGaitState.allCases.count)
+        // Convert current stateProbs to log-space
+        let logStateProbs = stateProbs.map { $0 > 0 ? log($0) : -1000.0 }
+
+        // Forward step in log-space:
+        // log(alpha(t, j)) = logSumExp_i(log(alpha(t-1, i)) + log(A(i,j))) + log(B(j, obs))
+        var logNewProbs = [Double](repeating: -Double.infinity, count: numStates)
 
         for toState in HMMGaitState.allCases {
-            var sum = 0.0
+            var terms = [Double]()
             for fromState in HMMGaitState.allCases {
-                sum += stateProbs[fromState.rawValue] * transitionMatrix[fromState.rawValue][toState.rawValue]
+                let transProb = transitionMatrix[fromState.rawValue][toState.rawValue]
+                if transProb > 0 {
+                    terms.append(logStateProbs[fromState.rawValue] + log(transProb))
+                }
             }
-            newProbs[toState.rawValue] = sum * emissionProbs[toState.rawValue]
+            if !terms.isEmpty {
+                logNewProbs[toState.rawValue] = logSumExp(terms) + logEmission[toState.rawValue]
+            }
         }
 
-        // Normalize
-        let total = newProbs.reduce(0, +)
-        if total > 1e-10 {
-            for i in 0..<newProbs.count {
-                newProbs[i] /= total
+        // Normalize in log-space: P(i) = exp(logP(i) - logTotal)
+        let logTotal = logSumExp(Array(logNewProbs))
+
+        if logTotal > -500 {
+            var newProbs = [Double](repeating: 0, count: numStates)
+            for i in 0..<numStates {
+                newProbs[i] = exp(logNewProbs[i] - logTotal)
             }
-        } else {
-            newProbs = stateProbs
+            stateProbs = newProbs
         }
+        // else: keep previous stateProbs (total underflow = all states equally unlikely)
 
-        // Apply GPS speed sanity checks
-        newProbs = applySpeedConstraints(newProbs, gpsSpeed: features.gpsSpeed, gpsAccuracy: features.gpsAccuracy)
+        // Apply GPS speed sanity checks (in probability space — these are hard vetoes)
+        stateProbs = applySpeedConstraints(stateProbs, gpsSpeed: features.gpsSpeed, gpsAccuracy: features.gpsAccuracy)
+    }
 
-        stateProbs = newProbs
+    /// Log-sum-exp trick: log(sum(exp(x_i))) = max(x) + log(sum(exp(x_i - max(x))))
+    /// Avoids overflow/underflow by factoring out the maximum value.
+    private func logSumExp(_ values: [Double]) -> Double {
+        guard let maxVal = values.max(), maxVal > -Double.infinity else { return -Double.infinity }
+        let sum = values.reduce(0.0) { $0 + exp($1 - maxVal) }
+        return maxVal + log(sum)
     }
 
     /// Get probability of a specific state
@@ -227,7 +247,9 @@ public final class GaitHMM {
 
     // MARK: - Private Implementation
 
-    private func computeEmissionProbability(_ features: GaitFeatureVector, for state: HMMGaitState) -> Double {
+    /// Compute log emission probability for a state given observed features.
+    /// Returns the sum of log-Gaussian probabilities across all features.
+    private func computeLogEmissionProbability(_ features: GaitFeatureVector, for state: HMMGaitState) -> Double {
         let stateIdx = state.rawValue
         let params = emissionParams[stateIdx]
 
@@ -246,7 +268,7 @@ public final class GaitHMM {
             logProb += log(canterMultiplier)
         }
 
-        return exp(max(-100.0, min(100.0, logProb)))
+        return logProb
     }
 
     private func applySpeedConstraints(_ probs: [Double], gpsSpeed: Double, gpsAccuracy: Double) -> [Double] {
