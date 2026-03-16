@@ -22,14 +22,10 @@ public struct GaitFeatureVector: Sendable {
     public let gpsSpeed: Double             // Speed from GPS (m/s) for sanity checking
     public let gpsAccuracy: Double          // GPS horizontal accuracy in meters (lower = better)
 
-    // Apple Watch data (optional - set to 0 if unavailable)
-    public let watchArmSymmetry: Double     // Left-right arm swing symmetry (0-1)
-    public let watchYawEnergy: Double       // Watch yaw energy (rad/s RMS)
-
     public static let zero = GaitFeatureVector(
         strideFrequency: 0, h2Ratio: 0, h3Ratio: 0, spectralEntropy: 0,
         xyCoherence: 0, zYawCoherence: 0, normalizedVerticalRMS: 0,
-        yawRateRMS: 0, gpsSpeed: 0, gpsAccuracy: 100, watchArmSymmetry: 0, watchYawEnergy: 0
+        yawRateRMS: 0, gpsSpeed: 0, gpsAccuracy: 100
     )
 
     public init(
@@ -42,9 +38,7 @@ public struct GaitFeatureVector: Sendable {
         normalizedVerticalRMS: Double,
         yawRateRMS: Double,
         gpsSpeed: Double,
-        gpsAccuracy: Double,
-        watchArmSymmetry: Double,
-        watchYawEnergy: Double
+        gpsAccuracy: Double
     ) {
         self.strideFrequency = strideFrequency
         self.h2Ratio = h2Ratio
@@ -56,8 +50,6 @@ public struct GaitFeatureVector: Sendable {
         self.yawRateRMS = yawRateRMS
         self.gpsSpeed = gpsSpeed
         self.gpsAccuracy = gpsAccuracy
-        self.watchArmSymmetry = watchArmSymmetry
-        self.watchYawEnergy = watchYawEnergy
     }
 }
 

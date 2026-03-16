@@ -60,8 +60,6 @@ public final class GaitHMM {
         case zYawCoherence = 5
         case normalizedVerticalRMS = 6
         case yawRateRMS = 7
-        case watchArmSymmetry = 8
-        case watchYawEnergy = 9
     }
 
     // MARK: - Initialization
@@ -244,13 +242,6 @@ public final class GaitHMM {
         logProb += params[FeatureIndex.normalizedVerticalRMS.rawValue].logProbability(features.normalizedVerticalRMS)
         logProb += params[FeatureIndex.yawRateRMS.rawValue].logProbability(features.yawRateRMS)
 
-        if features.watchArmSymmetry > 0 {
-            logProb += params[FeatureIndex.watchArmSymmetry.rawValue].logProbability(features.watchArmSymmetry)
-        }
-        if features.watchYawEnergy > 0 {
-            logProb += params[FeatureIndex.watchYawEnergy.rawValue].logProbability(features.watchYawEnergy)
-        }
-
         if state == .canter && canterMultiplier != 1.0 {
             logProb += log(canterMultiplier)
         }
@@ -369,9 +360,7 @@ public final class GaitHMM {
         xyC: ClosedRange<Double>,
         zYawC: ClosedRange<Double>,
         rms: ClosedRange<Double>,
-        yaw: ClosedRange<Double>,
-        watchArm: ClosedRange<Double> = 0.3...0.7,
-        watchYaw: ClosedRange<Double> = 0.1...0.5
+        yaw: ClosedRange<Double>
     ) -> [GaussianEmission] {
         func toGaussian(_ range: ClosedRange<Double>) -> GaussianEmission {
             let mean = (range.lowerBound + range.upperBound) / 2
@@ -387,9 +376,7 @@ public final class GaitHMM {
             toGaussian(xyC),
             toGaussian(zYawC),
             toGaussian(rms),
-            toGaussian(yaw),
-            toGaussian(watchArm),
-            toGaussian(watchYaw)
+            toGaussian(yaw)
         ]
     }
 

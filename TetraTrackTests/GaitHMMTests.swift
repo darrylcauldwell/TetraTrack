@@ -226,9 +226,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 0.0, gpsAccuracy: 3.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 3.0        )
         for _ in 0..<20 {
             hmm.update(with: features)
         }
@@ -243,9 +241,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 0.0, gpsAccuracy: 60.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 60.0        )
         for _ in 0..<20 {
             hmm.update(with: features)
         }
@@ -263,9 +259,7 @@ struct GaitHMMTests {
             strideFrequency: 0.2, h2Ratio: 0.15, h3Ratio: 0.15,
             spectralEntropy: 0.15, xyCoherence: 0.15, zYawCoherence: 0.15,
             normalizedVerticalRMS: 0.02, yawRateRMS: 0.05,
-            gpsSpeed: 0.0, gpsAccuracy: 3.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 3.0        )
         for _ in 0..<15 {
             hmm.update(with: stationaryWithGPS)
         }
@@ -295,9 +289,7 @@ struct GaitHMMTests {
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 5.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 5.0        )
         hmm.update(with: features)
         let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
         #expect(abs(sum - 1.0) < 1e-10)
@@ -316,9 +308,7 @@ struct GaitHMMTests {
             strideFrequency: 2.4, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             ponyHMM.update(with: highFreqWalk)
@@ -340,9 +330,7 @@ struct GaitHMMTests {
             strideFrequency: 1.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             warmbloodHMM.update(with: lowFreqTrot)
@@ -365,9 +353,7 @@ struct GaitHMMTests {
             strideFrequency: 0.8, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
 
         for _ in 0..<20 {
             normalHMM.update(with: edgeFeatures)
@@ -426,9 +412,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm1.update(with: features)
             hmm2.update(with: features)
@@ -451,9 +435,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm3.update(with: features)
             hmm10.update(with: features)
@@ -477,9 +459,7 @@ struct GaitHMMTests {
             strideFrequency: 2.0, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             hmm20.update(with: features)
             hmm100.update(with: features)
@@ -505,9 +485,7 @@ struct GaitHMMTests {
             strideFrequency: 100.0, h2Ratio: 50.0, h3Ratio: 50.0,
             spectralEntropy: 1.0, xyCoherence: 1.0, zYawCoherence: 1.0,
             normalizedVerticalRMS: 10.0, yawRateRMS: 10.0,
-            gpsSpeed: 50.0, gpsAccuracy: 1.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 50.0, gpsAccuracy: 1.0        )
         hmm.update(with: extremeFeatures)
         let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
         #expect(abs(sum - 1.0) < 1e-10)
@@ -599,9 +577,7 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
         for _ in 0..<20 {
             hmm.update(with: ambiguousAtSlowSpeed)
         }
@@ -622,9 +598,7 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.15, yawRateRMS: 0.3,
-            gpsSpeed: 3.0, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 8.0        )
         for _ in 0..<20 {
             hmm.update(with: ambiguousAtTrotSpeed)
         }
@@ -648,16 +622,12 @@ struct GaitHMMTests {
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
         let poorGPS = GaitFeatureVector(
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 25.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.2, gpsAccuracy: 25.0        )
 
         for _ in 0..<20 {
             hmm1.update(with: goodGPS)
@@ -675,9 +645,7 @@ struct GaitHMMTests {
             strideFrequency: 0.25, h2Ratio: 0.15, h3Ratio: 0.15,
             spectralEntropy: 0.15, xyCoherence: 0.15, zYawCoherence: 0.15,
             normalizedVerticalRMS: 0.025, yawRateRMS: 0.05,
-            gpsSpeed: 0.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 10.0        )
     }
 
     private func walkFeatures(gpsSpeed: Double = 1.5, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -685,9 +653,7 @@ struct GaitHMMTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func trotFeatures(gpsSpeed: Double = 3.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -695,9 +661,7 @@ struct GaitHMMTests {
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func canterFeatures(gpsSpeed: Double = 5.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -705,9 +669,7 @@ struct GaitHMMTests {
             strideFrequency: 2.4, h2Ratio: 0.7, h3Ratio: 1.5,
             spectralEntropy: 0.55, xyCoherence: 0.35, zYawCoherence: 0.75,
             normalizedVerticalRMS: 0.35, yawRateRMS: 0.6,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 
     private func gallopFeatures(gpsSpeed: Double = 9.0, gpsAccuracy: Double = 10.0) -> GaitFeatureVector {
@@ -715,8 +677,6 @@ struct GaitHMMTests {
             strideFrequency: 4.5, h2Ratio: 0.5, h3Ratio: 0.6,
             spectralEntropy: 0.75, xyCoherence: 0.25, zYawCoherence: 0.85,
             normalizedVerticalRMS: 0.475, yawRateRMS: 0.9,
-            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: gpsSpeed, gpsAccuracy: gpsAccuracy        )
     }
 }

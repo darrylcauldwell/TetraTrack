@@ -93,14 +93,6 @@ final class GaitAnalyzer: Resettable {
     private var lastGPSSpeed: Double = 0
     private var lastGPSAccuracy: Double = 100.0  // Horizontal accuracy in meters
 
-    // MARK: - Apple Watch Data
-
-    /// Watch arm symmetry from WatchConnectivity (0-1, 0 if unavailable)
-    var watchArmSymmetry: Double = 0
-
-    /// Watch yaw energy from WatchConnectivity (rad/s RMS, 0 if unavailable)
-    var watchYawEnergy: Double = 0
-
     // Legacy buffers for backwards compatibility
     private var verticalAccelSamples: [Double] = []
     private var sampleTimestamps: [Date] = []
@@ -250,8 +242,6 @@ final class GaitAnalyzer: Resettable {
         gaitConfidence = 0
         leftRightSymmetry = 0
         verticalYawCoherence = 0
-        watchArmSymmetry = 0
-        watchYawEnergy = 0
         calibrationStatus = .pending
         recentVerticalRMS = 0
         recentRotationRates = []
@@ -467,9 +457,7 @@ final class GaitAnalyzer: Resettable {
             normalizedVerticalRMS: normalizedRMS,
             yawRateRMS: yawRMS,
             gpsSpeed: lastGPSSpeed,
-            gpsAccuracy: lastGPSAccuracy,
-            watchArmSymmetry: watchArmSymmetry,
-            watchYawEnergy: watchYawEnergy
+            gpsAccuracy: lastGPSAccuracy
         )
 
         // Update HMM
@@ -652,15 +640,6 @@ final class GaitAnalyzer: Resettable {
     /// Update rhythm score for current gait segment
     func updateRhythm(_ score: Double) {
         currentSegment?.rhythmScore = score
-    }
-
-    /// Update Apple Watch motion data for gait classification
-    /// - Parameters:
-    ///   - armSymmetry: Left-right arm swing symmetry (0-1)
-    ///   - yawEnergy: Watch yaw energy (rad/s RMS)
-    func updateWatchData(armSymmetry: Double, yawEnergy: Double) {
-        watchArmSymmetry = armSymmetry
-        watchYawEnergy = yawEnergy
     }
 
     /// Set gait state from Watch classification (Watch-primary mode)

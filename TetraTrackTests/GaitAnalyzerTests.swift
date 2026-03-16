@@ -326,9 +326,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(walkFeatures)
         }
@@ -345,9 +343,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<10 {
             analyzer.injectSyntheticFeatures(walkFeatures)
         }
@@ -356,9 +352,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(trotFeatures)
         }
@@ -372,9 +366,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         analyzer.injectSyntheticFeatures(features)
         #expect(analyzer.currentGait == .stationary)
     }
@@ -388,9 +380,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(walkFeatures)
         }
@@ -400,9 +390,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 0.25, h2Ratio: 0.15, h3Ratio: 0.15,
             spectralEntropy: 0.15, xyCoherence: 0.15, zYawCoherence: 0.15,
             normalizedVerticalRMS: 0.025, yawRateRMS: 0.05,
-            gpsSpeed: 0.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 0.0, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(stationaryFeatures)
         }
@@ -420,16 +408,12 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         let trotFeatures = GaitFeatureVector(
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
 
         // Establish walk
         for _ in 0..<30 {
@@ -459,16 +443,12 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         let trotFeatures = GaitFeatureVector(
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
 
         // Establish walk
         for _ in 0..<30 {
@@ -494,16 +474,12 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         let trotFeatures = GaitFeatureVector(
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
             spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
             normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
-            gpsSpeed: 3.0, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 3.0, gpsAccuracy: 10.0        )
 
         // Establish walk
         for _ in 0..<30 {
@@ -563,9 +539,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 2.4, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(ponyWalk)
         }
@@ -584,9 +558,7 @@ struct GaitAnalyzerTests {
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
-            gpsSpeed: 1.5, gpsAccuracy: 10.0,
-            watchArmSymmetry: 0, watchYawEnergy: 0
-        )
+            gpsSpeed: 1.5, gpsAccuracy: 10.0        )
         for _ in 0..<20 {
             analyzer.injectSyntheticFeatures(walkFeatures)
         }

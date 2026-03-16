@@ -272,9 +272,7 @@ final class WatchGaitAnalyzer {
             normalizedVerticalRMS: bounceAmplitude,
             yawRateRMS: yawRMS,
             gpsSpeed: 0,        // No GPS on Watch
-            gpsAccuracy: 100,   // Low accuracy flag — disables GPS speed constraints in HMM
-            watchArmSymmetry: 0,
-            watchYawEnergy: 0
+            gpsAccuracy: 100    // Low accuracy flag — disables GPS speed constraints in HMM
         )
 
         // Update HMM
