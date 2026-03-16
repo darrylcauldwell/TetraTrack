@@ -139,13 +139,13 @@ final class ShootingSession: TrainingSessionProtocol, SessionWritable {
     var startWeatherData: Data?
     var endWeatherData: Data?
 
-    // GRACE pillar scores (0-100 each)
-    var graceStandTallScore: Double = 0
-    var graceShotTimingScore: Double = 0
-    var graceAimTrueScore: Double = 0
-    var graceShotEconomyScore: Double = 0
-    var graceComposureScore: Double = 0
-    var graceOverallScore: Double = 0
+    // Biomechanical pillar scores (0-100 each)
+    var stabilityScore: Double = 0
+    var rhythmScore: Double = 0
+    var symmetryScore: Double = 0
+    var economyScore: Double = 0
+    var composureScore: Double = 0  // Physiology section (not part of biomechanical score)
+    var overallBiomechanicalScore: Double = 0
 
     // Per-shot sensor data blob
     var perShotSensorJSON: Data?

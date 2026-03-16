@@ -295,14 +295,16 @@ struct RunningLiveView: View {
                     .monospacedDigit()
             }
 
-            // Session-specific metrics
+            // Session-specific metrics with type-aware layouts
             switch session.sessionType {
             case .intervals:
                 intervalMetrics
             case .timeTrial:
-                tetrathlonMetrics
+                timeTrialMetrics
+            case .tempo, .race:
+                pacePrimaryMetrics
             default:
-                runMetrics
+                hrZonePrimaryMetrics
             }
 
             Spacer()
@@ -354,9 +356,20 @@ struct RunningLiveView: View {
         }
     }
 
-    // MARK: - Run Metrics (General Running)
+    // MARK: - Shared Computed Properties
 
-    private var runMetrics: some View {
+    private var displayCadence: Int {
+        let watchCadence = runningPlugin?.currentCadence ?? 0
+        return watchCadence > 0 ? watchCadence : tracker.pedometerCadence
+    }
+
+    private var hasWatchMotion: Bool {
+        (runningPlugin?.currentCadence ?? 0) > 0
+    }
+
+    // MARK: - HR Zone Primary Metrics (Easy, Recovery, Long, Fartlek, Walking)
+
+    private var hrZonePrimaryMetrics: some View {
         VStack(spacing: 24) {
             // Distance - prominent
             VStack(spacing: 4) {
@@ -366,52 +379,23 @@ struct RunningLiveView: View {
                     .foregroundStyle(AppColors.primary)
             }
 
-            // Track mode: Lap counter
-            if isTrackMode && lapDetector.lapCount > 0 {
-                HStack(spacing: 24) {
-                    VStack(spacing: 4) {
-                        Text("\(lapDetector.lapCount)")
-                            .scaledFont(size: 36, weight: .bold, design: .rounded, relativeTo: .title)
-                            .foregroundStyle(.cyan)
-                        Text("Laps")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            // HR + Zone — prominent (primary training signal)
+            HeartRateZoneCard(
+                heartRate: tracker.currentHeartRate,
+                zone: tracker.currentHeartRateZone,
+                averageHeartRate: tracker.averageHeartRate,
+                maxHeartRate: tracker.maxHeartRate,
+                isProminent: true
+            )
 
-                    if let lastLap = lapDetector.lapTimes.last {
-                        VStack(spacing: 4) {
-                            Text(formatTime(lastLap))
-                                .scaledFont(size: 28, weight: .semibold, design: .rounded, relativeTo: .title2)
-                                .monospacedDigit()
-                                .foregroundStyle(splitComparisonColor)
-                            Text("Last Lap")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if lapDetector.lapTimes.count >= 2 {
-                        VStack(spacing: 4) {
-                            Text(formatTime(lapDetector.averageLapTime))
-                                .scaledFont(size: 28, weight: .semibold, design: .rounded, relativeTo: .title2)
-                                .monospacedDigit()
-                            Text("Avg Lap")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
-            // Track mode: Live lap split chart
-            if isTrackMode && lapDetector.lapTimes.count >= 2 {
-                TrackLapSplitChart(lapTimes: lapDetector.lapTimes, compact: true)
-                    .frame(height: 120)
-                    .padding(.horizontal)
-            }
+            // Cadence — always visible with pedometer fallback
+            CadenceCard(
+                cadence: displayCadence,
+                isWatchSource: hasWatchMotion,
+                target: targetCadence,
+                verticalOscillation: runningPlugin?.verticalOscillation ?? 0,
+                groundContactTime: runningPlugin?.groundContactTime ?? 0
+            )
 
             // Pace
             HStack(spacing: 40) {
@@ -434,151 +418,29 @@ struct RunningLiveView: View {
                 }
             }
 
+            // Elevation (outdoor only, when > 0)
+            if usesGPS && (tracker.elevationGain > 0 || tracker.elevationLoss > 0) {
+                ElevationCard(gain: tracker.elevationGain, loss: tracker.elevationLoss)
+            }
+
+            // Track mode: Lap counter
+            if isTrackMode && lapDetector.lapCount > 0 {
+                trackLapDisplay
+            }
+
+            // Track mode: Live lap split chart
+            if isTrackMode && lapDetector.lapTimes.count >= 2 {
+                TrackLapSplitChart(lapTimes: lapDetector.lapTimes, compact: true)
+                    .frame(height: 120)
+                    .padding(.horizontal)
+            }
+
             // Virtual Pacer (when active)
             if VirtualPacer.shared.isActive {
-                VStack(spacing: 8) {
-                    // Gap indicator
-                    HStack(spacing: 8) {
-                        Image(systemName: VirtualPacer.shared.gapStatus.icon)
-                            .foregroundStyle(pacerGapColor)
-                        Text(VirtualPacer.shared.formattedGap)
-                            .scaledFont(size: 32, weight: .bold, design: .rounded, relativeTo: .title)
-                            .foregroundStyle(pacerGapColor)
-                    }
-
-                    HStack(spacing: 24) {
-                        VStack(spacing: 2) {
-                            Text(VirtualPacer.shared.formattedCurrentPace)
-                                .font(.headline.monospacedDigit())
-                            Text("Current")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        VStack(spacing: 2) {
-                            Text(VirtualPacer.shared.formattedTargetPace)
-                                .font(.headline.monospacedDigit())
-                                .foregroundStyle(.cyan)
-                            Text("Target")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text(VirtualPacer.shared.gapStatus.description)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundStyle(pacerGapColor)
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                virtualPacerDisplay
             }
 
-            // Heart rate (when Watch connected and receiving)
-            if tracker.currentHeartRate > 0 {
-                HStack(spacing: 24) {
-                    // Current heart rate with pulsing icon
-                    VStack(spacing: 4) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(.red)
-                                .symbolEffect(.pulse, options: .repeating)
-                            Text("\(tracker.currentHeartRate)")
-                                .scaledFont(size: 32, weight: .bold, design: .rounded, relativeTo: .title)
-                        }
-                        Text("bpm")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if tracker.averageHeartRate > 0 {
-                        VStack(spacing: 4) {
-                            Text("\(tracker.averageHeartRate)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("Avg")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if tracker.maxHeartRate > 0 {
-                        VStack(spacing: 4) {
-                            Text("\(tracker.maxHeartRate)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                                .foregroundStyle(.red)
-                            Text("Max")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
-            // Watch running metrics (when connected)
-            if let plugin = runningPlugin, (plugin.currentCadence > 0 || plugin.verticalOscillation > 0) {
-                HStack(spacing: 24) {
-                    // Cadence
-                    VStack(spacing: 4) {
-                        Text("Cadence")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 2) {
-                            Text("\(plugin.currentCadence)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("spm")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .foregroundStyle(cadenceColor)
-                        if targetCadence > 0 {
-                            Text("Target: \(targetCadence)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    // Vertical Oscillation
-                    VStack(spacing: 4) {
-                        Text("Oscillation")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 2) {
-                            Text(String(format: "%.1f", plugin.verticalOscillation))
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("cm")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .foregroundStyle(oscillationColor)
-                    }
-
-                    // Ground Contact Time
-                    VStack(spacing: 4) {
-                        Text("Contact")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 2) {
-                            Text(String(format: "%.0f", plugin.groundContactTime))
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("ms")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .foregroundStyle(gctColor)
-                    }
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
-            // Enhanced sensor metrics (SpO2, breathing, fatigue)
+            // Enhanced sensor metrics (SpO2, breathing, fatigue) — Watch only
             if sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.breathingRate > 0 || sensorAnalyzer.fatigueScore > 0 {
                 Divider()
                     .padding(.vertical, 8)
@@ -597,32 +459,167 @@ struct RunningLiveView: View {
         }
     }
 
-    // Running form indicator colors
-    private var cadenceColor: Color {
-        let cadence = runningPlugin?.currentCadence ?? 0
-        if targetCadence > 0 {
-            let deviation = abs(cadence - targetCadence)
-            if deviation <= 5 { return .green }
-            if deviation <= 15 { return .yellow }
-            return .orange
+    // MARK: - Pace Primary Metrics (Tempo, Race)
+
+    private var pacePrimaryMetrics: some View {
+        VStack(spacing: 24) {
+            // Distance
+            VStack(spacing: 4) {
+                Text(formatDistance(tracker.totalDistance))
+                    .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
+                    .monospacedDigit()
+                    .foregroundStyle(AppColors.primary)
+            }
+
+            // Pace — prominent (primary training signal for tempo/race)
+            HStack(spacing: 40) {
+                VStack(spacing: 4) {
+                    Text("Current Pace")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(currentPace)
+                        .scaledFont(size: 36, weight: .bold, design: .rounded, relativeTo: .title)
+                        .monospacedDigit()
+                }
+
+                VStack(spacing: 4) {
+                    Text("Avg Pace")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(averagePace)
+                        .scaledFont(size: 36, weight: .bold, design: .rounded, relativeTo: .title)
+                        .monospacedDigit()
+                }
+            }
+
+            // Virtual Pacer (when active)
+            if VirtualPacer.shared.isActive {
+                virtualPacerDisplay
+            }
+
+            // HR + Zone — compact (secondary for tempo/race)
+            HeartRateZoneCard(
+                heartRate: tracker.currentHeartRate,
+                zone: tracker.currentHeartRateZone,
+                averageHeartRate: tracker.averageHeartRate,
+                maxHeartRate: tracker.maxHeartRate,
+                isProminent: false
+            )
+
+            // Cadence
+            CadenceCard(
+                cadence: displayCadence,
+                isWatchSource: hasWatchMotion,
+                target: targetCadence,
+                verticalOscillation: runningPlugin?.verticalOscillation ?? 0,
+                groundContactTime: runningPlugin?.groundContactTime ?? 0
+            )
+
+            // Track mode: Laps
+            if isTrackMode && lapDetector.lapCount > 0 {
+                trackLapDisplay
+            }
+
+            // Elevation (outdoor only, when > 0)
+            if usesGPS && (tracker.elevationGain > 0 || tracker.elevationLoss > 0) {
+                ElevationCard(gain: tracker.elevationGain, loss: tracker.elevationLoss)
+            }
+
+            // Enhanced sensor metrics — Watch only
+            if sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.breathingRate > 0 || sensorAnalyzer.fatigueScore > 0 {
+                Divider().padding(.vertical, 8)
+                RunningSensorMetricsView(
+                    elevationGain: sensorAnalyzer.totalElevationGain,
+                    elevationLoss: sensorAnalyzer.totalElevationLoss,
+                    breathingRate: sensorAnalyzer.breathingRate,
+                    breathingTrend: sensorAnalyzer.breathingRateTrend,
+                    spo2: sensorAnalyzer.oxygenSaturation,
+                    minSpo2: sensorAnalyzer.minSpO2,
+                    postureStability: sensorAnalyzer.postureStability,
+                    fatigueScore: sensorAnalyzer.fatigueScore
+                )
+            }
         }
-        if cadence >= 170 && cadence <= 190 { return .green }  // Ideal range
-        if cadence >= 160 && cadence <= 200 { return .yellow } // Acceptable
-        return .orange
     }
 
-    private var oscillationColor: Color {
-        let verticalOscillation = runningPlugin?.verticalOscillation ?? 0
-        if verticalOscillation <= 8.0 { return .green }  // Efficient
-        if verticalOscillation <= 10.0 { return .yellow }
-        return .orange  // Too bouncy
+    // MARK: - Shared Sub-views
+
+    private var trackLapDisplay: some View {
+        HStack(spacing: 24) {
+            VStack(spacing: 4) {
+                Text("\(lapDetector.lapCount)")
+                    .scaledFont(size: 36, weight: .bold, design: .rounded, relativeTo: .title)
+                    .foregroundStyle(.cyan)
+                Text("Laps")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let lastLap = lapDetector.lapTimes.last {
+                VStack(spacing: 4) {
+                    Text(formatTime(lastLap))
+                        .scaledFont(size: 28, weight: .semibold, design: .rounded, relativeTo: .title2)
+                        .monospacedDigit()
+                        .foregroundStyle(splitComparisonColor)
+                    Text("Last Lap")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if lapDetector.lapTimes.count >= 2 {
+                VStack(spacing: 4) {
+                    Text(formatTime(lapDetector.averageLapTime))
+                        .scaledFont(size: 28, weight: .semibold, design: .rounded, relativeTo: .title2)
+                        .monospacedDigit()
+                    Text("Avg Lap")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private var gctColor: Color {
-        let groundContactTime = runningPlugin?.groundContactTime ?? 0
-        if groundContactTime <= 250 { return .green }  // Good
-        if groundContactTime <= 300 { return .yellow }
-        return .orange  // Too long
+    private var virtualPacerDisplay: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: VirtualPacer.shared.gapStatus.icon)
+                    .foregroundStyle(pacerGapColor)
+                Text(VirtualPacer.shared.formattedGap)
+                    .scaledFont(size: 32, weight: .bold, design: .rounded, relativeTo: .title)
+                    .foregroundStyle(pacerGapColor)
+            }
+
+            HStack(spacing: 24) {
+                VStack(spacing: 2) {
+                    Text(VirtualPacer.shared.formattedCurrentPace)
+                        .font(.headline.monospacedDigit())
+                    Text("Current")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                VStack(spacing: 2) {
+                    Text(VirtualPacer.shared.formattedTargetPace)
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(.cyan)
+                    Text("Target")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(VirtualPacer.shared.gapStatus.description)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(pacerGapColor)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Tetrathlon Metrics
@@ -644,7 +641,7 @@ struct RunningLiveView: View {
         return .orange
     }
 
-    private var tetrathlonMetrics: some View {
+    private var timeTrialMetrics: some View {
         VStack(spacing: 20) {
             // Goal distance and progress
             VStack(spacing: 4) {
@@ -764,6 +761,22 @@ struct RunningLiveView: View {
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
+
+            // HR zone (compact — secondary for time trial)
+            HeartRateZoneCard(
+                heartRate: tracker.currentHeartRate,
+                zone: tracker.currentHeartRateZone,
+                averageHeartRate: tracker.averageHeartRate,
+                maxHeartRate: tracker.maxHeartRate,
+                isProminent: false
+            )
+
+            // Cadence
+            CadenceCard(
+                cadence: displayCadence,
+                isWatchSource: hasWatchMotion,
+                target: targetCadence
+            )
         }
     }
 
@@ -896,6 +909,22 @@ struct RunningLiveView: View {
                     .scaledFont(size: 20, weight: .semibold, design: .rounded, relativeTo: .title3)
                     .monospacedDigit()
             }
+
+            // HR zone (compact — for recovery monitoring between intervals)
+            HeartRateZoneCard(
+                heartRate: tracker.currentHeartRate,
+                zone: tracker.currentHeartRateZone,
+                averageHeartRate: tracker.averageHeartRate,
+                maxHeartRate: tracker.maxHeartRate,
+                isProminent: false
+            )
+
+            // Cadence
+            CadenceCard(
+                cadence: displayCadence,
+                isWatchSource: hasWatchMotion,
+                target: targetCadence
+            )
         }
     }
 
@@ -1183,107 +1212,23 @@ struct TreadmillLiveView: View {
                 }
             }
 
-            // Heart rate (when Watch connected and receiving)
-            if tracker.currentHeartRate > 0 {
-                HStack(spacing: 24) {
-                    // Current heart rate with pulsing icon
-                    VStack(spacing: 4) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(.red)
-                                .symbolEffect(.pulse, options: .repeating)
-                            Text("\(tracker.currentHeartRate)")
-                                .scaledFont(size: 32, weight: .bold, design: .rounded, relativeTo: .title)
-                        }
-                        Text("bpm")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            // Heart rate with zone (always visible)
+            HeartRateZoneCard(
+                heartRate: tracker.currentHeartRate,
+                zone: tracker.currentHeartRateZone,
+                averageHeartRate: tracker.averageHeartRate,
+                maxHeartRate: tracker.maxHeartRate,
+                isProminent: true
+            )
 
-                    if tracker.averageHeartRate > 0 {
-                        VStack(spacing: 4) {
-                            Text("\(tracker.averageHeartRate)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("Avg")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if tracker.maxHeartRate > 0 {
-                        VStack(spacing: 4) {
-                            Text("\(tracker.maxHeartRate)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                                .foregroundStyle(.red)
-                            Text("Max")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
-            // Cadence display (from Watch via RunningPlugin)
-            if let plugin = runningPlugin, plugin.currentCadence > 0 {
-                HStack(spacing: 24) {
-                    VStack(spacing: 4) {
-                        Text("Cadence")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 2) {
-                            Text("\(plugin.currentCadence)")
-                                .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                            Text("spm")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .foregroundStyle(treadmillCadenceColor)
-                        if targetCadence > 0 {
-                            Text("Target: \(targetCadence)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if plugin.verticalOscillation > 0 {
-                        VStack(spacing: 4) {
-                            Text("Oscillation")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 2) {
-                                Text(String(format: "%.1f", plugin.verticalOscillation))
-                                    .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                                Text("cm")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    if plugin.groundContactTime > 0 {
-                        VStack(spacing: 4) {
-                            Text("Contact")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 2) {
-                                Text(String(format: "%.0f", plugin.groundContactTime))
-                                    .scaledFont(size: 22, weight: .semibold, design: .rounded, relativeTo: .title3)
-                                Text("ms")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+            // Cadence (always visible — Watch or pedometer fallback)
+            CadenceCard(
+                cadence: runningPlugin?.currentCadence ?? tracker.pedometerCadence,
+                isWatchSource: runningPlugin?.currentCadence ?? 0 > 0,
+                target: targetCadence,
+                verticalOscillation: runningPlugin?.verticalOscillation ?? 0,
+                groundContactTime: runningPlugin?.groundContactTime ?? 0
+            )
 
             // Incline indicator (if set)
             if inclinePercentage > 0 {
@@ -1296,19 +1241,6 @@ struct TreadmillLiveView: View {
                 }
             }
         }
-    }
-
-    private var treadmillCadenceColor: Color {
-        let cadence = runningPlugin?.currentCadence ?? 0
-        if targetCadence > 0 {
-            let deviation = abs(cadence - targetCadence)
-            if deviation <= 5 { return .green }
-            if deviation <= 15 { return .yellow }
-            return .orange
-        }
-        if cadence >= 170 && cadence <= 190 { return .green }
-        if cadence >= 160 && cadence <= 200 { return .yellow }
-        return .orange
     }
 
     // MARK: - Calculated Values

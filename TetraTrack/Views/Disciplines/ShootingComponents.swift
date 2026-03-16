@@ -64,7 +64,7 @@ struct ShootingWatchStatusCard: View {
                 }
             } else if isAppNotInstalled {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Install TetraTrack on your Apple Watch to unlock shot detection and GRACE Insights.")
+                    Text("Install TetraTrack on your Apple Watch to unlock shot detection and Session Insights.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("Open the Watch app on your iPhone to install.")
@@ -446,8 +446,8 @@ struct ShootingSessionDetailView: View {
                         .padding(.horizontal)
                     }
 
-                    // GRACE Insights link
-                    if session.graceOverallScore > 0 {
+                    // Session Insights link
+                    if session.overallBiomechanicalScore > 0 {
                         NavigationLink(destination: ShootingGRACEInsightsView(session: session)) {
                             HStack {
                                 Image(systemName: "chart.bar.xaxis.ascending")
@@ -455,18 +455,18 @@ struct ShootingSessionDetailView: View {
                                     .foregroundStyle(.purple)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("GRACE Insights")
+                                    Text("Session Insights")
                                         .font(.headline)
-                                    Text("Ground · Rhythm · Aim · Control · Endure")
+                                    Text("Stability · Rhythm · Symmetry · Economy")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
 
                                 Spacer()
 
-                                Text(String(format: "%.0f", session.graceOverallScore))
+                                Text(String(format: "%.0f", session.overallBiomechanicalScore))
                                     .font(.title2.bold())
-                                    .foregroundStyle(graceScoreColor(session.graceOverallScore))
+                                    .foregroundStyle(graceScoreColor(session.overallBiomechanicalScore))
 
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
@@ -479,14 +479,14 @@ struct ShootingSessionDetailView: View {
                         .buttonStyle(.plain)
                         .padding(.horizontal)
                     } else {
-                        // Prompt to use Watch for GRACE Insights
+                        // Prompt to use Watch for Session Insights
                         HStack(spacing: 12) {
                             Image(systemName: "applewatch.radiowaves.left.and.right")
                                 .font(.title3)
                                 .foregroundStyle(.purple.opacity(0.6))
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("GRACE Insights")
+                                Text("Session Insights")
                                     .font(.headline)
                                     .foregroundStyle(.secondary)
                                 Text("Start your next session from the Apple Watch to unlock shot-by-shot sensor analysis")
@@ -650,7 +650,7 @@ struct ShootingSessionDetailView: View {
     private func applySensorAnalysisIfNeeded() {
         let watchManager = WatchConnectivityManager.shared
         let shotMetrics = watchManager.receivedShotMetrics
-        guard !shotMetrics.isEmpty, session.graceOverallScore == 0 else { return }
+        guard !shotMetrics.isEmpty, session.overallBiomechanicalScore == 0 else { return }
 
         let allShots = (session.ends ?? []).flatMap { $0.shots ?? [] }
         ShootingSensorAnalyzer.applyShotSensorData(shotMetrics, to: allShots)

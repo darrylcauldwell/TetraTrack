@@ -3,7 +3,7 @@
 //  TetraTrack
 //
 //  Analyzes Watch sensor data for shooting sessions.
-//  Computes session-level metrics and GRACE pillar scores from per-shot data.
+//  Computes session-level metrics and biomechanical pillar scores from per-shot data.
 //
 
 import Foundation
@@ -22,13 +22,13 @@ enum ShootingSensorAnalyzer {
         let secondHalfSteadiness: Double
         let steadinessDegradation: Double
 
-        // GRACE pillar scores (0-100)
-        let graceStandTallScore: Double
-        let graceShotTimingScore: Double
-        let graceAimTrueScore: Double
-        let graceShotEconomyScore: Double
-        let graceComposureScore: Double
-        let graceOverallScore: Double
+        // Biomechanical pillar scores (0-100)
+        let stabilityScore: Double
+        let rhythmScore: Double
+        let symmetryScore: Double
+        let economyScore: Double
+        let composureScore: Double
+        let overallBiomechanicalScore: Double
     }
 
     /// Analyze a collection of per-shot metrics from a shooting session
@@ -42,9 +42,9 @@ enum ShootingSensorAnalyzer {
                 averageHoldSteadiness: 0, averageHoldDuration: 0,
                 shotTimingConsistencyCV: 0, firstHalfSteadiness: 0,
                 secondHalfSteadiness: 0, steadinessDegradation: 0,
-                graceStandTallScore: 0, graceShotTimingScore: 0,
-                graceAimTrueScore: 0, graceShotEconomyScore: 0,
-                graceComposureScore: 0, graceOverallScore: 0
+                stabilityScore: 0, rhythmScore: 0,
+                symmetryScore: 0, economyScore: 0,
+                composureScore: 0, overallBiomechanicalScore: 0
             )
         }
 
@@ -63,21 +63,22 @@ enum ShootingSensorAnalyzer {
             ? max(0, (firstHalfSteadiness - secondHalfSteadiness) / firstHalfSteadiness * 100)
             : 0
 
-        // GRACE pillars
-        let standTall = computeStandTallScore(
+        // Biomechanical pillars
+        let stability = computeStabilityScore(
             sessionStanceStability: sessionStanceStability,
             shotMetrics: shotMetrics
         )
-        let shotTiming = computeShotTimingScore(timingCV: timingCV)
-        let aimTrue = computeAimTrueScore(shotMetrics: shotMetrics)
-        let shotEconomy = computeShotEconomyScore(shotMetrics: shotMetrics)
+        let rhythm = computeRhythmScore(timingCV: timingCV)
+        let symmetry = computeSymmetryScore(shotMetrics: shotMetrics)
+        let economy = computeEconomyScore(shotMetrics: shotMetrics)
         let composure = computeComposureScore(
             shotMetrics: shotMetrics,
             averageHeartRate: averageHeartRate,
             degradation: degradation
         )
 
-        let pillars = [standTall, shotTiming, aimTrue, shotEconomy, composure]
+        // Overall = average of 4 biomechanical pillars (excludes composure/physiology)
+        let pillars = [stability, rhythm, symmetry, economy]
         let nonZero = pillars.filter { $0 > 0 }
         let overall = nonZero.isEmpty ? 0 : nonZero.average
 
@@ -88,12 +89,12 @@ enum ShootingSensorAnalyzer {
             firstHalfSteadiness: firstHalfSteadiness,
             secondHalfSteadiness: secondHalfSteadiness,
             steadinessDegradation: degradation,
-            graceStandTallScore: standTall,
-            graceShotTimingScore: shotTiming,
-            graceAimTrueScore: aimTrue,
-            graceShotEconomyScore: shotEconomy,
-            graceComposureScore: composure,
-            graceOverallScore: overall
+            stabilityScore: stability,
+            rhythmScore: rhythm,
+            symmetryScore: symmetry,
+            economyScore: economy,
+            composureScore: composure,
+            overallBiomechanicalScore: overall
         )
     }
 
@@ -105,12 +106,12 @@ enum ShootingSensorAnalyzer {
         session.firstHalfSteadiness = analysis.firstHalfSteadiness
         session.secondHalfSteadiness = analysis.secondHalfSteadiness
         session.steadinessDegradation = analysis.steadinessDegradation
-        session.graceStandTallScore = analysis.graceStandTallScore
-        session.graceShotTimingScore = analysis.graceShotTimingScore
-        session.graceAimTrueScore = analysis.graceAimTrueScore
-        session.graceShotEconomyScore = analysis.graceShotEconomyScore
-        session.graceComposureScore = analysis.graceComposureScore
-        session.graceOverallScore = analysis.graceOverallScore
+        session.stabilityScore = analysis.stabilityScore
+        session.rhythmScore = analysis.rhythmScore
+        session.symmetryScore = analysis.symmetryScore
+        session.economyScore = analysis.economyScore
+        session.composureScore = analysis.composureScore
+        session.overallBiomechanicalScore = analysis.overallBiomechanicalScore
     }
 
     /// Apply per-shot sensor data to Shot models (matching by index)
@@ -120,7 +121,6 @@ enum ShootingSensorAnalyzer {
     ) {
         let sortedShots = shots.sorted { $0.orderIndex < $1.orderIndex }
         for metric in metrics {
-            // Match by shot index (1-based from detector, 0-based in model)
             let targetIndex = metric.shotIndex - 1
             guard targetIndex >= 0, targetIndex < sortedShots.count else { continue }
             let shot = sortedShots[targetIndex]
@@ -137,28 +137,25 @@ enum ShootingSensorAnalyzer {
         }
     }
 
-    // MARK: - GRACE Pillar Calculations
+    // MARK: - Pillar Calculations
 
-    /// G "Stand Tall" — Posture: session stance stability (60%) + pitch/roll variance (40%)
-    private static func computeStandTallScore(
+    /// Stability — Stance: session stance stability (60%) + pitch/roll variance (40%)
+    private static func computeStabilityScore(
         sessionStanceStability: Double,
         shotMetrics: [DetectedShotMetrics]
     ) -> Double {
         var total: Double = 0
         var weight: Double = 0
 
-        // Session stance stability (60%)
         if sessionStanceStability > 0 {
             total += sessionStanceStability * 0.6
             weight += 0.6
         }
 
-        // Pitch/roll variance from shot data (40%)
         if !shotMetrics.isEmpty {
             let avgPitchVar = shotMetrics.map(\.holdPitchVariance).average
             let avgYawVar = shotMetrics.map(\.holdYawVariance).average
             let combinedVar = avgPitchVar + avgYawVar
-            // Lower variance = better score
             let varScore = max(0, min(100, 100 * (1.0 - combinedVar / 0.01)))
             total += varScore * 0.4
             weight += 0.4
@@ -167,10 +164,9 @@ enum ShootingSensorAnalyzer {
         return weight > 0 ? total / weight : 0
     }
 
-    /// R "Shot Timing" — Rhythm: timing CV score (CV <0.15 = 90+, >0.3 = poor)
-    private static func computeShotTimingScore(timingCV: Double) -> Double {
+    /// Rhythm — Shot Timing: CV score (CV <0.15 = 90+, >0.3 = poor)
+    private static func computeRhythmScore(timingCV: Double) -> Double {
         guard timingCV > 0 else { return 0 }
-        // CV <0.10 = 100, 0.15 = 90, 0.20 = 70, 0.30 = 40, >0.40 = 10
         if timingCV < 0.10 { return 100 }
         if timingCV < 0.15 { return 90 + (0.15 - timingCV) / 0.05 * 10 }
         if timingCV < 0.20 { return 70 + (0.20 - timingCV) / 0.05 * 20 }
@@ -179,8 +175,8 @@ enum ShootingSensorAnalyzer {
         return max(5, 10 * (1.0 - timingCV))
     }
 
-    /// A "Aim True" — Precision: hold steadiness (70%) + inverse drift (30%)
-    private static func computeAimTrueScore(shotMetrics: [DetectedShotMetrics]) -> Double {
+    /// Symmetry — Hold Steadiness: hold steadiness (70%) + inverse drift (30%)
+    private static func computeSymmetryScore(shotMetrics: [DetectedShotMetrics]) -> Double {
         guard !shotMetrics.isEmpty else { return 0 }
 
         let steadiness = shotMetrics.map(\.holdSteadiness).average
@@ -189,30 +185,26 @@ enum ShootingSensorAnalyzer {
         return steadiness * 0.7 + inverseDrift * 0.3
     }
 
-    /// C "Shot Economy" — Efficiency: cycle time optimality (50%) + raise smoothness (50%)
-    private static func computeShotEconomyScore(shotMetrics: [DetectedShotMetrics]) -> Double {
+    /// Economy — Shot Cycle: cycle time optimality (50%) + raise smoothness (50%)
+    private static func computeEconomyScore(shotMetrics: [DetectedShotMetrics]) -> Double {
         guard !shotMetrics.isEmpty else { return 0 }
 
-        // Cycle time optimality: ideal 5-10 seconds
         let avgCycleTime = shotMetrics.map(\.totalCycleTime).average
         let cycleScore: Double
         if avgCycleTime >= 5.0 && avgCycleTime <= 10.0 {
             cycleScore = 100
         } else if avgCycleTime < 5.0 {
-            // Too fast: rushing
             cycleScore = max(20, avgCycleTime / 5.0 * 100)
         } else {
-            // Too slow: hesitating (>10s)
             cycleScore = max(20, 100 - (avgCycleTime - 10.0) / 10.0 * 80)
         }
 
-        // Raise smoothness
         let smoothness = shotMetrics.map(\.raiseSmoothness).average
 
         return cycleScore * 0.5 + smoothness * 0.5
     }
 
-    /// E "Composure" — Under Pressure: HR management (30%) + fatigue resistance (35%) + tremor control (35%)
+    /// Composure (Physiology) — HR management (30%) + fatigue resistance (35%) + tremor control (35%)
     private static func computeComposureScore(
         shotMetrics: [DetectedShotMetrics],
         averageHeartRate: Int,
@@ -221,8 +213,6 @@ enum ShootingSensorAnalyzer {
         var total: Double = 0
         var weight: Double = 0
 
-        // HR management (30%): lower is better for shooting
-        // Ideal range 60-80 bpm for shooting
         if averageHeartRate > 0 {
             let hrScore: Double
             if averageHeartRate <= 70 { hrScore = 100 }
@@ -235,12 +225,10 @@ enum ShootingSensorAnalyzer {
             weight += 0.3
         }
 
-        // Fatigue resistance (35%): less degradation = better
         let fatigueScore = max(0, min(100, 100 - degradation * 2))
         total += fatigueScore * 0.35
         weight += 0.35
 
-        // Tremor control (35%): lower tremor = better
         if !shotMetrics.isEmpty {
             let avgTremor = shotMetrics.map(\.tremorIntensity).average
             let tremorScore = max(0, 100 - avgTremor)
@@ -253,7 +241,6 @@ enum ShootingSensorAnalyzer {
 
     // MARK: - Helpers
 
-    /// Compute coefficient of variation of inter-shot intervals
     private static func computeTimingCV(_ metrics: [DetectedShotMetrics]) -> Double {
         guard metrics.count >= 3 else { return 0 }
 
@@ -261,7 +248,7 @@ enum ShootingSensorAnalyzer {
         var intervals: [Double] = []
         for i in 1..<sorted.count {
             let interval = sorted[i].timestamp.timeIntervalSince(sorted[i-1].timestamp)
-            if interval > 0 && interval < 120 { // Ignore gaps > 2 minutes
+            if interval > 0 && interval < 120 {
                 intervals.append(interval)
             }
         }

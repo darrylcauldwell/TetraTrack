@@ -2,9 +2,10 @@
 //  SwimmingInsightsView.swift
 //  TetraTrack
 //
-//  Swimming insights using the GRACE framework.
-//  Pillars: Grow (swim long/SWOLF), Rhythm (stroke tempo), Align (catch & pull),
-//  Circle (swim economy), Enjoy (recovery).
+//  Swimming insights using 4 biomechanical pillars + physiology.
+//  Pillars: Stability (SWOLF), Rhythm (lap time consistency),
+//  Symmetry (distance per stroke), Economy (stroke count consistency).
+//  Physiology: HR recovery quality.
 //
 
 import SwiftUI
@@ -15,14 +16,13 @@ struct SwimmingInsightsView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    // MARK: - GRACE Scores
+    // MARK: - Biomechanical Scores
 
-    /// G: Grow — swim long, measured by SWOLF (lower = better)
-    private var growScore: Double {
+    /// Stability — SWOLF (lower = better)
+    private var stabilityScore: Double {
         let swolf = session.averageSwolf
         guard swolf > 0 else { return 0 }
 
-        // SWOLF benchmarks (25m pool): Elite <35, Good 35-45, Average 45-60, Beginner >60
         if swolf < 35 { return 95 }
         if swolf < 40 { return 85 }
         if swolf < 45 { return 75 }
@@ -32,7 +32,7 @@ struct SwimmingInsightsView: View {
         return 35
     }
 
-    /// R: Rhythm — stroke tempo from lap time consistency
+    /// Rhythm — lap time consistency
     private var rhythmScore: Double {
         let laps = session.sortedLaps
         guard laps.count >= 2 else { return 0 }
@@ -44,7 +44,6 @@ struct SwimmingInsightsView: View {
         let variance = times.reduce(0) { $0 + pow($1 - mean, 2) } / Double(times.count)
         let cv = (sqrt(variance) / mean) * 100
 
-        // Lower CV = more consistent pacing = higher score
         if cv < 5 { return 95 }
         if cv < 8 { return 80 }
         if cv < 12 { return 65 }
@@ -52,15 +51,13 @@ struct SwimmingInsightsView: View {
         return 35
     }
 
-    /// A: Align — stroke technique from distance per stroke (fewer strokes = better catch & pull)
-    private var alignScore: Double {
+    /// Symmetry — distance per stroke (fewer strokes = better catch & pull)
+    private var symmetryScore: Double {
         let avgStrokes = session.averageStrokesPerLap
         guard avgStrokes > 0 else { return 0 }
 
-        // Adjust for pool length (normalize to 25m equivalent)
         let adjustedStrokes = session.poolLength > 30 ? avgStrokes / 2 : avgStrokes
 
-        // Benchmarks: Elite <14, Good 14-18, Average 18-22, Beginner >22
         if adjustedStrokes < 14 { return 95 }
         if adjustedStrokes < 16 { return 85 }
         if adjustedStrokes < 18 { return 75 }
@@ -70,8 +67,8 @@ struct SwimmingInsightsView: View {
         return 35
     }
 
-    /// C: Circle — swim economy from stroke count consistency
-    private var circleScore: Double {
+    /// Economy — stroke count consistency
+    private var economyScore: Double {
         let laps = session.sortedLaps
         guard laps.count >= 2 else { return 0 }
 
@@ -84,7 +81,6 @@ struct SwimmingInsightsView: View {
         let variance = strokes.reduce(0) { $0 + pow($1 - mean, 2) } / Double(strokes.count)
         let cv = (sqrt(variance) / mean) * 100
 
-        // Lower CV = more consistent strokes = higher score
         if cv < 5 { return 95 }
         if cv < 10 { return 80 }
         if cv < 15 { return 65 }
@@ -92,8 +88,8 @@ struct SwimmingInsightsView: View {
         return 35
     }
 
-    /// E: Enjoy — recovery from HR data
-    private var enjoyScore: Double {
+    /// Physiology — HR recovery
+    private var physiologyScore: Double {
         guard session.averageHeartRate > 0, session.maxHeartRate > 0 else { return 0 }
 
         if session.recoveryQuality > 0 {
@@ -117,7 +113,7 @@ struct SwimmingInsightsView: View {
                 iPhoneContent
             }
         }
-        .navigationTitle("GRACE Insights")
+        .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
         .glassNavigation()
         .presentationBackground(Color.black)
@@ -127,20 +123,25 @@ struct SwimmingInsightsView: View {
 
     private var iPadContent: some View {
         VStack(spacing: 20) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
             sessionSummaryCard
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 16),
                 GridItem(.flexible(), spacing: 16)
             ], spacing: 16) {
-                growCard
+                stabilityCard
                 rhythmCard
-                alignCard
-                circleCard
+                symmetryCard
+                economyCard
             }
 
-            enjoyCard
+            physiologyCard
         }
         .padding(24)
     }
@@ -149,64 +150,20 @@ struct SwimmingInsightsView: View {
 
     private var iPhoneContent: some View {
         VStack(spacing: 16) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
             sessionSummaryCard
-            growCard
+            stabilityCard
             rhythmCard
-            alignCard
-            circleCard
-            enjoyCard
+            symmetryCard
+            economyCard
+            physiologyCard
         }
         .padding()
-    }
-
-    // MARK: - Overall Score
-
-    private var overallGraceScore: some View {
-        let scores = [growScore, rhythmScore, alignScore, circleScore, enjoyScore].filter { $0 > 0 }
-        let overall = scores.isEmpty ? 0 : scores.reduce(0, +) / Double(scores.count)
-
-        return VStack(spacing: 8) {
-            Text("GRACE Score")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            Text("\(Int(overall))")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(scoreColor(overall))
-
-            HStack(spacing: 16) {
-                pillarMini("G", score: growScore)
-                pillarMini("R", score: rhythmScore)
-                pillarMini("A", score: alignScore)
-                pillarMini("C", score: circleScore)
-                pillarMini("E", score: enjoyScore)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func pillarMini(_ letter: String, score: Double) -> some View {
-        VStack(spacing: 4) {
-            Text(letter)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-            Text(score > 0 ? "\(Int(score))" : "-")
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-        }
-    }
-
-    private func scoreColor(_ score: Double) -> Color {
-        switch score {
-        case 80...: return .green
-        case 60..<80: return .blue
-        case 40..<60: return .yellow
-        default: return .orange
-        }
     }
 
     // MARK: - Session Summary Card
@@ -264,206 +221,102 @@ struct SwimmingInsightsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
-    // MARK: - G: Grow Card
+    // MARK: - Stability Card
 
-    private var growCard: some View {
+    private var stabilityCard: some View {
         let swolf = session.averageSwolf
         let hasData = swolf > 0
 
-        let keyMetric: String = {
-            if hasData { return String(format: "%.0f SWOLF", swolf) }
-            return "Needs lap data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Complete laps for SWOLF calculation (time + strokes)" }
-            if swolf < 40 { return "Excellent technique — efficient stroke and speed balance" }
-            if swolf < 50 { return "Good technique — focus on distance per stroke" }
-            if swolf < 60 { return "Work on glide phase — fewer strokes, same speed" }
-            return "Focus on technique drills — catch, pull, and streamlining"
-        }()
-
-        return pillarCard(
-            letter: "G",
-            title: "Grow",
-            subtitle: "Swim Long",
-            score: growScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.up.circle.fill",
-            color: .green
+        return PillarScoreCard(
+            pillar: .stability,
+            subtitle: "SWOLF",
+            score: stabilityScore,
+            keyMetric: hasData ? String(format: "%.0f SWOLF", swolf) : "Needs lap data",
+            tip: {
+                if !hasData { return "Complete laps for SWOLF calculation (time + strokes)" }
+                if swolf < 40 { return "Excellent technique — efficient stroke and speed balance" }
+                if swolf < 50 { return "Good technique — focus on distance per stroke" }
+                if swolf < 60 { return "Work on glide phase — fewer strokes, same speed" }
+                return "Focus on technique drills — catch, pull, and streamlining"
+            }()
         )
     }
 
-    // MARK: - R: Rhythm Card
+    // MARK: - Rhythm Card
 
     private var rhythmCard: some View {
         let hasData = session.lapCount >= 2
 
-        let keyMetric: String = {
-            if hasData { return session.formattedPace + " avg" }
-            return "Needs 2+ laps"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Swim more laps to analyse pacing" }
-            if rhythmScore >= 80 { return "Excellent pacing — very even splits" }
-            if rhythmScore >= 60 { return "Good pace control — slight variation" }
-            return "Pacing inconsistent — try negative splitting (start slower)"
-        }()
-
-        return pillarCard(
-            letter: "R",
-            title: "Rhythm",
-            subtitle: "Stroke Tempo",
+        return PillarScoreCard(
+            pillar: .rhythm,
+            subtitle: "Lap Consistency",
             score: rhythmScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "metronome.fill",
-            color: .indigo
+            keyMetric: hasData ? session.formattedPace + " avg" : "Needs 2+ laps",
+            tip: {
+                if !hasData { return "Swim more laps to analyse pacing" }
+                if rhythmScore >= 80 { return "Excellent pacing — very even splits" }
+                if rhythmScore >= 60 { return "Good pace control — slight variation" }
+                return "Pacing inconsistent — try negative splitting (start slower)"
+            }()
         )
     }
 
-    // MARK: - A: Align Card
+    // MARK: - Symmetry Card
 
-    private var alignCard: some View {
+    private var symmetryCard: some View {
         let avgStrokes = session.averageStrokesPerLap
         let hasData = avgStrokes > 0
 
-        let keyMetric: String = {
-            if hasData { return String(format: "%.1f strokes/lap", avgStrokes) }
-            return "Needs stroke data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Wear Apple Watch to count strokes per lap" }
-            if alignScore >= 80 { return "Excellent DPS — strong catch and pull phase" }
-            if alignScore >= 60 { return "Good stroke length — focus on catch entry angle" }
-            return "High stroke count — work on glide and body rotation"
-        }()
-
-        return pillarCard(
-            letter: "A",
-            title: "Align",
-            subtitle: "Catch & Pull",
-            score: alignScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "figure.pool.swim",
-            color: .orange
+        return PillarScoreCard(
+            pillar: .symmetry,
+            subtitle: "Distance Per Stroke",
+            score: symmetryScore,
+            keyMetric: hasData ? String(format: "%.1f strokes/lap", avgStrokes) : "Needs stroke data",
+            tip: {
+                if !hasData { return "Wear Apple Watch to count strokes per lap" }
+                if symmetryScore >= 80 { return "Excellent DPS — strong catch and pull phase" }
+                if symmetryScore >= 60 { return "Good stroke length — focus on catch entry angle" }
+                return "High stroke count — work on glide and body rotation"
+            }()
         )
     }
 
-    // MARK: - C: Circle Card
+    // MARK: - Economy Card
 
-    private var circleCard: some View {
+    private var economyCard: some View {
         let avgStrokes = session.averageStrokesPerLap
         let hasData = avgStrokes > 0 && session.lapCount >= 2
 
-        let keyMetric: String = {
-            if avgStrokes > 0 { return String(format: "%.1f strokes/lap", avgStrokes) }
-            return "Needs 2+ laps"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Swim more laps to measure stroke consistency" }
-            if circleScore >= 80 { return "Very consistent stroke count — great rhythm" }
-            if circleScore >= 60 { return "Good consistency — minor variation between laps" }
-            return "Stroke count varies — focus on maintaining rhythm when tired"
-        }()
-
-        return pillarCard(
-            letter: "C",
-            title: "Circle",
-            subtitle: "Swim Economy",
-            score: circleScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.triangle.2.circlepath",
-            color: .purple
+        return PillarScoreCard(
+            pillar: .economy,
+            subtitle: "Stroke Consistency",
+            score: economyScore,
+            keyMetric: avgStrokes > 0 ? String(format: "%.1f strokes/lap", avgStrokes) : "Needs 2+ laps",
+            tip: {
+                if !hasData { return "Swim more laps to measure stroke consistency" }
+                if economyScore >= 80 { return "Very consistent stroke count — great rhythm" }
+                if economyScore >= 60 { return "Good consistency — minor variation between laps" }
+                return "Stroke count varies — focus on maintaining rhythm when tired"
+            }()
         )
     }
 
-    // MARK: - E: Enjoy Card
+    // MARK: - Physiology Card
 
-    private var enjoyCard: some View {
+    private var physiologyCard: some View {
         let hasHR = session.averageHeartRate > 0
 
-        let keyMetric: String = {
-            if hasHR { return "\(session.averageHeartRate) avg bpm" }
-            return "Needs heart rate"
-        }()
-
-        let tip: String = {
-            if !hasHR { return "Wear Apple Watch for heart rate recovery analysis" }
-            if enjoyScore >= 80 { return "Strong recovery — good cardiovascular fitness" }
-            if enjoyScore >= 60 { return "Decent recovery — consider rest between sets" }
-            return "Recovery needs work — add more easy swimming days"
-        }()
-
-        return pillarCard(
-            letter: "E",
-            title: "Enjoy",
-            subtitle: "Recovery",
-            score: enjoyScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "heart.fill",
-            color: .red
+        return PhysiologySectionCard(
+            score: physiologyScore,
+            keyMetric: hasHR ? "\(session.averageHeartRate) avg bpm" : "Needs heart rate",
+            tip: {
+                if !hasHR { return "Wear Apple Watch for heart rate recovery analysis" }
+                if physiologyScore >= 80 { return "Strong recovery — good cardiovascular fitness" }
+                if physiologyScore >= 60 { return "Decent recovery — consider rest between sets" }
+                return "Recovery needs work — add more easy swimming days"
+            }(),
+            subtitle: "Recovery Quality"
         )
-    }
-
-    // MARK: - Pillar Card Template
-
-    private func pillarCard(
-        letter: String,
-        title: String,
-        subtitle: String,
-        score: Double,
-        keyMetric: String,
-        tip: String,
-        icon: String,
-        color: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(letter)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(color)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Text(score > 0 ? "\(Int(score))" : "-")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-            }
-
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Text(keyMetric)
-                    .font(.subheadline)
-            }
-
-            Text(tip)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

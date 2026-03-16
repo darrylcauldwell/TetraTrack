@@ -2,9 +2,10 @@
 //  WalkingInsightsView.swift
 //  TetraTrack
 //
-//  Walking insights using the GRACE framework.
-//  Pillars: Grow (walk upright/steadiness), Rhythm (step tempo),
-//  Align (symmetry), Circle (gait economy), Enjoy (endurance).
+//  Walking insights using 4 biomechanical pillars + physiology.
+//  Pillars: Stability (gait steadiness), Rhythm (step tempo consistency),
+//  Symmetry (L/R balance), Economy (gait efficiency).
+//  Physiology: HR efficiency / endurance.
 //
 
 import SwiftUI
@@ -14,25 +15,25 @@ struct WalkingInsightsView: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    // MARK: - GRACE Scores
+    // MARK: - Biomechanical Scores
 
-    /// G: Grow — walk upright, gait steadiness
-    private var growScore: Double {
+    /// Stability — gait steadiness (from Watch)
+    private var stabilityScore: Double {
         session.walkingStabilityScore
     }
 
-    /// R: Rhythm — step tempo, cadence consistency
+    /// Rhythm — step tempo consistency
     private var rhythmScore: Double {
         session.walkingRhythmScore
     }
 
-    /// A: Align — left-right symmetry
-    private var alignScore: Double {
+    /// Symmetry — left-right balance
+    private var symmetryScore: Double {
         session.walkingSymmetryScore
     }
 
-    /// C: Circle — gait economy from pace and cadence efficiency
-    private var circleScore: Double {
+    /// Economy — gait economy from pace and cadence efficiency
+    private var economyScore: Double {
         var total: Double = 0
         var weight: Double = 0
 
@@ -47,7 +48,7 @@ struct WalkingInsightsView: View {
             }
         }
 
-        // Step efficiency (50%) — steps per meter, lower = longer strides = more economical
+        // Step efficiency (50%)
         if session.averageCadence > 0 && session.totalDistance > 0 && session.totalDuration > 0 {
             let stepsPerMinute = Double(session.averageCadence)
             let metersPerMinute = session.totalDistance / (session.totalDuration / 60)
@@ -63,8 +64,8 @@ struct WalkingInsightsView: View {
         return weight > 0 ? total / weight : 0
     }
 
-    /// E: Enjoy — heart rate efficiency / endurance
-    private var enjoyScore: Double {
+    /// Physiology — HR efficiency / endurance
+    private var physiologyScore: Double {
         guard session.averageHeartRate > 0, session.maxHeartRate > 0 else { return 0 }
 
         let avgHR = Double(session.averageHeartRate)
@@ -101,7 +102,7 @@ struct WalkingInsightsView: View {
                 iPhoneContent
             }
         }
-        .navigationTitle("GRACE Insights")
+        .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
         .glassNavigation()
         .presentationBackground(Color.black)
@@ -111,20 +112,25 @@ struct WalkingInsightsView: View {
 
     private var iPadContent: some View {
         VStack(spacing: 20) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
             sessionSummaryCard
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 16),
                 GridItem(.flexible(), spacing: 16)
             ], spacing: 16) {
-                growCard
+                stabilityCard
                 rhythmCard
-                alignCard
-                circleCard
+                symmetryCard
+                economyCard
             }
 
-            enjoyCard
+            physiologyCard
         }
         .padding(24)
     }
@@ -133,64 +139,20 @@ struct WalkingInsightsView: View {
 
     private var iPhoneContent: some View {
         VStack(spacing: 16) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: stabilityScore,
+                rhythmScore: rhythmScore,
+                symmetryScore: symmetryScore,
+                economyScore: economyScore
+            )
             sessionSummaryCard
-            growCard
+            stabilityCard
             rhythmCard
-            alignCard
-            circleCard
-            enjoyCard
+            symmetryCard
+            economyCard
+            physiologyCard
         }
         .padding()
-    }
-
-    // MARK: - Overall Score
-
-    private var overallGraceScore: some View {
-        let scores = [growScore, rhythmScore, alignScore, circleScore, enjoyScore].filter { $0 > 0 }
-        let overall = scores.isEmpty ? 0 : scores.reduce(0, +) / Double(scores.count)
-
-        return VStack(spacing: 8) {
-            Text("GRACE Score")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            Text("\(Int(overall))")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(scoreColor(overall))
-
-            HStack(spacing: 16) {
-                pillarMini("G", score: growScore)
-                pillarMini("R", score: rhythmScore)
-                pillarMini("A", score: alignScore)
-                pillarMini("C", score: circleScore)
-                pillarMini("E", score: enjoyScore)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func pillarMini(_ letter: String, score: Double) -> some View {
-        VStack(spacing: 4) {
-            Text(letter)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-            Text(score > 0 ? "\(Int(score))" : "-")
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-        }
-    }
-
-    private func scoreColor(_ score: Double) -> Color {
-        switch score {
-        case 80...: return .green
-        case 60..<80: return .blue
-        case 40..<60: return .yellow
-        default: return .orange
-        }
     }
 
     // MARK: - Session Summary Card
@@ -252,228 +214,133 @@ struct WalkingInsightsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
-    // MARK: - G: Grow Card
+    // MARK: - Stability Card
 
-    private var growCard: some View {
-        let hasData = growScore > 0
+    private var stabilityCard: some View {
+        let hasData = stabilityScore > 0
         let steadiness = session.healthKitWalkingSteadiness
 
-        let keyMetric: String = {
-            if let steadiness, steadiness > 0 {
-                return String(format: "%.0f%% Apple Steadiness", steadiness)
-            }
-            if hasData { return "Score: \(Int(growScore))" }
-            return "No steadiness data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Wear Apple Watch for gait steadiness analysis" }
-            if growScore >= 80 { return "Very steady gait — consistent pace and smooth movement" }
-            if growScore >= 60 { return "Good stability — minor pace fluctuations detected" }
-            if growScore >= 40 { return "Moderate variability — focus on posture and even terrain" }
-            return "Gait unsteady — try shorter walks on flat ground and build up gradually"
-        }()
-
-        return pillarCard(
-            letter: "G",
-            title: "Grow",
-            subtitle: "Walk Upright",
-            score: growScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.up.circle.fill",
-            color: .green
+        return PillarScoreCard(
+            pillar: .stability,
+            subtitle: "Gait Steadiness",
+            score: stabilityScore,
+            keyMetric: {
+                if let steadiness, steadiness > 0 {
+                    return String(format: "%.0f%% Apple Steadiness", steadiness)
+                }
+                if hasData { return "Score: \(Int(stabilityScore))" }
+                return "No steadiness data"
+            }(),
+            tip: {
+                if !hasData { return "Wear Apple Watch for gait steadiness analysis" }
+                if stabilityScore >= 80 { return "Very steady gait — consistent pace and smooth movement" }
+                if stabilityScore >= 60 { return "Good stability — minor pace fluctuations detected" }
+                if stabilityScore >= 40 { return "Moderate variability — focus on posture and even terrain" }
+                return "Gait unsteady — try shorter walks on flat ground and build up gradually"
+            }()
         )
     }
 
-    // MARK: - R: Rhythm Card
+    // MARK: - Rhythm Card
 
     private var rhythmCard: some View {
         let hasData = rhythmScore > 0
         let cadence = session.averageCadence
 
-        let keyMetric: String = {
-            if cadence > 0 {
-                let target = session.targetCadence > 0 ? session.targetCadence : 120
-                let diff = cadence - target
-                if diff >= 0 {
-                    return "\(cadence) SPM (+\(diff) vs target)"
-                } else {
-                    return "\(cadence) SPM (\(diff) vs target)"
-                }
-            }
-            if hasData { return "Score: \(Int(rhythmScore))" }
-            return "No cadence data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Walk for longer to capture cadence consistency data" }
-            if rhythmScore >= 80 { return "Very consistent cadence — great walking rhythm" }
-            if rhythmScore >= 60 { return "Good rhythm — slight cadence variation between segments" }
-            if rhythmScore >= 40 { return "Moderate variation — try using a metronome app to build rhythm" }
-            return "Cadence inconsistent — focus on maintaining steady step rate"
-        }()
-
-        return pillarCard(
-            letter: "R",
-            title: "Rhythm",
+        return PillarScoreCard(
+            pillar: .rhythm,
             subtitle: "Step Tempo",
             score: rhythmScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "metronome.fill",
-            color: .indigo
+            keyMetric: {
+                if cadence > 0 {
+                    let target = session.targetCadence > 0 ? session.targetCadence : 120
+                    let diff = cadence - target
+                    if diff >= 0 {
+                        return "\(cadence) SPM (+\(diff) vs target)"
+                    } else {
+                        return "\(cadence) SPM (\(diff) vs target)"
+                    }
+                }
+                if hasData { return "Score: \(Int(rhythmScore))" }
+                return "No cadence data"
+            }(),
+            tip: {
+                if !hasData { return "Walk for longer to capture cadence consistency data" }
+                if rhythmScore >= 80 { return "Very consistent cadence — great walking rhythm" }
+                if rhythmScore >= 60 { return "Good rhythm — slight cadence variation between segments" }
+                if rhythmScore >= 40 { return "Moderate variation — try using a metronome app to build rhythm" }
+                return "Cadence inconsistent — focus on maintaining steady step rate"
+            }()
         )
     }
 
-    // MARK: - A: Align Card
+    // MARK: - Symmetry Card
 
-    private var alignCard: some View {
-        let hasData = alignScore > 0
+    private var symmetryCard: some View {
+        let hasData = symmetryScore > 0
         let asymmetry = session.healthKitAsymmetry
         let doubleSupport = session.healthKitDoubleSupportPercentage
 
-        let keyMetric: String = {
-            if let asymmetry, asymmetry > 0 {
-                return String(format: "%.1f%% asymmetry", asymmetry)
-            }
-            if let doubleSupport, doubleSupport > 0 {
-                return String(format: "%.1f%% double support", doubleSupport)
-            }
-            if hasData { return "Score: \(Int(alignScore))" }
-            return "No Watch data"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Wear Apple Watch for left-right balance analysis" }
-            if alignScore >= 80 { return "Excellent symmetry — even stride pattern on both sides" }
-            if alignScore >= 60 { return "Good balance — minor asymmetry between left and right strides" }
-            if alignScore >= 40 { return "Moderate imbalance — focus on even weight distribution" }
-            return "Significant asymmetry — consider gait assessment or targeted exercises"
-        }()
-
-        return pillarCard(
-            letter: "A",
-            title: "Align",
-            subtitle: "Symmetry",
-            score: alignScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.left.arrow.right",
-            color: .orange
+        return PillarScoreCard(
+            pillar: .symmetry,
+            subtitle: "L/R Balance",
+            score: symmetryScore,
+            keyMetric: {
+                if let asymmetry, asymmetry > 0 {
+                    return String(format: "%.1f%% asymmetry", asymmetry)
+                }
+                if let doubleSupport, doubleSupport > 0 {
+                    return String(format: "%.1f%% double support", doubleSupport)
+                }
+                if hasData { return "Score: \(Int(symmetryScore))" }
+                return "No Watch data"
+            }(),
+            tip: {
+                if !hasData { return "Wear Apple Watch for left-right balance analysis" }
+                if symmetryScore >= 80 { return "Excellent symmetry — even stride pattern on both sides" }
+                if symmetryScore >= 60 { return "Good balance — minor asymmetry between left and right strides" }
+                if symmetryScore >= 40 { return "Moderate imbalance — focus on even weight distribution" }
+                return "Significant asymmetry — consider gait assessment or targeted exercises"
+            }()
         )
     }
 
-    // MARK: - C: Circle Card
+    // MARK: - Economy Card
 
-    private var circleCard: some View {
-        let hasData = circleScore > 0
+    private var economyCard: some View {
+        let hasData = economyScore > 0
 
-        let keyMetric: String = {
-            if hasData { return "\(Int(circleScore))% economy" }
-            return "Needs pace + cadence"
-        }()
-
-        let tip: String = {
-            if !hasData { return "Walk with consistent pace and cadence for economy analysis" }
-            if circleScore >= 80 { return "Very efficient gait — optimal speed and stride length" }
-            if circleScore >= 60 { return "Good economy — minor room for improvement" }
-            return "Gait efficiency low — try maintaining a natural, brisk pace"
-        }()
-
-        return pillarCard(
-            letter: "C",
-            title: "Circle",
-            subtitle: "Gait Economy",
-            score: circleScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "arrow.triangle.2.circlepath",
-            color: .purple
+        return PillarScoreCard(
+            pillar: .economy,
+            subtitle: "Gait Efficiency",
+            score: economyScore,
+            keyMetric: hasData ? "\(Int(economyScore))% economy" : "Needs pace + cadence",
+            tip: {
+                if !hasData { return "Walk with consistent pace and cadence for economy analysis" }
+                if economyScore >= 80 { return "Very efficient gait — optimal speed and stride length" }
+                if economyScore >= 60 { return "Good economy — minor room for improvement" }
+                return "Gait efficiency low — try maintaining a natural, brisk pace"
+            }()
         )
     }
 
-    // MARK: - E: Enjoy Card
+    // MARK: - Physiology Card
 
-    private var enjoyCard: some View {
+    private var physiologyCard: some View {
         let hasHR = session.averageHeartRate > 0
 
-        let keyMetric: String = {
-            if hasHR { return "\(session.averageHeartRate) avg bpm" }
-            return "Needs heart rate"
-        }()
-
-        let tip: String = {
-            if !hasHR { return "Wear Apple Watch for heart rate efficiency analysis" }
-            if enjoyScore >= 80 { return "Excellent efficiency — heart rate well controlled during walk" }
-            if enjoyScore >= 60 { return "Good cardiovascular effort — steady heart rate response" }
-            if enjoyScore >= 40 { return "Moderate effort — try maintaining a conversational pace" }
-            return "High cardiac effort — consider shorter walks or slower pace to build base"
-        }()
-
-        return pillarCard(
-            letter: "E",
-            title: "Enjoy",
-            subtitle: "Endurance",
-            score: enjoyScore,
-            keyMetric: keyMetric,
-            tip: tip,
-            icon: "heart.fill",
-            color: .red
+        return PhysiologySectionCard(
+            score: physiologyScore,
+            keyMetric: hasHR ? "\(session.averageHeartRate) avg bpm" : "Needs heart rate",
+            tip: {
+                if !hasHR { return "Wear Apple Watch for heart rate efficiency analysis" }
+                if physiologyScore >= 80 { return "Excellent efficiency — heart rate well controlled during walk" }
+                if physiologyScore >= 60 { return "Good cardiovascular effort — steady heart rate response" }
+                if physiologyScore >= 40 { return "Moderate effort — try maintaining a conversational pace" }
+                return "High cardiac effort — consider shorter walks or slower pace to build base"
+            }(),
+            subtitle: "HR Efficiency"
         )
-    }
-
-    // MARK: - Pillar Card Template
-
-    private func pillarCard(
-        letter: String,
-        title: String,
-        subtitle: String,
-        score: Double,
-        keyMetric: String,
-        tip: String,
-        icon: String,
-        color: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(letter)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(color)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Text(score > 0 ? "\(Int(score))" : "-")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(score > 0 ? scoreColor(score) : .secondary)
-            }
-
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Text(keyMetric)
-                    .font(.subheadline)
-            }
-
-            Text(tip)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

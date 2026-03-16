@@ -6,6 +6,7 @@
 import Foundation
 import SwiftData
 import CoreLocation
+import TetraTrackShared
 import os
 
 @Model

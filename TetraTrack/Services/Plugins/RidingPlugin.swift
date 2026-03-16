@@ -215,8 +215,17 @@ final class RidingPlugin: DisciplinePlugin {
     private var lastCoordinate: CLLocationCoordinate2D?
     private var lastLocation: CLLocation?
 
-    // Watch gait enhancement task
-    private var watchGaitEnhancementTask: Task<Void, Never>?
+    // Watch gait observation task (Watch-primary gait classification)
+    private var watchGaitObservationTask: Task<Void, Never>?
+
+    /// Whether currently using Watch gait classification as primary source
+    private(set) var isUsingWatchGait: Bool = false
+
+    /// Timestamp of last Watch gait result for fallback timeout
+    private var lastWatchGaitResultTime: Date?
+
+    /// Seconds without Watch gait results before switching to iPhone fallback
+    private let watchGaitTimeoutInterval: TimeInterval = 5.0
 
     // Weak reference to tracker for computed properties (XC timing)
     private weak var _weakTracker: SessionTracker?
@@ -311,8 +320,8 @@ final class RidingPlugin: DisciplinePlugin {
         // Start pocket mode
         pocketModeManager.startMonitoring()
 
-        // Watch gait enhancement
-        setupWatchGaitEnhancement()
+        // Watch gait observation (Watch-primary gait classification)
+        setupWatchGaitObservation()
 
         // Setup voice note handling
         setupVoiceNoteObservation()
@@ -358,8 +367,10 @@ final class RidingPlugin: DisciplinePlugin {
         // Stop analyzers
         gaitAnalyzer.stopAnalyzing()
         watchSensorAnalyzer.stopSession()
-        watchGaitEnhancementTask?.cancel()
-        watchGaitEnhancementTask = nil
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = nil
+        isUsingWatchGait = false
+        lastWatchGaitResultTime = nil
 
         // Finalize symmetry/rhythm
         symmetryAnalyzer.finalizeReinSegment()
@@ -567,8 +578,10 @@ final class RidingPlugin: DisciplinePlugin {
         pocketModeManager.stopMonitoring()
         gaitAnalyzer.stopAnalyzing()
         watchSensorAnalyzer.stopSession()
-        watchGaitEnhancementTask?.cancel()
-        watchGaitEnhancementTask = nil
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = nil
+        isUsingWatchGait = false
+        lastWatchGaitResultTime = nil
 
         // Model deletion is handled by SessionTracker.discardSession()
 
@@ -628,20 +641,24 @@ final class RidingPlugin: DisciplinePlugin {
         }
         lastCoordinate = location.coordinate
 
-        // Gait analysis
+        // Gait analysis — always feed GPS data for distance/speed tracking
         gaitAnalyzer.processLocation(speed: tracker.currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy)
-        var newGait = gaitAnalyzer.currentGait
 
-        // GPS-only gait fallback when CoreMotion pauses
-        if let lastMotion = lastMotionSampleTime,
-           Date().timeIntervalSince(lastMotion) > motionGapThreshold {
-            let gpsFallbackGait = GaitType.fromSpeed(tracker.currentSpeed)
-            if gpsFallbackGait != newGait {
-                newGait = gpsFallbackGait
-            }
-            if !isUsingGPSGaitFallback {
-                isUsingGPSGaitFallback = true
-                Log.tracking.warning("CoreMotion delivery gap - falling back to GPS gait detection")
+        // When Watch is primary gait source, skip iPhone HMM classification
+        // The Watch drives gait state directly via setGaitFromWatch()
+        var newGait = gaitAnalyzer.currentGait
+        if !isUsingWatchGait {
+            // GPS-only gait fallback when CoreMotion pauses
+            if let lastMotion = lastMotionSampleTime,
+               Date().timeIntervalSince(lastMotion) > motionGapThreshold {
+                let gpsFallbackGait = GaitType.fromSpeed(tracker.currentSpeed)
+                if gpsFallbackGait != newGait {
+                    newGait = gpsFallbackGait
+                }
+                if !isUsingGPSGaitFallback {
+                    isUsingGPSGaitFallback = true
+                    Log.tracking.warning("CoreMotion delivery gap - falling back to GPS gait detection")
+                }
             }
         }
 
@@ -675,6 +692,9 @@ final class RidingPlugin: DisciplinePlugin {
     // MARK: - Timer Tick
 
     func onTimerTick(elapsedTime: TimeInterval, tracker: SessionTracker) {
+        // Check Watch gait fallback timeout
+        checkWatchGaitTimeout()
+
         // XC-specific timing alerts
         if selectedRideType == .crossCountry && xcOptimumTime > 0 {
             processXCTimingAlerts(elapsedTime: elapsedTime)
@@ -912,31 +932,62 @@ final class RidingPlugin: DisciplinePlugin {
         }
     }
 
-    // MARK: - Watch Gait Enhancement
+    // MARK: - Watch Gait Observation (Watch-Primary Classification)
 
-    private func setupWatchGaitEnhancement() {
-        watchGaitEnhancementTask?.cancel()
-        watchGaitEnhancementTask = Task { @MainActor [weak self] in
+    private func setupWatchGaitObservation() {
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = Task { @MainActor [weak self] in
             let wm = WatchConnectivityManager.shared
-            var lastSeq = wm.enhancedSensorSequence
+            var lastSeq = wm.gaitResultSequence
             while !Task.isCancelled {
                 await withCheckedContinuation { cont in
-                    withObservationTracking { _ = wm.enhancedSensorSequence }
+                    withObservationTracking { _ = wm.gaitResultSequence }
                         onChange: { cont.resume() }
                 }
                 guard let self, !Task.isCancelled else { break }
-                guard wm.enhancedSensorSequence != lastSeq else { continue }
-                lastSeq = wm.enhancedSensorSequence
+                guard wm.gaitResultSequence != lastSeq else { continue }
+                lastSeq = wm.gaitResultSequence
 
-                let rollVariance = self.watchSensorAnalyzer.postureStability / 100.0
-                let armSymmetry = 1.0 - min(1.0, abs(wm.postureRoll) / 30.0)
-                let yawEnergy = self.watchSensorAnalyzer.movementIntensity / 100.0
+                // Track arrival time for fallback timeout
+                let wasUsingWatch = self.isUsingWatchGait
+                self.lastWatchGaitResultTime = Date()
+                self.isUsingWatchGait = true
+                if !wasUsingWatch {
+                    Log.gait.error("TT: gait source switched to Watch")
+                }
 
-                self.gaitAnalyzer.updateWatchData(
-                    armSymmetry: max(0, min(1, armSymmetry * rollVariance)),
-                    yawEnergy: max(0, min(1, yawEnergy))
-                )
+                let gaitState = wm.watchGaitState
+
+                // Map Watch gait string to GaitType
+                let gait: GaitType = switch gaitState {
+                case "walk": .walk
+                case "trot": .trot
+                case "canter": .canter
+                case "gallop": .gallop
+                default: .stationary
+                }
+
+                // Update gait analyzer with Watch classification
+                let previousGait = self.gaitAnalyzer.currentGait
+                if gait != previousGait {
+                    self.gaitAnalyzer.setGaitFromWatch(gait, confidence: wm.watchGaitConfidence)
+                    Log.gait.info("gait source: watch — \(gaitState) (conf: \(String(format: "%.2f", wm.watchGaitConfidence)))")
+                }
+
+                // Update stride frequency
+                if wm.watchStrideFrequency > 0 {
+                    self.gaitAnalyzer.strideFrequency = wm.watchStrideFrequency
+                }
             }
+        }
+    }
+
+    /// Check if Watch gait results have timed out, called from onTimerTick
+    private func checkWatchGaitTimeout() {
+        guard isUsingWatchGait, let lastResult = lastWatchGaitResultTime else { return }
+        if Date().timeIntervalSince(lastResult) > watchGaitTimeoutInterval {
+            isUsingWatchGait = false
+            Log.gait.error("TT: gait source switched to iPhone (Watch timeout after \(String(format: "%.0f", self.watchGaitTimeoutInterval))s)")
         }
     }
 

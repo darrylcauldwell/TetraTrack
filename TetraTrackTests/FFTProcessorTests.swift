@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 @testable import TetraTrack
+import TetraTrackShared
 
 // MARK: - Helpers
 

@@ -14,12 +14,17 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            // iPad review-only mode: always show DisciplinesView (no tracking)
-            // iPhone: show TrackingView if there's an active session
-            if viewContext.canCapture,
-               let tracker = sessionTracker,
-               tracker.sessionState.isActive {
-                ActiveSessionView()
+            if viewContext.canCapture, let tracker = sessionTracker {
+                if tracker.sessionState.isActive {
+                    // Active session in progress
+                    ActiveSessionView()
+                } else if tracker.sessionState == .completed,
+                          let info = tracker.completedSessionInfo {
+                    // Session just ended — show post-session insights
+                    PostSessionInsightsView(info: info)
+                } else {
+                    DisciplinesView()
+                }
             } else {
                 DisciplinesView()
             }

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import TetraTrackShared
 
 /// Learns gait characteristics from completed rides and updates horse profile
 final class GaitLearningService {

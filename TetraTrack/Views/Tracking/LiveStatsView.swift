@@ -74,7 +74,7 @@ struct LiveStatsView: View {
     }
 
     private var showHeartRate: Bool {
-        heartRate > 0
+        true
     }
 
     var body: some View {
@@ -156,7 +156,7 @@ struct LiveStatsView: View {
                 }
             }
 
-            // Heart rate display
+            // Heart rate display (always visible with "--" when waiting)
             if showHeartRate {
                 HeartRateDisplayView(
                     heartRate: heartRate,
@@ -164,6 +164,23 @@ struct LiveStatsView: View {
                     averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
                     maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil
                 )
+            }
+
+            // Elevation (XC only)
+            if showXCMetrics && !elevationGain.isEmpty {
+                HStack(spacing: 24) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.right")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                        Text(elevationGain)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
             // Live metrics row

@@ -13,6 +13,7 @@
 //  Rhythm consistency is measured via spectral concentration at the stride frequency.
 
 import Foundation
+import TetraTrackShared
 
 /// Analyzes motion data to calculate rhythm consistency score using FFT-based spectral analysis
 final class RhythmAnalyzer: Resettable, ReinAwareAnalyzer {

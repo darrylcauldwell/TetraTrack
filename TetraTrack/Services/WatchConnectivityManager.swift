@@ -9,6 +9,7 @@ import Foundation
 import WatchConnectivity
 import Observation
 import os
+import TetraTrackShared
 
 // MARK: - Watch Session Discipline
 
@@ -149,6 +150,18 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
     private(set) var syncedSessionSequence: Int = 0
     private(set) var lastSyncedSession: WatchSyncedSession?
+
+    // MARK: - Watch Gait Classification
+
+    private(set) var gaitResultSequence: Int = 0
+    private(set) var watchGaitState: String = "stationary"
+    private(set) var watchGaitConfidence: Double = 0
+    private(set) var watchStrideFrequency: Double = 0
+    private(set) var watchBounceAmplitude: Double = 0
+    private(set) var watchLateralSymmetry: Double = 0
+    private(set) var watchCanterLead: String?
+    private(set) var watchCanterLeadConfidence: Double = 0
+    private(set) var lastGaitResultTimestamp: Date?
 
     // MARK: - Enhanced Sensor Data (Phase 3)
 
@@ -417,6 +430,20 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
         motionUpdateSequence += 1
         enhancedSensorSequence += 1
+    }
+
+    /// Update from Watch gait classification result received via mirrored session
+    func updateFromWatchGaitResult(_ result: WatchGaitResult) {
+        watchGaitState = result.gaitState
+        watchGaitConfidence = result.confidence
+        watchStrideFrequency = result.strideFrequency
+        watchBounceAmplitude = result.bounceAmplitude
+        watchLateralSymmetry = result.lateralSymmetry
+        watchCanterLead = result.canterLead
+        watchCanterLeadConfidence = result.canterLeadConfidence
+        lastGaitResultTimestamp = result.timestamp
+        gaitResultSequence += 1
+        Log.watch.info("Watch gait result: \(result.gaitState) (conf: \(String(format: "%.2f", result.confidence)))")
     }
 
     // MARK: - Private Methods
