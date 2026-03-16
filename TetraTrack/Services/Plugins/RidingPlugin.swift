@@ -633,9 +633,16 @@ final class RidingPlugin: DisciplinePlugin {
             }
         }
 
-        // Turn analysis
-        if let lastCoord = lastCoordinate {
+        // Turn analysis — indoor uses Watch compass, outdoor uses GPS bearing
+        if selectedRideType.isIndoor {
+            let heading = watchSensorAnalyzer.compassHeading
+            if heading > 0 {
+                turnAnalyzer.processHeading(heading)
+            }
+        } else if let lastCoord = lastCoordinate {
             turnAnalyzer.processLocations(from: lastCoord, to: location.coordinate)
+        }
+        if let lastCoord = lastCoordinate {
             reinAnalyzer.processLocation(from: lastCoord, to: location.coordinate)
             currentRein = reinAnalyzer.currentRein
         }

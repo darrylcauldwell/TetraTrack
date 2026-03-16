@@ -47,6 +47,75 @@ struct TurnAnalyzerTests {
         #expect(stats.totalRightAngle == 0)
         #expect(stats.balance == 0.5)  // Default when no turns
     }
+    // MARK: - Compass Heading Turn Detection Tests
+
+    @Test func leftTurnDetectedViaHeading() {
+        let analyzer = TurnAnalyzer()
+
+        // Simulate heading rotating left (decreasing) by 10° per update, 10 updates = 100°
+        for i in 0..<11 {
+            analyzer.processHeading(Double(360 - i * 10))
+        }
+        // Small heading change to finalize the turn
+        let finalHeading = Double(360 - 10 * 10)
+        analyzer.processHeading(finalHeading)
+        analyzer.processHeading(finalHeading)
+
+        #expect(analyzer.totalLeftAngle >= 20, "Should detect left turn via compass heading")
+    }
+
+    @Test func rightTurnDetectedViaHeading() {
+        let analyzer = TurnAnalyzer()
+
+        // Simulate heading rotating right (increasing) by 10° per update
+        for i in 0..<11 {
+            analyzer.processHeading(Double(i * 10))
+        }
+        // Small heading change to finalize the turn
+        let finalHeading = Double(10 * 10)
+        analyzer.processHeading(finalHeading)
+        analyzer.processHeading(finalHeading)
+
+        #expect(analyzer.totalRightAngle >= 20, "Should detect right turn via compass heading")
+    }
+
+    @Test func headingWraparoundNorth() {
+        let analyzer = TurnAnalyzer()
+
+        // Cross north boundary: 350 → 360/0 → 10 (right turn through north)
+        analyzer.processHeading(350)
+        analyzer.processHeading(0)
+        analyzer.processHeading(10)
+        analyzer.processHeading(20)
+        analyzer.processHeading(30)
+        analyzer.processHeading(40)
+        // Finalize
+        analyzer.processHeading(40)
+        analyzer.processHeading(40)
+
+        // Total right turn should be ~50° (350→40 through north)
+        #expect(analyzer.totalRightAngle >= 20, "Should handle north wraparound correctly")
+        #expect(analyzer.totalLeftAngle == 0, "Should not register spurious left turns")
+    }
+
+    @Test func resetClearsHeadingState() {
+        let analyzer = TurnAnalyzer()
+
+        // Process some headings
+        analyzer.processHeading(90)
+        analyzer.processHeading(120)
+        analyzer.processHeading(150)
+
+        analyzer.reset()
+
+        #expect(analyzer.totalLeftAngle == 0)
+        #expect(analyzer.totalRightAngle == 0)
+
+        // Should accept new headings after reset without stale state
+        analyzer.processHeading(0)
+        analyzer.processHeading(30)
+        // No crash, no stale bearing
+    }
 }
 
 // MARK: - Turn Over-Segmentation Hypothesis Tests
