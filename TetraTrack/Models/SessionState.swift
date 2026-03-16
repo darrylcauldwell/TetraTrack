@@ -10,6 +10,7 @@ enum SessionState: String, Codable {
     case idle       // No active session
     case tracking   // Currently recording
     case paused     // Session paused
+    case completed  // Session ended, showing post-session insights
 
     var isActive: Bool {
         self == .tracking || self == .paused

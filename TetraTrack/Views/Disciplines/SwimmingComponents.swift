@@ -1602,7 +1602,7 @@ struct SwimmingSessionDetailView: View {
                     NavigationLink {
                         SwimmingInsightsView(session: session)
                     } label: {
-                        Label("GRACE Insights", systemImage: "chart.bar.xaxis")
+                        Label("Session Insights", systemImage: "chart.bar.xaxis")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {

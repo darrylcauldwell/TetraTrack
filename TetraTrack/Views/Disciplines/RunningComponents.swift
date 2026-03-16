@@ -1369,9 +1369,9 @@ struct RunningSessionDetailView: View {
                                     .font(.title2)
                                     .foregroundStyle(AppColors.primary)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("GRACE Insights")
+                                    Text("Session Insights")
                                         .font(.headline)
-                                    Text("Grow · Rhythm · Align · Circle · Enjoy")
+                                    Text("Stability · Rhythm · Symmetry · Economy")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

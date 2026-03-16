@@ -2,9 +2,10 @@
 //  ShootingGRACEInsightsView.swift
 //  TetraTrack
 //
-//  GRACE 5-pillar insights for shooting sessions with Watch sensor data.
-//  G = Stand Tall (Posture), R = Shot Timing (Rhythm), A = Aim True (Precision),
-//  C = Shot Economy (Efficiency), E = Composure (Under Pressure)
+//  Shooting insights using 4 biomechanical pillars + physiology.
+//  Pillars: Stability (stance), Rhythm (shot timing), Symmetry (hold steadiness),
+//  Economy (hold duration efficiency).
+//  Physiology: Composure (HR + tremor + fatigue).
 //
 
 import SwiftUI
@@ -23,7 +24,7 @@ struct ShootingGRACEInsightsView: View {
                 iPhoneContent
             }
         }
-        .navigationTitle("GRACE Insights")
+        .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -31,13 +32,18 @@ struct ShootingGRACEInsightsView: View {
 
     private var iPhoneContent: some View {
         VStack(spacing: 16) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: session.stabilityScore,
+                rhythmScore: session.rhythmScore,
+                symmetryScore: session.symmetryScore,
+                economyScore: session.economyScore
+            )
             sessionSummaryCard
-            standTallCard
-            shotTimingCard
-            aimTrueCard
-            shotEconomyCard
-            composureCard
+            stabilityCard
+            rhythmCard
+            symmetryCard
+            economyCard
+            physiologyCard
             perShotSteadinessChart
             fatigueComparisonCard
         }
@@ -48,60 +54,26 @@ struct ShootingGRACEInsightsView: View {
 
     private var iPadContent: some View {
         VStack(spacing: 16) {
-            overallGraceScore
+            OverallBiomechanicalScore(
+                stabilityScore: session.stabilityScore,
+                rhythmScore: session.rhythmScore,
+                symmetryScore: session.symmetryScore,
+                economyScore: session.economyScore
+            )
             sessionSummaryCard
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                standTallCard
-                shotTimingCard
-                aimTrueCard
-                shotEconomyCard
+                stabilityCard
+                rhythmCard
+                symmetryCard
+                economyCard
             }
 
-            composureCard
+            physiologyCard
             perShotSteadinessChart
             fatigueComparisonCard
         }
         .padding(24)
-    }
-
-    // MARK: - Overall Score
-
-    private var overallGraceScore: some View {
-        VStack(spacing: 12) {
-            Text(String(format: "%.0f", session.graceOverallScore))
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(scoreColor(session.graceOverallScore))
-
-            Text("GRACE Score")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            // Mini pillar indicators
-            HStack(spacing: 8) {
-                pillarMini("G", score: session.graceStandTallScore, color: .green)
-                pillarMini("R", score: session.graceShotTimingScore, color: .indigo)
-                pillarMini("A", score: session.graceAimTrueScore, color: .orange)
-                pillarMini("C", score: session.graceShotEconomyScore, color: .purple)
-                pillarMini("E", score: session.graceComposureScore, color: .red)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func pillarMini(_ letter: String, score: Double, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(letter)
-                .font(.caption.bold())
-                .foregroundStyle(color)
-            Text(String(format: "%.0f", score))
-                .font(.caption2)
-                .foregroundStyle(score > 0 ? .primary : .tertiary)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Session Summary
@@ -161,128 +133,55 @@ struct ShootingGRACEInsightsView: View {
 
     // MARK: - Pillar Cards
 
-    private var standTallCard: some View {
-        pillarCard(
-            letter: "G",
-            title: "Stand Tall",
-            subtitle: "Posture",
-            score: session.graceStandTallScore,
+    private var stabilityCard: some View {
+        PillarScoreCard(
+            pillar: .stability,
+            subtitle: "Stance",
+            score: session.stabilityScore,
             keyMetric: String(format: "%.0f%% stance stability", session.averageStanceStability),
-            tip: standTallTip,
-            icon: "figure.stand",
-            color: .green
+            tip: standTallTip
         )
     }
 
-    private var shotTimingCard: some View {
-        pillarCard(
-            letter: "R",
-            title: "Shot Timing",
-            subtitle: "Rhythm",
-            score: session.graceShotTimingScore,
+    private var rhythmCard: some View {
+        PillarScoreCard(
+            pillar: .rhythm,
+            subtitle: "Shot Timing",
+            score: session.rhythmScore,
             keyMetric: String(format: "%.2f CV consistency", session.shotTimingConsistencyCV),
-            tip: shotTimingTip,
-            icon: "metronome.fill",
-            color: .indigo
+            tip: shotTimingTip
         )
     }
 
-    private var aimTrueCard: some View {
-        pillarCard(
-            letter: "A",
-            title: "Aim True",
-            subtitle: "Precision",
-            score: session.graceAimTrueScore,
+    private var symmetryCard: some View {
+        PillarScoreCard(
+            pillar: .symmetry,
+            subtitle: "Hold Steadiness",
+            score: session.symmetryScore,
             keyMetric: String(format: "%.0f%% hold steadiness", session.averageHoldSteadiness),
-            tip: aimTrueTip,
-            icon: "scope",
-            color: .orange
+            tip: aimTrueTip
         )
     }
 
-    private var shotEconomyCard: some View {
-        pillarCard(
-            letter: "C",
-            title: "Shot Economy",
-            subtitle: "Efficiency",
-            score: session.graceShotEconomyScore,
+    private var economyCard: some View {
+        PillarScoreCard(
+            pillar: .economy,
+            subtitle: "Shot Cycle",
+            score: session.economyScore,
             keyMetric: String(format: "%.1fs avg hold", session.averageHoldDuration),
-            tip: shotEconomyTip,
-            icon: "arrow.triangle.2.circlepath",
-            color: .purple
+            tip: shotEconomyTip
         )
     }
 
-    private var composureCard: some View {
-        pillarCard(
-            letter: "E",
-            title: "Composure",
-            subtitle: "Under Pressure",
-            score: session.graceComposureScore,
+    private var physiologyCard: some View {
+        PhysiologySectionCard(
+            score: session.composureScore,
             keyMetric: session.averageHeartRate > 0
                 ? "\(session.averageHeartRate) bpm avg HR"
                 : "No HR data",
             tip: composureTip,
-            icon: "heart.fill",
-            color: .red
+            subtitle: "Composure"
         )
-    }
-
-    // MARK: - Pillar Card Template
-
-    private func pillarCard(
-        letter: String,
-        title: String,
-        subtitle: String,
-        score: Double,
-        keyMetric: String,
-        tip: String,
-        icon: String,
-        color: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Text(letter)
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(color)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Text(String(format: "%.0f", score))
-                    .font(.title2.bold())
-                    .foregroundStyle(scoreColor(score))
-            }
-
-            // Key metric
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(color)
-                Text(keyMetric)
-                    .font(.callout)
-            }
-
-            // Tip
-            Text(tip)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Per-Shot Steadiness Chart
@@ -452,15 +351,6 @@ struct ShootingGRACEInsightsView: View {
     }
 
     // MARK: - Helpers
-
-    private func scoreColor(_ score: Double) -> Color {
-        switch score {
-        case 80...: return .green
-        case 60..<80: return .blue
-        case 40..<60: return .yellow
-        default: return .orange
-        }
-    }
 
     private func endColor(_ endIndex: Int) -> Color {
         let colors: [Color] = [.blue, .green, .orange, .purple, .cyan, .red]

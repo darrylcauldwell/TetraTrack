@@ -9,80 +9,11 @@
 import SwiftUI
 import Charts
 
-// MARK: - GRACE Pillar
+// MARK: - Biomechanical Pillars
 //
-// Universal GRACE framework used across all disciplines.
-// Each discipline adapts the 5 pillars with discipline-specific subtitles and data sources.
-// Running uses the original Becky Lyne GRACE Running Method (gracefullrunning.com).
-
-enum GRACEPillar: String, CaseIterable {
-    case grow, rhythm, align, circle, enjoy
-
-    var letter: String {
-        switch self {
-        case .grow: return "G"
-        case .rhythm: return "R"
-        case .align: return "A"
-        case .circle: return "C"
-        case .enjoy: return "E"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .grow: return "Grow"
-        case .rhythm: return "Rhythm"
-        case .align: return "Align"
-        case .circle: return "Circle"
-        case .enjoy: return "Enjoy"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .grow: return .green
-        case .rhythm: return .indigo
-        case .align: return .orange
-        case .circle: return .purple
-        case .enjoy: return .red
-        }
-    }
-}
-
-// MARK: - GRACE Pillar Header
-
-struct GRACEPillarHeader: View {
-    let pillar: GRACEPillar
-    var subtitle: String = ""
-    var cue: String = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Text(pillar.letter)
-                    .font(.title.bold())
-                    .foregroundStyle(pillar.color)
-                    .frame(width: 36, height: 36)
-                    .background(pillar.color.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(pillar.letter) — \(pillar.title)" + (subtitle.isEmpty ? "" : ": \(subtitle)"))
-                        .font(.headline)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
-                    if !cue.isEmpty {
-                        Text(cue)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .italic()
-                            .lineLimit(2)
-                    }
-                }
-            }
-        }
-    }
-}
+// The GRACE framework has been replaced by 4 biomechanical pillars
+// (Stability, Rhythm, Symmetry, Economy) + a separate Physiology section.
+// See BiomechanicalPillarComponents.swift for the shared pillar enum and card views.
 
 // MARK: - Running Form Gauge
 

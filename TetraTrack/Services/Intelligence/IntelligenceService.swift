@@ -595,7 +595,7 @@ private extension IntelligenceService {
         }
 
         return """
-        Analyze these recent running training sessions for a tetrathlon athlete using the GRACE Running Method (Becky Lyne's GRACE-full Running):
+        Analyze these recent running training sessions for a tetrathlon athlete:
 
         Total sessions: \(recentSessions.count)
         Total distance: \(String(format: "%.1f", totalDistance / 1000)) km
@@ -610,12 +610,12 @@ private extension IntelligenceService {
 
         For tetrathlon, the running discipline is typically 1500m or cross-country.
 
-        Structure your insights around the 5 GRACE pillars:
-        1. **Grow** (Run Tall): Posture stability, vertical oscillation, hip height. Cue: "Grow tall — imagine a string pulling the top of your head skyward"
-        2. **Rhythm** (Light & Quick): Cadence ~180 spm, ground contact time, pacing consistency. Cue: "Think light, alert, engaged"
-        3. **Align** (Forward Lean): Stride length, efficiency factor, running power. Cue: "Tilt forward from ankles, plant underneath your centre of mass"
-        4. **Circle** (Smooth Motion): Running economy, form consistency, cyclical gait. Cue: "Feel for the wheel with your heel"
-        5. **Enjoy** (Wellbeing): Recovery, training stress, HR zones, fatigue management. Cue: "The best training is the training you enjoy and can sustain"
+        Structure your insights around 4 biomechanical pillars + physiology:
+        1. **Stability** (Posture & Oscillation): Posture stability, vertical oscillation, hip height
+        2. **Rhythm** (Cadence & Tempo): Cadence ~180 spm, ground contact time, pacing consistency
+        3. **Symmetry** (Stride & Balance): Stride length, asymmetry, efficiency factor, running power
+        4. **Economy** (Running Economy): Running economy composite, form consistency
+        5. **Physiology** (Recovery & Effort): HR efficiency, recovery, training stress, fatigue, breathing
         """
     }
 
@@ -661,12 +661,12 @@ private extension IntelligenceService {
 
         For tetrathlon, swimming is typically 100-200m freestyle.
 
-        Structure your insights around the 5 GRACE pillars:
-        1. **Grow** (Swim Long): SWOLF efficiency, distance per stroke, body position. Focus on swimming "longer" with each stroke.
-        2. **Rhythm** (Stroke Tempo): Lap time consistency, pacing strategy, even splits. Steady tempo throughout the swim.
-        3. **Align** (Catch & Pull): Stroke count per lap, distance per stroke, catch technique. Fewer strokes = better alignment.
-        4. **Circle** (Swim Economy): Stroke count consistency across laps, smooth turnover, maintaining technique when fatigued.
-        5. **Enjoy** (Recovery): Heart rate control, recovery between sets, breathing efficiency and SpO2 patterns.
+        Structure your insights around 4 biomechanical pillars + physiology:
+        1. **Stability** (SWOLF): SWOLF efficiency, distance per stroke, body position
+        2. **Rhythm** (Lap Consistency): Lap time consistency, pacing strategy, even splits
+        3. **Symmetry** (Distance Per Stroke): Stroke count per lap, distance per stroke, catch technique
+        4. **Economy** (Stroke Consistency): Stroke count consistency across laps, smooth turnover, maintaining technique when fatigued
+        5. **Physiology** (Recovery Quality): Heart rate control, recovery between sets, breathing efficiency and SpO2 patterns
         """
     }
 
@@ -676,24 +676,24 @@ private extension IntelligenceService {
         let avgPerArrow = recentSessions.isEmpty ? 0 : recentSessions.reduce(0) { $0 + $1.averageScorePerArrow } / Double(recentSessions.count)
         let totalXCount = recentSessions.reduce(0) { $0 + $1.xCount }
 
-        // Include GRACE sensor data if available
-        let graceData: String
-        let sessionsWithGrace = recentSessions.filter { $0.graceOverallScore > 0 }
-        if !sessionsWithGrace.isEmpty {
-            let avgGrace = sessionsWithGrace.reduce(0) { $0 + $1.graceOverallScore } / Double(sessionsWithGrace.count)
-            let avgSteadiness = sessionsWithGrace.reduce(0) { $0 + $1.averageHoldSteadiness } / Double(sessionsWithGrace.count)
-            let avgHoldDuration = sessionsWithGrace.reduce(0) { $0 + $1.averageHoldDuration } / Double(sessionsWithGrace.count)
-            let avgDegradation = sessionsWithGrace.reduce(0) { $0 + $1.steadinessDegradation } / Double(sessionsWithGrace.count)
-            graceData = """
+        // Include biomechanical sensor data if available
+        let sensorData: String
+        let sessionsWithSensors = recentSessions.filter { $0.overallBiomechanicalScore > 0 }
+        if !sessionsWithSensors.isEmpty {
+            let avgBiomech = sessionsWithSensors.reduce(0) { $0 + $1.overallBiomechanicalScore } / Double(sessionsWithSensors.count)
+            let avgSteadiness = sessionsWithSensors.reduce(0) { $0 + $1.averageHoldSteadiness } / Double(sessionsWithSensors.count)
+            let avgHoldDuration = sessionsWithSensors.reduce(0) { $0 + $1.averageHoldDuration } / Double(sessionsWithSensors.count)
+            let avgDegradation = sessionsWithSensors.reduce(0) { $0 + $1.steadinessDegradation } / Double(sessionsWithSensors.count)
+            sensorData = """
 
-            Watch sensor data (\(sessionsWithGrace.count) sessions with IMU):
-            Average GRACE score: \(String(format: "%.0f", avgGrace))
+            Watch sensor data (\(sessionsWithSensors.count) sessions with IMU):
+            Average biomechanical score: \(String(format: "%.0f", avgBiomech))
             Average hold steadiness: \(String(format: "%.0f", avgSteadiness))%
             Average hold duration: \(String(format: "%.1f", avgHoldDuration))s
             Average steadiness degradation: \(String(format: "%.0f", avgDegradation))%
             """
         } else {
-            graceData = ""
+            sensorData = ""
         }
 
         // Physiological sensor metrics
@@ -719,23 +719,23 @@ private extension IntelligenceService {
         Average score: \(String(format: "%.1f", avgScore))%
         Average per arrow: \(String(format: "%.2f", avgPerArrow))
         Total X-ring hits: \(totalXCount)
-        \(graceData)
+        \(sensorData)
         \(sensorMetrics)
 
         For tetrathlon, shooting uses air pistols at 10m with time pressure.
 
-        Structure your insights around the 5 GRACE pillars for shooting:
-        - G "Stand Tall" (Posture): Platform stability and stance quality
-        - R "Shot Timing" (Rhythm): Consistency of inter-shot intervals
-        - A "Aim True" (Precision): Hold steadiness and drift control
-        - C "Shot Economy" (Efficiency): Optimal cycle time and smooth raise
-        - E "Composure" (Under Pressure): Heart rate management, fatigue resistance, tremor control
+        Structure your insights around 4 biomechanical pillars + physiology:
+        - **Stability** (Stance): Platform stability and stance quality
+        - **Rhythm** (Shot Timing): Consistency of inter-shot intervals
+        - **Symmetry** (Hold Steadiness): Hold steadiness and drift control
+        - **Economy** (Shot Cycle): Optimal cycle time and smooth raise
+        - **Physiology** (Composure): Heart rate management, fatigue resistance, tremor control
 
         Provide insights about:
         1. Accuracy consistency across sessions
         2. Mental focus indicators (X-ring concentration)
         3. Score progression trends
-        4. GRACE pillar strengths and areas for improvement
+        4. Biomechanical pillar strengths and areas for improvement
         5. Recommendations for competition shooting under pressure
         """
     }
