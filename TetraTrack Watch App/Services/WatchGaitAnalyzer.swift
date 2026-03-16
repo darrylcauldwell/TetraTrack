@@ -33,8 +33,8 @@ final class WatchGaitAnalyzer {
 
     private let frameTransformer = FrameTransformer()
     private let fftProcessor = FFTProcessor(windowSize: 256, sampleRate: 50.0)
-    private let coherenceAnalyzer = CoherenceAnalyzer(segmentLength: 64, overlap: 32, sampleRate: 50)
-    private let hmm = GaitHMM()
+    private let coherenceAnalyzer = CoherenceAnalyzer(segmentLength: 128, overlap: 64, sampleRate: 50)
+    private let hmm = GaitHMM(sensorMount: .wrist)
 
     // MARK: - Buffers (256 samples = 5.12s at 50Hz)
 
@@ -260,7 +260,8 @@ final class WatchGaitAnalyzer {
         let yawWindow = Array(yawRateBuffer.suffix(min(100, yawRateBuffer.count)))
         let yawMean = yawWindow.reduce(0, +) / max(1.0, Double(yawWindow.count))
         let yawAC = yawWindow.map { $0 - yawMean }
-        let yawRMS = sqrt(yawAC.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(yawAC.count)))
+        let rawYawRMS = sqrt(yawAC.map { $0 * $0 }.reduce(0, +) / max(1.0, Double(yawAC.count)))
+        let yawRMS = rawYawRMS * 0.7  // Wrist yaw rate scale factor
 
         let features = GaitFeatureVector(
             strideFrequency: strideFrequency,
@@ -339,7 +340,7 @@ final class WatchGaitAnalyzer {
             return
         }
 
-        guard lateralBuffer.count >= 64, yawRateBuffer.count >= 64 else { return }
+        guard lateralBuffer.count >= 128, yawRateBuffer.count >= 128 else { return }
 
         // Hilbert transform phase analysis
         let lateralPhase = HilbertTransform.instantaneousPhase(lateralBuffer)

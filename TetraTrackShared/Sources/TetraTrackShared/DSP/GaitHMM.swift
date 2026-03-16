@@ -50,6 +50,9 @@ public final class GaitHMM {
     /// [state][feature]
     private var emissionParams: [[GaussianEmission]]
 
+    /// Sensor mounting position (affects emission parameter tuning)
+    private let sensorMount: SensorMount
+
     /// Feature indices
     private enum FeatureIndex: Int, CaseIterable {
         case strideFrequency = 0
@@ -64,12 +67,15 @@ public final class GaitHMM {
 
     // MARK: - Initialization
 
-    public init() {
+    public init(sensorMount: SensorMount = .trunk) {
         let numFeatures = FeatureIndex.allCases.count
 
+        self.sensorMount = sensorMount
         self.stateProbs = [1.0, 0, 0, 0, 0]
         self.transitionMatrix = Self.defaultTransitionMatrix()
-        self.emissionParams = Self.defaultEmissionParams(numFeatures: numFeatures)
+        self.emissionParams = sensorMount == .wrist
+            ? Self.wristEmissionParams(numFeatures: numFeatures)
+            : Self.defaultEmissionParams(numFeatures: numFeatures)
     }
 
     // MARK: - Configuration
@@ -129,6 +135,10 @@ public final class GaitHMM {
             // Gallop
             Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20)
         ]
+
+        if sensorMount == .wrist {
+            emissionParams = Self.applyWristScaling(emissionParams)
+        }
     }
 
     /// Widen a frequency range by an adjustment factor and apply offset
@@ -372,6 +382,52 @@ public final class GaitHMM {
             createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80),
             createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20)
         ]
+    }
+
+    private static func wristEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
+        // Wrist-tuned parameters: h2/h3 ~0.5x, RMS ~0.6x, entropy +0.1, coherence widened, noise floor raised
+        return [
+            // Stationary — raised noise floor for wrist movement artifacts
+            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0.1...0.5, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.08, yaw: 0...0.15),
+            // Walk — attenuated harmonics, lower RMS
+            createEmissions(f0: 1.0...2.2, h2: 0.2...0.5, h3: 0.1...0.4, entropy: 0.3...0.6, xyC: 0.15...0.45, zYawC: 0.15...0.35, rms: 0.02...0.10, yaw: 0.04...0.18),
+            // Trot — harmonics heavily attenuated through arm chain
+            createEmissions(f0: 2.0...3.8, h2: 0.6...1.5, h3: 0.2...0.6, entropy: 0.4...0.7, xyC: 0.3...0.9, zYawC: 0.1...0.35, rms: 0.06...0.18, yaw: 0.15...0.38),
+            // Canter — asymmetric gait, yaw dominates at wrist
+            createEmissions(f0: 1.8...3.0, h2: 0.3...0.8, h3: 0.5...1.2, entropy: 0.5...0.8, xyC: 0.15...0.45, zYawC: 0.4...0.8, rms: 0.15...0.35, yaw: 0.30...0.65),
+            // Gallop — high entropy, strong yaw, attenuated bounce
+            createEmissions(f0: 3.0...6.0, h2: 0.15...0.6, h3: 0.2...0.7, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.5...0.9, rms: 0.20...0.45, yaw: 0.45...0.95)
+        ]
+    }
+
+    /// Apply wrist scaling to breed-configured (trunk-derived) emission params
+    private static func applyWristScaling(_ params: [[GaussianEmission]]) -> [[GaussianEmission]] {
+        // Scale factors: h2 0.5x, h3 0.5x, entropy +0.1 offset, xyCoherence widened, rms 0.65x
+        params.enumerated().map { stateIdx, stateParams in
+            stateParams.enumerated().map { featureIdx, emission in
+                guard let feature = FeatureIndex(rawValue: featureIdx) else { return emission }
+                var scaled = emission
+                switch feature {
+                case .h2Ratio:
+                    scaled.mean *= 0.5
+                    scaled.variance *= 0.25  // variance scales as square of mean scale
+                case .h3Ratio:
+                    scaled.mean *= 0.5
+                    scaled.variance *= 0.25
+                case .spectralEntropy:
+                    scaled.mean = min(scaled.mean + 0.1, 0.95)
+                case .normalizedVerticalRMS:
+                    scaled.mean *= 0.65
+                    scaled.variance *= 0.42  // 0.65^2
+                case .yawRateRMS:
+                    scaled.mean *= 0.8
+                    scaled.variance *= 0.64  // 0.8^2
+                default:
+                    break
+                }
+                return scaled
+            }
+        }
     }
 
     private static func createEmissions(

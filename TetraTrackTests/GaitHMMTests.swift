@@ -638,6 +638,91 @@ struct GaitHMMTests {
         #expect(hmm1.probability(of: .trot) < hmm2.probability(of: .trot))
     }
 
+    // MARK: - Wrist Mount Tests
+
+    @Test func wristHMMInitializesWithValidParams() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+        #expect(hmm.currentState == .stationary)
+        #expect(hmm.probability(of: .stationary) == 1.0)
+    }
+
+    @Test func wristTrotH2MeanLowerThanTrunk() {
+        let trunkHMM = GaitHMM(sensorMount: .trunk)
+        let wristHMM = GaitHMM(sensorMount: .wrist)
+
+        // Feed identical trot-like features — wrist HMM should give different probabilities
+        // because its emission means are lower for h2
+        let features = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 0.9, h3Ratio: 0.4,
+            spectralEntropy: 0.5, xyCoherence: 0.6, zYawCoherence: 0.2,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            trunkHMM.update(with: features)
+            wristHMM.update(with: features)
+        }
+
+        // Wrist HMM should favor trot more for lower h2 values (its emission center is lower)
+        #expect(wristHMM.probability(of: .trot) > trunkHMM.probability(of: .trot))
+    }
+
+    @Test func wristStationaryHasWiderRMSRange() {
+        let wristHMM = GaitHMM(sensorMount: .wrist)
+
+        // Slightly elevated RMS that exceeds trunk stationary range (0-0.05) but fits wrist (0-0.08)
+        let features = GaitFeatureVector(
+            strideFrequency: 0.2, h2Ratio: 0.1, h3Ratio: 0.1,
+            spectralEntropy: 0.3, xyCoherence: 0.1, zYawCoherence: 0.1,
+            normalizedVerticalRMS: 0.06, yawRateRMS: 0.1,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            wristHMM.update(with: features)
+        }
+        #expect(wristHMM.currentState == .stationary)
+    }
+
+    @Test func wristClassifiesWalkWithAttenuatedFeatures() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+
+        // Wrist-appropriate walk features: lower h2/h3, lower RMS than trunk
+        let features = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.35, h3Ratio: 0.25,
+            spectralEntropy: 0.45, xyCoherence: 0.3, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.06, yawRateRMS: 0.11,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<20 {
+            hmm.update(with: features)
+        }
+        #expect(hmm.currentState == .walk)
+    }
+
+    @Test func wristDefaultTrunkUnchanged() {
+        // Verify default init still uses trunk params (backward compat)
+        let hmm = GaitHMM()
+        for _ in 0..<20 {
+            hmm.update(with: walkFeatures())
+        }
+        #expect(hmm.currentState == .walk)
+    }
+
+    @Test func wristProbabilitiesSumToOne() {
+        let hmm = GaitHMM(sensorMount: .wrist)
+        let features = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 0.9, h3Ratio: 0.4,
+            spectralEntropy: 0.55, xyCoherence: 0.6, zYawCoherence: 0.2,
+            normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
+            gpsSpeed: 0, gpsAccuracy: 100
+        )
+        for _ in 0..<5 {
+            hmm.update(with: features)
+        }
+        let sum = HMMGaitState.allCases.reduce(0.0) { $0 + hmm.probability(of: $1) }
+        #expect(abs(sum - 1.0) < 1e-10)
+    }
+
     // MARK: - Helpers
 
     private func stationaryFeatures() -> GaitFeatureVector {

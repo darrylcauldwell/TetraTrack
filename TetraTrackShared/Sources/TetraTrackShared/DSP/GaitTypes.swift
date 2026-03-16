@@ -7,6 +7,14 @@
 
 import Foundation
 
+// MARK: - Sensor Mount
+
+/// Sensor mounting position — determines emission parameter tuning
+public enum SensorMount: String, Sendable {
+    case trunk   // Phone in pocket (thigh/chest) — current defaults
+    case wrist   // Apple Watch on wrist
+}
+
 // MARK: - Feature Vector
 
 /// Feature vector for gait classification
