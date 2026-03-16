@@ -218,6 +218,12 @@ final class RidingPlugin: DisciplinePlugin {
     // Watch gait enhancement task
     private var watchGaitEnhancementTask: Task<Void, Never>?
 
+    // Watch gait observation task (PR 4: Watch-primary gait classification)
+    private var watchGaitObservationTask: Task<Void, Never>?
+
+    /// Whether currently using Watch gait classification as primary source
+    private(set) var isUsingWatchGait: Bool = false
+
     // Weak reference to tracker for computed properties (XC timing)
     private weak var _weakTracker: SessionTracker?
 
@@ -311,8 +317,11 @@ final class RidingPlugin: DisciplinePlugin {
         // Start pocket mode
         pocketModeManager.startMonitoring()
 
-        // Watch gait enhancement
+        // Watch gait enhancement (legacy: arm symmetry / yaw energy)
         setupWatchGaitEnhancement()
+
+        // Watch gait observation (Watch-primary gait classification)
+        setupWatchGaitObservation()
 
         // Setup voice note handling
         setupVoiceNoteObservation()
@@ -360,6 +369,9 @@ final class RidingPlugin: DisciplinePlugin {
         watchSensorAnalyzer.stopSession()
         watchGaitEnhancementTask?.cancel()
         watchGaitEnhancementTask = nil
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = nil
+        isUsingWatchGait = false
 
         // Finalize symmetry/rhythm
         symmetryAnalyzer.finalizeReinSegment()
@@ -569,6 +581,9 @@ final class RidingPlugin: DisciplinePlugin {
         watchSensorAnalyzer.stopSession()
         watchGaitEnhancementTask?.cancel()
         watchGaitEnhancementTask = nil
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = nil
+        isUsingWatchGait = false
 
         // Model deletion is handled by SessionTracker.discardSession()
 
@@ -936,6 +951,50 @@ final class RidingPlugin: DisciplinePlugin {
                     armSymmetry: max(0, min(1, armSymmetry * rollVariance)),
                     yawEnergy: max(0, min(1, yawEnergy))
                 )
+            }
+        }
+    }
+
+    // MARK: - Watch Gait Observation (Watch-Primary Classification)
+
+    private func setupWatchGaitObservation() {
+        watchGaitObservationTask?.cancel()
+        watchGaitObservationTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.gaitResultSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.gaitResultSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.gaitResultSequence != lastSeq else { continue }
+                lastSeq = wm.gaitResultSequence
+
+                // Use Watch gait classification as primary source
+                self.isUsingWatchGait = true
+                let gaitState = wm.watchGaitState
+
+                // Map Watch gait string to GaitType
+                let gait: GaitType = switch gaitState {
+                case "walk": .walk
+                case "trot": .trot
+                case "canter": .canter
+                case "gallop": .gallop
+                default: .stationary
+                }
+
+                // Update gait analyzer with Watch classification
+                let previousGait = self.gaitAnalyzer.currentGait
+                if gait != previousGait {
+                    self.gaitAnalyzer.setGaitFromWatch(gait, confidence: wm.watchGaitConfidence)
+                    Log.gait.info("gait source: watch — \(gaitState) (conf: \(String(format: "%.2f", wm.watchGaitConfidence)))")
+                }
+
+                // Update stride frequency
+                if wm.watchStrideFrequency > 0 {
+                    self.gaitAnalyzer.strideFrequency = wm.watchStrideFrequency
+                }
             }
         }
     }

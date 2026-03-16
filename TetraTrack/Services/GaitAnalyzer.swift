@@ -663,6 +663,21 @@ final class GaitAnalyzer: Resettable {
         watchYawEnergy = yawEnergy
     }
 
+    /// Set gait state from Watch classification (Watch-primary mode)
+    /// Bypasses iPhone HMM and applies Watch result directly
+    func setGaitFromWatch(_ gait: GaitType, confidence: Double) {
+        let previousGait = currentGait
+        if gait != previousGait {
+            finalizeCurrentSegment()
+            currentGait = gait
+            gaitConfidence = confidence
+            startNewSegment(gait: gait)
+            onGaitChange?(previousGait, gait)
+        } else {
+            gaitConfidence = confidence
+        }
+    }
+
     // MARK: - Diagnostic Methods (DEBUG)
 
     #if DEBUG

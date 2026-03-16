@@ -101,6 +101,10 @@ final class WatchGaitAnalyzer {
     /// Boot time reference for converting CMDeviceMotion timestamps to Date
     private let bootTimeReference: Date
 
+    // MARK: - Singleton
+
+    static let shared = WatchGaitAnalyzer()
+
     init() {
         frameTransformer.mountPosition = .wrist
         calibrationDelay = MountPosition.wrist.calibrationDelay

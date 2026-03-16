@@ -814,6 +814,18 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
                 }
+            case "gaitResult":
+                // Decode Watch gait classification result
+                guard let resultString = payload["resultJSON"] as? String,
+                      let resultData = resultString.data(using: .utf8),
+                      let result = try? JSONDecoder().decode(WatchGaitResult.self, from: resultData) else {
+                    Log.health.info("WorkoutLifecycleService: failed to decode mirrored gait result")
+                    continue
+                }
+                Log.health.info("WorkoutLifecycleService: received Watch gait result: \(result.gaitState)")
+                Task { @MainActor in
+                    WatchConnectivityManager.shared.updateFromWatchGaitResult(result)
+                }
             default:
                 break
             }
