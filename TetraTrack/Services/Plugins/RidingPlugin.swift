@@ -218,6 +218,9 @@ final class RidingPlugin: DisciplinePlugin {
     // Watch gait observation task (Watch-primary gait classification)
     private var watchGaitObservationTask: Task<Void, Never>?
 
+    // Watch sensor → GaitAnalyzer forwarding task
+    private var watchSensorForwardingTask: Task<Void, Never>?
+
     /// Whether currently using Watch gait classification as primary source
     private(set) var isUsingWatchGait: Bool = false
 
@@ -323,6 +326,9 @@ final class RidingPlugin: DisciplinePlugin {
         // Watch gait observation (Watch-primary gait classification)
         setupWatchGaitObservation()
 
+        // Forward Watch motion data to GaitAnalyzer for HMM emission enrichment
+        setupWatchSensorForwarding()
+
         // Setup voice note handling
         setupVoiceNoteObservation()
 
@@ -369,6 +375,8 @@ final class RidingPlugin: DisciplinePlugin {
         watchSensorAnalyzer.stopSession()
         watchGaitObservationTask?.cancel()
         watchGaitObservationTask = nil
+        watchSensorForwardingTask?.cancel()
+        watchSensorForwardingTask = nil
         isUsingWatchGait = false
         lastWatchGaitResultTime = nil
 
@@ -580,6 +588,8 @@ final class RidingPlugin: DisciplinePlugin {
         watchSensorAnalyzer.stopSession()
         watchGaitObservationTask?.cancel()
         watchGaitObservationTask = nil
+        watchSensorForwardingTask?.cancel()
+        watchSensorForwardingTask = nil
         isUsingWatchGait = false
         lastWatchGaitResultTime = nil
 
@@ -977,6 +987,34 @@ final class RidingPlugin: DisciplinePlugin {
                 // Update stride frequency
                 if wm.watchStrideFrequency > 0 {
                     self.gaitAnalyzer.strideFrequency = wm.watchStrideFrequency
+                }
+            }
+        }
+    }
+
+    // MARK: - Watch Sensor → GaitAnalyzer Forwarding
+
+    private func setupWatchSensorForwarding() {
+        watchSensorForwardingTask?.cancel()
+        watchSensorForwardingTask = Task { @MainActor [weak self] in
+            let wm = WatchConnectivityManager.shared
+            var lastSeq = wm.enhancedSensorSequence
+            while !Task.isCancelled {
+                await withCheckedContinuation { cont in
+                    withObservationTracking { _ = wm.enhancedSensorSequence }
+                        onChange: { cont.resume() }
+                }
+                guard let self, !Task.isCancelled else { break }
+                guard wm.enhancedSensorSequence != lastSeq else { continue }
+                lastSeq = wm.enhancedSensorSequence
+
+                let vo = wm.verticalOscillation
+                let mi = wm.movementIntensity
+                if vo > 0 || mi > 0 {
+                    self.gaitAnalyzer.updateWatchData(
+                        verticalOscillation: vo,
+                        movementIntensity: mi
+                    )
                 }
             }
         }

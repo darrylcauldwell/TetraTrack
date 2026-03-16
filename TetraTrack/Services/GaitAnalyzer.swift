@@ -86,6 +86,19 @@ final class GaitAnalyzer: Resettable {
     private var lastFFTTime: Date = .distantPast
     private let fftUpdateInterval: TimeInterval = 0.167  // 6 Hz update rate
 
+    // MARK: - Watch Motion Data
+
+    private var lastWatchVerticalOscillation: Double = 0
+    private var lastWatchMovementIntensity: Double = 0
+    private var lastWatchUpdateTime: Date = .distantPast
+
+    /// Update Watch motion data for gait feature vector enrichment
+    func updateWatchData(verticalOscillation: Double, movementIntensity: Double) {
+        lastWatchVerticalOscillation = verticalOscillation
+        lastWatchMovementIntensity = movementIntensity
+        lastWatchUpdateTime = Date()
+    }
+
     // MARK: - GPS and Legacy Support
 
     private var speedSamples: [Double] = []
@@ -264,6 +277,9 @@ final class GaitAnalyzer: Resettable {
         recentRotationRates = []
         segmentDistance = 0
         lastFFTTime = .distantPast
+        lastWatchVerticalOscillation = 0
+        lastWatchMovementIntensity = 0
+        lastWatchUpdateTime = .distantPast
     }
 
     // MARK: - Process Location (GPS Speed)
@@ -447,6 +463,8 @@ final class GaitAnalyzer: Resettable {
         let yawRateScaleFactor: Double = mountPosition == .jodhpurThigh ? 0.5 : 1.0
         let yawRMS = rawYawRMS * yawRateScaleFactor
 
+        let watchDataAge = Date().timeIntervalSince(lastWatchUpdateTime)
+
         let features = GaitFeatureVector(
             strideFrequency: strideFrequency,
             h2Ratio: harmonicRatios.h2,
@@ -457,7 +475,10 @@ final class GaitAnalyzer: Resettable {
             normalizedVerticalRMS: normalizedRMS,
             yawRateRMS: yawRMS,
             gpsSpeed: lastGPSSpeed,
-            gpsAccuracy: lastGPSAccuracy
+            gpsAccuracy: lastGPSAccuracy,
+            watchVerticalOscillation: lastWatchVerticalOscillation,
+            watchMovementIntensity: lastWatchMovementIntensity,
+            watchDataAge: watchDataAge
         )
 
         // Update HMM
@@ -485,7 +506,10 @@ final class GaitAnalyzer: Resettable {
                 normalizedVerticalRMS: features.normalizedVerticalRMS,
                 yawRateRMS: features.yawRateRMS,
                 gpsSpeed: features.gpsSpeed,
-                gpsAccuracy: features.gpsAccuracy
+                gpsAccuracy: features.gpsAccuracy,
+                watchVerticalOscillation: features.watchVerticalOscillation,
+                watchMovementIntensity: features.watchMovementIntensity,
+                watchDataAge: features.watchDataAge
             )
             diagnosticEntries.append(entry)
         }

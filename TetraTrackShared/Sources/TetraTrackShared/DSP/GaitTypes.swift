@@ -29,11 +29,15 @@ public struct GaitFeatureVector: Sendable {
     public let yawRateRMS: Double           // RMS of yaw rate (rad/s)
     public let gpsSpeed: Double             // Speed from GPS (m/s) for sanity checking
     public let gpsAccuracy: Double          // GPS horizontal accuracy in meters (lower = better)
+    public let watchVerticalOscillation: Double // Watch vertical bounce (cm)
+    public let watchMovementIntensity: Double   // Watch movement intensity (0-100)
+    public let watchDataAge: Double             // Seconds since last Watch update (999 = no Watch)
 
     public static let zero = GaitFeatureVector(
         strideFrequency: 0, h2Ratio: 0, h3Ratio: 0, spectralEntropy: 0,
         xyCoherence: 0, zYawCoherence: 0, normalizedVerticalRMS: 0,
-        yawRateRMS: 0, gpsSpeed: 0, gpsAccuracy: 100
+        yawRateRMS: 0, gpsSpeed: 0, gpsAccuracy: 100,
+        watchVerticalOscillation: 0, watchMovementIntensity: 0, watchDataAge: 999
     )
 
     public init(
@@ -46,7 +50,10 @@ public struct GaitFeatureVector: Sendable {
         normalizedVerticalRMS: Double,
         yawRateRMS: Double,
         gpsSpeed: Double,
-        gpsAccuracy: Double
+        gpsAccuracy: Double,
+        watchVerticalOscillation: Double = 0,
+        watchMovementIntensity: Double = 0,
+        watchDataAge: Double = 999
     ) {
         self.strideFrequency = strideFrequency
         self.h2Ratio = h2Ratio
@@ -58,6 +65,9 @@ public struct GaitFeatureVector: Sendable {
         self.yawRateRMS = yawRateRMS
         self.gpsSpeed = gpsSpeed
         self.gpsAccuracy = gpsAccuracy
+        self.watchVerticalOscillation = watchVerticalOscillation
+        self.watchMovementIntensity = watchMovementIntensity
+        self.watchDataAge = watchDataAge
     }
 }
 
@@ -311,6 +321,9 @@ public struct GaitDiagnosticEntry: Codable, Sendable {
     public let yawRateRMS: Double
     public let gpsSpeed: Double
     public let gpsAccuracy: Double
+    public let watchVerticalOscillation: Double
+    public let watchMovementIntensity: Double
+    public let watchDataAge: Double
 
     public init(
         timestamp: Date,
@@ -326,7 +339,10 @@ public struct GaitDiagnosticEntry: Codable, Sendable {
         normalizedVerticalRMS: Double,
         yawRateRMS: Double,
         gpsSpeed: Double,
-        gpsAccuracy: Double
+        gpsAccuracy: Double,
+        watchVerticalOscillation: Double = 0,
+        watchMovementIntensity: Double = 0,
+        watchDataAge: Double = 999
     ) {
         self.timestamp = timestamp
         self.detectedGait = detectedGait
@@ -342,6 +358,9 @@ public struct GaitDiagnosticEntry: Codable, Sendable {
         self.yawRateRMS = yawRateRMS
         self.gpsSpeed = gpsSpeed
         self.gpsAccuracy = gpsAccuracy
+        self.watchVerticalOscillation = watchVerticalOscillation
+        self.watchMovementIntensity = watchMovementIntensity
+        self.watchDataAge = watchDataAge
     }
 }
 
@@ -409,6 +428,9 @@ public struct GaitFeatureSnapshot {
     public let xyCoherence: Double
     public let zYawCoherence: Double
     public let gpsSpeed: Double
+    public let watchVerticalOscillation: Double
+    public let watchMovementIntensity: Double
+    public let watchDataAge: Double
 
     public init(
         strideFrequency: Double,
@@ -421,7 +443,10 @@ public struct GaitFeatureSnapshot {
         yawRMS: Double,
         xyCoherence: Double,
         zYawCoherence: Double,
-        gpsSpeed: Double
+        gpsSpeed: Double,
+        watchVerticalOscillation: Double = 0,
+        watchMovementIntensity: Double = 0,
+        watchDataAge: Double = 999
     ) {
         self.strideFrequency = strideFrequency
         self.h2Ratio = h2Ratio
@@ -434,12 +459,15 @@ public struct GaitFeatureSnapshot {
         self.xyCoherence = xyCoherence
         self.zYawCoherence = zYawCoherence
         self.gpsSpeed = gpsSpeed
+        self.watchVerticalOscillation = watchVerticalOscillation
+        self.watchMovementIntensity = watchMovementIntensity
+        self.watchDataAge = watchDataAge
     }
 
     // swiftlint:disable line_length
     public var jsonString: String {
         """
-        {"f0": \(String(format: "%.2f", strideFrequency)), "H2": \(String(format: "%.3f", h2Ratio)), "H3": \(String(format: "%.3f", h3Ratio)), "H3/H2": \(String(format: "%.3f", h3h2Ratio)), "entropy": \(String(format: "%.3f", spectralEntropy)), "rms_raw": \(String(format: "%.4f", verticalRMSRaw)), "rms_norm": \(String(format: "%.4f", verticalRMSNormalized)), "yaw_rms": \(String(format: "%.3f", yawRMS)), "xy_coh": \(String(format: "%.3f", xyCoherence)), "z_yaw_coh": \(String(format: "%.3f", zYawCoherence)), "gps_speed": \(String(format: "%.2f", gpsSpeed))}
+        {"f0": \(String(format: "%.2f", strideFrequency)), "H2": \(String(format: "%.3f", h2Ratio)), "H3": \(String(format: "%.3f", h3Ratio)), "H3/H2": \(String(format: "%.3f", h3h2Ratio)), "entropy": \(String(format: "%.3f", spectralEntropy)), "rms_raw": \(String(format: "%.4f", verticalRMSRaw)), "rms_norm": \(String(format: "%.4f", verticalRMSNormalized)), "yaw_rms": \(String(format: "%.3f", yawRMS)), "xy_coh": \(String(format: "%.3f", xyCoherence)), "z_yaw_coh": \(String(format: "%.3f", zYawCoherence)), "gps_speed": \(String(format: "%.2f", gpsSpeed)), "watch_vo": \(String(format: "%.2f", watchVerticalOscillation)), "watch_mi": \(String(format: "%.1f", watchMovementIntensity)), "watch_age": \(String(format: "%.1f", watchDataAge))}
         """
     }
     // swiftlint:enable line_length
