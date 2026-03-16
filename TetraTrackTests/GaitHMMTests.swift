@@ -209,12 +209,12 @@ struct GaitHMMTests {
     @Test func nonAdjacentTransitionRequiresIntermediateStates() {
         let hmm = GaitHMM()
         // From stationary, feed trot features
-        // Due to transition constraints, must pass through walk first
-        // After a few updates the HMM should not jump directly to trot
+        // Transition matrix has zero probability for stationary→trot directly
+        // After 1 update, can only reach walk (adjacent state), not trot
         hmm.update(with: trotFeatures())
-        hmm.update(with: trotFeatures())
-        // After only 2 updates, should not yet be in trot (must pass through walk)
         #expect(hmm.currentState != .trot)
+        // After 2+ updates the path stationary→walk→trot is valid,
+        // so the HMM may correctly classify trot with strong features
     }
 
     // MARK: - GPS Speed Constraint Tests
