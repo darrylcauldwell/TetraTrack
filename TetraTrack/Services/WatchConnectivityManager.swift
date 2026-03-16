@@ -321,6 +321,12 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         sendMessage(message)
     }
 
+    /// Request Watch to start its own autonomous HKWorkoutSession
+    func requestAutonomousWorkout(discipline: String) {
+        let message = WatchMessage.startAutonomousWorkout(discipline: discipline)
+        sendMessage(message)
+    }
+
     /// Stop motion tracking on Watch
     func stopMotionTracking() {
         sendCommand(.stopMotionTracking)

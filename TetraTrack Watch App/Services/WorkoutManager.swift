@@ -143,7 +143,8 @@ final class WorkoutManager: NSObject {
             workoutConfiguration: configuration
         )
 
-        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
+        session.prepare()
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared, about to mirror")
         try await session.startMirroringToCompanionDevice()
         Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
@@ -274,9 +275,22 @@ final class WorkoutManager: NSObject {
     /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
     func startWorkout(type: WatchActivityType) async {
         guard !isWorkoutActive else {
-            Log.tracking.debug("Workout already active")
+            Log.tracking.error("TT: startWorkout skipped — workout already active")
+            WatchConnectivityService.sendDiagnostic("startWorkout skipped: already active")
             return
         }
+
+        // Ensure HealthKit authorization before creating session
+        let authorized = await requestAuthorization()
+        if !authorized {
+            Log.tracking.error("TT: startWorkout — HealthKit authorization denied")
+            WatchConnectivityService.sendDiagnostic("startWorkout: HealthKit auth DENIED")
+            return
+        }
+        WatchConnectivityService.sendDiagnostic("startWorkout: HealthKit auth OK")
+
+        // Clear any stale session state
+        resetWorkout()
 
         // Create workout configuration
         let configuration = HKWorkoutConfiguration()
@@ -291,6 +305,7 @@ final class WorkoutManager: NSObject {
 
         do {
             // Apple-reference-aligned core (same order as startWorkoutFromiPhone)
+            WatchConnectivityService.sendDiagnostic("startWorkout: creating HKWorkoutSession for \(type.rawValue)")
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             let builder = session.associatedWorkoutBuilder()
             session.delegate = self
@@ -300,11 +315,16 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
 
+            // Prepare session before mirroring (required per Apple docs + nonstrict.eu findings)
+            session.prepare()
+            WatchConnectivityService.sendDiagnostic("startWorkout: session prepared, calling startMirroringToCompanionDevice()")
             try await session.startMirroringToCompanionDevice()
+            WatchConnectivityService.sendDiagnostic("startWorkout: mirroring SUCCEEDED")
 
             let startDate = Date()
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
+            WatchConnectivityService.sendDiagnostic("startWorkout: activity started + collection began")
 
             // TetraTrack-specific state
             workoutSession = session
@@ -345,7 +365,9 @@ final class WorkoutManager: NSObject {
             Log.tracking.info("Started \(type.rawValue) workout (mirroring to iPhone)")
 
         } catch {
-            Log.tracking.error("Failed to start workout: \(error.localizedDescription)")
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: startWorkout FAILED: \(errMsg, privacy: .public)")
+            WatchConnectivityService.sendDiagnostic("startWorkout FAILED: \(errMsg)")
         }
     }
 

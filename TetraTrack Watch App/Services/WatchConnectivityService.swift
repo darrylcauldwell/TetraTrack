@@ -542,6 +542,22 @@ final class WatchConnectivityService: NSObject {
                     HapticManager.shared.playRestIntervalEndHaptic()
                     Log.watch.info("Haptic: rest end")
 
+                // Autonomous workout: iPhone asks Watch to start its own HKWorkoutSession
+                case .startAutonomousWorkout:
+                    if let discipline = watchMessage.discipline,
+                       let type = WatchActivityType(rawValue: discipline) {
+                        // Guard against duplicate delivery (sendMessage + applicationContext)
+                        guard !WorkoutManager.shared.isWorkoutActive else {
+                            Log.watch.error("TT: startAutonomousWorkout IGNORED (workout already active)")
+                            return
+                        }
+                        Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
+                        WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
+                        Task {
+                            await WorkoutManager.shared.startWorkout(type: type)
+                        }
+                    }
+
                 // Commands sent from Watch to iPhone (ignore on Watch side)
                 case .requestStatus, .heartRateUpdate, .voiceNote,
                      .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:
