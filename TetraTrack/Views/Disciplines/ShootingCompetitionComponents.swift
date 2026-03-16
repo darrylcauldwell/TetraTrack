@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhotosUI
+import TetraTrackShared
 import AVFoundation
 import UniformTypeIdentifiers
 
@@ -202,6 +203,16 @@ struct ShootingCompetitionView: View {
                 .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
+                // Per-shot feedback from Watch (when available)
+                if let lastShot = watchShotMetrics.last {
+                    lastShotFeedbackCard(lastShot)
+                }
+
+                // Session fatigue trend (when 3+ shots detected)
+                if watchShotMetrics.count >= 3 {
+                    sessionShotSummaryCard
+                }
+
                 // Submit button - enabled when all scores entered
                 Button(action: { showingResults = true }) {
                     Text("Submit Scores")
@@ -388,6 +399,216 @@ struct ShootingCompetitionView: View {
 
     private var shootingPlugin: ShootingPlugin? {
         tracker.plugin(as: ShootingPlugin.self)
+    }
+
+    private var watchShotMetrics: [DetectedShotMetrics] {
+        WatchConnectivityManager.shared.receivedShotMetrics
+    }
+
+    // MARK: - Per-Shot Feedback Card
+
+    private func lastShotFeedbackCard(_ shot: DetectedShotMetrics) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("Shot \(shot.shotIndex)")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let hr = shot.heartRateAtShot {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                        Text("\(hr)")
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+            }
+
+            // Steadiness (hero metric)
+            HStack(spacing: 16) {
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", shot.holdSteadiness))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(steadinessColor(shot.holdSteadiness))
+                    Text("Steadiness")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Delta from previous shot
+                if shot.shotIndex > 1, watchShotMetrics.count >= 2 {
+                    let prev = watchShotMetrics[watchShotMetrics.count - 2]
+                    let delta = shot.holdSteadiness - prev.holdSteadiness
+                    VStack(spacing: 2) {
+                        HStack(spacing: 2) {
+                            Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
+                                .font(.caption)
+                            Text(String(format: "%.0f", abs(delta)))
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(delta >= 0 ? .green : .orange)
+                        Text("vs prev")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Tremor
+                VStack(spacing: 2) {
+                    Text(shot.tremorIntensity < 30 ? "Low" : shot.tremorIntensity < 60 ? "Med" : "High")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(shot.tremorIntensity < 30 ? .green : shot.tremorIntensity < 60 ? .yellow : .red)
+                    Text("Tremor")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Drift
+                VStack(spacing: 2) {
+                    Text(shot.driftMagnitude < 20 ? "Low" : shot.driftMagnitude < 50 ? "Med" : "High")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(shot.driftMagnitude < 20 ? .green : shot.driftMagnitude < 50 ? .yellow : .orange)
+                    Text("Drift")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Phase timing bar
+            phaseTimingBar(shot)
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func phaseTimingBar(_ shot: DetectedShotMetrics) -> some View {
+        let total = shot.raiseDuration + shot.settleDuration + shot.holdDuration
+        guard total > 0 else { return AnyView(EmptyView()) }
+
+        let raiseFraction = shot.raiseDuration / total
+        let settleFraction = shot.settleDuration / total
+        let holdFraction = shot.holdDuration / total
+
+        return AnyView(
+            VStack(spacing: 4) {
+                GeometryReader { geo in
+                    HStack(spacing: 1) {
+                        phaseSegment(label: "Raise", fraction: raiseFraction, color: phaseQualityColor(shot.raiseDuration, ideal: 0.8...1.5), width: geo.size.width)
+                        phaseSegment(label: "Settle", fraction: settleFraction, color: phaseQualityColor(shot.settleDuration, ideal: 0.3...1.0), width: geo.size.width)
+                        phaseSegment(label: "Hold", fraction: holdFraction, color: phaseQualityColor(shot.holdDuration, ideal: 1.0...3.0), width: geo.size.width)
+                    }
+                }
+                .frame(height: 20)
+
+                HStack {
+                    Text(String(format: "%.1fs raise", shot.raiseDuration))
+                    Spacer()
+                    Text(String(format: "%.1fs settle", shot.settleDuration))
+                    Spacer()
+                    Text(String(format: "%.1fs hold", shot.holdDuration))
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+        )
+    }
+
+    private func phaseSegment(label: String, fraction: Double, color: Color, width: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(color)
+            .frame(width: max(4, width * fraction))
+    }
+
+    private func phaseQualityColor(_ duration: Double, ideal: ClosedRange<Double>) -> Color {
+        if ideal.contains(duration) { return .green }
+        if duration < ideal.lowerBound * 0.5 || duration > ideal.upperBound * 1.5 { return .red }
+        return .orange
+    }
+
+    private func steadinessColor(_ value: Double) -> Color {
+        if value > 80 { return .green }
+        if value > 60 { return .cyan }
+        if value > 40 { return .orange }
+        return .red
+    }
+
+    // MARK: - Session Shot Summary
+
+    private var sessionShotSummaryCard: some View {
+        let metrics = watchShotMetrics
+        let recentCount = min(metrics.count, 10)
+        let recentMetrics = Array(metrics.suffix(recentCount))
+        let avgSteadiness = recentMetrics.map(\.holdSteadiness).reduce(0, +) / Double(recentCount)
+
+        // Fatigue trend: compare first half vs second half steadiness
+        let midpoint = metrics.count / 2
+        let firstHalfAvg = metrics.prefix(max(1, midpoint)).map(\.holdSteadiness).reduce(0, +) / Double(max(1, midpoint))
+        let secondHalfAvg = metrics.suffix(max(1, metrics.count - midpoint)).map(\.holdSteadiness).reduce(0, +) / Double(max(1, metrics.count - midpoint))
+        let fatigueDelta = secondHalfAvg - firstHalfAvg
+
+        return VStack(spacing: 8) {
+            HStack {
+                Text("Session Summary")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(metrics.count) shots detected")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            HStack(spacing: 20) {
+                // Average steadiness
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", avgSteadiness))
+                        .font(.title3.weight(.bold).monospacedDigit())
+                        .foregroundStyle(steadinessColor(avgSteadiness))
+                    Text("Avg Steady")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Fatigue trend
+                VStack(spacing: 2) {
+                    HStack(spacing: 2) {
+                        Image(systemName: fatigueDelta > 2 ? "arrow.up" : fatigueDelta < -2 ? "arrow.down" : "arrow.right")
+                            .font(.caption)
+                        Text(fatigueDelta > 2 ? "Improving" : fatigueDelta < -2 ? "Degrading" : "Stable")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(fatigueDelta > 2 ? .green : fatigueDelta < -2 ? .orange : .primary)
+                    Text("Form Trend")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Avg hold time
+                let avgHold = recentMetrics.map(\.holdDuration).reduce(0, +) / Double(recentCount)
+                VStack(spacing: 2) {
+                    Text(String(format: "%.1fs", avgHold))
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                    Text("Avg Hold")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Mini steadiness bar chart (last 5-10 shots)
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(recentMetrics) { shot in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(steadinessColor(shot.holdSteadiness))
+                        .frame(width: max(6, CGFloat(200 / recentCount)), height: max(4, CGFloat(shot.holdSteadiness) * 0.4))
+                }
+            }
+            .frame(height: 40)
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func saveCompetitionSession() {

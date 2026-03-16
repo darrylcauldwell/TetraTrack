@@ -749,8 +749,8 @@ struct SwimmingLiveView: View {
                 strokeTrackingDisplay
             }
 
-            // Live heart rate (when receiving data)
-            if tracker.currentHeartRate > 0 && hasStarted {
+            // Live heart rate with zone (always visible for parent/coach)
+            if hasStarted {
                 HeartRateDisplayView(
                     heartRate: tracker.currentHeartRate,
                     zone: tracker.currentHeartRateZone,
@@ -760,6 +760,11 @@ struct SwimmingLiveView: View {
                 .padding()
                 .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                // Physiology panel (breathing, SpO2, fatigue from Watch)
+                if sensorAnalyzer.breathingRate > 0 || sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.fatigueScore > 0 {
+                    swimPhysiologyPanel
+                }
             }
 
             // Live split chart (after 2+ lengths)
@@ -1078,6 +1083,71 @@ struct SwimmingLiveView: View {
         .padding(.vertical, 12)
         .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Physiology Panel
+
+    private var swimPhysiologyPanel: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.caption2)
+                    .foregroundStyle(.cyan)
+                Text("Watch Sensors")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text("(updates when swimmer surfaces)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            HStack(spacing: 20) {
+                // Breathing rate
+                if sensorAnalyzer.breathingRate > 0 {
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.0f", sensorAnalyzer.breathingRate))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        Text("br/min")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // SpO2
+                if sensorAnalyzer.oxygenSaturation > 0 {
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.0f%%", sensorAnalyzer.oxygenSaturation))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(sensorAnalyzer.oxygenSaturation < 92 ? .red : .primary)
+                        Text("SpO₂")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Fatigue score
+                if sensorAnalyzer.fatigueScore > 0 {
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.0f", sensorAnalyzer.fatigueScore))
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(fatigueColor(sensorAnalyzer.fatigueScore))
+                        Text("Fatigue")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func fatigueColor(_ score: Double) -> Color {
+        if score < 30 { return .green }
+        if score < 60 { return .orange }
+        return .red
     }
 
     private var paceDisplay: some View {
@@ -1532,7 +1602,7 @@ struct SwimmingSessionDetailView: View {
                     NavigationLink {
                         SwimmingInsightsView(session: session)
                     } label: {
-                        Label("GRACE Insights", systemImage: "chart.bar.xaxis")
+                        Label("Session Insights", systemImage: "chart.bar.xaxis")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {

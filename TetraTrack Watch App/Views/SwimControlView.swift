@@ -8,6 +8,7 @@
 
 import SwiftUI
 import HealthKit
+import TetraTrackShared
 
 struct SwimControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
@@ -122,7 +123,7 @@ struct SwimControlView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    // Heart Rate (always visible)
+                    // Heart Rate with zone
                     VStack(spacing: 2) {
                         HStack(spacing: 2) {
                             Image(systemName: "heart.fill")
@@ -132,9 +133,20 @@ struct SwimControlView: View {
                                 .font(.callout)
                                 .fontWeight(.semibold)
                         }
-                        Text("bpm")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        if workoutManager.currentHeartRate > 0 {
+                            let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
+                            Text(zone.name)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(watchZoneColor(zone))
+                                .clipShape(Capsule())
+                        } else {
+                            Text("bpm")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 

@@ -17,6 +17,7 @@ struct ShootingControlView: View {
     @State private var showingStopConfirmation = false
     @State private var shotDetector = ShootingShotDetector()
     @State private var lastShotDelta: Double? // Improvement arrow value
+    @State private var recentSteadiness: [Double] = [] // For fatigue trend
 
     var body: some View {
         Group {
@@ -56,6 +57,7 @@ struct ShootingControlView: View {
 
             Button {
                 shotDetector.reset()
+                recentSteadiness = []
                 Task {
                     await workoutManager.startWorkout(type: .shooting)
                 }
@@ -102,8 +104,9 @@ struct ShootingControlView: View {
                 Divider()
                     .padding(.vertical, 2)
 
-                // Heart rate and last shot delta
-                HStack(spacing: 12) {
+                // Heart rate with zone, last shot delta, fatigue trend
+                HStack(spacing: 10) {
+                    // HR + zone
                     VStack(spacing: 2) {
                         HStack(spacing: 2) {
                             Image(systemName: "heart.fill")
@@ -113,11 +116,23 @@ struct ShootingControlView: View {
                                 .font(.callout)
                                 .fontWeight(.semibold)
                         }
-                        Text("bpm")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        if workoutManager.currentHeartRate > 0 {
+                            let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
+                            Text(zone.name)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(watchZoneColor(zone))
+                                .clipShape(Capsule())
+                        } else {
+                            Text("bpm")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
+                    // Last shot delta
                     if let delta = lastShotDelta {
                         VStack(spacing: 2) {
                             HStack(spacing: 2) {
@@ -130,6 +145,18 @@ struct ShootingControlView: View {
                                     .foregroundStyle(delta >= 0 ? .green : .orange)
                             }
                             Text("steadiness")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    // Fatigue trend (3+ shots)
+                    if shotDetector.shotCount >= 3 {
+                        VStack(spacing: 2) {
+                            Image(systemName: fatigueTrendIcon)
+                                .font(.callout)
+                                .foregroundStyle(fatigueTrendColor)
+                            Text("form")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -200,6 +227,30 @@ struct ShootingControlView: View {
         }
     }
 
+    // MARK: - Fatigue Trend
+
+    private var fatigueTrendIcon: String {
+        guard recentSteadiness.count >= 3 else { return "arrow.right" }
+        let mid = recentSteadiness.count / 2
+        let firstAvg = recentSteadiness.prefix(mid).reduce(0, +) / Double(max(1, mid))
+        let secondAvg = recentSteadiness.suffix(recentSteadiness.count - mid).reduce(0, +) / Double(max(1, recentSteadiness.count - mid))
+        let delta = secondAvg - firstAvg
+        if delta > 2 { return "arrow.up" }
+        if delta < -2 { return "arrow.down" }
+        return "arrow.right"
+    }
+
+    private var fatigueTrendColor: Color {
+        guard recentSteadiness.count >= 3 else { return .primary }
+        let mid = recentSteadiness.count / 2
+        let firstAvg = recentSteadiness.prefix(mid).reduce(0, +) / Double(max(1, mid))
+        let secondAvg = recentSteadiness.suffix(recentSteadiness.count - mid).reduce(0, +) / Double(max(1, recentSteadiness.count - mid))
+        let delta = secondAvg - firstAvg
+        if delta > 2 { return .green }
+        if delta < -2 { return .orange }
+        return .primary
+    }
+
     private func steadinessColor(_ value: Double) -> Color {
         if value > 80 { return .green }
         if value > 60 { return .cyan }
@@ -224,6 +275,10 @@ struct ShootingControlView: View {
         shotDetector.onShotDetected = { metrics in
             // Haptic feedback
             WKInterfaceDevice.current().play(.click)
+
+            // Track steadiness history for fatigue trend
+            recentSteadiness.append(metrics.holdSteadiness)
+            if recentSteadiness.count > 10 { recentSteadiness.removeFirst() }
 
             // Calculate improvement delta
             if let previous = shotDetector.lastShotMetrics,

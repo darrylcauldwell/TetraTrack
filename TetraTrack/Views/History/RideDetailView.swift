@@ -242,11 +242,11 @@ struct RideDetailView: View {
                     .foregroundStyle(AppColors.primary)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("GRACE Insights")
+                    Text("Session Insights")
                         .font(.headline)
                         .foregroundStyle(.primary)
 
-                    Text("Grow · Rhythm · Align · Circle · Enjoy")
+                    Text("Stability · Rhythm · Symmetry · Economy")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

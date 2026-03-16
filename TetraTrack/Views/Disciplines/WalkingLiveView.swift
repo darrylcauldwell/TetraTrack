@@ -141,10 +141,25 @@ struct WalkingLiveView: View {
                     value: tracker.totalDistance > 50 ? formatPace(tracker.elapsedTime / (tracker.totalDistance / 1000)) : "--",
                     label: "Pace"
                 )
-                metricColumn(
-                    value: tracker.currentHeartRate > 0 ? "\(tracker.currentHeartRate)" : "--",
-                    label: "Heart Rate"
-                )
+                // Heart rate with zone
+                VStack(spacing: 4) {
+                    Text(tracker.currentHeartRate > 0 ? "\(tracker.currentHeartRate)" : "--")
+                        .font(.system(.title3, design: .rounded))
+                        .monospacedDigit()
+                        .bold()
+                    Text("Heart Rate")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if tracker.currentHeartRate > 0 {
+                        Text(tracker.currentHeartRateZone.name)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(heartRateZoneColor(tracker.currentHeartRateZone))
+                            .clipShape(Capsule())
+                    }
+                }
                 metricColumn(
                     value: tracker.elevationGain > 0 ? String(format: "%.0f m", tracker.elevationGain) : "--",
                     label: "Ascent"

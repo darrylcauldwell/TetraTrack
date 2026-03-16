@@ -70,6 +70,16 @@ final class SessionTracker {
 
     var isSharingWithFamily: Bool = false
 
+    // MARK: - Post-Session
+
+    /// Info captured at session end for post-session insights navigation
+    struct CompletedSessionInfo {
+        let disciplineType: String  // Plugin subscriberId for dispatch
+        let modelID: PersistentIdentifier
+    }
+
+    var completedSessionInfo: CompletedSessionInfo?
+
     // MARK: - Active Plugin
 
     private(set) var activePlugin: (any DisciplinePlugin)?
@@ -517,8 +527,16 @@ final class SessionTracker {
         // Re-enable screen auto-lock
         UIApplication.shared.isIdleTimerDisabled = false
 
-        // Reset common state
-        sessionState = .idle
+        // Capture completed session info before clearing plugin/model
+        if let model = currentSessionModel {
+            completedSessionInfo = CompletedSessionInfo(
+                disciplineType: plugin.subscriberId,
+                modelID: model.persistentModelID
+            )
+        }
+
+        // Reset common state — transition to .completed so ContentView shows insights
+        sessionState = .completed
         activePlugin = nil
         currentSessionModel = nil
         currentSpeed = 0
@@ -622,6 +640,13 @@ final class SessionTracker {
         weatherError = nil
         pausedAccumulated = 0
         lastPauseDate = nil
+    }
+
+    // MARK: - Post-Session Dismiss
+
+    func dismissPostSession() {
+        completedSessionInfo = nil
+        sessionState = .idle
     }
 
     // MARK: - Safety Actions
