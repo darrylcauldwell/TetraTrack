@@ -12,6 +12,7 @@ import CoreLocation
 import Observation
 import os
 import TetraTrackShared
+import WatchConnectivity
 
 // MARK: - Workout State
 
@@ -104,6 +105,10 @@ final class WorkoutLifecycleService: NSObject {
 
         // Store configuration for auto-fallback
         pendingWatchConfiguration = configuration
+
+        // Log WCSession state before attempting Watch launch
+        let wc = WCSession.default
+        Log.health.error("TT: WCSession state — paired=\(wc.isPaired), installed=\(wc.isWatchAppInstalled), reachable=\(wc.isReachable), activated=\(wc.activationState.rawValue)")
 
         // Ask Watch to start the primary session
         try await healthStore.startWatchApp(toHandle: configuration)
