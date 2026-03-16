@@ -69,6 +69,10 @@ final class WorkoutLifecycleService: NSObject {
     // Tracked workout save task for ordered post-session pipeline
     private var workoutSaveTask: Task<HKWorkout?, Never>?
 
+    /// Callback fired when a mirrored session arrives autonomously (Watch-initiated).
+    /// SessionTracker wires this to create a DisciplinePlugin and start tracking.
+    var onAutonomousMirroredSession: ((HKWorkoutActivityType) -> Void)?
+
     private override init() {
         super.init()
     }
@@ -211,6 +215,10 @@ final class WorkoutLifecycleService: NSObject {
                         discipline: "\(config.activityType.rawValue)",
                         startDate: Date()
                     )
+
+                    // Notify SessionTracker to create a plugin and start tracking
+                    self.onAutonomousMirroredSession?(config.activityType)
+
                     Log.health.info("WorkoutLifecycleService: configured Watch-primary state for autonomous workout")
                 }
 

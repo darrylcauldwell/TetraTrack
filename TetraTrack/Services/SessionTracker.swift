@@ -157,6 +157,7 @@ final class SessionTracker {
         startWatchObservation()
         setupHealthCoordinator()
         setupFallDetection()
+        setupMirroredSessionCallback()
     }
 
     func configure(with modelContext: ModelContext) {
@@ -168,6 +169,166 @@ final class SessionTracker {
         if let profile = riderProfile {
             healthCoordinator.configure(maxHeartRate: profile.maxHeartRate, restingHeartRate: profile.restingHeartRate)
         }
+    }
+
+    // MARK: - Mirrored Session Support
+
+    /// Wire the callback so autonomous Watch workouts create a plugin on iPhone.
+    private func setupMirroredSessionCallback() {
+        workoutLifecycle.onAutonomousMirroredSession = { [weak self] activityType in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.startSessionFromMirroredWorkout(activityType: activityType)
+            }
+        }
+    }
+
+    /// Create a default plugin for a Watch-initiated mirrored workout.
+    private func createDefaultPlugin(for activityType: HKWorkoutActivityType) -> (any DisciplinePlugin)? {
+        switch activityType {
+        case .equestrianSports: RidingPlugin()
+        case .running: RunningPlugin(session: RunningSession())
+        case .walking: WalkingPlugin(session: RunningSession(), selectedRoute: nil, targetCadence: 0)
+        case .swimming: SwimmingPlugin(session: SwimmingSession())
+        case .archery: ShootingPlugin(sessionContext: .freePractice)
+        default: nil
+        }
+    }
+
+    /// Start a full session in response to an autonomous mirrored workout from Watch.
+    /// Reuses startSession() logic but skips requestWatchWorkout() since Watch already
+    /// owns the workout session.
+    func startSessionFromMirroredWorkout(activityType: HKWorkoutActivityType) async {
+        guard sessionState == .idle else {
+            Log.tracking.warning("startSessionFromMirroredWorkout: not idle, ignoring")
+            return
+        }
+
+        guard let plugin = createDefaultPlugin(for: activityType) else {
+            Log.tracking.error("startSessionFromMirroredWorkout: no plugin for activityType \(activityType.rawValue)")
+            return
+        }
+
+        Log.tracking.info("startSessionFromMirroredWorkout: starting with \(plugin.subscriberId)")
+
+        // Cancel any lingering tasks
+        cancelActiveTasks()
+
+        // Request location permission for GPS disciplines
+        if plugin.usesGPS {
+            if locationManager.needsPermission {
+                locationManager.requestPermission()
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            guard locationManager.hasPermission else {
+                Log.tracking.warning("startSessionFromMirroredWorkout: no location permission")
+                return
+            }
+        }
+
+        // Set active plugin
+        activePlugin = plugin
+
+        // Create session model
+        guard let ctx = modelContext else {
+            Log.tracking.error("startSessionFromMirroredWorkout: no modelContext")
+            activePlugin = nil
+            return
+        }
+        let sessionModel = plugin.createSessionModel(in: ctx)
+        currentSessionModel = sessionModel
+        ctx.insert(sessionModel)
+
+        do {
+            try ctx.save()
+        } catch {
+            Log.tracking.error("startSessionFromMirroredWorkout: failed to save initial session: \(error)")
+        }
+
+        // Reset tracking state
+        totalDistance = 0
+        elapsedTime = 0
+        currentSpeed = 0
+        currentElevation = 0
+        elevationGain = 0
+        elevationLoss = 0
+        currentHeartRate = 0
+        averageHeartRate = 0
+        maxHeartRate = 0
+        minHeartRate = 0
+        currentHeartRateZone = .zone1
+        heartRateSamples = []
+        gpsSignalQuality = .none
+        gpsHorizontalAccuracy = -1
+        currentWeather = nil
+        weatherError = nil
+        startTime = Date()
+        timerTickCount = 0
+        pausedAccumulated = 0
+        lastPauseDate = nil
+        sessionState = .tracking
+
+        // Start GPS if discipline uses it
+        if plugin.usesGPS {
+            locationManager.clearTrackedPoints()
+            let gpsConfig = GPSSessionConfig(
+                subscriberId: plugin.subscriberId,
+                activityType: plugin.activityType,
+                checkpointInterval: 30,
+                modelContext: ctx,
+                workoutLifecycle: workoutLifecycle
+            )
+            await gpsTracker.start(config: gpsConfig, delegate: self)
+        }
+
+        // Family sharing
+        if plugin.supportsFamilySharing && !isSharingWithFamily {
+            if let contacts = try? sharingCoordinator.fetchRelationships(),
+               contacts.contains(where: { $0.canViewLiveTracking && $0.inviteStatus == .accepted }) {
+                isSharingWithFamily = true
+            }
+        }
+        if isSharingWithFamily && plugin.supportsFamilySharing {
+            await sharingCoordinator.startSharingLocation(activityType: plugin.sharingActivityType)
+        }
+
+        // Start timer, prevent screen lock
+        startTimer()
+        UIApplication.shared.isIdleTimerDisabled = true
+
+        // NOTE: Skip requestWatchWorkout() — Watch already owns the workout session.
+        // WorkoutLifecycleService state is already configured by setupMirroringHandler().
+
+        // Watch status updates (1Hz)
+        watchUpdateTimer?.invalidate()
+        watchUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.sendStatusToWatch()
+        }
+
+        // Fall detection
+        if plugin.usesFallDetection {
+            fallDetectionManager.startMonitoring()
+        }
+
+        // Activity classification
+        activityClassifier.startMonitoring()
+
+        // Watch session
+        watchManager.startSession(discipline: plugin.watchDiscipline)
+
+        // Weather
+        if plugin.usesGPS {
+            await fetchWeatherForSession()
+        }
+
+        // Audio coaching
+        audioCoach.startSession()
+        audioCoach.resetSafetyStatus()
+
+        // Notify plugin
+        await plugin.onSessionStarted(tracker: self)
+
+        Log.tracking.info("startSessionFromMirroredWorkout: session started — \(plugin.subscriberId)")
     }
 
     // MARK: - Plugin Access
