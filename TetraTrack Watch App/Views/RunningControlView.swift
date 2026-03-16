@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import TetraTrackShared
 
 struct RunningControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
@@ -93,7 +94,7 @@ struct RunningControlView: View {
                 .padding(.vertical, 4)
 
             // Metrics grid
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 // Pace
                 VStack(spacing: 2) {
                     Text(workoutManager.formattedPace)
@@ -103,25 +104,36 @@ struct RunningControlView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Heart Rate (always visible for diagnostics)
+                // Heart Rate with zone badge
                 VStack(spacing: 2) {
                     HStack(spacing: 2) {
                         Image(systemName: "heart.fill")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.red)
                         Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
                             .font(.headline)
                     }
-                    Text("bpm")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if workoutManager.currentHeartRate > 0 {
+                        let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
+                        Text(zone.name)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(watchZoneColor(zone))
+                            .clipShape(Capsule())
+                    } else {
+                        Text("bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                // Elevation
+                // Cadence
                 VStack(spacing: 2) {
-                    Text(String(format: "%.0f", workoutManager.elevationGain))
+                    Text(WatchMotionManager.shared.cadence > 0 ? "\(WatchMotionManager.shared.cadence)" : "–")
                         .font(.headline)
-                    Text("m gain")
+                    Text("spm")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
