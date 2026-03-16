@@ -166,8 +166,7 @@ final class GaitAnalyzer: Resettable {
     /// Configure analyzer for a specific phone mount position
     func configure(mountPosition position: PhoneMountPosition) {
         mountPosition = position
-        frameTransformer.driftThreshold = position.driftThreshold
-        frameTransformer.mountPosition = position
+        frameTransformer.mountPosition = position.mountPosition
     }
 
     /// Configure analyzer with horse profile for breed-specific priors

@@ -8,68 +8,7 @@ import Foundation
 import CoreMotion
 import Observation
 import os
-
-// MARK: - Motion Sample
-
-/// A sample of device motion data
-struct MotionSample {
-    let timestamp: Date
-
-    // Accelerometer data (g-force)
-    let accelerationX: Double
-    let accelerationY: Double
-    let accelerationZ: Double
-
-    // Gyroscope data (rad/s)
-    let rotationX: Double
-    let rotationY: Double
-    let rotationZ: Double
-
-    // Attitude (radians)
-    let pitch: Double
-    let roll: Double
-    let yaw: Double
-
-    // Quaternion for frame transformation (more accurate than Euler angles)
-    let quaternionW: Double
-    let quaternionX: Double
-    let quaternionY: Double
-    let quaternionZ: Double
-
-    /// Acceleration magnitude (total g-force)
-    var accelerationMagnitude: Double {
-        sqrt(accelerationX * accelerationX +
-             accelerationY * accelerationY +
-             accelerationZ * accelerationZ)
-    }
-
-    /// Rotation magnitude (total rotation rate)
-    var rotationMagnitude: Double {
-        sqrt(rotationX * rotationX +
-             rotationY * rotationY +
-             rotationZ * rotationZ)
-    }
-
-    /// Lateral acceleration (X-axis, left/right)
-    var lateralAcceleration: Double {
-        accelerationX
-    }
-
-    /// Vertical acceleration (Z-axis, up/down)
-    var verticalAcceleration: Double {
-        accelerationZ
-    }
-
-    /// Forward acceleration (Y-axis, forward/back)
-    var forwardAcceleration: Double {
-        accelerationY
-    }
-
-    /// Yaw rate (rotation around vertical axis)
-    var yawRate: Double {
-        rotationZ
-    }
-}
+import TetraTrackShared
 
 // MARK: - Motion Manager
 

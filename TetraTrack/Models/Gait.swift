@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import TetraTrackShared
 
 // MARK: - Gait Type
 
@@ -50,34 +51,23 @@ enum GaitType: String, Codable, CaseIterable {
 
 // MARK: - Phone Mount Position
 
-/// Phone mounting position on rider, affects calibration and filtering
+/// Phone mounting position on rider (iPhone-only subset of MountPosition)
+/// Delegates DSP parameters to the shared MountPosition enum
 enum PhoneMountPosition: String, Codable, CaseIterable, PhonePlacementConfigurable {
     case jodhpurThigh = "Jodhpur Pocket"
     case jacketChest = "Jacket Pocket"
 
-    /// Number of motion samples to wait before calibrating (at 100Hz)
-    var calibrationDelay: Int {
+    /// Convert to shared MountPosition for DSP pipeline
+    var mountPosition: MountPosition {
         switch self {
-        case .jodhpurThigh: return 100  // 1s - thigh bounces more, need longer settling
-        case .jacketChest: return 50    // 0.5s - torso is more stable
+        case .jodhpurThigh: return .jodhpurThigh
+        case .jacketChest: return .jacketChest
         }
     }
 
-    /// EMA filter alpha for motion filtering (lower = more smoothing)
-    var filterAlpha: Double {
-        switch self {
-        case .jodhpurThigh: return 0.7  // Less smoothing than before (was 0.4) — preserves gait signal
-        case .jacketChest: return 0.8   // Less smoothing than before (was 0.6) — preserves gait signal
-        }
-    }
-
-    /// Calibration drift threshold in radians
-    var driftThreshold: Double {
-        switch self {
-        case .jodhpurThigh: return 0.40  // Tighter than before (was 0.50) — motion gate now prevents false triggers
-        case .jacketChest: return 0.50   // Wider than before (was 0.35) — chest mount has more torso sway
-        }
-    }
+    var calibrationDelay: Int { mountPosition.calibrationDelay }
+    var filterAlpha: Double { mountPosition.filterAlpha }
+    var driftThreshold: Double { mountPosition.driftThreshold }
 }
 
 // MARK: - Gait Segment Model

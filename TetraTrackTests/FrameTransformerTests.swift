@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import TetraTrackShared
 @testable import TetraTrack
 
 // MARK: - Helpers
@@ -320,5 +321,113 @@ struct FrameTransformerTests {
         let outputMag = result.rotation.magnitude
 
         #expect(abs(outputMag - inputMag) < 0.01)
+    }
+
+    // MARK: - Wrist Mount Tests
+
+    @Test func wristMountAxisMapping() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .wrist
+
+        let sample = createSample(accelX: 0.5, accelY: 0.3, accelZ: -0.8, qW: 1, qX: 0, qY: 0, qZ: 0)
+        let result = transformer.transform(sample)
+
+        // Wrist mount (Watch on left wrist, crown toward elbow):
+        // Watch X → horse lateral, Watch Y → horse forward, Watch Z → horse vertical
+        #expect(abs(result.accel.lateral - 0.5) < 0.01)
+        #expect(abs(result.accel.forward - 0.3) < 0.01)
+        #expect(abs(result.accel.vertical - (-0.8)) < 0.01)
+    }
+
+    @Test func wristMountRotationMapping() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .wrist
+
+        let sample = createSample(rotX: 1.0, rotY: 0.5, rotZ: 0.3, qW: 1, qX: 0, qY: 0, qZ: 0)
+        let result = transformer.transform(sample)
+
+        // Wrist rotation: rotX → pitch, rotZ → roll, rotY → yaw
+        #expect(abs(result.rotation.pitch - 1.0) < 0.01)
+        #expect(abs(result.rotation.roll - 0.3) < 0.01)
+        #expect(abs(result.rotation.yaw - 0.5) < 0.01)
+    }
+
+    @Test func wristMountPreservesMagnitude() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .wrist
+
+        let ax = 0.3, ay = 0.5, az = -0.7
+        let inputMag = sqrt(ax * ax + ay * ay + az * az)
+
+        let angle = Double.pi / 4
+        let qW = cos(angle / 2)
+        let qZ = sin(angle / 2)
+        let sample = createSample(accelX: ax, accelY: ay, accelZ: az, qW: qW, qX: 0, qY: 0, qZ: qZ)
+
+        let result = transformer.transform(sample)
+        #expect(abs(result.accel.magnitude - inputMag) < 0.01)
+    }
+
+    // MARK: - MountPosition Configuration Tests
+
+    @Test func mountPositionSetsThresholds() {
+        let transformer = FrameTransformer()
+
+        transformer.mountPosition = .wrist
+        #expect(transformer.driftThreshold == 0.60)
+
+        transformer.mountPosition = .jodhpurThigh
+        #expect(transformer.driftThreshold == 0.40)
+
+        transformer.mountPosition = .jacketChest
+        #expect(transformer.driftThreshold == 0.50)
+    }
+
+    @Test func mountPositionCalibrationDelays() {
+        #expect(MountPosition.jodhpurThigh.calibrationDelay == 100)
+        #expect(MountPosition.jacketChest.calibrationDelay == 50)
+        #expect(MountPosition.wrist.calibrationDelay == 150)
+    }
+
+    @Test func mountPositionFilterAlphas() {
+        #expect(MountPosition.wrist.filterAlpha == 0.6)
+        #expect(MountPosition.jodhpurThigh.filterAlpha == 0.7)
+        #expect(MountPosition.jacketChest.filterAlpha == 0.8)
+    }
+
+    @Test func mountPositionRecalibrationCooldowns() {
+        #expect(MountPosition.jodhpurThigh.recalibrationCooldown == 3000)
+        #expect(MountPosition.jacketChest.recalibrationCooldown == 3000)
+        #expect(MountPosition.wrist.recalibrationCooldown == 5000)
+    }
+
+    @Test func mountPositionMotionGateThresholds() {
+        #expect(MountPosition.jodhpurThigh.motionGateVerticalThreshold == 0.15)
+        #expect(MountPosition.jacketChest.motionGateVerticalThreshold == 0.15)
+        #expect(MountPosition.wrist.motionGateVerticalThreshold == 0.25)
+    }
+
+    @Test func wristMountDriftDetectionUsesWiderThreshold() {
+        let transformer = FrameTransformer()
+        transformer.mountPosition = .wrist
+        transformer.calibrate(with: createSample(qW: 1, qX: 0, qY: 0, qZ: 0))
+
+        // Feed tilted but stationary samples
+        let tiltAngle = Double.pi / 6  // 30 degrees — within wrist threshold (0.60) but beyond thigh (0.40)
+        let qW = cos(tiltAngle / 2)
+        let qX = sin(tiltAngle / 2)
+
+        for _ in 0..<4000 {
+            let sample = createSample(
+                accelX: 0, accelY: 0.02, accelZ: -0.02,
+                rotX: 0, rotY: 0, rotZ: 0,
+                qW: qW, qX: qX, qY: 0, qZ: 0
+            )
+            _ = transformer.transform(sample)
+        }
+
+        // With wider wrist threshold, mild tilt should not trigger recalibration
+        // (30 deg ≈ 0.52 rad, below wrist threshold of 0.60)
+        #expect(transformer.recalibrationCount == 0)
     }
 }
