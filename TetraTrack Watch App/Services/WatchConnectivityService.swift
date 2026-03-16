@@ -112,6 +112,48 @@ final class WatchConnectivityService: NSObject {
         session?.activate()
     }
 
+    // MARK: - Diagnostic Breadcrumbs
+
+    /// Accumulated breadcrumb log — sent to iPhone via applicationContext (last value wins).
+    /// Using applicationContext instead of transferUserInfo because transferUserInfo
+    /// queues can get poisoned by burst sends, causing all transfers to silently fail.
+    private static var breadcrumbLog: [String] = []
+
+    /// Send a diagnostic message to iPhone via applicationContext.
+    /// Messages accumulate in a log array and are sent as a batch (last value wins).
+    /// This works even when isReachable is false, unlike sendMessage.
+    static func sendDiagnostic(_ message: String) {
+        let timestamped = "\(Int(Date().timeIntervalSince1970)): \(message)"
+        breadcrumbLog.append(timestamped)
+        // Keep only the last 20 breadcrumbs to avoid payload size issues
+        if breadcrumbLog.count > 20 {
+            breadcrumbLog.removeFirst(breadcrumbLog.count - 20)
+        }
+
+        guard WCSession.default.activationState == .activated else { return }
+        do {
+            try WCSession.default.updateApplicationContext([
+                "diagnosticBreadcrumbs": breadcrumbLog,
+                "watchDiagnosticTimestamp": Date().timeIntervalSince1970
+            ])
+        } catch {
+            Log.watch.error("Failed to send diagnostic via applicationContext: \(error)")
+        }
+    }
+
+    /// Flush pending breadcrumbs on activation — just re-sends the current log.
+    static func flushPendingBreadcrumbs() {
+        guard WCSession.default.activationState == .activated, !breadcrumbLog.isEmpty else { return }
+        do {
+            try WCSession.default.updateApplicationContext([
+                "diagnosticBreadcrumbs": breadcrumbLog,
+                "watchDiagnosticTimestamp": Date().timeIntervalSince1970
+            ])
+        } catch {
+            Log.watch.error("Failed to flush diagnostics via applicationContext: \(error)")
+        }
+    }
+
     // MARK: - Computed Properties
 
     /// Whether there is an active session on iPhone
@@ -500,6 +542,22 @@ final class WatchConnectivityService: NSObject {
                     HapticManager.shared.playRestIntervalEndHaptic()
                     Log.watch.info("Haptic: rest end")
 
+                // Autonomous workout: iPhone asks Watch to start its own HKWorkoutSession
+                case .startAutonomousWorkout:
+                    if let discipline = watchMessage.discipline,
+                       let type = WatchActivityType(rawValue: discipline) {
+                        // Guard against duplicate delivery (sendMessage + applicationContext)
+                        guard !WorkoutManager.shared.isWorkoutActive else {
+                            Log.watch.error("TT: startAutonomousWorkout IGNORED (workout already active)")
+                            return
+                        }
+                        Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
+                        WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
+                        Task {
+                            await WorkoutManager.shared.startWorkout(type: type)
+                        }
+                    }
+
                 // Commands sent from Watch to iPhone (ignore on Watch side)
                 case .requestStatus, .heartRateUpdate, .voiceNote,
                      .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:
@@ -744,6 +802,9 @@ extension WatchConnectivityService: WCSessionDelegate {
         DispatchQueue.main.async {
             self.isReachable = session.isReachable
         }
+
+        // Flush any breadcrumbs that were queued before activation completed
+        WatchConnectivityService.flushPendingBreadcrumbs()
 
         // Request initial statistics on activation
         if session.isReachable {

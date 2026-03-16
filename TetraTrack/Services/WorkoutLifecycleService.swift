@@ -12,6 +12,7 @@ import CoreLocation
 import Observation
 import os
 import TetraTrackShared
+import WatchConnectivity
 
 // MARK: - Workout State
 
@@ -59,6 +60,9 @@ final class WorkoutLifecycleService: NSObject {
     // Track activity type for watch motion mode mapping
     private var currentActivityType: HKWorkoutActivityType?
 
+    // Stored configuration for auto-fallback if mirrored session doesn't arrive
+    private var pendingWatchConfiguration: HKWorkoutConfiguration?
+
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
 
@@ -72,8 +76,9 @@ final class WorkoutLifecycleService: NSObject {
     // MARK: - Watch-Primary Workout
 
     /// Request the Watch to start a primary workout session.
-    /// Uses healthStore.startWatchApp() which triggers the Watch's WKApplicationDelegate.
-    /// iPhone receives the mirrored session back from Watch and acts as a display/route device.
+    /// Sends a WCSession command to Watch, which starts its own HKWorkoutSession
+    /// and mirrors it back to iPhone via startMirroringToCompanionDevice().
+    /// iPhone receives the mirrored session and acts as a display/route device.
     func requestWatchWorkout(configuration: HKWorkoutConfiguration) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
@@ -99,8 +104,42 @@ final class WorkoutLifecycleService: NSObject {
             routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
         }
 
-        // Ask Watch to start the primary session
-        try await healthStore.startWatchApp(toHandle: configuration)
+        // Store configuration for auto-fallback
+        pendingWatchConfiguration = configuration
+
+        // Map HKWorkoutActivityType to WatchActivityType discipline string
+        let discipline: String = switch configuration.activityType {
+        case .equestrianSports: "riding"
+        case .running: "running"
+        case .walking: "walking"
+        case .swimming: "swimming"
+        case .archery: "shooting"
+        default: "running"
+        }
+
+        // Log WCSession state before sending command
+        let wc = WCSession.default
+        let paired = wc.isPaired
+        let installed = wc.isWatchAppInstalled
+        let reachable = wc.isReachable
+        let activated = wc.activationState.rawValue
+        Log.health.error("TT: WCSession state — paired=\(paired, privacy: .public), installed=\(installed, privacy: .public), reachable=\(reachable, privacy: .public), activated=\(activated, privacy: .public)")
+
+        // Step 1: Use startWatchApp to wake/launch the Watch app (best-effort).
+        // This is the only API that can launch the Watch app from background.
+        // We don't rely on handle() firing — just using it as a wake-up mechanism.
+        do {
+            try await healthStore.startWatchApp(toHandle: configuration)
+            Log.health.error("TT: startWatchApp returned OK (wake-up only)")
+        } catch {
+            let errMsg = error.localizedDescription
+            Log.health.error("TT: startWatchApp failed (non-fatal, Watch may already be running): \(errMsg, privacy: .public)")
+        }
+
+        // Step 2: Send the actual workout command via WCSession.
+        // Watch creates HKWorkoutSession, mirrors it back to iPhone via startMirroringToCompanionDevice().
+        // iPhone receives the mirrored session through setupMirroringHandler() above.
+        watchConnectivity.requestAutonomousWorkout(discipline: discipline)
 
         // Persist context for crash recovery
         persistSessionContext(
@@ -108,14 +147,38 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        Log.health.info("WorkoutLifecycleService: requested Watch to start \(configuration.activityType.rawValue) workout")
+        // TT: error level so it appears in Console.app on physical devices
+        Log.health.error("TT: requestWatchWorkout — sent startAutonomousWorkout(\(discipline, privacy: .public)) via WCSession")
+
+        // Auto-fallback: if mirrored session doesn't arrive within 10 seconds,
+        // fall back to iPhone-primary mode to prevent Code 5 errors
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard let self else { return }
+            if self.workoutSession == nil {
+                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received 10s after WCSession command")
+                self.isWatchPrimary = false
+                if let config = self.pendingWatchConfiguration {
+                    do {
+                        try await self.startWorkoutFallback(configuration: config)
+                        Log.health.error("TT: iPhone-primary fallback workout started successfully")
+                    } catch {
+                        let errMsg = error.localizedDescription
+                        Log.health.error("TT: iPhone-primary fallback ALSO failed: \(errMsg, privacy: .public)")
+                    }
+                }
+            } else {
+                Log.health.error("TT: mirrored session confirmed active 10s after WCSession command")
+            }
+            self.pendingWatchConfiguration = nil
+        }
     }
 
     /// Register the mirroring handler at app launch so iPhone is always ready
     /// to receive mirrored sessions from Watch-autonomous workouts.
     func registerMirroringHandler() {
         setupMirroringHandler()
-        Log.health.info("WorkoutLifecycleService: mirroring handler registered at launch")
+        Log.health.error("TT: mirroring handler registered at launch — ready to receive Watch sessions")
     }
 
     /// Set up handler to receive mirrored workout session from Watch.
@@ -128,6 +191,8 @@ final class WorkoutLifecycleService: NSObject {
                 // No builder or data source — builder runs on Watch only
                 self.state = .active
                 self.error = nil
+                // Clear pending config — mirrored session arrived, no fallback needed
+                self.pendingWatchConfiguration = nil
 
                 // If this session arrived without requestWatchWorkout() (autonomous Watch start),
                 // configure state so pause/resume/endAndSave use the correct Watch-primary path.
@@ -149,7 +214,7 @@ final class WorkoutLifecycleService: NSObject {
                     Log.health.info("WorkoutLifecycleService: configured Watch-primary state for autonomous workout")
                 }
 
-                Log.health.info("WorkoutLifecycleService: received mirrored session from Watch")
+                Log.health.error("TT: received mirrored session from Watch — Watch-primary mode active")
             }
         }
     }
@@ -248,7 +313,8 @@ final class WorkoutLifecycleService: NSObject {
         do {
             try await routeBuilder.insertRouteData(locations)
         } catch {
-            Log.health.error("WorkoutLifecycleService: failed to insert route data: \(error)")
+            let hasSession = workoutSession != nil
+            Log.health.error("WorkoutLifecycleService: failed to insert route data: \(error) — isWatchPrimary=\(self.isWatchPrimary), hasWorkoutSession=\(hasSession)")
         }
     }
 
@@ -667,6 +733,7 @@ final class WorkoutLifecycleService: NSObject {
         isOutdoorSession = false
         isWatchPrimary = false
         currentActivityType = nil
+        pendingWatchConfiguration = nil
         state = .idle
         liveActiveCalories = 0
         liveDistance = 0
@@ -727,6 +794,7 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
             case "heartRate":
                 // HR sent from Watch via mirrored session
                 guard let bpm = payload["bpm"] as? Int, bpm > 0 else { continue }
+                Log.health.info("WorkoutLifecycleService: received mirrored HR \(bpm) bpm from Watch")
                 Task { @MainActor in
                     self.liveHeartRate = bpm
                     WatchConnectivityManager.shared.updateFromMirroredHeartRate(bpm)
@@ -739,8 +807,10 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 guard let metricsString = payload["metricsJSON"] as? String,
                       let metricsData = metricsString.data(using: .utf8),
                       let metricsDict = try? JSONSerialization.jsonObject(with: metricsData) as? [String: Any] else {
+                    Log.health.info("WorkoutLifecycleService: failed to decode mirrored motion data")
                     continue
                 }
+                Log.health.info("WorkoutLifecycleService: received mirrored motion data from Watch")
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
                 }

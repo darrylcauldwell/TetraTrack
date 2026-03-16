@@ -126,7 +126,7 @@ struct ContentView: View {
                             .font(.body)
                             .fontWeight(.medium)
                     }
-                } else if workoutManager.activityType == .running {
+                } else if workoutManager.activityType == .running || workoutManager.activityType == .walking {
                     VStack(spacing: 2) {
                         Text("Pace")
                             .font(.caption2)
@@ -157,16 +157,23 @@ struct ContentView: View {
                 }
 
                 // Heart Rate
-                if workoutManager.currentHeartRate > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .foregroundStyle(.red)
-                        Text("\(workoutManager.currentHeartRate)")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(.red)
+                    Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
+                        .font(.title3)
+                        .fontWeight(.semibold)
                 }
             }
+
+            // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
+            HStack(spacing: 8) {
+                Text("T:\(workoutManager.motionSendTickCount)")
+                Text("HR:\(workoutManager.currentHeartRate)")
+                Text(workoutManager.isMirroringToiPhone ? "MIR" : "WC")
+            }
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(.gray)
 
             Spacer()
 

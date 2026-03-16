@@ -73,6 +73,8 @@ public enum WatchMessageKey: String {
     // Phone running form data (iPhone -> Watch)
     case runningPhase = "runningPhase"
     case asymmetryIndex = "asymmetryIndex"
+    // Autonomous workout discipline
+    case discipline = "discipline"
 }
 
 // MARK: - Commands
@@ -100,6 +102,8 @@ public enum WatchCommand: String, Codable, Sendable {
     case hapticUrgent = "hapticUrgent"        // Final countdown (last 10s)
     case hapticRestStart = "hapticRestStart"  // Interval rest begins
     case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
+    // Autonomous workout (iPhone -> Watch: start your own HKWorkoutSession)
+    case startAutonomousWorkout = "startAutonomousWorkout"
 }
 
 // MARK: - Fall Response
@@ -193,6 +197,8 @@ public struct WatchMessage: Codable, Sendable {
     // Phone running form data (iPhone -> Watch)
     public let runningPhase: String?            // "Walking"/"Jogging"/"Running"/"Sprinting"
     public let asymmetryIndex: Double?          // Left-right imbalance percentage
+    // Autonomous workout discipline
+    public let discipline: String?              // WatchActivityType raw value (riding/running/etc.)
 
     public init(
         command: WatchCommand? = nil,
@@ -253,7 +259,9 @@ public struct WatchMessage: Codable, Sendable {
         movementIntensity: Double? = nil,
         // Phone running form data
         runningPhase: String? = nil,
-        asymmetryIndex: Double? = nil
+        asymmetryIndex: Double? = nil,
+        // Autonomous workout
+        discipline: String? = nil
     ) {
         self.command = command
         self.rideState = rideState
@@ -314,6 +322,7 @@ public struct WatchMessage: Codable, Sendable {
         self.movementIntensity = movementIntensity
         self.runningPhase = runningPhase
         self.asymmetryIndex = asymmetryIndex
+        self.discipline = discipline
     }
 
     // MARK: - Convenience Initializers
@@ -331,6 +340,11 @@ public struct WatchMessage: Codable, Sendable {
     /// Create a voice note message from Watch to iPhone
     public static func voiceNote(_ text: String) -> WatchMessage {
         WatchMessage(command: .voiceNote, voiceNoteText: text)
+    }
+
+    /// Create a command for Watch to start its own autonomous HKWorkoutSession
+    public static func startAutonomousWorkout(discipline: String) -> WatchMessage {
+        WatchMessage(command: .startAutonomousWorkout, discipline: discipline)
     }
 
     /// Create a status update from iPhone to Watch
@@ -667,6 +681,9 @@ public struct WatchMessage: Codable, Sendable {
         if let asymmetryIndex = asymmetryIndex {
             dict[WatchMessageKey.asymmetryIndex.rawValue] = asymmetryIndex
         }
+        if let discipline = discipline {
+            dict[WatchMessageKey.discipline.rawValue] = discipline
+        }
 
         return dict
     }
@@ -747,7 +764,9 @@ public struct WatchMessage: Codable, Sendable {
             movementIntensity: dict[WatchMessageKey.movementIntensity.rawValue] as? Double,
             // Phone running form data
             runningPhase: dict[WatchMessageKey.runningPhase.rawValue] as? String,
-            asymmetryIndex: dict[WatchMessageKey.asymmetryIndex.rawValue] as? Double
+            asymmetryIndex: dict[WatchMessageKey.asymmetryIndex.rawValue] as? Double,
+            // Autonomous workout
+            discipline: dict[WatchMessageKey.discipline.rawValue] as? String
         )
 
         return message

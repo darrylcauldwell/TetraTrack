@@ -93,20 +93,18 @@ struct RideControlView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Heart Rate
-                if workoutManager.currentHeartRate > 0 {
-                    VStack(spacing: 2) {
-                        HStack(spacing: 2) {
-                            Image(systemName: "heart.fill")
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                            Text("\(workoutManager.currentHeartRate)")
-                                .font(.headline)
-                        }
-                        Text("bpm")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                // Heart Rate (always visible for diagnostics)
+                VStack(spacing: 2) {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
+                            .font(.headline)
                     }
+                    Text("bpm")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Elevation

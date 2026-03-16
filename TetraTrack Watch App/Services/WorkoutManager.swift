@@ -84,8 +84,10 @@ final class WorkoutManager: NSObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var heartRateSamples: [Int] = []
     private var startTime: Date?
-    private var elapsedTimer: Timer?
-    private var motionSendTimer: Timer?
+    private var elapsedTimer: DispatchSourceTimer?
+    private var motionSendTimer: DispatchSourceTimer?
+    private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchTimers", qos: .userInitiated)
+    private(set) var motionSendTickCount: Int = 0
 
     // Dependencies
     private let locationManager = WatchLocationManager.shared
@@ -103,160 +105,89 @@ final class WorkoutManager: NSObject {
         super.init()
     }
 
-    // MARK: - Mirroring
+    // MARK: - Reset
 
-    /// Legacy handler for mirrored workout sessions from iPhone.
-    /// Kept for backward compatibility with older iPhone app versions.
-    /// In Watch-primary mode, startWorkoutFromiPhone() is used instead.
-    func setupLegacyMirroringHandler() {
-        healthStore.workoutSessionMirroringStartHandler = { [weak self] mirroredSession in
-            guard let self else { return }
-            Log.tracking.info("Received mirrored workout session from iPhone")
-
-            Task { @MainActor in
-                self.handleMirroredSession(mirroredSession)
-            }
-        }
-    }
-
-    private func handleMirroredSession(_ session: HKWorkoutSession) {
-        // If we already have an active workout, stop it first
-        if isWorkoutActive && !isMirroredFromiPhone {
+    /// Clean teardown before starting a new workout (matches Apple's resetWorkout() pattern).
+    func resetWorkout() {
+        if isWorkoutActive {
             discardWorkout()
         }
-
-        workoutSession = session
-        workoutSession?.delegate = self
-
-        // Create builder with live data source for auto HR collection
-        workoutBuilder = session.associatedWorkoutBuilder()
-        workoutBuilder?.delegate = self
-
-        let config = session.workoutConfiguration
-        workoutBuilder?.dataSource = HKLiveWorkoutDataSource(
-            healthStore: healthStore,
-            workoutConfiguration: config
-        )
-
-        // Map activity type
-        activityType = mapActivityType(config.activityType)
-
-        // Begin collecting data
-        let startDate = Date()
-        Task {
-            do {
-                try await workoutBuilder?.beginCollection(at: startDate)
-            } catch {
-                Log.tracking.error("Failed to begin mirrored workout collection: \(error)")
-            }
-        }
-
-        // Update state
-        isWorkoutActive = true
+        workoutSession = nil
+        workoutBuilder = nil
+        isWorkoutActive = false
         isCompanionMode = false
-        isMirroredFromiPhone = true
-        isMirroringToiPhone = true
+        isMirroredFromiPhone = false
+        isMirroringToiPhone = false
         isPaused = false
-        startTime = startDate
-
-        // Reset metrics
-        resetMetrics()
-
-        startElapsedTimer()
-
-        // Start mirrored data sending — discardWorkout() killed the timer during handoff.
-        startMotionDataSending()
-
-        onWorkoutStateChanged?(true)
-        Log.tracking.info("Mirrored workout active (legacy): \(self.activityType?.rawValue ?? "unknown")")
     }
 
     // MARK: - iPhone-Triggered Primary Workout
 
     /// Start a primary workout on Watch, triggered by iPhone via startWatchApp.
     /// Watch creates the session, builder, and data source, then mirrors to iPhone.
-    func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async {
-        // If we already have an active workout, discard it
-        if isWorkoutActive {
-            discardWorkout()
+    /// Aligned to Apple's MirroringWorkoutsSample (WWDC23) exact order:
+    /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
+    func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async throws {
+        let activityRaw = configuration.activityType.rawValue
+        let locationRaw = configuration.locationType.rawValue
+        Log.tracking.error("TT: startWorkoutFromiPhone() — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: entry")
+
+        // --- Apple-reference-aligned core (EXACT order from MirroringWorkoutsSample) ---
+        let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+        let builder = session.associatedWorkoutBuilder()
+        session.delegate = self
+        builder.delegate = self
+        builder.dataSource = HKLiveWorkoutDataSource(
+            healthStore: healthStore,
+            workoutConfiguration: configuration
+        )
+
+        session.prepare()
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared, about to mirror")
+        try await session.startMirroringToCompanionDevice()
+        Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
+
+        let startDate = Date()
+        session.startActivity(with: startDate)
+        try await builder.beginCollection(at: startDate)
+
+        // --- TetraTrack-specific (AFTER core setup) ---
+        workoutSession = session
+        workoutBuilder = builder
+        activityType = mapActivityType(configuration.activityType)
+        isWorkoutActive = true
+        isCompanionMode = false
+        isMirroredFromiPhone = true
+        isMirroringToiPhone = true
+        isPaused = false
+        startTime = startDate
+        resetMetrics()
+
+        // Location tracking (outdoor activities)
+        if let type = activityType, type != .swimming && type != .shooting {
+            locationManager.startTracking()
         }
 
-        let authorized = await requestAuthorization()
-        guard authorized else {
-            Log.health.warning("Not authorized for iPhone-triggered workout")
-            return
-        }
-
-        do {
-            // Create PRIMARY session on Watch
-            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
-            session.delegate = self
-            workoutSession = session
-
-            // Create builder with live data source for auto HR from wrist sensor
-            let builder = session.associatedWorkoutBuilder()
-            builder.delegate = self
-            builder.dataSource = HKLiveWorkoutDataSource(
-                healthStore: healthStore,
-                workoutConfiguration: configuration
-            )
-            workoutBuilder = builder
-
-            // Prepare session before starting activity
-            session.prepare()
-
-            // Mirror session to iPhone
-            try await session.startMirroringToCompanionDevice()
-
-            // Start the activity
-            let startDate = Date()
-            session.startActivity(with: startDate)
-            try await builder.beginCollection(at: startDate)
-
-            // Map activity type
-            activityType = mapActivityType(configuration.activityType)
-
-            // Update state
-            isWorkoutActive = true
-            isCompanionMode = false
-            isMirroredFromiPhone = true
-            isMirroringToiPhone = true
-            isPaused = false
-            startTime = startDate
-
-            // Reset metrics
-            resetMetrics()
-
-            // Start location tracking for outdoor activities
-            if let type = activityType, type != .swimming && type != .shooting {
-                locationManager.startTracking()
+        // Motion tracking (discipline-aware)
+        if let type = activityType {
+            let motionMode: WatchMotionMode = switch type {
+            case .riding: .riding
+            case .running, .walking: .running
+            case .swimming: .swimming
+            case .shooting: .shooting
             }
-
-            // Start motion tracking
-            if let type = activityType {
-                let motionMode: WatchMotionMode = switch type {
-                case .riding: .riding
-                case .running: .running
-                case .walking: .running
-                case .swimming: .swimming
-                case .shooting: .shooting
-                }
-                WatchMotionManager.shared.startTracking(mode: motionMode)
-            }
-
-            // Start 1Hz mirrored data sending (HR + motion)
-            startMotionDataSending()
-
-            // Start elapsed timer
-            startElapsedTimer()
-
-            persistRecoveryContext()
-            onWorkoutStateChanged?(true)
-            Log.tracking.info("iPhone-triggered primary workout started: \(self.activityType?.rawValue ?? "unknown")")
-
-        } catch {
-            Log.tracking.error("Failed to start iPhone-triggered workout: \(error.localizedDescription)")
+            WatchMotionManager.shared.startTracking(mode: motionMode)
         }
+
+        startMotionDataSending()
+        startElapsedTimer()
+        persistRecoveryContext()
+        onWorkoutStateChanged?(true)
+
+        let typeName = activityType?.rawValue ?? "unknown"
+        Log.tracking.error("TT: iPhone-triggered primary workout started: \(typeName, privacy: .public)")
     }
 
     /// Send heart rate to iPhone via mirrored workout session channel.
@@ -339,18 +270,27 @@ final class WorkoutManager: NSObject {
 
     // MARK: - Workout Control
 
-    /// Start an autonomous workout session
+    /// Start an autonomous workout session.
+    /// Aligned to Apple's MirroringWorkoutsSample exact order:
+    /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
     func startWorkout(type: WatchActivityType) async {
         guard !isWorkoutActive else {
-            Log.tracking.debug("Workout already active")
+            Log.tracking.error("TT: startWorkout skipped — workout already active")
+            WatchConnectivityService.sendDiagnostic("startWorkout skipped: already active")
             return
         }
 
+        // Ensure HealthKit authorization before creating session
         let authorized = await requestAuthorization()
-        guard authorized else {
-            Log.health.warning("Not authorized for workouts")
+        if !authorized {
+            Log.tracking.error("TT: startWorkout — HealthKit authorization denied")
+            WatchConnectivityService.sendDiagnostic("startWorkout: HealthKit auth DENIED")
             return
         }
+        WatchConnectivityService.sendDiagnostic("startWorkout: HealthKit auth OK")
+
+        // Clear any stale session state
+        resetWorkout()
 
         // Create workout configuration
         let configuration = HKWorkoutConfiguration()
@@ -364,38 +304,37 @@ final class WorkoutManager: NSObject {
         }
 
         do {
-            // Create workout session
-            workoutSession = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
-            workoutSession?.delegate = self
-
-            // Create workout builder
-            workoutBuilder = workoutSession?.associatedWorkoutBuilder()
-            workoutBuilder?.delegate = self
-            workoutBuilder?.dataSource = HKLiveWorkoutDataSource(
+            // Apple-reference-aligned core (same order as startWorkoutFromiPhone)
+            WatchConnectivityService.sendDiagnostic("startWorkout: creating HKWorkoutSession for \(type.rawValue)")
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(
                 healthStore: healthStore,
                 workoutConfiguration: configuration
             )
 
-            // Prepare session before starting activity
-            workoutSession?.prepare()
+            // Prepare session before mirroring (required per Apple docs + nonstrict.eu findings)
+            session.prepare()
+            WatchConnectivityService.sendDiagnostic("startWorkout: session prepared, calling startMirroringToCompanionDevice()")
+            try await session.startMirroringToCompanionDevice()
+            WatchConnectivityService.sendDiagnostic("startWorkout: mirroring SUCCEEDED")
 
-            // Start the session
             let startDate = Date()
-            workoutSession?.startActivity(with: startDate)
-            try await workoutBuilder?.beginCollection(at: startDate)
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            WatchConnectivityService.sendDiagnostic("startWorkout: activity started + collection began")
 
-            // Mirror to iPhone so it receives live HR + motion data
-            try await workoutSession?.startMirroringToCompanionDevice()
-
-            // Update state
+            // TetraTrack-specific state
+            workoutSession = session
+            workoutBuilder = builder
             activityType = type
             isWorkoutActive = true
             isCompanionMode = false
             isMirroringToiPhone = true
             isPaused = false
             startTime = startDate
-
-            // Reset metrics
             resetMetrics()
 
             // Start location tracking (except swimming and shooting)
@@ -403,10 +342,14 @@ final class WorkoutManager: NSObject {
                 locationManager.startTracking()
             }
 
-            // Auto-start motion tracking for shooting
-            if type == .shooting {
-                WatchMotionManager.shared.startTracking(mode: .shooting)
+            // Motion tracking (discipline-aware)
+            let motionMode: WatchMotionMode = switch type {
+            case .riding: .riding
+            case .running, .walking: .running
+            case .swimming: .swimming
+            case .shooting: .shooting
             }
+            WatchMotionManager.shared.startTracking(mode: motionMode)
 
             // Start 1Hz mirrored data sending (HR + motion to iPhone)
             startMotionDataSending()
@@ -422,7 +365,9 @@ final class WorkoutManager: NSObject {
             Log.tracking.info("Started \(type.rawValue) workout (mirroring to iPhone)")
 
         } catch {
-            Log.tracking.error("Failed to start workout: \(error.localizedDescription)")
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: startWorkout FAILED: \(errMsg, privacy: .public)")
+            WatchConnectivityService.sendDiagnostic("startWorkout FAILED: \(errMsg)")
         }
     }
 
@@ -701,15 +646,29 @@ final class WorkoutManager: NSObject {
     /// Start sending motion + HR data at 1Hz via mirrored session or WC fallback.
     func startMotionDataSending() {
         stopMotionDataSending()
-        motionSendTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.sendMirroredDataTick()
+        motionSendTickCount = 0
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.motionSendTickCount += 1
+                if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
+                    Log.tracking.info("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
+                }
+                self.sendMirroredDataTick()
+            }
         }
-        Log.tracking.info("Motion data sending started (1Hz)")
+        source.resume()
+        motionSendTimer = source
+        Log.tracking.info("Motion data sending started (1Hz, DispatchSourceTimer)")
+        WatchConnectivityService.sendDiagnostic("motionSend timer started (1Hz)")
     }
 
     /// Stop motion data sending.
     func stopMotionDataSending() {
-        motionSendTimer?.invalidate()
+        motionSendTimer?.cancel()
         motionSendTimer = nil
     }
 
@@ -721,6 +680,8 @@ final class WorkoutManager: NSObject {
             // Also send HR via mirrored session
             if currentHeartRate > 0 {
                 sendHeartRateViaMirroredSession(currentHeartRate)
+            } else if motionSendTickCount % 30 == 0 {
+                Log.tracking.info("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
             }
         } else {
             onMotionDataSend?()
@@ -752,14 +713,22 @@ final class WorkoutManager: NSObject {
     // MARK: - Elapsed Timer
 
     private func startElapsedTimer() {
-        elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self, let start = self.startTime, !self.isPaused else { return }
-            self.elapsedTime = Date().timeIntervalSince(start)
+        stopElapsedTimer()
+
+        let source = DispatchSource.makeTimerSource(queue: timerQueue)
+        source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, let start = self.startTime, !self.isPaused else { return }
+                self.elapsedTime = Date().timeIntervalSince(start)
+            }
         }
+        source.resume()
+        elapsedTimer = source
     }
 
     private func stopElapsedTimer() {
-        elapsedTimer?.invalidate()
+        elapsedTimer?.cancel()
         elapsedTimer = nil
     }
 

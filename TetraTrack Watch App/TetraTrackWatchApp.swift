@@ -14,16 +14,30 @@ import os
 
 /// Handles iPhone-triggered workout sessions via healthStore.startWatchApp().
 /// When iPhone calls startWatchApp(toHandle:), watchOS delivers the configuration here.
+/// Matches Apple's MirroringWorkoutsSample reference: NO applicationDidFinishLaunching(),
+/// handle() resets then starts, WCSession activation happens in onAppear.
 class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
-        Log.tracking.info("WKApplicationDelegate: received workout configuration from iPhone")
-        Task { @MainActor in
-            await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
+        let activityRaw = workoutConfiguration.activityType.rawValue
+        let locationRaw = workoutConfiguration.locationType.rawValue
+        Log.tracking.error("TT: handle() called — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
+        WatchConnectivityService.sendDiagnostic("handle() called — activity=\(activityRaw)")
+        Task {
+            do {
+                WorkoutManager.shared.resetWorkout()
+                try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
+                Log.tracking.error("TT: handle() — workout started successfully")
+                WatchConnectivityService.sendDiagnostic("handle() — workout started successfully")
+            } catch {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: handle() — failed: \(errMsg, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("handle() — FAILED: \(errMsg)")
+            }
         }
     }
 
     func handleActiveWorkoutRecovery() {
-        Log.tracking.info("WKApplicationDelegate: recovering active workout after crash")
+        Log.tracking.error("TT: recovering active workout after crash")
         Task { @MainActor in
             await WorkoutManager.shared.recoverActiveWorkout()
         }
@@ -45,9 +59,11 @@ struct TetraTrackWatchApp: App {
                 .environment(workoutManager)
                 .environment(connectivityService)
                 .onAppear {
-                    connectivityService.activate()
-                    // Legacy mirroring handler for backward compatibility
-                    workoutManager.setupLegacyMirroringHandler()
+                    // Activate WCSession here — Apple's reference has no applicationDidFinishLaunching()
+                    WatchConnectivityService.shared.activate()
+                    // Request HealthKit auth at launch, not during workout startup
+                    Task { _ = await WorkoutManager.shared.requestAuthorization() }
+                    WatchConnectivityService.sendDiagnostic("Watch app launched, build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
                 }
         }
     }

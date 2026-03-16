@@ -104,20 +104,18 @@ struct ShootingControlView: View {
 
                 // Heart rate and last shot delta
                 HStack(spacing: 12) {
-                    if workoutManager.currentHeartRate > 0 {
-                        VStack(spacing: 2) {
-                            HStack(spacing: 2) {
-                                Image(systemName: "heart.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.red)
-                                Text("\(workoutManager.currentHeartRate)")
-                                    .font(.callout)
-                                    .fontWeight(.semibold)
-                            }
-                            Text("bpm")
+                    VStack(spacing: 2) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "heart.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.red)
+                            Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
+                                .font(.callout)
+                                .fontWeight(.semibold)
                         }
+                        Text("bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
 
                     if let delta = lastShotDelta {

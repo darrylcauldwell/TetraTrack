@@ -321,6 +321,12 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         sendMessage(message)
     }
 
+    /// Request Watch to start its own autonomous HKWorkoutSession
+    func requestAutonomousWorkout(discipline: String) {
+        let message = WatchMessage.startAutonomousWorkout(discipline: discipline)
+        sendMessage(message)
+    }
+
     /// Stop motion tracking on Watch
     func stopMotionTracking() {
         sendCommand(.stopMotionTracking)
@@ -363,6 +369,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     func updateFromMirroredHeartRate(_ bpm: Int) {
         lastReceivedHeartRate = bpm
         heartRateSequence += 1
+        let seq = heartRateSequence
+        Log.watch.info("updateFromMirroredHeartRate: \(bpm) bpm, seq=\(seq)")
     }
 
     /// Update motion metrics from a dictionary received via HKWorkoutSession mirrored channel.
@@ -665,10 +673,27 @@ extension WatchConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
+        // Handle diagnostic breadcrumbs from Watch (sent via applicationContext
+        // because transferUserInfo queues can get poisoned by burst sends)
+        if let breadcrumbs = applicationContext["diagnosticBreadcrumbs"] as? [String] {
+            let count = breadcrumbs.count
+            Log.watch.error("TT: WATCH BREADCRUMBS (\(count, privacy: .public) entries):")
+            for crumb in breadcrumbs {
+                Log.watch.error("TT: WATCH: \(crumb, privacy: .public)")
+            }
+            return
+        }
+
         handleReceivedMessage(applicationContext)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        // Handle diagnostic breadcrumbs from Watch (since Console.app can't see Watch logs)
+        if let breadcrumb = userInfo["diagnosticBreadcrumb"] as? String {
+            Log.watch.info("WATCH DIAGNOSTIC: \(breadcrumb)")
+            return
+        }
+
         // Handle Watch session sync via background transfer
         if let type = userInfo["type"] as? String, type == "watchSessionSync" {
             handleWatchSessionSync(userInfo)
