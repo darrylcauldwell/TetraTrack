@@ -39,6 +39,12 @@ struct WatchMotionSample: Codable {
     let roll: Double
     let yaw: Double
 
+    // Quaternion for frame transformation
+    let quaternionW: Double
+    let quaternionX: Double
+    let quaternionY: Double
+    let quaternionZ: Double
+
     var accelerationMagnitude: Double {
         sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ)
     }
@@ -250,6 +256,7 @@ final class WatchMotionManager: NSObject {
     }
 
     private func processMotion(_ motion: CMDeviceMotion) {
+        let q = motion.attitude.quaternion
         let sample = WatchMotionSample(
             timestamp: motion.timestamp,
             accelerationX: motion.userAcceleration.x,
@@ -260,7 +267,11 @@ final class WatchMotionManager: NSObject {
             rotationZ: motion.rotationRate.z,
             pitch: motion.attitude.pitch,
             roll: motion.attitude.roll,
-            yaw: motion.attitude.yaw
+            yaw: motion.attitude.yaw,
+            quaternionW: q.w,
+            quaternionX: q.x,
+            quaternionY: q.y,
+            quaternionZ: q.z
         )
 
         sampleBuffer.append(sample)

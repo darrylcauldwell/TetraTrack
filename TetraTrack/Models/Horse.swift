@@ -6,54 +6,8 @@
 
 import Foundation
 import SwiftData
+import TetraTrackShared
 import UIKit
-
-// MARK: - Biomechanical Priors
-
-/// Biomechanical parameters for gait analysis, specific to horse type/breed
-struct BiomechanicalPriors: Codable, Equatable {
-    /// Expected stride frequency range for walk (Hz)
-    let walkFrequencyRange: ClosedRange<Double>
-
-    /// Expected stride frequency range for trot (Hz)
-    let trotFrequencyRange: ClosedRange<Double>
-
-    /// Expected stride frequency range for canter (Hz)
-    let canterFrequencyRange: ClosedRange<Double>
-
-    /// Expected stride frequency range for gallop (Hz)
-    let gallopFrequencyRange: ClosedRange<Double>
-
-    /// Stride length coefficients for physics-based calculation
-    /// stride = k × height × (Az/g)^0.25
-    let strideCoefficients: StrideCoefficients
-
-    /// Typical weight for this breed type (kg)
-    let typicalWeight: Double
-
-    /// Typical height for this breed type (hands)
-    let typicalHeight: Double
-
-    /// Default priors for a standard 15.2hh horse
-    /// Frequency ranges per spec: Walk 1-2.2Hz, Trot 2-3.8Hz, Canter 1.8-3Hz, Gallop >3Hz
-    static let `default` = BiomechanicalPriors(
-        walkFrequencyRange: 1.0...2.2,
-        trotFrequencyRange: 2.0...3.8,
-        canterFrequencyRange: 1.8...3.0,
-        gallopFrequencyRange: 3.0...6.0,
-        strideCoefficients: StrideCoefficients(walk: 2.2, trot: 2.7, canter: 3.3, gallop: 4.0),
-        typicalWeight: 500,
-        typicalHeight: 15.2
-    )
-}
-
-/// Stride length coefficients per gait
-struct StrideCoefficients: Codable, Equatable {
-    let walk: Double
-    let trot: Double
-    let canter: Double
-    let gallop: Double
-}
 
 // MARK: - Horse Breed Enum
 
@@ -260,88 +214,6 @@ enum BreedCategory: String, CaseIterable {
     case heavyType = "Heavy Types"
     case otherBreed = "Other Breeds"
     case other = "Other"
-}
-
-// MARK: - Learned Gait Parameters
-
-/// Learned per-horse gait characteristics from completed rides
-/// Updated via exponential moving average after each ride
-struct LearnedGaitParameters: Codable, Sendable {
-    var walkFrequencyCenter: Double?
-    var trotFrequencyCenter: Double?
-    var canterFrequencyCenter: Double?
-    var gallopFrequencyCenter: Double?
-    var walkH2Mean: Double?
-    var trotH2Mean: Double?
-    var canterH3Mean: Double?
-    var gallopEntropyMean: Double?
-    var rideCount: Int = 0
-    var lastUpdate: Date?
-    var referenceWeight: Double?
-
-    private enum CodingKeys: String, CodingKey {
-        case walkFrequencyCenter, trotFrequencyCenter
-        case canterFrequencyCenter, gallopFrequencyCenter
-        case walkH2Mean, trotH2Mean
-        case canterH3Mean, gallopEntropyMean
-        case rideCount, lastUpdate, referenceWeight
-    }
-
-    init(
-        walkFrequencyCenter: Double? = nil,
-        trotFrequencyCenter: Double? = nil,
-        canterFrequencyCenter: Double? = nil,
-        gallopFrequencyCenter: Double? = nil,
-        walkH2Mean: Double? = nil,
-        trotH2Mean: Double? = nil,
-        canterH3Mean: Double? = nil,
-        gallopEntropyMean: Double? = nil,
-        rideCount: Int = 0,
-        lastUpdate: Date? = nil,
-        referenceWeight: Double? = nil
-    ) {
-        self.walkFrequencyCenter = walkFrequencyCenter
-        self.trotFrequencyCenter = trotFrequencyCenter
-        self.canterFrequencyCenter = canterFrequencyCenter
-        self.gallopFrequencyCenter = gallopFrequencyCenter
-        self.walkH2Mean = walkH2Mean
-        self.trotH2Mean = trotH2Mean
-        self.canterH3Mean = canterH3Mean
-        self.gallopEntropyMean = gallopEntropyMean
-        self.rideCount = rideCount
-        self.lastUpdate = lastUpdate
-        self.referenceWeight = referenceWeight
-    }
-
-    nonisolated init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.walkFrequencyCenter = try container.decodeIfPresent(Double.self, forKey: .walkFrequencyCenter)
-        self.trotFrequencyCenter = try container.decodeIfPresent(Double.self, forKey: .trotFrequencyCenter)
-        self.canterFrequencyCenter = try container.decodeIfPresent(Double.self, forKey: .canterFrequencyCenter)
-        self.gallopFrequencyCenter = try container.decodeIfPresent(Double.self, forKey: .gallopFrequencyCenter)
-        self.walkH2Mean = try container.decodeIfPresent(Double.self, forKey: .walkH2Mean)
-        self.trotH2Mean = try container.decodeIfPresent(Double.self, forKey: .trotH2Mean)
-        self.canterH3Mean = try container.decodeIfPresent(Double.self, forKey: .canterH3Mean)
-        self.gallopEntropyMean = try container.decodeIfPresent(Double.self, forKey: .gallopEntropyMean)
-        self.rideCount = try container.decodeIfPresent(Int.self, forKey: .rideCount) ?? 0
-        self.lastUpdate = try container.decodeIfPresent(Date.self, forKey: .lastUpdate)
-        self.referenceWeight = try container.decodeIfPresent(Double.self, forKey: .referenceWeight)
-    }
-
-    nonisolated func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(walkFrequencyCenter, forKey: .walkFrequencyCenter)
-        try container.encodeIfPresent(trotFrequencyCenter, forKey: .trotFrequencyCenter)
-        try container.encodeIfPresent(canterFrequencyCenter, forKey: .canterFrequencyCenter)
-        try container.encodeIfPresent(gallopFrequencyCenter, forKey: .gallopFrequencyCenter)
-        try container.encodeIfPresent(walkH2Mean, forKey: .walkH2Mean)
-        try container.encodeIfPresent(trotH2Mean, forKey: .trotH2Mean)
-        try container.encodeIfPresent(canterH3Mean, forKey: .canterH3Mean)
-        try container.encodeIfPresent(gallopEntropyMean, forKey: .gallopEntropyMean)
-        try container.encode(rideCount, forKey: .rideCount)
-        try container.encodeIfPresent(lastUpdate, forKey: .lastUpdate)
-        try container.encodeIfPresent(referenceWeight, forKey: .referenceWeight)
-    }
 }
 
 @Model
