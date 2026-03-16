@@ -2033,6 +2033,18 @@ extension AudioCoachManager {
         guard isEnabled, announceShootingStance else { return }
         announce("Breathe in. Hold. Squeeze")
     }
+
+    /// Announce breath-hold ready (respiratory pause detected)
+    func announceShootingBreathHoldReady() {
+        guard isEnabled, announceShootingStance else { return }
+        announce("Hold. Shoot now")
+    }
+
+    /// Announce elevated breathing — coach to slow down before firing
+    func announceShootingBreathingControl() {
+        guard isEnabled, announceShootingStance else { return }
+        announce("Slow your breathing. Exhale, pause, then fire")
+    }
 }
 
 // MARK: - Walking Announcements
