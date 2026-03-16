@@ -26,6 +26,8 @@ struct ActiveSessionView: View {
             SwimmingLiveView()
         } else if let _ = tracker.plugin(as: ShootingPlugin.self) {
             ShootingCompetitionView()
+        } else {
+            ProgressView("Starting session...")
         }
     }
 }
