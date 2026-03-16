@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 @testable import TetraTrack
+import TetraTrackShared
 
 struct GaitHMMTests {
 
@@ -307,7 +308,7 @@ struct GaitHMMTests {
     @Test func ponyHasHigherFrequencyRanges() {
         let defaultHMM = GaitHMM()
         let ponyHMM = GaitHMM()
-        ponyHMM.configure(for: .shetland)
+        ponyHMM.configure(with: HorseBreed.shetland.biomechanicalPriors)
 
         // Shetland pony walk frequency range is 1.3-2.5 (higher than default 1.0-2.2)
         // Feed features at f0=2.4 which is within pony range but near edge of default
@@ -331,7 +332,7 @@ struct GaitHMMTests {
     @Test func warmbloodHasLowerFrequencyRanges() {
         let defaultHMM = GaitHMM()
         let warmbloodHMM = GaitHMM()
-        warmbloodHMM.configure(for: .warmblood)
+        warmbloodHMM.configure(with: HorseBreed.warmblood.biomechanicalPriors)
 
         // Warmblood trot frequency range is 1.8-3.5 (lower than default 2.0-3.8)
         // Feed features at f0=1.9 which is within warmblood range but near edge of default
@@ -354,10 +355,10 @@ struct GaitHMMTests {
 
     @Test(.disabled("Pre-existing failure")) func ageAdjustmentWidensRanges() {
         let normalHMM = GaitHMM()
-        normalHMM.configure(for: .thoroughbred, ageAdjustment: 1.0)
+        normalHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, ageAdjustment: 1.0)
 
         let youngHorseHMM = GaitHMM()
-        youngHorseHMM.configure(for: .thoroughbred, ageAdjustment: 1.15)
+        youngHorseHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, ageAdjustment: 1.15)
 
         // Feed features at edge of normal range
         let edgeFeatures = GaitFeatureVector(
@@ -380,7 +381,7 @@ struct GaitHMMTests {
     @Test(.disabled("Pre-existing failure")) func customTransitionProbabilityChangesSelfTransition() {
         let defaultHMM = GaitHMM()
         let customHMM = GaitHMM()
-        customHMM.configure(for: .thoroughbred, transitionProbability: 0.95)
+        customHMM.configure(with: HorseBreed.thoroughbred.biomechanicalPriors, transitionProbability: 0.95)
 
         // Both start stationary, feed walk features
         for _ in 0..<5 {

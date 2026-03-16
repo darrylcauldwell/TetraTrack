@@ -1,6 +1,6 @@
 //
 //  FFTProcessor.swift
-//  TetraTrack
+//  TetraTrackShared
 //
 //  vDSP-based FFT for real-time spectral analysis of motion signals
 //
@@ -8,24 +8,14 @@
 import Foundation
 import Accelerate
 
-/// Result of FFT analysis on a signal window
-struct FFTResult {
-    let dominantFrequency: Double
-    let powerAtF0: Double
-    let h2Ratio: Double
-    let h3Ratio: Double
-    let spectralEntropy: Double
-    let frequencyResolution: Double
-}
-
 /// vDSP-based FFT processor optimized for real-time gait analysis
-final class FFTProcessor {
+public final class FFTProcessor {
 
     // MARK: - Configuration
 
-    let windowSize: Int
-    let sampleRate: Double
-    let frequencyResolution: Double
+    public let windowSize: Int
+    public let sampleRate: Double
+    public let frequencyResolution: Double
 
     // MARK: - vDSP Setup
 
@@ -44,7 +34,7 @@ final class FFTProcessor {
     /// - Parameters:
     ///   - windowSize: Number of samples per window (must be power of 2, default 256)
     ///   - sampleRate: Sample rate in Hz (default 100)
-    init(windowSize: Int = 256, sampleRate: Double = 100.0) {
+    public init(windowSize: Int = 256, sampleRate: Double = 100.0) {
         precondition(windowSize > 0 && (windowSize & (windowSize - 1)) == 0, "Window size must be power of 2")
 
         self.windowSize = windowSize
@@ -74,7 +64,7 @@ final class FFTProcessor {
     /// Process a window of samples and return spectral analysis
     /// - Parameter samples: Array of samples (must match windowSize)
     /// - Returns: FFT analysis result
-    func processWindow(_ samples: [Double]) -> FFTResult {
+    public func processWindow(_ samples: [Double]) -> FFTResult {
         guard samples.count >= windowSize else {
             return FFTResult(
                 dominantFrequency: 0,
@@ -90,7 +80,6 @@ final class FFTProcessor {
         var floatSamples = samples.suffix(windowSize).map { Float($0) }
 
         // Remove DC component (mean) before windowing
-        // This prevents DC leakage into low-frequency bins which can affect gait detection
         var mean: Float = 0
         vDSP_meanv(floatSamples, 1, &mean, vDSP_Length(windowSize))
         var negativeMean = -mean
@@ -150,7 +139,7 @@ final class FFTProcessor {
     /// Find the dominant frequency within a specified range
     /// - Parameter range: Frequency range to search (Hz)
     /// - Returns: Tuple of (frequency, power)
-    func findDominantFrequency(inRange range: ClosedRange<Double>) -> (frequency: Double, power: Double) {
+    public func findDominantFrequency(inRange range: ClosedRange<Double>) -> (frequency: Double, power: Double) {
         let minBin = max(1, Int(range.lowerBound / frequencyResolution))
         let maxBin = min(magnitudes.count - 1, Int(range.upperBound / frequencyResolution))
 
@@ -174,11 +163,7 @@ final class FFTProcessor {
 
     /// Compute harmonic ratio (power at n*f0 / power at f0)
     /// Uses a small band around each frequency for robustness
-    /// - Parameters:
-    ///   - fundamental: Fundamental frequency f0
-    ///   - harmonic: Harmonic number (2 for H2, 3 for H3)
-    /// - Returns: Harmonic ratio
-    func computeHarmonicRatio(fundamental f0: Double, harmonic n: Int) -> Double {
+    public func computeHarmonicRatio(fundamental f0: Double, harmonic n: Int) -> Double {
         guard f0 > 0 else { return 0 }
 
         let fundamentalBin = Int(f0 / frequencyResolution)
@@ -189,17 +174,13 @@ final class FFTProcessor {
             return 0
         }
 
-        // Use ±1 bin around the target frequency for robustness
-        // This helps when the frequency doesn't fall exactly on a bin center
         let bandWidth = 1
 
-        // Sum power in fundamental band
         var fundamentalPower: Double = 0
         for i in max(0, fundamentalBin - bandWidth)...min(magnitudes.count - 1, fundamentalBin + bandWidth) {
             fundamentalPower += Double(magnitudes[i])
         }
 
-        // Sum power in harmonic band
         var harmonicPower: Double = 0
         for i in max(0, harmonicBin - bandWidth)...min(magnitudes.count - 1, harmonicBin + bandWidth) {
             harmonicPower += Double(magnitudes[i])
@@ -211,19 +192,12 @@ final class FFTProcessor {
     }
 
     /// Compute spectral entropy (measure of signal complexity)
-    /// - Parameters:
-    ///   - minFreq: Minimum frequency for entropy calculation (default 0.5 Hz)
-    ///   - maxFreq: Maximum frequency for entropy calculation (default 6.0 Hz)
-    /// - Returns: Normalized entropy (0 = pure tone, 1 = white noise)
-    func computeSpectralEntropy(minFreq: Double = 0.5, maxFreq: Double = 6.0) -> Double {
-        // Only consider gait-relevant frequency band (0.5-6 Hz)
-        // This prevents noise outside the gait band from affecting the entropy measure
+    public func computeSpectralEntropy(minFreq: Double = 0.5, maxFreq: Double = 6.0) -> Double {
         let minBin = max(1, Int(minFreq / frequencyResolution))
         let maxBin = min(magnitudes.count - 1, Int(maxFreq / frequencyResolution))
 
         guard minBin < maxBin else { return 0 }
 
-        // Compute total power in the gait-relevant band
         var totalPower: Float = 0
         for i in minBin...maxBin {
             totalPower += magnitudes[i]
@@ -231,7 +205,6 @@ final class FFTProcessor {
 
         guard totalPower > 1e-10 else { return 0 }
 
-        // Compute entropy: -sum(p * log(p)) only for gait-relevant frequencies
         var entropy: Double = 0
         for i in minBin...maxBin {
             let p = Double(magnitudes[i]) / Double(totalPower)
@@ -240,14 +213,13 @@ final class FFTProcessor {
             }
         }
 
-        // Normalize by maximum entropy for this band (log2(number of bins))
         let numBins = maxBin - minBin + 1
         let maxEntropy = log2(Double(numBins))
         return maxEntropy > 0 ? entropy / maxEntropy : 0
     }
 
     /// Get power spectrum as array of (frequency, power) pairs
-    func getPowerSpectrum() -> [(frequency: Double, power: Double)] {
+    public func getPowerSpectrum() -> [(frequency: Double, power: Double)] {
         return magnitudes.enumerated().map { index, magnitude in
             (Double(index) * frequencyResolution, Double(magnitude))
         }
@@ -265,7 +237,6 @@ final class FFTProcessor {
         let beta = Double(magnitudes[index])
         let gamma = Double(magnitudes[index + 1])
 
-        // Quadratic interpolation
         let denominator = alpha - 2 * beta + gamma
         guard abs(denominator) > 1e-10 else {
             return Double(index) * frequencyResolution
@@ -281,11 +252,7 @@ final class FFTProcessor {
 extension FFTProcessor {
 
     /// Process a stream of samples with overlapping windows
-    /// - Parameters:
-    ///   - samples: Complete sample buffer
-    ///   - overlap: Overlap factor (0.8 = 80% overlap)
-    /// - Returns: Array of FFT results for each window
-    func processWithOverlap(_ samples: [Double], overlap: Double = 0.8) -> [FFTResult] {
+    public func processWithOverlap(_ samples: [Double], overlap: Double = 0.8) -> [FFTResult] {
         let hopSize = Int(Double(windowSize) * (1.0 - overlap))
         var results: [FFTResult] = []
 

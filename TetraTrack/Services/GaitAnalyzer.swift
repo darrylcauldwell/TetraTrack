@@ -8,6 +8,7 @@
 import CoreMotion
 import Observation
 import SwiftData
+import TetraTrackShared
 import os
 
 @Observable
@@ -175,7 +176,7 @@ final class GaitAnalyzer: Resettable {
         if let horse = horse {
             // Pass breed, age adjustment, and custom tuning to HMM
             hmm.configure(
-                for: horse.typedBreed,
+                with: horse.typedBreed.biomechanicalPriors,
                 ageAdjustment: horse.ageAdjustmentFactor,
                 customSpeedBounds: horse.hasCustomGaitSettings ? horse.adjustedSpeedBounds() : nil,
                 transitionProbability: horse.hasCustomGaitSettings ? horse.adjustedTransitionProbability : nil,

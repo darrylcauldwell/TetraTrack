@@ -12,6 +12,7 @@
 //  avoiding peak detection which fails when rider changes seat.
 
 import Foundation
+import TetraTrackShared
 
 /// Analyzes motion data to calculate movement symmetry score using frequency-domain methods
 final class SymmetryAnalyzer: Resettable, ReinAwareAnalyzer {
