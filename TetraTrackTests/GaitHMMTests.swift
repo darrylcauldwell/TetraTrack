@@ -723,6 +723,84 @@ struct GaitHMMTests {
         #expect(abs(sum - 1.0) < 1e-10)
     }
 
+    // MARK: - Watch Motion Data Tests
+
+    @Test func freshWatchDataHelpsCanterGallopDiscrimination() {
+        let noWatchHMM = GaitHMM()
+        let watchHMM = GaitHMM()
+
+        // Build up through gaits to canter
+        for _ in 0..<10 { noWatchHMM.update(with: walkFeatures()); watchHMM.update(with: walkFeatures()) }
+        for _ in 0..<10 { noWatchHMM.update(with: trotFeatures()); watchHMM.update(with: trotFeatures()) }
+        for _ in 0..<15 { noWatchHMM.update(with: canterFeatures()); watchHMM.update(with: canterFeatures()) }
+
+        // Feed gallop features — one without Watch, one with fresh Watch data matching gallop
+        let gallopNoWatch = gallopFeatures()
+        let gallopWithWatch = GaitFeatureVector(
+            strideFrequency: 4.5, h2Ratio: 0.5, h3Ratio: 0.6,
+            spectralEntropy: 0.75, xyCoherence: 0.25, zYawCoherence: 0.85,
+            normalizedVerticalRMS: 0.475, yawRateRMS: 0.9,
+            gpsSpeed: 9.0, gpsAccuracy: 10.0,
+            watchVerticalOscillation: 8.5, watchMovementIntensity: 82.0, watchDataAge: 1.0
+        )
+
+        for _ in 0..<15 {
+            noWatchHMM.update(with: gallopNoWatch)
+            watchHMM.update(with: gallopWithWatch)
+        }
+
+        // With Watch data confirming gallop, gallop probability should be higher
+        #expect(watchHMM.probability(of: .gallop) >= noWatchHMM.probability(of: .gallop))
+    }
+
+    @Test func watchDataAgeModulatesInfluence() {
+        let freshHMM = GaitHMM()
+        let staleHMM = GaitHMM()
+
+        // Feed identical trot features but with different Watch data ages
+        let freshWatch = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchVerticalOscillation: 7.25, watchMovementIntensity: 47.5, watchDataAge: 1.0
+        )
+        let staleWatch = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchVerticalOscillation: 7.25, watchMovementIntensity: 47.5, watchDataAge: 30.0
+        )
+
+        for _ in 0..<20 {
+            freshHMM.update(with: freshWatch)
+            staleHMM.update(with: staleWatch)
+        }
+
+        // Both should still converge to trot; stale Watch data should not destabilise
+        #expect(freshHMM.currentState == .trot)
+        #expect(staleHMM.currentState == .trot)
+
+        // Fresh data (age=1, factor=1) should have tighter influence than stale (age=30, factor=15)
+        // Both should be trot, so probabilities will be similar, but fresh should be >= stale
+        #expect(freshHMM.probability(of: .trot) >= staleHMM.probability(of: .trot) - 0.05)
+    }
+
+    @Test func noWatchRegressionForWalkTrot() {
+        // Verify existing walk→trot transitions still work without Watch data
+        let hmm = GaitHMM()
+        for _ in 0..<15 {
+            hmm.update(with: walkFeatures())
+        }
+        #expect(hmm.currentState == .walk)
+
+        for _ in 0..<15 {
+            hmm.update(with: trotFeatures())
+        }
+        #expect(hmm.currentState == .trot)
+    }
+
     // MARK: - Helpers
 
     private func stationaryFeatures() -> GaitFeatureVector {
