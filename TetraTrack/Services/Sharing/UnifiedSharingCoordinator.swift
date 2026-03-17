@@ -78,10 +78,10 @@ final class UnifiedSharingCoordinator {
     // MARK: - Services (Actor-based)
 
     private let accountService: CloudKitAccountService
-    private let shareConnectionService: ShareConnectionService
-    private let liveTrackingService: LiveTrackingService
+    private var shareConnectionService: ShareConnectionService?
+    private var liveTrackingService: LiveTrackingService?
     private let safetyAlertService: SafetyAlertService
-    private let artifactShareService: ArtifactShareService
+    private var artifactShareService: ArtifactShareService?
 
     // MARK: - Repository
 
@@ -114,12 +114,10 @@ final class UnifiedSharingCoordinator {
     // MARK: - Initialization
 
     private init() {
-        let container = CKContainer.default()
         self.accountService = CloudKitAccountService()
-        self.shareConnectionService = ShareConnectionService(container: container, zoneName: zoneName)
-        self.liveTrackingService = LiveTrackingService(container: container, zoneName: zoneName)
         self.safetyAlertService = SafetyAlertService()
-        self.artifactShareService = ArtifactShareService(container: container, zoneName: zoneName)
+        // CloudKit-dependent services are created lazily in setup()
+        // to avoid calling CKContainer.default() during SwiftUI view body evaluation
     }
 
     // MARK: - Configuration
@@ -146,6 +144,15 @@ final class UnifiedSharingCoordinator {
     func setup() async {
         Log.family.info("UnifiedSharingCoordinator: Starting setup...")
 
+        // Initialize CloudKit-dependent services (deferred from init to avoid
+        // CKContainer.default() crash during SwiftUI view body evaluation)
+        if shareConnectionService == nil {
+            let container = CKContainer.default()
+            self.shareConnectionService = ShareConnectionService(container: container, zoneName: zoneName)
+            self.liveTrackingService = LiveTrackingService(container: container, zoneName: zoneName)
+            self.artifactShareService = ArtifactShareService(container: container, zoneName: zoneName)
+        }
+
         // Check account status
         let signedIn = await accountService.checkAccountStatus()
         let userID = await accountService.currentUserID
@@ -170,12 +177,13 @@ final class UnifiedSharingCoordinator {
 
         // Setup zone - use the actual zone ID from CloudKit
         do {
+            guard let shareConnectionService else { return }
             let actualZoneID = try await shareConnectionService.ensureZoneReady()
             zoneID = actualZoneID
 
             // Configure services with the actual CloudKit zone
-            await liveTrackingService.configure(userID: currentUserID, zoneID: actualZoneID)
-            await artifactShareService.configure(zoneID: actualZoneID)
+            await liveTrackingService?.configure(userID: currentUserID, zoneID: actualZoneID)
+            await artifactShareService?.configure(zoneID: actualZoneID)
 
             // Auto-refresh linked rider statuses on launch
             if !linkedRiders.isEmpty {
@@ -239,6 +247,7 @@ final class UnifiedSharingCoordinator {
 
         // Zone-level share: if ANY non-owner participant has accepted,
         // all pending outbound invites can be marked accepted.
+        guard let shareConnectionService else { return }
         let hasAccepted = await shareConnectionService.hasAnyAcceptedParticipants()
         guard hasAccepted else {
             Log.family.info("updateInviteStatuses: no accepted participants found, skipping")
@@ -272,35 +281,38 @@ final class UnifiedSharingCoordinator {
         let relationshipID = relationship.id
 
         // Revoke live tracking share connection first (critical for security)
-        do {
-            _ = try await shareConnectionService.revokeConnection(for: relationshipID)
-            Log.family.info("Revoked ShareConnection for deleted relationship")
-        } catch {
-            Log.family.error("Failed to revoke ShareConnection: \(error)")
-            // Continue with deletion even if revocation fails
+        if let shareConnectionService {
+            do {
+                _ = try await shareConnectionService.revokeConnection(for: relationshipID)
+                Log.family.info("Revoked ShareConnection for deleted relationship")
+            } catch {
+                Log.family.error("Failed to revoke ShareConnection: \(error)")
+                // Continue with deletion even if revocation fails
+            }
         }
 
         // Verify the CloudKit record was actually deleted
         // This prevents "record already exists" errors when recreating contacts
-        let maxVerifyAttempts = 3
-        for attempt in 1...maxVerifyAttempts {
-            let isDeleted = await shareConnectionService.verifyConnectionDeleted(for: relationshipID)
-            if isDeleted {
-                Log.family.info("Verified ShareConnection deleted after \(attempt) attempt(s)")
-                break
-            }
+        if let shareConnectionService {
+            let maxVerifyAttempts = 3
+            for attempt in 1...maxVerifyAttempts {
+                let isDeleted = await shareConnectionService.verifyConnectionDeleted(for: relationshipID)
+                if isDeleted {
+                    Log.family.info("Verified ShareConnection deleted after \(attempt) attempt(s)")
+                    break
+                }
 
-            if attempt < maxVerifyAttempts {
-                // Wait briefly and retry
-                Log.family.warning("ShareConnection not yet deleted, retrying verification (attempt \(attempt))")
-                try? await Task.sleep(for: .milliseconds(500))
-            } else {
-                Log.family.error("ShareConnection may not be fully deleted - could cause issues on recreation")
+                if attempt < maxVerifyAttempts {
+                    Log.family.warning("ShareConnection not yet deleted, retrying verification (attempt \(attempt))")
+                    try? await Task.sleep(for: .milliseconds(500))
+                } else {
+                    Log.family.error("ShareConnection may not be fully deleted - could cause issues on recreation")
+                }
             }
         }
 
         // Revoke artifact shares
-        await artifactShareService.revokeAllShares(with: relationshipID)
+        await artifactShareService?.revokeAllShares(with: relationshipID)
 
         // Delete from repository
         repository?.delete(relationship)
@@ -351,6 +363,10 @@ final class UnifiedSharingCoordinator {
 
         do {
             Log.family.info("Creating share connection for relationship \(relationship.id), userID: \(self.currentUserID)")
+            guard let shareConnectionService else {
+                errorMessage = "CloudKit services not initialized"
+                return nil
+            }
             let connection = try await shareConnectionService.getOrCreateConnection(
                 for: relationship.id,
                 shareType: .liveTracking,
@@ -415,6 +431,7 @@ final class UnifiedSharingCoordinator {
     /// Accept a share from a URL
     func acceptShare(from url: URL) async -> Bool {
         do {
+            guard let shareConnectionService else { return false }
             let (ownerID, ownerName) = try await shareConnectionService.acceptShare(from: url)
 
             // Add as linked rider
@@ -438,7 +455,7 @@ final class UnifiedSharingCoordinator {
 
     /// Check if URL is a CloudKit share URL
     func isCloudKitShareURL(_ url: URL) -> Bool {
-        shareConnectionService.isCloudKitShareURL(url)
+        shareConnectionService?.isCloudKitShareURL(url) ?? false
     }
 
     // MARK: - Live Location Sharing
@@ -448,6 +465,7 @@ final class UnifiedSharingCoordinator {
         guard isSignedIn else { return }
 
         do {
+            guard let liveTrackingService else { return }
             let session = try await liveTrackingService.startSharingLocation(riderName: currentUserName, activityType: activityType)
             await MainActor.run {
                 self.mySession = session
@@ -466,6 +484,7 @@ final class UnifiedSharingCoordinator {
         duration: TimeInterval
     ) async {
         do {
+            guard let liveTrackingService else { return }
             try await liveTrackingService.updateSharedLocation(
                 location: location,
                 gait: gait,
@@ -513,7 +532,7 @@ final class UnifiedSharingCoordinator {
     /// Stop sharing location
     func stopSharingLocation() async {
         do {
-            try await liveTrackingService.stopSharingLocation()
+            try await liveTrackingService?.stopSharingLocation()
         } catch {
             Log.family.error("Failed to stop sharing: \(error)")
         }
@@ -531,6 +550,7 @@ final class UnifiedSharingCoordinator {
     /// - Returns: true if fetch succeeded, false if it failed
     @discardableResult
     func fetchFamilyLocations() async -> Bool {
+        guard let liveTrackingService else { return false }
         let (sessions, fetchError) = await liveTrackingService.fetchFamilyLocationsWithError()
 
         // Track fetch failures for the refresh loop
@@ -751,7 +771,10 @@ final class UnifiedSharingCoordinator {
         with relationship: SharingRelationship,
         expiresIn: TimeInterval? = nil
     ) async throws -> ArtifactShare {
-        try await artifactShareService.shareArtifact(
+        guard let artifactShareService else {
+            throw CKError(.notAuthenticated)
+        }
+        return try await artifactShareService.shareArtifact(
             artifact,
             with: relationship.id,
             expiresIn: expiresIn
@@ -760,17 +783,17 @@ final class UnifiedSharingCoordinator {
 
     /// Revoke artifact share
     func revokeArtifactShare(_ share: ArtifactShare) async throws {
-        try await artifactShareService.revokeShare(share)
+        try await artifactShareService?.revokeShare(share)
     }
 
     /// Get shares for an artifact
     func shares(for artifactID: UUID) async -> [ArtifactShare] {
-        await artifactShareService.shares(for: artifactID)
+        await artifactShareService?.shares(for: artifactID) ?? []
     }
 
     /// Cleanup expired shares
     func cleanupExpiredShares() async {
-        await artifactShareService.cleanupExpiredShares()
+        await artifactShareService?.cleanupExpiredShares()
     }
 
     // MARK: - Family Data Fetching
@@ -1026,7 +1049,7 @@ final class UnifiedSharingCoordinator {
     /// Call this AFTER deleting the CloudKit zone but BEFORE re-running setup().
     func resetAllSharingState() async {
         // 1. Reset ShareConnectionService in-memory state (cache + zone references)
-        await shareConnectionService.resetState()
+        await shareConnectionService?.resetState()
 
         // 2. Clear rate limit timestamps so share links can be regenerated immediately
         lastShareLinkGeneration.removeAll()
