@@ -488,9 +488,6 @@ final class WorkoutLifecycleService: NSObject {
 
         state = .ending
 
-        // End the session
-        session.end()
-
         do {
             // Apply metadata before ending collection
             if let metadata, !metadata.isEmpty {
@@ -502,6 +499,9 @@ final class WorkoutLifecycleService: NSObject {
 
             // Finalize and save the workout
             let workout = try await builder.finishWorkout()
+
+            // End session AFTER builder operations complete (Apple docs requirement)
+            session.end()
 
             // Attach route if we have one
             if let routeBuilder = routeBuilder, let workout = workout {
@@ -518,6 +518,8 @@ final class WorkoutLifecycleService: NSObject {
             return workout
 
         } catch {
+            // End session even on failure to avoid orphaned sessions
+            session.end()
             Log.health.error("WorkoutLifecycleService: failed to end workout: \(error)")
             cleanup()
             return nil
@@ -600,11 +602,12 @@ final class WorkoutLifecycleService: NSObject {
                 return
             }
 
-            session.end()
-
             if let builder = workoutBuilder {
+                try? await builder.endCollection(at: Date())
                 builder.discardWorkout()
             }
+
+            session.end()
         }
 
         cleanup()

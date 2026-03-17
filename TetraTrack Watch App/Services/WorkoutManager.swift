@@ -109,9 +109,9 @@ final class WorkoutManager: NSObject {
     // MARK: - Reset
 
     /// Clean teardown before starting a new workout (matches Apple's resetWorkout() pattern).
-    func resetWorkout() {
+    func resetWorkout() async {
         if isWorkoutActive {
-            discardWorkout()
+            await discardWorkout()
         }
         workoutSession = nil
         workoutBuilder = nil
@@ -291,7 +291,7 @@ final class WorkoutManager: NSObject {
         WatchConnectivityService.sendDiagnostic("startWorkout: HealthKit auth OK")
 
         // Clear any stale session state
-        resetWorkout()
+        await resetWorkout()
 
         // Create workout configuration
         let configuration = HKWorkoutConfiguration()
@@ -403,10 +403,7 @@ final class WorkoutManager: NSObject {
         onMotionDataSend = nil
         WatchMotionManager.shared.stopTracking()
 
-        // End workout session
-        workoutSession?.end()
-
-        // End data collection
+        // End data collection and save (session.end() must come AFTER finishWorkout per Apple docs)
         let endDate = Date()
         var healthKitSaveSucceeded = false
 
@@ -422,6 +419,9 @@ final class WorkoutManager: NSObject {
         } catch {
             Log.tracking.error("Failed to end workout: \(error.localizedDescription)")
         }
+
+        // End session AFTER builder operations complete (Apple docs requirement)
+        workoutSession?.end()
 
         // Update session store with final metrics (only for non-iPhone-triggered workouts)
         if !isMirroredFromiPhone {
@@ -460,7 +460,7 @@ final class WorkoutManager: NSObject {
     }
 
     /// Discard the current workout without saving
-    func discardWorkout() {
+    func discardWorkout() async {
         guard isWorkoutActive else { return }
 
         locationManager.stopTracking()
@@ -469,8 +469,9 @@ final class WorkoutManager: NSObject {
         onMotionDataSend = nil
         WatchMotionManager.shared.stopTracking()
 
-        workoutSession?.end()
+        try? await workoutBuilder?.endCollection(at: Date())
         workoutBuilder?.discardWorkout()
+        workoutSession?.end()
 
         sessionStore.discardSession()
         clearRecoveryContext()
@@ -609,6 +610,7 @@ final class WorkoutManager: NSObject {
                 workoutConfiguration: configuration
             )
 
+            workoutSession?.prepare()
             let startDate = Date()
             workoutSession?.startActivity(with: startDate)
             try await workoutBuilder?.beginCollection(at: startDate)
@@ -628,11 +630,12 @@ final class WorkoutManager: NSObject {
     }
 
     /// Stop companion heart rate monitoring and discard the workout
-    func stopHeartRateMonitoring() {
+    func stopHeartRateMonitoring() async {
         guard isWorkoutActive, isCompanionMode else { return }
 
-        workoutSession?.end()
+        try? await workoutBuilder?.endCollection(at: Date())
         workoutBuilder?.discardWorkout()
+        workoutSession?.end()
 
         workoutSession = nil
         workoutBuilder = nil

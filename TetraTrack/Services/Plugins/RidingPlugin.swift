@@ -580,6 +580,13 @@ final class RidingPlugin: DisciplinePlugin {
         await ArtifactConversionService.shared.convertAndSyncRide(ride)
     }
 
+    // MARK: - Voice Notes
+
+    func appendVoiceNote(_ note: String) {
+        guard let ride = currentRide else { return }
+        ride.notes = VoiceNotesService.shared.appendNote(note, to: ride.notes)
+    }
+
     func onSessionDiscarded(tracker: SessionTracker) {
         // Stop all riding-specific services
         motionManager.stopUpdates()

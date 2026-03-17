@@ -30,6 +30,9 @@ final class ShootingPlugin: DisciplinePlugin {
     let usesVehicleDetection = false
     let supportsFamilySharing = false
     let disableAutoCalories = false
+    let supportsPause = false
+    let supportsAudioCoaching = false
+    let supportsVoiceNotes = false
 
     // MARK: - HealthKit
 

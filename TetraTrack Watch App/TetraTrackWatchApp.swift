@@ -24,7 +24,7 @@ class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
         WatchConnectivityService.sendDiagnostic("handle() called — activity=\(activityRaw)")
         Task {
             do {
-                WorkoutManager.shared.resetWorkout()
+                await WorkoutManager.shared.resetWorkout()
                 try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
                 Log.tracking.error("TT: handle() — workout started successfully")
                 WatchConnectivityService.sendDiagnostic("handle() — workout started successfully")
