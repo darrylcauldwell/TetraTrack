@@ -39,6 +39,12 @@ struct TetraTrackApp: App {
         ProcessInfo.processInfo.arguments.contains("-UITesting")
     }
 
+    /// Whether the app is running as a test host for unit tests.
+    /// Xcode sets XCTestConfigurationFilePath when injecting a test bundle.
+    private static var isUnitTesting: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Ride.self,
@@ -83,9 +89,9 @@ struct TetraTrackApp: App {
             LinkedRiderRecord.self,
         ])
 
-        // UI testing and CI: use in-memory local-only storage to avoid CloudKit crashes
-        if isUITesting {
-            Log.app.info("UI Testing mode: using in-memory local-only ModelContainer")
+        // UI testing, unit testing, and CI: use in-memory local-only storage to avoid CloudKit crashes
+        if isUITesting || isUnitTesting {
+            Log.app.info("Testing mode: using in-memory local-only ModelContainer")
             let testConfig = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: true,
@@ -166,6 +172,9 @@ struct TetraTrackApp: App {
 
     @ViewBuilder
     private var rootContentView: some View {
+        if Self.isUnitTesting {
+            Color.clear // Minimal view for unit test host — avoids CloudKit singleton access
+        } else {
         ContentView()
             .environment(\.locale, LocalizationManager.shared.locale)
             .environment(locationManager)
@@ -197,6 +206,7 @@ struct TetraTrackApp: App {
             } message: {
                 Text(shareLinkAlertMessage)
             }
+        }
     }
 
     private func handleAppear() {
@@ -216,7 +226,7 @@ struct TetraTrackApp: App {
     }
 
     private func handleInitialSetup() async {
-        guard !Self.isUITesting else { return }
+        guard !Self.isUITesting, !Self.isUnitTesting else { return }
         _ = await NotificationManager.shared.requestAuthorization()
         await NotificationManager.shared.setupCloudKitSubscriptions()
     }
@@ -247,7 +257,7 @@ struct TetraTrackApp: App {
             }
 
             // Suspend family location refresh loop to prevent battery drain
-            if !Self.isUITesting {
+            if !Self.isUITesting, !Self.isUnitTesting {
                 UnifiedSharingCoordinator.shared.suspendWatchingForBackground()
             }
 
@@ -260,7 +270,7 @@ struct TetraTrackApp: App {
             }
 
         case .active:
-            guard !Self.isUITesting else { break }
+            guard !Self.isUITesting, !Self.isUnitTesting else { break }
 
             // App became active - restore download state from persistence
             // This ensures UI shows correct state if a download completed/failed while in background
@@ -294,8 +304,8 @@ struct TetraTrackApp: App {
             Log.app.info("Screenshot mode: generated demonstration data")
         }
 
-        // Skip CloudKit and connectivity services during UI testing
-        guard !Self.isUITesting else {
+        // Skip CloudKit and connectivity services during testing
+        guard !Self.isUITesting, !Self.isUnitTesting else {
             isConfigured = true
             return
         }

@@ -77,7 +77,7 @@ final class UnifiedSharingCoordinator {
 
     // MARK: - Services (Actor-based)
 
-    private let accountService: CloudKitAccountService
+    private var accountService: CloudKitAccountService?
     private var shareConnectionService: ShareConnectionService?
     private var liveTrackingService: LiveTrackingService?
     private let safetyAlertService: SafetyAlertService
@@ -114,10 +114,11 @@ final class UnifiedSharingCoordinator {
     // MARK: - Initialization
 
     private init() {
-        self.accountService = CloudKitAccountService()
         self.safetyAlertService = SafetyAlertService()
-        // CloudKit-dependent services are created lazily in setup()
-        // to avoid calling CKContainer.default() during SwiftUI view body evaluation
+        // CloudKit-dependent services (including accountService) are created lazily
+        // in setup() to avoid calling CKContainer.default() during init — that throws
+        // an ObjC CKException in simulators without CloudKit entitlements, crashing
+        // the test host.
     }
 
     // MARK: - Configuration
@@ -148,12 +149,18 @@ final class UnifiedSharingCoordinator {
         // CKContainer.default() crash during SwiftUI view body evaluation)
         if shareConnectionService == nil {
             let container = CKContainer.default()
+            self.accountService = CloudKitAccountService()
             self.shareConnectionService = ShareConnectionService(container: container, zoneName: zoneName)
             self.liveTrackingService = LiveTrackingService(container: container, zoneName: zoneName)
             self.artifactShareService = ArtifactShareService(container: container, zoneName: zoneName)
         }
 
         // Check account status
+        guard let accountService else {
+            isSetupComplete = true
+            Log.family.info("UnifiedSharingCoordinator: accountService unavailable, setup complete")
+            return
+        }
         let signedIn = await accountService.checkAccountStatus()
         let userID = await accountService.currentUserID
         let userName = await accountService.currentUserName
@@ -328,6 +335,10 @@ final class UnifiedSharingCoordinator {
         // This handles cases where setup() hasn't run or completed yet
         if !isSignedIn {
             Log.family.info("isSignedIn is false, refreshing account status...")
+            guard let accountService else {
+                errorMessage = "CloudKit not available"
+                return nil
+            }
             let signedIn = await accountService.checkAccountStatus()
             let userID = await accountService.currentUserID
             self.isSignedIn = signedIn
