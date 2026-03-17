@@ -280,7 +280,7 @@ final class AudioCoachManager: AudioCoaching {
 
     static let shared = AudioCoachManager()
 
-    private init() {
+    init() {
         setupAudioSession()
     }
 

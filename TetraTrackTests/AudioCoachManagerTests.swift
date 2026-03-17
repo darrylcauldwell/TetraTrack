@@ -12,26 +12,17 @@ import Foundation
 @MainActor
 struct AudioCoachManagerTests {
 
-    // MARK: - Singleton
-
-    @Test func audioCoachManagerSingleton() {
-        let manager1 = AudioCoachManager.shared
-        let manager2 = AudioCoachManager.shared
-
-        #expect(manager1 === manager2)
-    }
-
     // MARK: - Default Settings
 
     @Test func defaultSettingsEnabled() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         #expect(manager.isEnabled == true)
         #expect(manager.announceRunningFormReminders == true)
     }
 
     @Test func defaultFormReminderInterval() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         // Default is 5 minutes (300 seconds)
         #expect(manager.formReminderIntervalSeconds == 300)
@@ -82,35 +73,35 @@ struct AudioCoachManagerTests {
     // MARK: - Announcement Toggle Settings
 
     @Test func announceGaitChangesDefault() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
         #expect(manager.announceGaitChanges == true)
     }
 
     @Test func announceDistanceMilestonesDefault() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
         #expect(manager.announceDistanceMilestones == true)
     }
 
     @Test func announceHeartRateZonesDefault() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
         #expect(manager.announceHeartRateZones == true)
     }
 
     @Test func announceWorkoutIntervalsDefault() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
         #expect(manager.announceWorkoutIntervals == true)
     }
 
     // MARK: - Milestone Intervals
 
     @Test func defaultDistanceMilestone() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         #expect(manager.distanceMilestoneKm == 1.0)
     }
 
     @Test func defaultTimeMilestone() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         #expect(manager.timeMilestoneMinutes == 15)
     }
@@ -118,14 +109,57 @@ struct AudioCoachManagerTests {
     // MARK: - Volume and Speech Rate
 
     @Test func defaultVolume() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         #expect(manager.volume == 0.8)
     }
 
     @Test func defaultSpeechRate() {
-        let manager = AudioCoachManager.shared
+        let manager = AudioCoachManager()
 
         #expect(manager.speechRate == 0.5)
+    }
+
+    // MARK: - Instance Isolation
+
+    @Test func mutationDoesNotLeakBetweenInstances() {
+        let a = AudioCoachManager()
+        let b = AudioCoachManager()
+
+        a.isEnabled = false
+
+        #expect(a.isEnabled == false)
+        #expect(b.isEnabled == true)
+    }
+
+    // MARK: - Coaching Level Presets
+
+    @Test func applyRunningCoachingLevelSilent() {
+        let manager = AudioCoachManager()
+
+        manager.applyRunningCoachingLevel(.silent)
+
+        #expect(manager.announceRunningPace == false)
+        #expect(manager.announceRunningLaps == false)
+        #expect(manager.announceSessionStartEnd == false)
+        #expect(manager.announceVirtualPacer == false)
+        #expect(manager.announceCadenceFeedback == false)
+        #expect(manager.announcePBRaceCoaching == false)
+        #expect(manager.announceRunningBiomechanics == false)
+        #expect(manager.announceRunningFormReminders == false)
+    }
+
+    @Test func applyRidingCoachingLevelEssential() {
+        let manager = AudioCoachManager()
+
+        manager.applyRidingCoachingLevel(.essential)
+
+        #expect(manager.announceGaitChanges == true)
+        #expect(manager.announceDistanceMilestones == true)
+        #expect(manager.announceTimeMilestones == false)
+        #expect(manager.announceHeartRateZones == false)
+        #expect(manager.announceWorkoutIntervals == false)
+        #expect(manager.announceRidingBiomechanics == false)
+        #expect(manager.announceCrossCountry == true)
     }
 }
