@@ -53,10 +53,19 @@ final class ShootingPlugin: DisciplinePlugin {
     /// Session context (competition, practice, etc.)
     let sessionContext: ShootingSessionContext
 
+    // MARK: - Breathing Monitoring
+
+    /// Current breathing rate from Watch sensor
+    private(set) var currentBreathingRate: Double = 0
+
+    /// Timestamp of last breath coaching announcement (throttle)
+    private var lastBreathCoachTime: Date?
+
     // MARK: - Services
 
     private let watchManager = WatchConnectivityManager.shared
     private let sensorAnalyzer = WatchSensorAnalyzer.shared
+    private let audioCoach = AudioCoachManager.shared
 
     // MARK: - Init
 
@@ -96,6 +105,27 @@ final class ShootingPlugin: DisciplinePlugin {
         tracker.currentWeather.map { currentSession?.startWeather = $0 }
 
         Log.tracking.info("Shooting plugin started (context: \(self.sessionContext.rawValue))")
+    }
+
+    // MARK: - Timer Tick (Breathing Monitoring)
+
+    func onTimerTick(elapsedTime: TimeInterval, tracker: SessionTracker) {
+        let rate = sensorAnalyzer.breathingRate
+        guard rate > 0 else { return }
+        currentBreathingRate = rate
+
+        // Throttle announcements to every 30 seconds
+        if let lastTime = lastBreathCoachTime, Date().timeIntervalSince(lastTime) < 30 { return }
+
+        if rate < 10 {
+            // Respiratory pause detected — ideal moment to fire
+            audioCoach.announceShootingBreathHoldReady()
+            lastBreathCoachTime = Date()
+        } else if rate > 16 {
+            // Elevated breathing — coach to slow down
+            audioCoach.announceShootingBreathingControl()
+            lastBreathCoachTime = Date()
+        }
     }
 
     // MARK: - Save Scores
@@ -151,7 +181,8 @@ final class ShootingPlugin: DisciplinePlugin {
             let analysis = ShootingSensorAnalyzer.analyzeSession(
                 shotMetrics: shotMetrics,
                 sessionStanceStability: session.averageStanceStability,
-                averageHeartRate: session.averageHeartRate
+                averageHeartRate: session.averageHeartRate,
+                averageBreathingRate: sensorAnalyzer.breathingRate
             )
             ShootingSensorAnalyzer.applyAnalysis(analysis, to: session)
             watchManager.clearShotMetrics()

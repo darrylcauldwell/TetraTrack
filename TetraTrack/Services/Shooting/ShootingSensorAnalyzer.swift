@@ -35,7 +35,8 @@ enum ShootingSensorAnalyzer {
     static func analyzeSession(
         shotMetrics: [DetectedShotMetrics],
         sessionStanceStability: Double = 0,
-        averageHeartRate: Int = 0
+        averageHeartRate: Int = 0,
+        averageBreathingRate: Double = 0
     ) -> SessionAnalysis {
         guard !shotMetrics.isEmpty else {
             return SessionAnalysis(
@@ -74,7 +75,8 @@ enum ShootingSensorAnalyzer {
         let composure = computeComposureScore(
             shotMetrics: shotMetrics,
             averageHeartRate: averageHeartRate,
-            degradation: degradation
+            degradation: degradation,
+            averageBreathingRate: averageBreathingRate
         )
 
         // Overall = average of 4 biomechanical pillars (excludes composure/physiology)
@@ -204,11 +206,12 @@ enum ShootingSensorAnalyzer {
         return cycleScore * 0.5 + smoothness * 0.5
     }
 
-    /// Composure (Physiology) — HR management (30%) + fatigue resistance (35%) + tremor control (35%)
+    /// Composure (Physiology) — HR (25%) + fatigue (25%) + tremor (25%) + breathing (25%)
     private static func computeComposureScore(
         shotMetrics: [DetectedShotMetrics],
         averageHeartRate: Int,
-        degradation: Double
+        degradation: Double,
+        averageBreathingRate: Double = 0
     ) -> Double {
         var total: Double = 0
         var weight: Double = 0
@@ -221,19 +224,30 @@ enum ShootingSensorAnalyzer {
             else if averageHeartRate <= 100 { hrScore = 55 }
             else if averageHeartRate <= 120 { hrScore = 35 }
             else { hrScore = 15 }
-            total += hrScore * 0.3
-            weight += 0.3
+            total += hrScore * 0.25
+            weight += 0.25
         }
 
         let fatigueScore = max(0, min(100, 100 - degradation * 2))
-        total += fatigueScore * 0.35
-        weight += 0.35
+        total += fatigueScore * 0.25
+        weight += 0.25
 
         if !shotMetrics.isEmpty {
             let avgTremor = shotMetrics.map(\.tremorIntensity).average
             let tremorScore = max(0, 100 - avgTremor)
-            total += tremorScore * 0.35
-            weight += 0.35
+            total += tremorScore * 0.25
+            weight += 0.25
+        }
+
+        if averageBreathingRate > 0 {
+            let breathingScore: Double
+            if averageBreathingRate <= 10 { breathingScore = 100 }
+            else if averageBreathingRate <= 14 { breathingScore = 85 }
+            else if averageBreathingRate <= 18 { breathingScore = 60 }
+            else if averageBreathingRate <= 22 { breathingScore = 35 }
+            else { breathingScore = 15 }
+            total += breathingScore * 0.25
+            weight += 0.25
         }
 
         return weight > 0 ? total / weight : 0
