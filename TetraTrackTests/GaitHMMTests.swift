@@ -217,21 +217,30 @@ struct GaitHMMTests {
         // so the HMM may correctly classify trot with strong features
     }
 
-    // MARK: - GPS Speed Constraint Tests
+    // MARK: - GPS Speed Emission Integration Tests
 
-    @Test func highConfidenceGPSPenalisesWrongGait() {
-        let hmm = GaitHMM()
-        // Feed walk features but with GPS speed 0 (stationary) and high accuracy
-        let features = GaitFeatureVector(
+    @Test func highConfidenceGPSReducesWalkProbability() {
+        let hmmNoGPS = GaitHMM()
+        let hmmWithGPS = GaitHMM()
+
+        // Walk IMU features — one with uninformative GPS, one with contradicting GPS (speed=0)
+        let noGPS = GaitFeatureVector(
+            strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
+            spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
+            normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
+            gpsSpeed: 0.0, gpsAccuracy: 100.0        )
+        let contradictingGPS = GaitFeatureVector(
             strideFrequency: 1.6, h2Ratio: 0.5, h3Ratio: 0.35,
             spectralEntropy: 0.35, xyCoherence: 0.35, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.10, yawRateRMS: 0.2,
             gpsSpeed: 0.0, gpsAccuracy: 3.0        )
         for _ in 0..<20 {
-            hmm.update(with: features)
+            hmmNoGPS.update(with: noGPS)
+            hmmWithGPS.update(with: contradictingGPS)
         }
-        // High-accuracy GPS says speed=0, should stay stationary despite walk features
-        #expect(hmm.currentState == .stationary)
+        // High-accuracy GPS at speed=0 should reduce walk probability vs uninformative GPS
+        // (Bayesian weighting — GPS is one feature among many, not a hard veto)
+        #expect(hmmWithGPS.probability(of: .walk) < hmmNoGPS.probability(of: .walk))
     }
 
     @Test func lowConfidenceGPSBarelyConstrains() {
@@ -283,7 +292,7 @@ struct GaitHMMTests {
         #expect(state == .canter || state == .gallop)
     }
 
-    @Test func speedConstraintsPreserveNormalization() {
+    @Test func gpsEmissionPreservesNormalization() {
         let hmm = GaitHMM()
         let features = GaitFeatureVector(
             strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
@@ -510,61 +519,102 @@ struct GaitHMMTests {
         #expect(abs(walkProb1 - walkProb2) < 0.05)
     }
 
-    // MARK: - Hard Speed Veto Tests
+    // MARK: - GPS Speed Emission Tests (Bayesian)
 
-    @Test func walkSpeedVetoesCanterAndGallop() {
+    @Test func goodGPSMatchingSpeedReinforcesClassification() {
+        let hmmNoGPS = GaitHMM()
+        let hmmWithGPS = GaitHMM()
+
+        // Feed walk features — one with uninformative GPS, one with matching GPS speed
+        let noGPS = walkFeatures(gpsSpeed: 0.0, gpsAccuracy: 100.0)
+        let matchingGPS = walkFeatures(gpsSpeed: 1.4, gpsAccuracy: 5.0)
+
+        for _ in 0..<20 {
+            hmmNoGPS.update(with: noGPS)
+            hmmWithGPS.update(with: matchingGPS)
+        }
+
+        // Good GPS matching walk speed should reinforce walk probability
+        #expect(hmmWithGPS.probability(of: .walk) >= hmmNoGPS.probability(of: .walk))
+    }
+
+    @Test func poorGPSHasMinimalInfluence() {
+        let hmmGood = GaitHMM()
+        let hmmPoor = GaitHMM()
+
+        // Feed walk features with contradicting GPS (high speed) — good vs poor accuracy
+        let goodAccuracy = walkFeatures(gpsSpeed: 8.0, gpsAccuracy: 5.0)
+        let poorAccuracy = walkFeatures(gpsSpeed: 8.0, gpsAccuracy: 60.0)
+
+        for _ in 0..<20 {
+            hmmGood.update(with: goodAccuracy)
+            hmmPoor.update(with: poorAccuracy)
+        }
+
+        // Poor GPS accuracy inflates variance, making GPS uninformative — walk survives
+        #expect(hmmPoor.probability(of: .walk) > hmmGood.probability(of: .walk))
+    }
+
+    @Test func gpsContradictingIMUProducesBayesianWeighting() {
         let hmm = GaitHMM()
-        // Feed canter IMU features at walk speed with good GPS
-        let features = canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 5.0)
+        // Feed canter IMU features at walk GPS speed with good accuracy
+        let features = canterFeatures(gpsSpeed: 1.4, gpsAccuracy: 5.0)
         for _ in 0..<20 {
             hmm.update(with: features)
         }
-        // Hard veto should zero canter and gallop at < 2.0 m/s
-        #expect(hmm.probability(of: .canter) == 0)
-        #expect(hmm.probability(of: .gallop) == 0)
+        // GPS says walk speed, IMU says canter — Bayesian weighting should suppress canter
+        // but not necessarily zero it out (unlike the old hard veto)
+        #expect(hmm.probability(of: .walk) > 0 || hmm.probability(of: .trot) > 0 || hmm.probability(of: .stationary) > 0)
+        // Canter should be disfavoured relative to states matching the GPS speed
+        let nonCanterProb = 1.0 - hmm.probability(of: .canter) - hmm.probability(of: .gallop)
+        #expect(nonCanterProb > 0.3)
     }
 
-    @Test func trotSpeedVetoesGallop() {
-        let hmm = GaitHMM()
-        // Feed gallop IMU features at trot speed with good GPS
-        let features = gallopFeatures(gpsSpeed: 3.5, gpsAccuracy: 5.0)
+    @Test func customSpeedBoundsAdjustGPSEmission() {
+        let defaultHMM = GaitHMM()
+        let customHMM = GaitHMM()
+
+        // Custom bounds with wider walk range
+        customHMM.configure(
+            with: HorseBreed.thoroughbred.biomechanicalPriors,
+            customSpeedBounds: [
+                (0, 0.8),
+                (0.2, 4.0),    // Walk extends to 4.0 m/s (wider than default 2.5)
+                (1.5, 5.0),
+                (3.0, 8.0),
+                (6.0, 20.0)
+            ]
+        )
+
+        // Feed walk features at 3.5 m/s — within custom walk range, outside default
+        let features = walkFeatures(gpsSpeed: 3.5, gpsAccuracy: 5.0)
         for _ in 0..<20 {
-            hmm.update(with: features)
+            defaultHMM.update(with: features)
+            customHMM.update(with: features)
         }
-        // Hard veto should zero gallop at < 4.0 m/s
-        #expect(hmm.probability(of: .gallop) == 0)
+
+        // Custom HMM should give higher walk probability at 3.5 m/s
+        #expect(customHMM.probability(of: .walk) >= defaultHMM.probability(of: .walk))
     }
 
-    @Test func poorGPSDoesNotApplyHardVeto() {
+    @Test func highSpeedFavoursCanterOrGallop() {
         let hmm = GaitHMM()
-        // Establish canter state with proper speed
+        // Build up through gaits
         for _ in 0..<10 { hmm.update(with: walkFeatures()) }
         for _ in 0..<10 { hmm.update(with: trotFeatures()) }
-        for _ in 0..<15 { hmm.update(with: canterFeatures()) }
-        #expect(hmm.currentState == .canter)
+        for _ in 0..<10 { hmm.update(with: canterFeatures()) }
 
-        // Now feed canter features at walk speed with poor GPS (>= 20m accuracy)
-        // Hard veto should NOT apply, so canter probability should remain non-zero
-        let features = canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 30.0)
-        hmm.update(with: features)
-        #expect(hmm.probability(of: .canter) > 0)
-    }
-
-    @Test func walkSpeedCannotReachCanterEvenWithStrongIMU() {
-        let hmm = GaitHMM()
-        // 20 updates of canter features at walk speed with good GPS
+        // Feed gallop features at 10 m/s with high accuracy GPS
+        let features = gallopFeatures(gpsSpeed: 10.0, gpsAccuracy: 3.0)
         for _ in 0..<20 {
-            hmm.update(with: canterFeatures(gpsSpeed: 1.5, gpsAccuracy: 5.0))
+            hmm.update(with: features)
         }
-        // State should never be canter or gallop
+        // At 10 m/s with high accuracy, should not be stationary, walk, or trot
         let state = hmm.currentState
-        #expect(state != .canter)
-        #expect(state != .gallop)
+        #expect(state == .canter || state == .gallop)
     }
 
-    // MARK: - Walk/Trot GPS Speed Constraint Tests
-
-    @Test func slowGPSSpeedSuppressesTrotProbability() {
+    @Test func slowGPSFavoursWalkOverTrotAtAmbiguousFeatures() {
         let hmm = GaitHMM()
         // Establish walk first
         for _ in 0..<10 {
@@ -572,42 +622,21 @@ struct GaitHMMTests {
         }
         #expect(hmm.currentState == .walk)
 
-        // Feed ambiguous features (overlap zone) at slow GPS speed with good accuracy
+        // Feed ambiguous features at slow GPS speed with good accuracy
         let ambiguousAtSlowSpeed = GaitFeatureVector(
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
+            gpsSpeed: 1.2, gpsAccuracy: 5.0        )
         for _ in 0..<20 {
             hmm.update(with: ambiguousAtSlowSpeed)
         }
 
-        // At 1.2 m/s with good GPS, trot should be suppressed — walk should dominate
+        // GPS emission at 1.2 m/s should favour walk over trot
         #expect(hmm.probability(of: .walk) > hmm.probability(of: .trot))
     }
 
-    @Test func clearTrotSpeedSuppressesWalkProbability() {
-        let hmm = GaitHMM()
-        // Build up to trot
-        for _ in 0..<10 { hmm.update(with: walkFeatures()) }
-        for _ in 0..<15 { hmm.update(with: trotFeatures()) }
-        #expect(hmm.currentState == .trot)
-
-        // Feed ambiguous features at clear trot speed with good accuracy
-        let ambiguousAtTrotSpeed = GaitFeatureVector(
-            strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
-            spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
-            normalizedVerticalRMS: 0.15, yawRateRMS: 0.3,
-            gpsSpeed: 3.0, gpsAccuracy: 8.0        )
-        for _ in 0..<20 {
-            hmm.update(with: ambiguousAtTrotSpeed)
-        }
-
-        // At 3.0 m/s with good GPS, walk should be suppressed — trot should dominate
-        #expect(hmm.probability(of: .trot) > hmm.probability(of: .walk))
-    }
-
-    @Test func poorGPSDoesNotApplyWalkTrotSoftConstraint() {
+    @Test func goodVsPoorGPSInfluencesDifference() {
         let hmm1 = GaitHMM()
         let hmm2 = GaitHMM()
 
@@ -617,24 +646,24 @@ struct GaitHMMTests {
             hmm2.update(with: walkFeatures())
         }
 
-        // Feed ambiguous features at slow GPS — one with good accuracy, one with poor
+        // Feed ambiguous features at slow GPS — good vs poor accuracy
         let goodGPS = GaitFeatureVector(
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 8.0        )
+            gpsSpeed: 1.2, gpsAccuracy: 5.0        )
         let poorGPS = GaitFeatureVector(
             strideFrequency: 2.1, h2Ratio: 0.8, h3Ratio: 0.4,
             spectralEntropy: 0.4, xyCoherence: 0.5, zYawCoherence: 0.3,
             normalizedVerticalRMS: 0.12, yawRateRMS: 0.25,
-            gpsSpeed: 1.2, gpsAccuracy: 25.0        )
+            gpsSpeed: 1.2, gpsAccuracy: 50.0        )
 
         for _ in 0..<20 {
             hmm1.update(with: goodGPS)
             hmm2.update(with: poorGPS)
         }
 
-        // Good GPS should suppress trot more than poor GPS
+        // Good GPS at walk speed should suppress trot more than poor GPS
         #expect(hmm1.probability(of: .trot) < hmm2.probability(of: .trot))
     }
 

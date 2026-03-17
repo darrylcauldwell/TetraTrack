@@ -191,11 +191,6 @@ final class RidingPlugin: DisciplinePlugin {
         gaitAnalyzer.calibrationStatus
     }
 
-    // GPS gait fallback
-    var isUsingGPSGaitFallback: Bool = false
-    private var lastMotionSampleTime: Date?
-    private let motionGapThreshold: TimeInterval = 3.0
-
     // MARK: - Private Services
 
     private let gaitAnalyzer = GaitAnalyzer()
@@ -304,8 +299,6 @@ final class RidingPlugin: DisciplinePlugin {
         lastGaitUpdateTime = nil
         lastCoordinate = nil
         lastLocation = nil
-        isUsingGPSGaitFallback = false
-        lastMotionSampleTime = nil
         currentLead = .unknown
         currentRein = .straight
         currentSymmetry = 0.0
@@ -661,23 +654,9 @@ final class RidingPlugin: DisciplinePlugin {
         // Gait analysis — always feed GPS data for distance/speed tracking
         gaitAnalyzer.processLocation(speed: tracker.currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy)
 
-        // When Watch is primary gait source, skip iPhone HMM classification
-        // The Watch drives gait state directly via setGaitFromWatch()
-        var newGait = gaitAnalyzer.currentGait
-        if !isUsingWatchGait {
-            // GPS-only gait fallback when CoreMotion pauses
-            if let lastMotion = lastMotionSampleTime,
-               Date().timeIntervalSince(lastMotion) > motionGapThreshold {
-                let gpsFallbackGait = GaitType.fromSpeed(tracker.currentSpeed)
-                if gpsFallbackGait != newGait {
-                    newGait = gpsFallbackGait
-                }
-                if !isUsingGPSGaitFallback {
-                    isUsingGPSGaitFallback = true
-                    Log.tracking.warning("CoreMotion delivery gap - falling back to GPS gait detection")
-                }
-            }
-        }
+        // Gait classification comes from HMM (which includes GPS speed as emission feature)
+        // or from Watch when Watch-primary mode is active
+        let newGait = gaitAnalyzer.currentGait
 
         // Track time in each gait
         if let lastUpdate = lastGaitUpdateTime {
@@ -884,11 +863,6 @@ final class RidingPlugin: DisciplinePlugin {
     private func setupMotionCallback() {
         motionManager.onMotionUpdate = { [weak self] sample in
             guard let self else { return }
-            self.lastMotionSampleTime = Date()
-            if self.isUsingGPSGaitFallback {
-                self.isUsingGPSGaitFallback = false
-                Log.tracking.info("CoreMotion resumed - switching back from GPS gait fallback")
-            }
             self.handleMotion(sample)
         }
 

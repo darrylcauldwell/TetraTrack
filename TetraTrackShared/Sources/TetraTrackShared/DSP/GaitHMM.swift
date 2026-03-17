@@ -65,7 +65,17 @@ public final class GaitHMM {
         case yawRateRMS = 7
         case watchVerticalOscillation = 8
         case watchMovementIntensity = 9
+        case gpsSpeed = 10
     }
+
+    /// Default GPS speed ranges (m/s) per gait state
+    private static let defaultGPSSpeedRanges: [ClosedRange<Double>] = [
+        0.0...0.5,    // Stationary
+        0.3...2.5,    // Walk
+        1.5...5.0,    // Trot
+        3.0...8.0,    // Canter
+        6.0...20.0    // Gallop
+    ]
 
     // MARK: - Initialization
 
@@ -82,7 +92,6 @@ public final class GaitHMM {
 
     // MARK: - Configuration
 
-    private var customSpeedBounds: [(min: Double, max: Double)]?
     private var canterMultiplier: Double = 1.0
     private var frequencyOffset: Double = 0.0
 
@@ -102,7 +111,6 @@ public final class GaitHMM {
         canterMultiplier: Double? = nil,
         frequencyOffset: Double? = nil
     ) {
-        self.customSpeedBounds = customSpeedBounds
         self.canterMultiplier = canterMultiplier ?? 1.0
         self.frequencyOffset = frequencyOffset ?? 0.0
 
@@ -125,17 +133,25 @@ public final class GaitHMM {
         let canterF0 = offsetAndWidenRange(priors.canterFrequencyRange, by: ageAdjustment, offset: freqOffset)
         let gallopF0 = offsetAndWidenRange(priors.gallopFrequencyRange, by: ageAdjustment, offset: freqOffset)
 
+        // Convert customSpeedBounds to GPS emission ranges, or use defaults
+        let gpsRanges: [ClosedRange<Double>]
+        if let bounds = customSpeedBounds {
+            gpsRanges = bounds.map { $0.min...$0.max }
+        } else {
+            gpsRanges = Self.defaultGPSSpeedRanges
+        }
+
         emissionParams = [
             // Stationary
-            Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0),
+            Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, gps: gpsRanges[0]),
             // Walk
-            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0),
+            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, gps: gpsRanges[1]),
             // Trot
-            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0),
+            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, gps: gpsRanges[2]),
             // Canter
-            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0),
+            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, gps: gpsRanges[3]),
             // Gallop
-            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0)
+            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, gps: gpsRanges[4])
         ]
 
         if sensorMount == .wrist {
@@ -239,9 +255,6 @@ public final class GaitHMM {
             stateProbs = newProbs
         }
         // else: keep previous stateProbs (total underflow = all states equally unlikely)
-
-        // Apply GPS speed sanity checks (in probability space — these are hard vetoes)
-        stateProbs = applySpeedConstraints(stateProbs, gpsSpeed: features.gpsSpeed, gpsAccuracy: features.gpsAccuracy)
     }
 
     /// Log-sum-exp trick: log(sum(exp(x_i))) = max(x) + log(sum(exp(x_i - max(x))))
@@ -290,91 +303,18 @@ public final class GaitHMM {
         let miScaled = GaussianEmission(mean: miParam.mean, variance: miParam.variance * watchVarianceScale)
         logProb += miScaled.logProbability(features.watchMovementIntensity)
 
+        // GPS speed: accuracy-modulated variance makes poor GPS uninformative
+        let gpsEmission = params[FeatureIndex.gpsSpeed.rawValue]
+        let accuracyFactor = max(1.0, features.gpsAccuracy / 5.0)
+        let adjustedVariance = gpsEmission.variance * accuracyFactor * accuracyFactor
+        let adjustedGPS = GaussianEmission(mean: gpsEmission.mean, variance: adjustedVariance)
+        logProb += adjustedGPS.logProbability(features.gpsSpeed)
+
         if state == .canter && canterMultiplier != 1.0 {
             logProb += log(canterMultiplier)
         }
 
         return logProb
-    }
-
-    private func applySpeedConstraints(_ probs: [Double], gpsSpeed: Double, gpsAccuracy: Double) -> [Double] {
-        var constrained = probs
-        var vetoed = Set<Int>()
-
-        if gpsAccuracy < 20.0 {
-            if gpsSpeed < 0.5 {
-                for state in [HMMGaitState.walk, .trot, .canter, .gallop] {
-                    constrained[state.rawValue] = 0
-                    vetoed.insert(state.rawValue)
-                }
-            } else if gpsSpeed < 2.0 {
-                for state in [HMMGaitState.canter, .gallop] {
-                    constrained[state.rawValue] = 0
-                    vetoed.insert(state.rawValue)
-                }
-            } else if gpsSpeed < 4.0 {
-                constrained[HMMGaitState.gallop.rawValue] = 0
-                vetoed.insert(HMMGaitState.gallop.rawValue)
-            }
-            if gpsSpeed > 3.0 {
-                constrained[HMMGaitState.walk.rawValue] = 0
-                vetoed.insert(HMMGaitState.walk.rawValue)
-            }
-            if gpsSpeed > 6.0 {
-                constrained[HMMGaitState.trot.rawValue] = 0
-                vetoed.insert(HMMGaitState.trot.rawValue)
-            }
-        }
-
-        if gpsAccuracy < 15.0 {
-            if gpsSpeed < 1.5 {
-                constrained[HMMGaitState.trot.rawValue] *= 0.2
-            } else if gpsSpeed > 2.5 && gpsSpeed < 4.0 {
-                constrained[HMMGaitState.walk.rawValue] *= 0.2
-            }
-        }
-
-        let speedBounds: [(min: Double, max: Double)] = customSpeedBounds ?? [
-            (0, 0.8),
-            (0.2, 2.8),
-            (1.2, 5.5),
-            (2.5, 9.0),
-            (5.0, 25.0)
-        ]
-
-        let constraintStrength: Double
-        if gpsAccuracy < 5.0 {
-            constraintStrength = 0.1
-        } else if gpsAccuracy < 20.0 {
-            constraintStrength = 0.1 + (gpsAccuracy - 5.0) / 15.0 * 0.4
-        } else if gpsAccuracy < 50.0 {
-            constraintStrength = 0.5 + (gpsAccuracy - 20.0) / 30.0 * 0.3
-        } else {
-            constraintStrength = 0.8
-        }
-
-        for state in HMMGaitState.allCases {
-            let bounds = speedBounds[state.rawValue]
-            if gpsSpeed < bounds.min || gpsSpeed > bounds.max {
-                constrained[state.rawValue] *= constraintStrength
-            }
-        }
-
-        let total = constrained.reduce(0, +)
-        if total > 1e-10 {
-            for i in 0..<constrained.count {
-                constrained[i] /= total
-            }
-        } else if !vetoed.isEmpty {
-            let nonVetoed = (0..<constrained.count).filter { !vetoed.contains($0) }
-            if !nonVetoed.isEmpty {
-                for i in 0..<constrained.count {
-                    constrained[i] = nonVetoed.contains(i) ? 1.0 / Double(nonVetoed.count) : 0
-                }
-            }
-        }
-
-        return constrained
     }
 
     private static func defaultTransitionMatrix() -> [[Double]] {
@@ -391,34 +331,37 @@ public final class GaitHMM {
     }
 
     private static func defaultEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
+        let gps = defaultGPSSpeedRanges
         return [
             // Stationary
-            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0),
+            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, gps: gps[0]),
             // Walk
-            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0),
+            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, gps: gps[1]),
             // Trot
-            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0),
+            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, gps: gps[2]),
             // Canter
-            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0),
+            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, gps: gps[3]),
             // Gallop
-            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0)
+            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, gps: gps[4])
         ]
     }
 
     private static func wristEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
         // Wrist-tuned parameters: h2/h3 ~0.5x, RMS ~0.6x, entropy +0.1, coherence widened, noise floor raised
         // Watch VO/MI ranges same as trunk — these come from the Watch itself regardless of iPhone mount
+        // GPS speed ranges same as trunk — GPS is independent of phone mount position
+        let gps = defaultGPSSpeedRanges
         return [
             // Stationary — raised noise floor for wrist movement artifacts
-            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0.1...0.5, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.08, yaw: 0...0.15, watchVO: 0...1.0, watchMI: 0...10.0),
+            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0.1...0.5, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.08, yaw: 0...0.15, watchVO: 0...1.0, watchMI: 0...10.0, gps: gps[0]),
             // Walk — attenuated harmonics, lower RMS
-            createEmissions(f0: 1.0...2.2, h2: 0.2...0.5, h3: 0.1...0.4, entropy: 0.3...0.6, xyC: 0.15...0.45, zYawC: 0.15...0.35, rms: 0.02...0.10, yaw: 0.04...0.18, watchVO: 2.0...4.5, watchMI: 10.0...35.0),
+            createEmissions(f0: 1.0...2.2, h2: 0.2...0.5, h3: 0.1...0.4, entropy: 0.3...0.6, xyC: 0.15...0.45, zYawC: 0.15...0.35, rms: 0.02...0.10, yaw: 0.04...0.18, watchVO: 2.0...4.5, watchMI: 10.0...35.0, gps: gps[1]),
             // Trot — harmonics heavily attenuated through arm chain
-            createEmissions(f0: 2.0...3.8, h2: 0.6...1.5, h3: 0.2...0.6, entropy: 0.4...0.7, xyC: 0.3...0.9, zYawC: 0.1...0.35, rms: 0.06...0.18, yaw: 0.15...0.38, watchVO: 4.5...10.0, watchMI: 30.0...65.0),
+            createEmissions(f0: 2.0...3.8, h2: 0.6...1.5, h3: 0.2...0.6, entropy: 0.4...0.7, xyC: 0.3...0.9, zYawC: 0.1...0.35, rms: 0.06...0.18, yaw: 0.15...0.38, watchVO: 4.5...10.0, watchMI: 30.0...65.0, gps: gps[2]),
             // Canter — asymmetric gait, yaw dominates at wrist
-            createEmissions(f0: 1.8...3.0, h2: 0.3...0.8, h3: 0.5...1.2, entropy: 0.5...0.8, xyC: 0.15...0.45, zYawC: 0.4...0.8, rms: 0.15...0.35, yaw: 0.30...0.65, watchVO: 3.5...7.5, watchMI: 45.0...80.0),
+            createEmissions(f0: 1.8...3.0, h2: 0.3...0.8, h3: 0.5...1.2, entropy: 0.5...0.8, xyC: 0.15...0.45, zYawC: 0.4...0.8, rms: 0.15...0.35, yaw: 0.30...0.65, watchVO: 3.5...7.5, watchMI: 45.0...80.0, gps: gps[3]),
             // Gallop — high entropy, strong yaw, attenuated bounce
-            createEmissions(f0: 3.0...6.0, h2: 0.15...0.6, h3: 0.2...0.7, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.5...0.9, rms: 0.20...0.45, yaw: 0.45...0.95, watchVO: 5.0...12.0, watchMI: 65.0...100.0)
+            createEmissions(f0: 3.0...6.0, h2: 0.15...0.6, h3: 0.2...0.7, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.5...0.9, rms: 0.20...0.45, yaw: 0.45...0.95, watchVO: 5.0...12.0, watchMI: 65.0...100.0, gps: gps[4])
         ]
     }
 
@@ -462,7 +405,8 @@ public final class GaitHMM {
         rms: ClosedRange<Double>,
         yaw: ClosedRange<Double>,
         watchVO: ClosedRange<Double> = 0...1.0,
-        watchMI: ClosedRange<Double> = 0...10.0
+        watchMI: ClosedRange<Double> = 0...10.0,
+        gps: ClosedRange<Double> = 0...20.0
     ) -> [GaussianEmission] {
         func toGaussian(_ range: ClosedRange<Double>) -> GaussianEmission {
             let mean = (range.lowerBound + range.upperBound) / 2
@@ -480,7 +424,8 @@ public final class GaitHMM {
             toGaussian(rms),
             toGaussian(yaw),
             toGaussian(watchVO),
-            toGaussian(watchMI)
+            toGaussian(watchMI),
+            toGaussian(gps)
         ]
     }
 
@@ -510,6 +455,10 @@ public final class GaitHMM {
         let miParam = params[FeatureIndex.watchMovementIntensity.rawValue]
         let miScaled = GaussianEmission(mean: miParam.mean, variance: miParam.variance * watchVarianceScale)
 
+        let gpsParam = params[FeatureIndex.gpsSpeed.rawValue]
+        let gpsFactor = max(1.0, features.gpsAccuracy / 5.0)
+        let gpsScaled = GaussianEmission(mean: gpsParam.mean, variance: gpsParam.variance * gpsFactor * gpsFactor)
+
         return [
             "strideFrequency": params[FeatureIndex.strideFrequency.rawValue].probability(features.strideFrequency),
             "h2Ratio": params[FeatureIndex.h2Ratio.rawValue].probability(features.h2Ratio),
@@ -520,7 +469,8 @@ public final class GaitHMM {
             "normalizedVerticalRMS": params[FeatureIndex.normalizedVerticalRMS.rawValue].probability(features.normalizedVerticalRMS),
             "yawRateRMS": params[FeatureIndex.yawRateRMS.rawValue].probability(features.yawRateRMS),
             "watchVerticalOscillation": voScaled.probability(features.watchVerticalOscillation),
-            "watchMovementIntensity": miScaled.probability(features.watchMovementIntensity)
+            "watchMovementIntensity": miScaled.probability(features.watchMovementIntensity),
+            "gpsSpeed": gpsScaled.probability(features.gpsSpeed)
         ]
     }
 

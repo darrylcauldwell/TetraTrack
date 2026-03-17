@@ -36,17 +36,6 @@ enum GaitType: String, Codable, CaseIterable {
         }
     }
 
-    // Typical speed ranges in m/s for horse gaits
-    // Adjusted for arena/schooling work where gaits are more collected
-    static func fromSpeed(_ speed: Double) -> GaitType {
-        switch speed {
-        case ..<0.4: return .stationary    // Standing still
-        case 0.4..<1.7: return .walk       // ~1.5-6 km/h (collected to medium walk)
-        case 1.7..<3.5: return .trot       // ~6-12.5 km/h (collected to working trot)
-        case 3.5..<5.5: return .canter     // ~12.5-20 km/h (collected to working canter)
-        default: return .gallop            // >20 km/h (extended canter / gallop)
-        }
-    }
 }
 
 // MARK: - Phone Mount Position
