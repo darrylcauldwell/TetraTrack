@@ -227,6 +227,36 @@ final class TurnAnalyzer: Resettable {
     // Process two consecutive locations to detect turns
     func processLocations(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) {
         let bearing = LocationMath.bearing(from: from, to: to)
+
+        guard let prevBearing = previousBearing else {
+            previousBearing = bearing
+            lastProcessTime = Date()
+            return
+        }
+
+        let angleDiff = LocationMath.bearingChange(from: prevBearing, to: bearing)
+        previousBearing = bearing
+        processBearingChange(angleDiff)
+    }
+
+    /// Process a compass heading update (indoor turn detection via Watch)
+    func processHeading(_ heading: Double) {
+        guard let prevBearing = previousBearing else {
+            previousBearing = heading
+            lastProcessTime = Date()
+            return
+        }
+
+        // Calculate bearing change with wraparound handling
+        var angleDiff = heading - prevBearing
+        if angleDiff > 180 { angleDiff -= 360 }
+        if angleDiff < -180 { angleDiff += 360 }
+        previousBearing = heading
+        processBearingChange(angleDiff)
+    }
+
+    /// Core bearing-change processing shared by GPS and compass paths
+    private func processBearingChange(_ angleDiff: Double) {
         let now = Date()
 
         #if DEBUG
@@ -235,14 +265,6 @@ final class TurnAnalyzer: Resettable {
         }
         #endif
 
-        guard let prevBearing = previousBearing else {
-            previousBearing = bearing
-            lastProcessTime = now
-            return
-        }
-
-        // Calculate angle difference using LocationMath
-        let angleDiff = LocationMath.bearingChange(from: prevBearing, to: bearing)
         let absAngle = abs(angleDiff)
         let direction: TurnDirection = angleDiff > 0 ? .right : (angleDiff < 0 ? .left : .straight)
 
@@ -320,7 +342,6 @@ final class TurnAnalyzer: Resettable {
             }
         }
 
-        previousBearing = bearing
         lastProcessTime = now
     }
 

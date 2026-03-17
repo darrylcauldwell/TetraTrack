@@ -727,18 +727,6 @@ final class WorkoutLifecycleService: NSObject {
 
     // MARK: - Private
 
-    /// Create a route builder only if the user authorized writing workout routes.
-    /// Returns nil if authorization is denied or session is indoor — GPS route
-    /// data is still saved to SwiftData independently of HealthKit.
-    private func createRouteBuilderIfAuthorized() -> HKWorkoutRouteBuilder? {
-        guard isOutdoorSession else { return nil }
-        guard healthStore.authorizationStatus(for: HKSeriesType.workoutRoute()) == .sharingAuthorized else {
-            Log.health.warning("Route write not authorized — GPS route will not be saved to HealthKit")
-            return nil
-        }
-        return HKWorkoutRouteBuilder(healthStore: healthStore, device: .local())
-    }
-
     private var watchMotionMode: WatchMotionModeShared {
         switch currentActivityType {
         case .equestrianSports: return .riding
