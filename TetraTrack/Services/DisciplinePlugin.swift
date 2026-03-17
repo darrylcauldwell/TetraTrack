@@ -72,6 +72,22 @@ protocol DisciplinePlugin: AnyObject {
     /// Whether auto calorie collection should be disabled (plugin provides its own)
     var disableAutoCalories: Bool { get }
 
+    // MARK: - UI Feature Flags (defaults via extension)
+
+    /// Whether this discipline supports pause/resume (false for swimming state machine, shooting score entry)
+    var supportsPause: Bool { get }
+
+    /// Whether this discipline has audio coaching (false for swimming, shooting)
+    var supportsAudioCoaching: Bool { get }
+
+    /// Whether this discipline supports voice notes during paused state
+    var supportsVoiceNotes: Bool { get }
+
+    // MARK: - Voice Notes
+
+    /// Append a voice note to the discipline's session model notes field
+    func appendVoiceNote(_ note: String)
+
     // MARK: - HealthKit
 
     /// Workout configuration for HealthKit session
@@ -138,6 +154,12 @@ extension DisciplinePlugin {
     var usesVehicleDetection: Bool { false }
     var supportsFamilySharing: Bool { true }
     var disableAutoCalories: Bool { false }
+
+    var supportsPause: Bool { true }
+    var supportsAudioCoaching: Bool { true }
+    var supportsVoiceNotes: Bool { true }
+
+    func appendVoiceNote(_ note: String) {}
 
     func onSessionStarted(tracker: SessionTracker) async {}
     func onSessionPaused(tracker: SessionTracker) {}

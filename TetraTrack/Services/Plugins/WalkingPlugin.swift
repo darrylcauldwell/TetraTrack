@@ -106,6 +106,12 @@ final class WalkingPlugin: DisciplinePlugin {
         return point
     }
 
+    // MARK: - Voice Notes
+
+    func appendVoiceNote(_ note: String) {
+        session.notes = VoiceNotesService.shared.appendNote(note, to: session.notes)
+    }
+
     func onSessionStarted(tracker: SessionTracker) async {
         // Set weather on session model
         tracker.currentWeather.map { session.startWeather = $0 }
