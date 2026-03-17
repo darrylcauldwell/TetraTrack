@@ -215,7 +215,7 @@ struct SwimControlView: View {
                 }
             }
             Button("Discard", role: .destructive) {
-                workoutManager.discardWorkout()
+                Task { await workoutManager.discardWorkout() }
             }
             Button("Continue Swimming", role: .cancel) {}
         }

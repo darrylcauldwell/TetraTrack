@@ -430,7 +430,7 @@ final class WatchConnectivityService: NSObject {
                     self.rideState = .idle
                     WorkoutManager.shared.stopMotionDataSending()
                     WorkoutManager.shared.onMotionDataSend = nil
-                    WorkoutManager.shared.stopHeartRateMonitoring()
+                    Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
                     WorkoutManager.shared.onHeartRateUpdate = nil
                     // Reset session data
                     self.duration = 0
@@ -508,7 +508,7 @@ final class WatchConnectivityService: NSObject {
                     WatchMotionManager.shared.stopTracking()
                     WorkoutManager.shared.stopMotionDataSending()
                     WorkoutManager.shared.onMotionDataSend = nil
-                    WorkoutManager.shared.stopHeartRateMonitoring()
+                    Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
                     WorkoutManager.shared.onHeartRateUpdate = nil
                     Log.location.info("Motion tracking stopped")
 

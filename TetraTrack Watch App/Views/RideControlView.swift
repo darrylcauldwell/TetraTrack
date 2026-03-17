@@ -177,7 +177,7 @@ struct RideControlView: View {
                 }
             }
             Button("Discard", role: .destructive) {
-                workoutManager.discardWorkout()
+                Task { await workoutManager.discardWorkout() }
             }
             Button("Continue Riding", role: .cancel) {}
         }

@@ -200,7 +200,7 @@ struct ShootingControlView: View {
                 }
             }
             Button("Discard", role: .destructive) {
-                workoutManager.discardWorkout()
+                Task { await workoutManager.discardWorkout() }
             }
             Button("Continue", role: .cancel) {}
         }
