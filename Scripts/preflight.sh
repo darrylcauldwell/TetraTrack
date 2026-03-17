@@ -136,13 +136,10 @@ if [ "$QUICK" = true ]; then
 else
     echo "[5/5] Unit tests..."
 
-    # Find an available iPhone simulator
-    SIMULATOR="iPhone 17 Pro"
-
     if xcodebuild test \
         -project "${PROJECT_DIR}/TetraTrack.xcodeproj" \
         -scheme TetraTrack \
-        -destination "platform=iOS Simulator,name=${SIMULATOR}" \
+        -destination 'generic/platform=iOS Simulator' \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
         -quiet 2>&1; then
