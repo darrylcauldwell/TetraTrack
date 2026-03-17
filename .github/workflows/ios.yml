@@ -11,6 +11,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  rebase-check:
+    name: Rebase Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch is up to date with main
+        run: |
+          git fetch origin main
+          BEHIND=$(git rev-list --count HEAD..origin/main)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "::error::Branch is $BEHIND commit(s) behind main. Rebase before merging to avoid regressions."
+            echo ""
+            echo "Run: git fetch origin && git rebase origin/main && git push --force-with-lease"
+            exit 1
+          fi
+          echo "Branch is up to date with main."
+
   validate:
     name: Validate
     runs-on: macos-26
