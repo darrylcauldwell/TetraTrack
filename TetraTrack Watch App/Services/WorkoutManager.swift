@@ -678,8 +678,9 @@ final class WorkoutManager: NSObject {
 
         if isMirroringToiPhone {
             sendMotionViaMirroredSession(metrics)
-            // Send gait classification result if available
-            if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult {
+            // Send gait classification result if available (riding only — avoids heavy DSP init on Watch for other disciplines)
+            if activityType == .riding,
+               let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult {
                 sendGaitResultViaMirroredSession(gaitResult)
             }
             // Also send HR via mirrored session
