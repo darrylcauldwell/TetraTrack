@@ -139,7 +139,7 @@ else
     if xcodebuild test \
         -project "${PROJECT_DIR}/TetraTrack.xcodeproj" \
         -scheme TetraTrack \
-        -destination 'generic/platform=iOS Simulator' \
+        -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
         -quiet 2>&1; then
