@@ -59,6 +59,7 @@ enum WatchMotionMode: String, Codable {
     case shooting    // Stance stability for dry fire drills
     case swimming    // Stroke detection and counting
     case running     // Vertical oscillation and ground contact
+    case walking     // Cadence and ground contact (lower thresholds than running)
     case riding      // Biomechanics for equestrian
     case idle
 }
@@ -173,6 +174,7 @@ final class WatchMotionManager: NSObject {
         case .shooting: 1.0 / 50.0   // 50Hz for stability analysis
         case .swimming: 1.0 / 25.0   // 25Hz for stroke detection
         case .running: 1.0 / 50.0    // 50Hz for ground contact
+        case .walking: 1.0 / 50.0    // 50Hz for cadence detection
         case .riding: 1.0 / 50.0     // 50Hz for biomechanics
         case .idle: 1.0 / 10.0
         }
@@ -289,6 +291,8 @@ final class WatchMotionManager: NSObject {
             processSwimmingMotion(sample)
         case .running:
             processRunningMotion(sample)
+        case .walking:
+            processWalkingMotion(sample)
         case .riding:
             processRidingMotion(sample)
         case .idle:
@@ -424,6 +428,55 @@ final class WatchMotionManager: NSObject {
         // Typical ground contact is 200-300ms, scale from ratio
         // At 50Hz, 250ms contact = 12.5 samples out of 50 = 25%
         groundContactTime = contactRatio * 1000 * 0.5  // Convert to ms estimate
+    }
+
+    // MARK: - Walking Analysis
+
+    private func processWalkingMotion(_ sample: WatchMotionSample) {
+        // Walking creates lower-amplitude vertical acceleration peaks than running.
+        // Typical walking impact is 0.5-1.0G vs 1.5G+ for running.
+
+        let verticalAccel = sample.accelerationY
+        let timestamp = sample.timestamp
+
+        // Lower impact threshold for walking foot strikes
+        let impactThreshold: Double = 0.8
+        let minStepInterval: TimeInterval = 0.3  // Max cadence ~200 spm for brisk walking
+
+        if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
+            runningPeaks.append(timestamp)
+            lastPeakTime = timestamp
+
+            if runningPeaks.count > 20 {
+                runningPeaks.removeFirst()
+            }
+
+            if runningPeaks.count >= 4 {
+                var intervals: [TimeInterval] = []
+                for i in 1..<runningPeaks.count {
+                    intervals.append(runningPeaks[i] - runningPeaks[i-1])
+                }
+                let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
+                cadence = min(Int(60.0 / avgInterval), 180)  // Clamp to 180 spm max
+            }
+
+            onStepDetected?()
+        }
+
+        // Vertical oscillation (walking has lower bounce than running)
+        let recentSamples = Array(sampleBuffer.suffix(50))
+        guard recentSamples.count >= 20 else { return }
+
+        let verticalAccels = recentSamples.map { $0.accelerationY }
+        let maxVert = verticalAccels.max() ?? 0
+        let minVert = verticalAccels.min() ?? 0
+        let oscillationRange = maxVert - minVert
+        verticalOscillation = oscillationRange * 2.5  // Lower scale than running (4.0)
+
+        // Ground contact time (walking has longer contact than running)
+        let contactSamples = recentSamples.filter { $0.accelerationY > 0.3 }
+        let contactRatio = Double(contactSamples.count) / Double(recentSamples.count)
+        groundContactTime = contactRatio * 1000 * 0.6  // Longer contact for walking
     }
 
     // MARK: - Riding Analysis
@@ -682,6 +735,7 @@ final class WatchMotionManager: NSObject {
             altitudeChangeRate: altitudeChangeRate,
             barometricPressure: barometricPressure,
             isSubmerged: isSubmerged,
+            waterDepth: waterDepth,
             compassHeading: compassHeading,
             breathingRate: breathingRate,
             posturePitch: posturePitch,
@@ -721,6 +775,7 @@ struct WatchMotionMetrics: Codable {
     let altitudeChangeRate: Double
     let barometricPressure: Double
     let isSubmerged: Bool
+    let waterDepth: Double
     let compassHeading: Double
     let breathingRate: Double
     let posturePitch: Double

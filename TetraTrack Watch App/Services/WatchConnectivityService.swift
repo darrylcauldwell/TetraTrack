@@ -276,6 +276,7 @@ final class WatchConnectivityService: NSObject {
         case .shooting: .shooting
         case .swimming: .swimming
         case .running: .running
+        case .walking: .walking
         case .riding: .riding
         case .idle: .idle
         }
@@ -485,6 +486,7 @@ final class WatchConnectivityService: NSObject {
                         case .shooting: .shooting
                         case .swimming: .swimming
                         case .running: .running
+                        case .walking: .walking
                         case .riding: .riding
                         case .idle: .idle
                         }

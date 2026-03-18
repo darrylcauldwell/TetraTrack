@@ -181,7 +181,8 @@ final class WorkoutManager: NSObject {
         if let type = activityType {
             let motionMode: WatchMotionMode = switch type {
             case .riding: .riding
-            case .running, .walking: .running
+            case .running: .running
+            case .walking: .walking
             case .swimming: .swimming
             case .shooting: .shooting
             }
@@ -369,7 +370,8 @@ final class WorkoutManager: NSObject {
             // Motion tracking (discipline-aware)
             let motionMode: WatchMotionMode = switch type {
             case .riding: .riding
-            case .running, .walking: .running
+            case .running: .running
+            case .walking: .walking
             case .swimming: .swimming
             case .shooting: .shooting
             }
@@ -583,7 +585,7 @@ final class WorkoutManager: NSObject {
                 let motionMode: WatchMotionMode = switch type {
                 case .riding: .riding
                 case .running: .running
-                case .walking: .running
+                case .walking: .walking
                 case .swimming: .swimming
                 case .shooting: .shooting
                 }
@@ -704,6 +706,7 @@ final class WorkoutManager: NSObject {
 
         if isMirroringToiPhone {
             sendMotionViaMirroredSession(metrics)
+            sendBuilderStatsViaMirroredSession()
             // Send gait classification result if available (riding only — avoids heavy DSP init on Watch for other disciplines)
             if activityType == .riding,
                let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult {
@@ -717,6 +720,68 @@ final class WorkoutManager: NSObject {
             }
         } else {
             onMotionDataSend?()
+        }
+    }
+
+    private func sendBuilderStatsViaMirroredSession() {
+        guard let session = workoutSession, let builder = workoutBuilder else { return }
+
+        var stats: [String: Any] = ["type": "builderStats"]
+        var hasStats = false
+
+        // Cumulative types — use sumQuantity()
+        if let cal = builder.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity() {
+            stats["activeCalories"] = cal.doubleValue(for: .kilocalorie())
+            hasStats = true
+        }
+        if let dist = builder.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity() {
+            stats["distance"] = dist.doubleValue(for: .meter())
+            hasStats = true
+        }
+        if let swimDist = builder.statistics(for: HKQuantityType(.distanceSwimming))?.sumQuantity() {
+            stats["distance"] = swimDist.doubleValue(for: .meter())
+            hasStats = true
+        }
+        if let steps = builder.statistics(for: HKQuantityType(.stepCount))?.sumQuantity() {
+            stats["stepCount"] = Int(steps.doubleValue(for: .count()))
+            hasStats = true
+        }
+        if let strokes = builder.statistics(for: HKQuantityType(.swimmingStrokeCount))?.sumQuantity() {
+            stats["swimmingStrokeCount"] = Int(strokes.doubleValue(for: .count()))
+            hasStats = true
+        }
+
+        // Instantaneous types — use mostRecentQuantity() or averageQuantity()
+        if let speed = builder.statistics(for: HKQuantityType(.runningSpeed))?.averageQuantity() {
+            stats["runningSpeed"] = speed.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
+            hasStats = true
+        }
+        if let power = builder.statistics(for: HKQuantityType(.runningPower))?.averageQuantity() {
+            stats["runningPower"] = power.doubleValue(for: .watt())
+            hasStats = true
+        }
+        if let stride = builder.statistics(for: HKQuantityType(.runningStrideLength))?.averageQuantity() {
+            stats["runningStrideLength"] = stride.doubleValue(for: .meter())
+            hasStats = true
+        }
+        if let gct = builder.statistics(for: HKQuantityType(.runningGroundContactTime))?.averageQuantity() {
+            stats["groundContactTime"] = gct.doubleValue(for: .secondUnit(with: .milli))
+            hasStats = true
+        }
+        if let osc = builder.statistics(for: HKQuantityType(.runningVerticalOscillation))?.averageQuantity() {
+            stats["verticalOscillation"] = osc.doubleValue(for: HKUnit.meterUnit(with: .centi))
+            hasStats = true
+        }
+
+        guard hasStats else { return }
+
+        guard let data = try? JSONSerialization.data(withJSONObject: stats) else { return }
+        Task {
+            do {
+                try await session.sendToRemoteWorkoutSession(data: data)
+            } catch {
+                Log.tracking.error("Failed to send builder stats via mirrored session: \(error)")
+            }
         }
     }
 

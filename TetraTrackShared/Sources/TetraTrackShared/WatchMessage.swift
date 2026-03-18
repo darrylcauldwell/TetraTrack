@@ -122,6 +122,7 @@ public enum WatchMotionModeShared: String, Codable, Sendable {
     case shooting
     case swimming
     case running
+    case walking
     case riding
     case idle
 }

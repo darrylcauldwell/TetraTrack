@@ -819,7 +819,8 @@ final class WorkoutLifecycleService: NSObject {
     private var watchMotionMode: WatchMotionModeShared {
         switch currentActivityType {
         case .equestrianSports: return .riding
-        case .running, .walking: return .running
+        case .running: return .running
+        case .walking: return .walking
         case .swimming: return .swimming
         default: return .shooting
         }
@@ -924,6 +925,19 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                 Log.health.info("WorkoutLifecycleService: received mirrored motion data from Watch")
                 Task { @MainActor in
                     self.updateMotionFromMirroredData(metricsDict)
+                }
+            case "builderStats":
+                // HKLiveWorkoutBuilder stats forwarded from Watch
+                Task { @MainActor in
+                    if let v = payload["activeCalories"] as? Double { self.liveActiveCalories = v }
+                    if let v = payload["distance"] as? Double { self.liveDistance = v }
+                    if let v = payload["stepCount"] as? Int { self.liveStepCount = v }
+                    if let v = payload["swimmingStrokeCount"] as? Int { self.liveSwimmingStrokeCount = v }
+                    if let v = payload["runningSpeed"] as? Double { self.liveRunningSpeed = v }
+                    if let v = payload["runningPower"] as? Double { self.liveRunningPower = v }
+                    if let v = payload["runningStrideLength"] as? Double { self.liveRunningStrideLength = v }
+                    if let v = payload["groundContactTime"] as? Double { self.liveGroundContactTime = v }
+                    if let v = payload["verticalOscillation"] as? Double { self.liveVerticalOscillation = v }
                 }
             case "gaitResult":
                 // Decode Watch gait classification result

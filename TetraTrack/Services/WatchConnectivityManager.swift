@@ -118,6 +118,10 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     private(set) var groundContactTime: Double = 0.0  // ms
     private(set) var cadence: Int = 0  // steps per minute
 
+    // Riding metrics (forwarded from Watch)
+    private(set) var postureStability: Double = 0.0  // 0-100%
+    private(set) var rhythmScore: Double = 0.0  // 0-100%
+
     // MARK: - Session Lifecycle
 
     private(set) var isSessionActive: Bool = false
@@ -396,6 +400,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         verticalOscillation = 0.0
         groundContactTime = 0.0
         cadence = 0
+        postureStability = 0.0
+        rhythmScore = 0.0
 
         // Reset enhanced sensor data
         relativeAltitude = 0.0
@@ -432,6 +438,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             let mode: WatchMotionModeShared = switch modeString {
             case "riding": .riding
             case "running": .running
+            case "walking": .walking
             case "swimming": .swimming
             case "shooting": .shooting
             default: .idle
@@ -451,12 +458,15 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         if let v = dict["verticalOscillation"] as? Double { verticalOscillation = v }
         if let v = dict["groundContactTime"] as? Double { groundContactTime = v }
         if let v = dict["cadence"] as? Int { cadence = v }
+        if let v = dict["postureStability"] as? Double { postureStability = v }
+        if let v = dict["rhythmScore"] as? Double { rhythmScore = v }
 
         // Enhanced sensor data
         if let v = dict["relativeAltitude"] as? Double { relativeAltitude = v }
         if let v = dict["altitudeChangeRate"] as? Double { altitudeChangeRate = v }
         if let v = dict["barometricPressure"] as? Double { barometricPressure = v }
         if let v = dict["isSubmerged"] as? Bool { isSubmerged = v }
+        if let v = dict["waterDepth"] as? Double { waterDepth = v }
         if let v = dict["compassHeading"] as? Double { compassHeading = v }
         if let v = dict["breathingRate"] as? Double { breathingRate = v }
         if let v = dict["posturePitch"] as? Double { posturePitch = v }
