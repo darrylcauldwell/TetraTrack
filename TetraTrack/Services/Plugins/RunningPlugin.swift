@@ -117,6 +117,9 @@ final class RunningPlugin: DisciplinePlugin {
     private var lastDegradationCheckCount: Int = 0
     private var lastDegradationAlertTime: Date = .distantPast
 
+    /// HealthKit fetch task from onSessionStopping (awaited in onSessionCompleted)
+    private var healthKitFetchTask: Task<Void, Never>?
+
     /// Model context reference for persistence
     private var modelContext: ModelContext?
 
@@ -667,7 +670,7 @@ final class RunningPlugin: DisciplinePlugin {
         // Fetch post-session HealthKit metrics (running + walking biomechanics)
         let startDate = session.startDate
         let endDate = Date()
-        Task {
+        healthKitFetchTask = Task {
             let healthKit = HealthKitManager.shared
 
             let runningMetrics = await healthKit.fetchRunningMetrics(from: startDate, to: endDate)
@@ -793,6 +796,10 @@ final class RunningPlugin: DisciplinePlugin {
     }
 
     func onSessionCompleted(tracker: SessionTracker) async {
+        // Await HealthKit fetch from onSessionStopping before proceeding
+        await healthKitFetchTask?.value
+        healthKitFetchTask = nil
+
         // Retry HR recovery fetch if not captured during onSessionStopping
         if session.healthKitHRRecoveryOneMinute == nil, let endDate = session.endDate {
             try? await Task.sleep(for: .seconds(30))

@@ -60,6 +60,9 @@ final class WalkingPlugin: DisciplinePlugin {
     /// Symmetry check (every 5 minutes)
     private var lastSymmetryCheckMark: Int = 0
 
+    /// HealthKit fetch task from onSessionStopping (awaited in onSessionCompleted)
+    private var healthKitFetchTask: Task<Void, Never>?
+
     /// Model context reference for persistence
     private var modelContext: ModelContext?
 
@@ -258,7 +261,7 @@ final class WalkingPlugin: DisciplinePlugin {
         // Query HealthKit walking metrics and write to session
         let startDate = session.startDate
         let endDate = Date()
-        Task {
+        healthKitFetchTask = Task {
             let healthKit = HealthKitManager.shared
 
             // Fetch walking-specific metrics
@@ -374,6 +377,10 @@ final class WalkingPlugin: DisciplinePlugin {
     }
 
     func onSessionCompleted(tracker: SessionTracker) async {
+        // Await HealthKit fetch from onSessionStopping before proceeding
+        await healthKitFetchTask?.value
+        healthKitFetchTask = nil
+
         // Recompute walking scores after HealthKit data has been written
         await MainActor.run {
             let walkingService = WalkingAnalysisService()
