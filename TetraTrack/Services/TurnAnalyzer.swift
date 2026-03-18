@@ -172,6 +172,7 @@ final class TurnAnalyzer: Resettable {
     private var physicalTurnInProgress: PhysicalTurnInProgress?
     private var completedPhysicalTurns: [PhysicalTurn] = []
     private var currentPhysicalTurnEventCount: Int = 0
+    private var debugLastTurnEndTime: Date?
 
     /// Time tracking for turn direction
     private var leftTurnStartTime: Date?
@@ -202,6 +203,7 @@ final class TurnAnalyzer: Resettable {
         diagnosticEntries = []
         physicalTurnInProgress = nil
         completedPhysicalTurns = []
+        debugLastTurnEndTime = nil
         leftTurnStartTime = nil
         rightTurnStartTime = nil
         totalLeftTurnTime = 0
@@ -423,7 +425,7 @@ final class TurnAnalyzer: Resettable {
         let direction: TurnDirection = angleDiff > 0 ? .right : (angleDiff < 0 ? .left : .straight)
 
         // Check if we're still in hysteresis window
-        if let lastEnd = lastTurnEndTime,
+        if let lastEnd = debugLastTurnEndTime,
            timestamp.timeIntervalSince(lastEnd) < PhysicalTurnModel.hysteresisWindow {
             // Still in cooldown, accumulate to existing turn if same direction
             if var turn = physicalTurnInProgress, turn.direction == direction {
@@ -451,7 +453,7 @@ final class TurnAnalyzer: Resettable {
                     ))
                 }
                 physicalTurnInProgress = nil
-                lastTurnEndTime = timestamp
+                debugLastTurnEndTime = timestamp
                 currentPhysicalTurnEventCount = 0
             }
             return
@@ -486,7 +488,7 @@ final class TurnAnalyzer: Resettable {
                     lastUpdateTime: timestamp,
                     sampleCount: 1
                 )
-                lastTurnEndTime = timestamp
+                debugLastTurnEndTime = timestamp
                 currentPhysicalTurnEventCount = 0
             }
         } else {
