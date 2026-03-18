@@ -99,7 +99,14 @@ final class SyncStatusMonitor {
 
     private var monitoringTask: Task<Void, Never>?
     private let healthCheckInterval: TimeInterval = 30  // Check every 30 seconds
-    private let container = CKContainer.default()
+    @ObservationIgnored
+    private var _container: CKContainer?
+    private var container: CKContainer {
+        if let c = _container { return c }
+        let c = CKContainer.default()
+        _container = c
+        return c
+    }
     private let networkMonitor = NWPathMonitor()
     private var isNetworkAvailable: Bool = true
 
