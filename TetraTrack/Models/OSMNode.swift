@@ -181,9 +181,15 @@ enum OSMHorseAccess: String, Codable, Sendable {
         // Explicit horse tag takes precedence
         if let horse = tags["horse"] {
             switch horse {
-            case "yes", "designated": self = .designated
-            case "no": self = .no
-            case "permissive": self = .permissive
+            case "yes", "designated":
+                self = .designated
+                return
+            case "no":
+                self = .no
+                return
+            case "permissive":
+                self = .permissive
+                return
             default: break
             }
         }
