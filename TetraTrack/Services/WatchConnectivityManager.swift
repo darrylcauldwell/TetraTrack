@@ -334,10 +334,46 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         sendMessage(message)
     }
 
-    /// Request Watch to start its own autonomous HKWorkoutSession
+    /// Request Watch to start its own autonomous HKWorkoutSession.
+    /// Uses dual transport: sendMessage (fast path when reachable) + transferUserInfo (guaranteed queued delivery).
+    /// Never uses applicationContext for this command — status updates would overwrite it immediately.
     func requestAutonomousWorkout(discipline: String) {
         let message = WatchMessage.startAutonomousWorkout(discipline: discipline)
-        sendMessage(message)
+        let dict = message.toDictionary()
+
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.error("TT: requestAutonomousWorkout — session not activated, skipping")
+            return
+        }
+
+        // Fast path: sendMessage (drops if Watch unreachable)
+        if session.isReachable {
+            Log.watch.error("TT: requestAutonomousWorkout — sending via sendMessage (reachable)")
+            session.sendMessage(dict, replyHandler: nil) { error in
+                Log.watch.error("TT: requestAutonomousWorkout sendMessage error: \(error)")
+            }
+        }
+
+        // Reliable path: transferUserInfo (guaranteed queued delivery, survives disconnects)
+        session.transferUserInfo(dict)
+        Log.watch.error("TT: requestAutonomousWorkout — queued via transferUserInfo")
+    }
+
+    /// Retry sending autonomous workout command via transferUserInfo only.
+    /// Called by WorkoutLifecycleService when the initial command wasn't acknowledged within 15s.
+    func retryAutonomousWorkoutViaUserInfo(discipline: String) {
+        let message = WatchMessage.startAutonomousWorkout(discipline: discipline)
+        let dict = message.toDictionary()
+
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.error("TT: retryAutonomousWorkout — session not activated")
+            return
+        }
+
+        session.transferUserInfo(dict)
+        Log.watch.error("TT: retryAutonomousWorkout — re-queued via transferUserInfo")
     }
 
     /// Stop motion tracking on Watch
@@ -598,6 +634,17 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
                 motionUpdateSequence += 1
                 enhancedSensorSequence += 1
+            }
+
+            // Handle mirroring handshake from Watch
+            if command == .workoutCommandAcknowledged {
+                Log.watch.error("TT: received workoutCommandAcknowledged from Watch")
+                WorkoutLifecycleService.shared.updateMirroringState(.commandAcknowledged)
+            }
+
+            if command == .mirroringStarted {
+                Log.watch.error("TT: received mirroringStarted from Watch")
+                WorkoutLifecycleService.shared.updateMirroringState(.mirroringInProgress)
             }
 
             // Handle fall detection from Watch

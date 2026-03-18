@@ -154,6 +154,12 @@ final class WorkoutManager: NSObject {
         session.startActivity(with: startDate)
         try await builder.beginCollection(at: startDate)
 
+        // Notify iPhone AFTER session is fully live (startActivity + beginCollection complete).
+        // Uses transferUserInfo so status updates can't overwrite it via applicationContext.
+        let mirroringMsg = WatchMessage.mirroringStarted(discipline: mapActivityType(configuration.activityType).rawValue)
+        WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
+        Log.tracking.error("TT: sent mirroringStarted to iPhone (fromIPhone path, after beginCollection)")
+
         // --- TetraTrack-specific (AFTER core setup) ---
         workoutSession = session
         workoutBuilder = builder
@@ -319,13 +325,30 @@ final class WorkoutManager: NSObject {
             // Prepare session before mirroring (required per Apple docs + nonstrict.eu findings)
             session.prepare()
             WatchConnectivityService.sendDiagnostic("startWorkout: session prepared, calling startMirroringToCompanionDevice()")
-            try await session.startMirroringToCompanionDevice()
-            WatchConnectivityService.sendDiagnostic("startWorkout: mirroring SUCCEEDED")
+
+            var mirroringSucceeded = false
+            do {
+                try await session.startMirroringToCompanionDevice()
+                mirroringSucceeded = true
+                WatchConnectivityService.sendDiagnostic("startWorkout: mirroring SUCCEEDED")
+            } catch {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: startMirroringToCompanionDevice FAILED: \(errMsg, privacy: .public) — continuing with local Watch workout")
+                WatchConnectivityService.sendDiagnostic("startWorkout: mirroring FAILED: \(errMsg) — continuing locally")
+            }
 
             let startDate = Date()
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
             WatchConnectivityService.sendDiagnostic("startWorkout: activity started + collection began")
+
+            // Notify iPhone AFTER session is fully live (startActivity + beginCollection complete).
+            // Uses transferUserInfo so status updates can't overwrite it via applicationContext.
+            if mirroringSucceeded {
+                let mirroringMsg = WatchMessage.mirroringStarted(discipline: type.rawValue)
+                WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
+                Log.tracking.error("TT: sent mirroringStarted to iPhone (after beginCollection)")
+            }
 
             // TetraTrack-specific state
             workoutSession = session
@@ -333,7 +356,7 @@ final class WorkoutManager: NSObject {
             activityType = type
             isWorkoutActive = true
             isCompanionMode = false
-            isMirroringToiPhone = true
+            isMirroringToiPhone = mirroringSucceeded
             isPaused = false
             startTime = startDate
             resetMetrics()

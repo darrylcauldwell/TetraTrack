@@ -85,6 +85,11 @@ final class WatchConnectivityService: NSObject {
     private var healthStore: HKHealthStore?
     private var spo2Query: HKAnchoredObjectQuery?
 
+    // Synchronous flag to prevent duplicate startAutonomousWorkout processing.
+    // Set immediately on main queue before the async Task starts the workout.
+    // Prevents the race where transferUserInfo delivers before isWorkoutActive is set.
+    private var isProcessingAutonomousStart: Bool = false
+
     // MARK: - Private
 
     private var session: WCSession?
@@ -353,7 +358,7 @@ final class WatchConnectivityService: NSObject {
         sendRawMessage(message.toDictionary())
     }
 
-    private func sendRawMessage(_ message: [String: Any]) {
+    func sendRawMessage(_ message: [String: Any]) {
         guard let session = session,
               session.activationState == .activated else {
             Log.watch.debug("Session not active")
@@ -372,6 +377,27 @@ final class WatchConnectivityService: NSObject {
                 Log.watch.error("Context update error: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Send a message via transferUserInfo (guaranteed queued delivery).
+    /// Use for handshake messages (ACK, mirroringStarted) that must not be
+    /// overwritten by applicationContext status updates.
+    func sendReliableMessage(_ message: [String: Any]) {
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.debug("Session not active for reliable send")
+            return
+        }
+
+        // Best-effort fast path (when reachable)
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil) { error in
+                Log.watch.error("TT: reliable sendMessage error (non-fatal): \(error.localizedDescription)")
+            }
+        }
+
+        // Guaranteed path: transferUserInfo survives disconnects, won't be overwritten
+        session.transferUserInfo(message)
     }
 
     private func handleReceivedMessage(_ message: [String: Any]) {
@@ -546,17 +572,37 @@ final class WatchConnectivityService: NSObject {
                 case .startAutonomousWorkout:
                     if let discipline = watchMessage.discipline,
                        let type = WatchActivityType(rawValue: discipline) {
-                        // Guard against duplicate delivery (sendMessage + applicationContext)
-                        guard !WorkoutManager.shared.isWorkoutActive else {
-                            Log.watch.error("TT: startAutonomousWorkout IGNORED (workout already active)")
+                        // Guard against duplicate delivery (sendMessage + transferUserInfo).
+                        // Check both isWorkoutActive (set deep in async flow) and
+                        // isProcessingAutonomousStart (set synchronously here on main queue).
+                        guard !WorkoutManager.shared.isWorkoutActive,
+                              !self.isProcessingAutonomousStart else {
+                            Log.watch.error("TT: startAutonomousWorkout IGNORED (already active or processing)")
                             return
                         }
+
+                        // Set synchronous flag BEFORE async Task to block duplicates
+                        self.isProcessingAutonomousStart = true
+
                         Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
                         WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
+
+                        // Send acknowledgment to iPhone via transferUserInfo (guaranteed delivery,
+                        // not applicationContext which status updates would overwrite)
+                        let ack = WatchMessage.workoutCommandAcknowledged(discipline: discipline)
+                        self.sendReliableMessage(ack.toDictionary())
+                        Log.watch.error("TT: sent workoutCommandAcknowledged to iPhone via transferUserInfo")
+
                         Task {
                             await WorkoutManager.shared.startWorkout(type: type)
+                            // Clear the flag once startWorkout completes (success or failure)
+                            await MainActor.run { self.isProcessingAutonomousStart = false }
                         }
                     }
+
+                // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
+                case .workoutCommandAcknowledged, .mirroringStarted:
+                    break
 
                 // Commands sent from Watch to iPhone (ignore on Watch side)
                 case .requestStatus, .heartRateUpdate, .voiceNote,
@@ -846,5 +892,10 @@ extension WatchConnectivityService: WCSessionDelegate {
     ) {
         Log.watch.debug("didReceiveApplicationContext called with keys: \(applicationContext.keys)")
         handleReceivedMessage(applicationContext)
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        Log.watch.error("TT: didReceiveUserInfo called with keys: \(userInfo.keys.joined(separator: ", "), privacy: .public)")
+        handleReceivedMessage(userInfo)
     }
 }

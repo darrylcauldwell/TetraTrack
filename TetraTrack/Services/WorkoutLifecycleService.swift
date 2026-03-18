@@ -24,6 +24,29 @@ enum WorkoutLifecycleState: Sendable {
     case ending
 }
 
+// MARK: - Mirroring Pipeline State
+
+enum MirroringPipelineState: String, Sendable {
+    case idle
+    case commandSent
+    case commandAcknowledged
+    case mirroringInProgress
+    case mirroredSessionReceived
+    case fallbackTriggered
+
+    /// Ordinal for forward-only state validation. Higher = further along.
+    var order: Int {
+        switch self {
+        case .idle: 0
+        case .commandSent: 1
+        case .commandAcknowledged: 2
+        case .mirroringInProgress: 3
+        case .mirroredSessionReceived: 4
+        case .fallbackTriggered: 4  // Terminal, same rank as received
+        }
+    }
+}
+
 // MARK: - WorkoutLifecycleService
 
 @Observable
@@ -62,6 +85,10 @@ final class WorkoutLifecycleService: NSObject {
 
     // Stored configuration for auto-fallback if mirrored session doesn't arrive
     private var pendingWatchConfiguration: HKWorkoutConfiguration?
+
+    // Mirroring handshake state machine
+    private(set) var mirroringState: MirroringPipelineState = .idle
+    private var fallbackTask: Task<Void, Never>?
 
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
@@ -143,6 +170,8 @@ final class WorkoutLifecycleService: NSObject {
         // Step 2: Send the actual workout command via WCSession.
         // Watch creates HKWorkoutSession, mirrors it back to iPhone via startMirroringToCompanionDevice().
         // iPhone receives the mirrored session through setupMirroringHandler() above.
+        mirroringState = .commandSent
+        Log.health.error("TT: mirroring pipeline → commandSent")
         watchConnectivity.requestAutonomousWorkout(discipline: discipline)
 
         // Persist context for crash recovery
@@ -154,13 +183,34 @@ final class WorkoutLifecycleService: NSObject {
         // TT: error level so it appears in Console.app on physical devices
         Log.health.error("TT: requestWatchWorkout — sent startAutonomousWorkout(\(discipline, privacy: .public)) via WCSession")
 
-        // Auto-fallback: if mirrored session doesn't arrive within 10 seconds,
-        // fall back to iPhone-primary mode to prevent Code 5 errors
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+        // Adaptive two-phase fallback with cancellation support.
+        // Phase 1: Wait up to 15s for Watch acknowledgment. If not received, retry via transferUserInfo.
+        // Phase 2: Wait up to 30s more for mirrored session arrival.
+        // Total max: 45s before fallback (vs previous 10s).
+        fallbackTask?.cancel()
+        fallbackTask = Task { @MainActor [weak self] in
+            // Phase 1: Wait for Watch acknowledgment (15s)
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
             guard let self else { return }
+            guard !Task.isCancelled else { return }
+
+            if self.mirroringState == .commandSent {
+                // Watch hasn't acknowledged — retry via transferUserInfo (guaranteed delivery)
+                Log.health.error("TT: no ack after 15s — retrying via transferUserInfo")
+                self.watchConnectivity.retryAutonomousWorkoutViaUserInfo(discipline: discipline)
+            }
+
+            // Phase 2: Wait for mirrored session (30s more)
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard !Task.isCancelled else { return }
+
             if self.workoutSession == nil {
-                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received 10s after WCSession command")
+                // Final cancellation check right before committing to fallback
+                guard !Task.isCancelled else { return }
+                let state = self.mirroringState.rawValue
+                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received after 45s (state=\(state, privacy: .public))")
+                self.mirroringState = .fallbackTriggered
+                Log.health.error("TT: mirroring pipeline → fallbackTriggered")
                 self.isWatchPrimary = false
                 if let config = self.pendingWatchConfiguration {
                     do {
@@ -172,7 +222,7 @@ final class WorkoutLifecycleService: NSObject {
                     }
                 }
             } else {
-                Log.health.error("TT: mirrored session confirmed active 10s after WCSession command")
+                Log.health.error("TT: mirrored session confirmed active — no fallback needed")
             }
             self.pendingWatchConfiguration = nil
         }
@@ -190,6 +240,21 @@ final class WorkoutLifecycleService: NSObject {
         healthStore.workoutSessionMirroringStartHandler = { [weak self] mirroredSession in
             guard let self else { return }
             Task { @MainActor in
+                // Cancel the fallback timer — mirrored session arrived
+                self.fallbackTask?.cancel()
+                self.fallbackTask = nil
+
+                let previousState = self.mirroringState.rawValue
+                self.mirroringState = .mirroredSessionReceived
+                Log.health.error("TT: mirroring pipeline → mirroredSessionReceived (was \(previousState, privacy: .public))")
+
+                // If fallback already triggered and created an iPhone-primary session,
+                // discard it and accept the Watch mirrored session instead.
+                if self.workoutSession != nil && !self.isWatchPrimary {
+                    Log.health.error("TT: late mirrored session arrived after fallback — discarding iPhone session, accepting Watch session")
+                    await self.discard()
+                }
+
                 self.workoutSession = mirroredSession
                 mirroredSession.delegate = self
                 // No builder or data source — builder runs on Watch only
@@ -225,6 +290,22 @@ final class WorkoutLifecycleService: NSObject {
                 Log.health.error("TT: received mirrored session from Watch — Watch-primary mode active")
             }
         }
+    }
+
+    // MARK: - Mirroring Pipeline State Updates
+
+    /// Called by WatchConnectivityManager when ack/mirroring messages arrive from Watch.
+    /// Forward-only: rejects transitions that would move backward in the pipeline
+    /// (e.g., a late ACK arriving after mirroredSessionReceived).
+    func updateMirroringState(_ newState: MirroringPipelineState) {
+        let previous = mirroringState
+        // Allow reset to idle (cleanup), but otherwise only advance forward
+        guard newState == .idle || newState.order > previous.order else {
+            Log.health.error("TT: mirroring pipeline REJECTED \(newState.rawValue, privacy: .public) — already at \(previous.rawValue, privacy: .public)")
+            return
+        }
+        mirroringState = newState
+        Log.health.error("TT: mirroring pipeline → \(newState.rawValue, privacy: .public) (was \(previous.rawValue, privacy: .public))")
     }
 
     // MARK: - Start Workout (iPhone-Only Fallback)
@@ -391,6 +472,11 @@ final class WorkoutLifecycleService: NSObject {
     // MARK: - Pause / Resume
 
     func pause() {
+        // Cancel fallback timer — user pausing means they're actively using the app,
+        // not waiting for a stale fallback to fire.
+        fallbackTask?.cancel()
+        fallbackTask = nil
+
         if isWatchPrimary {
             // In Watch-primary mode, send control command via mirrored session.
             // Watch pauses the session and state syncs back automatically.
@@ -746,6 +832,8 @@ final class WorkoutLifecycleService: NSObject {
 
     private func cleanup() {
         clearSessionContext()
+        fallbackTask?.cancel()
+        fallbackTask = nil
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
@@ -756,6 +844,7 @@ final class WorkoutLifecycleService: NSObject {
         isWatchPrimary = false
         currentActivityType = nil
         pendingWatchConfiguration = nil
+        mirroringState = .idle
         state = .idle
         liveActiveCalories = 0
         liveDistance = 0
