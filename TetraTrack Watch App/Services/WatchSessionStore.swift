@@ -228,11 +228,6 @@ final class WatchSessionStore {
             } catch {
                 lastError = error
                 Log.storage.warning("Save attempt \(attempt)/\(self.maxSaveRetries) failed: \(error.localizedDescription)")
-
-                // Brief delay before retry (exponential backoff)
-                if attempt < maxSaveRetries {
-                    Thread.sleep(forTimeInterval: Double(attempt) * 0.1)
-                }
             }
         }
 
