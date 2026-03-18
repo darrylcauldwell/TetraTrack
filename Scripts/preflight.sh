@@ -136,10 +136,18 @@ if [ "$QUICK" = true ]; then
 else
     echo "[5/5] Unit tests..."
 
+    # Find an available iPhone simulator (tests need a concrete device, not generic)
+    SIMULATOR=$(xcrun simctl list devices available -j \
+        | python3 -c "import sys,json; devs=json.load(sys.stdin)['devices']; print(next(d['name'] for r in devs for d in devs[r] if 'iPhone' in d['name'] and d['isAvailable']),end='')" 2>/dev/null)
+    if [ -z "$SIMULATOR" ]; then
+        SIMULATOR="iPhone 17 Pro"
+    fi
+    echo "  Using simulator: $SIMULATOR"
+
     if xcodebuild test \
         -project "${PROJECT_DIR}/TetraTrack.xcodeproj" \
         -scheme TetraTrack \
-        -destination 'generic/platform=iOS Simulator' \
+        -destination "platform=iOS Simulator,name=$SIMULATOR" \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
         -quiet 2>&1; then
