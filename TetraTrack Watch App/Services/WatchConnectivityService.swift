@@ -340,17 +340,17 @@ final class WatchConnectivityService: NSObject {
             impactMagnitude: impactMagnitude,
             rotationMagnitude: rotationMagnitude
         )
-        sendMessage(message)
+        sendReliableMessage(message.toDictionary())
     }
 
     func sendFallConfirmedOK() {
         let message = WatchMessage.fallResponseMessage(.confirmedOK)
-        sendMessage(message)
+        sendReliableMessage(message.toDictionary())
     }
 
     func sendFallEmergency() {
         let message = WatchMessage.fallResponseMessage(.emergency)
-        sendMessage(message)
+        sendReliableMessage(message.toDictionary())
     }
 
     // MARK: - Private Methods
@@ -371,9 +371,16 @@ final class WatchConnectivityService: NSObject {
                 Log.watch.error("Send error: \(error.localizedDescription)")
             }
         } else {
-            // Use application context for background updates
+            // Use application context for background updates.
+            // Merge diagnostic breadcrumbs into the payload so they aren't
+            // clobbered by this update (applicationContext is last-value-wins).
+            var merged = message
+            if !WatchConnectivityService.breadcrumbLog.isEmpty {
+                merged["diagnosticBreadcrumbs"] = WatchConnectivityService.breadcrumbLog
+                merged["watchDiagnosticTimestamp"] = Date().timeIntervalSince1970
+            }
             do {
-                try session.updateApplicationContext(message)
+                try session.updateApplicationContext(merged)
             } catch {
                 Log.watch.error("Context update error: \(error.localizedDescription)")
             }
