@@ -259,8 +259,13 @@ final class RidingPlugin: DisciplinePlugin {
     func onSessionStarted(tracker: SessionTracker) async {
         _weakTracker = tracker
 
+        guard let context = modelContext else {
+            Log.tracking.error("onSessionStarted: modelContext not set — createSessionModel was not called")
+            return
+        }
+
         // Configure gait analyzer
-        gaitAnalyzer.configure(with: modelContext!)
+        gaitAnalyzer.configure(with: context)
         if let ride = currentRide {
             gaitAnalyzer.startAnalyzing(for: ride)
         }
