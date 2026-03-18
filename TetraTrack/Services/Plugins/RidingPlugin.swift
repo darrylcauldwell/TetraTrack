@@ -221,6 +221,9 @@ final class RidingPlugin: DisciplinePlugin {
     // Watch sensor → GaitAnalyzer forwarding task
     private var watchSensorForwardingTask: Task<Void, Never>?
 
+    // Voice note observation task
+    private var voiceNoteObservationTask: Task<Void, Never>?
+
     /// Whether currently using Watch gait classification as primary source
     private(set) var isUsingWatchGait: Bool = false
 
@@ -382,6 +385,8 @@ final class RidingPlugin: DisciplinePlugin {
         watchGaitObservationTask = nil
         watchSensorForwardingTask?.cancel()
         watchSensorForwardingTask = nil
+        voiceNoteObservationTask?.cancel()
+        voiceNoteObservationTask = nil
         isUsingWatchGait = false
         lastWatchGaitResultTime = nil
 
@@ -579,7 +584,7 @@ final class RidingPlugin: DisciplinePlugin {
         guard let ride = currentRide else { return }
 
         // Generate post-session AI summary
-        generatePostSessionSummary(for: ride)
+        await generatePostSessionSummary(for: ride)
 
         // Convert to TrainingArtifact and sync for family sharing
         await ArtifactConversionService.shared.convertAndSyncRide(ride)
@@ -602,6 +607,8 @@ final class RidingPlugin: DisciplinePlugin {
         watchGaitObservationTask = nil
         watchSensorForwardingTask?.cancel()
         watchSensorForwardingTask = nil
+        voiceNoteObservationTask?.cancel()
+        voiceNoteObservationTask = nil
         isUsingWatchGait = false
         lastWatchGaitResultTime = nil
 
@@ -1054,7 +1061,8 @@ final class RidingPlugin: DisciplinePlugin {
         // Voice notes are observed by SessionTracker's watchVoiceNoteTask.
         // Here we set up the handler for when notes arrive.
         // The RidingPlugin handles voice notes directly when the watch note arrives.
-        Task { @MainActor [weak self] in
+        voiceNoteObservationTask?.cancel()
+        voiceNoteObservationTask = Task { @MainActor [weak self] in
             let wm = WatchConnectivityManager.shared
             var lastSeq = wm.voiceNoteSequence
             while !Task.isCancelled {
@@ -1078,45 +1086,39 @@ final class RidingPlugin: DisciplinePlugin {
 
     // MARK: - Post-Session Summary
 
-    private func generatePostSessionSummary(for ride: Ride) {
+    private func generatePostSessionSummary(for ride: Ride) async {
         let summaryService = PostSessionSummaryService.shared
         let voiceNotes = ride.voiceNotes
 
-        Task {
-            let summary: SessionSummary
-            if #available(iOS 26.0, *) {
-                do {
-                    summary = try await summaryService.generateRideSummary(
-                        ride: ride,
-                        voiceNotes: voiceNotes
-                    )
-                } catch {
-                    summary = summaryService.generateFallbackRideSummary(
-                        ride: ride,
-                        voiceNotes: voiceNotes
-                    )
-                }
-            } else {
+        let summary: SessionSummary
+        if #available(iOS 26.0, *) {
+            do {
+                summary = try await summaryService.generateRideSummary(
+                    ride: ride,
+                    voiceNotes: voiceNotes
+                )
+            } catch {
                 summary = summaryService.generateFallbackRideSummary(
                     ride: ride,
                     voiceNotes: voiceNotes
                 )
             }
-
-            await MainActor.run {
-                ride.aiSummary = summary
-                do {
-                    try modelContext?.save()
-                } catch {
-                    Log.services.error("Failed to save AI summary: \(error)")
-                }
-            }
-
-            await MainActor.run {
-                summaryService.readSummaryAloud(summary, brief: false)
-            }
-
-            Log.services.info("Post-session summary generated and announced")
+        } else {
+            summary = summaryService.generateFallbackRideSummary(
+                ride: ride,
+                voiceNotes: voiceNotes
+            )
         }
+
+        ride.aiSummary = summary
+        do {
+            try modelContext?.save()
+        } catch {
+            Log.services.error("Failed to save AI summary: \(error)")
+        }
+
+        summaryService.readSummaryAloud(summary, brief: false)
+
+        Log.services.info("Post-session summary generated and announced")
     }
 }
