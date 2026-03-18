@@ -265,7 +265,8 @@ public struct WatchMessage: Codable, Sendable {
         runningPhase: String? = nil,
         asymmetryIndex: Double? = nil,
         // Autonomous workout
-        discipline: String? = nil
+        discipline: String? = nil,
+        timestamp: Date = Date()
     ) {
         self.command = command
         self.rideState = rideState
@@ -279,7 +280,7 @@ public struct WatchMessage: Codable, Sendable {
         self.maxHeartRate = maxHeartRate
         self.horseName = horseName
         self.rideType = rideType
-        self.timestamp = Date()
+        self.timestamp = timestamp
         self.voiceNoteText = voiceNoteText
         self.motionMode = motionMode
         self.stanceStability = stanceStability
@@ -719,6 +720,8 @@ public struct WatchMessage: Codable, Sendable {
         let fallResponse: FallResponse? = (dict[WatchMessageKey.fallResponse.rawValue] as? String)
             .flatMap { FallResponse(rawValue: $0) }
 
+        let parsedTimestamp = Date(timeIntervalSince1970: timestampInterval)
+
         let message = WatchMessage(
             command: command,
             rideState: rideState,
@@ -780,7 +783,8 @@ public struct WatchMessage: Codable, Sendable {
             runningPhase: dict[WatchMessageKey.runningPhase.rawValue] as? String,
             asymmetryIndex: dict[WatchMessageKey.asymmetryIndex.rawValue] as? Double,
             // Autonomous workout
-            discipline: dict[WatchMessageKey.discipline.rawValue] as? String
+            discipline: dict[WatchMessageKey.discipline.rawValue] as? String,
+            timestamp: parsedTimestamp
         )
 
         return message
