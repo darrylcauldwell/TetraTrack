@@ -13,7 +13,7 @@ import HealthKit
 struct WalkingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
     @Query private var sharingContacts: [SharingRelationship]
 
     @State private var pendingWalkingSetup: RunningSetupConfig?
@@ -75,14 +75,14 @@ struct WalkingView: View {
         }
         modelContext.insert(session)
 
-        tracker.isSharingWithFamily = shareWithFamily
+        tracker?.isSharingWithFamily = shareWithFamily
         let plugin = WalkingPlugin(
             session: session,
             selectedRoute: route,
             targetCadence: targetWalkCadence
         )
         Task {
-            await tracker.startSession(plugin: plugin)
+            await tracker?.startSession(plugin: plugin)
         }
     }
 }

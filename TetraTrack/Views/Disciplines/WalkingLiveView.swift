@@ -15,7 +15,7 @@ import os
 struct WalkingLiveView: View {
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingCancelConfirmation = false
     @State private var selectedTab: RunningTab = .stats
@@ -43,10 +43,10 @@ struct WalkingLiveView: View {
         .preferredColorScheme(.dark)
         .confirmationDialog("End Walking Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
-                tracker.stopSession()
+                tracker?.stopSession()
             }
             Button("Discard", role: .destructive) {
-                tracker.discardSession()
+                tracker?.discardSession()
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -55,7 +55,7 @@ struct WalkingLiveView: View {
     // MARK: - Plugin Access
 
     private var walkingPlugin: WalkingPlugin? {
-        tracker.plugin(as: WalkingPlugin.self)
+        tracker?.plugin(as: WalkingPlugin.self)
     }
 
     private var targetCadence: Int {
@@ -116,14 +116,14 @@ struct WalkingLiveView: View {
                 Text("WALKING")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(formatTime(tracker.elapsedTime))
+                Text(formatTime(tracker?.elapsedTime ?? 0))
                     .scaledFont(size: 56, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
             }
 
             // Distance
             VStack(spacing: 4) {
-                Text(formatDistance(tracker.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
                     .foregroundStyle(.teal)
@@ -138,30 +138,30 @@ struct WalkingLiveView: View {
             // Secondary metrics row
             HStack(spacing: 24) {
                 metricColumn(
-                    value: tracker.totalDistance > 50 ? formatPace(tracker.elapsedTime / (tracker.totalDistance / 1000)) : "--",
+                    value: (tracker?.totalDistance ?? 0) > 50 ? formatPace((tracker?.elapsedTime ?? 0) / ((tracker?.totalDistance ?? 1) / 1000)) : "--",
                     label: "Pace"
                 )
                 // Heart rate with zone
                 VStack(spacing: 4) {
-                    Text(tracker.currentHeartRate > 0 ? "\(tracker.currentHeartRate)" : "--")
+                    Text((tracker?.currentHeartRate ?? 0) > 0 ? "\(tracker?.currentHeartRate ?? 0)" : "--")
                         .font(.system(.title3, design: .rounded))
                         .monospacedDigit()
                         .bold()
                     Text("Heart Rate")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    if tracker.currentHeartRate > 0 {
-                        Text(tracker.currentHeartRateZone.name)
+                    if (tracker?.currentHeartRate ?? 0) > 0 {
+                        Text(tracker?.currentHeartRateZone.name ?? "")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(heartRateZoneColor(tracker.currentHeartRateZone))
+                            .background(heartRateZoneColor(tracker?.currentHeartRateZone ?? .zone1))
                             .clipShape(Capsule())
                     }
                 }
                 metricColumn(
-                    value: tracker.elevationGain > 0 ? String(format: "%.0f m", tracker.elevationGain) : "--",
+                    value: (tracker?.elevationGain ?? 0) > 0 ? String(format: "%.0f m", tracker?.elevationGain ?? 0) : "--",
                     label: "Ascent"
                 )
             }
@@ -250,14 +250,14 @@ struct WalkingLiveView: View {
     // MARK: - Control Buttons
 
     private var controlButtons: some View {
-        let isTracking = tracker.sessionState == .tracking
+        let isTracking = tracker?.sessionState == .tracking
         return HStack(spacing: 40) {
             // Pause/Resume
             Button {
                 if isTracking {
-                    tracker.pauseSession()
+                    tracker?.pauseSession()
                 } else {
-                    tracker.resumeSession()
+                    tracker?.resumeSession()
                 }
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             } label: {

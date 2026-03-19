@@ -13,7 +13,7 @@ import HealthKit
 struct SwimmingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingSettings = false
     @State private var showingIntervalSetup = false
@@ -128,7 +128,7 @@ struct SwimmingView: View {
             freeSwimTargetDuration: freeSwimTargetDuration > 0 ? freeSwimTargetDuration : nil
         )
         Task {
-            await tracker.startSession(plugin: plugin)
+            await tracker?.startSession(plugin: plugin)
         }
     }
 

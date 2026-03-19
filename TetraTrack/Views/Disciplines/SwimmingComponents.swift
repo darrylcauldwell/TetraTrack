@@ -384,7 +384,7 @@ struct SwimmingPersonalBests {
 // MARK: - Swimming Live View
 
 struct SwimmingLiveView: View {
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
     @Environment(LocationManager.self) private var locationManager: LocationManager?
 
@@ -405,7 +405,7 @@ struct SwimmingLiveView: View {
     // MARK: - Plugin Access
 
     private var swimmingPlugin: SwimmingPlugin? {
-        tracker.plugin(as: SwimmingPlugin.self)
+        tracker?.plugin(as: SwimmingPlugin.self)
     }
 
     private var session: SwimmingSession {
@@ -439,11 +439,11 @@ struct SwimmingLiveView: View {
     }
 
     private var hasStarted: Bool {
-        tracker.sessionState != .idle
+        tracker?.sessionState != .idle
     }
 
     private var isRunning: Bool {
-        tracker.sessionState == .tracking
+        tracker?.sessionState == .tracking
     }
 
     private var testComplete: Bool {
@@ -509,23 +509,23 @@ struct SwimmingLiveView: View {
 
     private var freeSwimTimeRemaining: TimeInterval {
         guard let target = freeSwimTargetDuration else { return 0 }
-        return max(0, target - tracker.elapsedTime)
+        return max(0, target - (tracker?.elapsedTime ?? 0))
     }
 
     private var totalDistance: Double {
         if isOpenWater {
-            return tracker.totalDistance
+            return tracker?.totalDistance ?? 0
         }
         return Double(lengthCount) * poolLength + Double(additionalMeters)
     }
 
     private var timeRemaining: TimeInterval {
-        max(0, testDuration - tracker.elapsedTime)
+        max(0, testDuration - (tracker?.elapsedTime ?? 0))
     }
 
     private var currentPace: TimeInterval {
-        guard totalDistance > 0, tracker.elapsedTime > 0 else { return 0 }
-        return tracker.elapsedTime / (totalDistance / 100) // seconds per 100m
+        guard totalDistance > 0, (tracker?.elapsedTime ?? 0) > 0 else { return 0 }
+        return (tracker?.elapsedTime ?? 0) / (totalDistance / 100) // seconds per 100m
     }
 
     private var currentPaceZone: SwimmingPaceZone? {
@@ -543,8 +543,8 @@ struct SwimmingLiveView: View {
 
     // Projected distance if current pace maintained for full test duration
     private var projectedDistance: Double {
-        guard tracker.elapsedTime > 0, totalDistance > 0 else { return 0 }
-        return (totalDistance / tracker.elapsedTime) * testDuration
+        guard (tracker?.elapsedTime ?? 0) > 0, totalDistance > 0 else { return 0 }
+        return (totalDistance / (tracker?.elapsedTime ?? 1)) * testDuration
     }
 
     // MARK: - Body
@@ -639,10 +639,10 @@ struct SwimmingLiveView: View {
         }
         .confirmationDialog("End Swimming Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
-                tracker.stopSession()
+                tracker?.stopSession()
             }
             Button("Discard", role: .destructive) {
-                tracker.discardSession()
+                tracker?.discardSession()
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -752,10 +752,10 @@ struct SwimmingLiveView: View {
             // Live heart rate with zone (always visible for parent/coach)
             if hasStarted {
                 HeartRateDisplayView(
-                    heartRate: tracker.currentHeartRate,
-                    zone: tracker.currentHeartRateZone,
-                    averageHeartRate: tracker.averageHeartRate > 0 ? tracker.averageHeartRate : nil,
-                    maxHeartRate: tracker.maxHeartRate > 0 ? tracker.maxHeartRate : nil
+                    heartRate: tracker?.currentHeartRate ?? 0,
+                    zone: tracker?.currentHeartRateZone ?? .zone1,
+                    averageHeartRate: (tracker?.averageHeartRate ?? 0) > 0 ? tracker?.averageHeartRate : nil,
+                    maxHeartRate: (tracker?.maxHeartRate ?? 0) > 0 ? tracker?.maxHeartRate : nil
                 )
                 .padding()
                 .background(AppColors.cardBackground)
@@ -810,7 +810,7 @@ struct SwimmingLiveView: View {
                     )
                     .overlay(alignment: .bottomTrailing) {
                         VStack(spacing: 2) {
-                            Text(String(format: "%.0fm", tracker.totalDistance))
+                            Text(String(format: "%.0fm", tracker?.totalDistance ?? 0))
                                 .font(.headline.bold())
                                 .monospacedDigit()
                             Text("GPS Distance")
@@ -868,7 +868,7 @@ struct SwimmingLiveView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Text(formatTime(tracker.elapsedTime))
+                Text(formatTime(tracker?.elapsedTime ?? 0))
                     .scaledFont(size: 64, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
             }
@@ -922,7 +922,7 @@ struct SwimmingLiveView: View {
 
     private var openWaterDistanceDisplay: some View {
         VStack(spacing: 4) {
-            Text(String(format: "%.0f", tracker.totalDistance))
+            Text(String(format: "%.0f", tracker?.totalDistance ?? 0))
                 .scaledFont(size: 44, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                 .foregroundStyle(.blue)
             Text("Meters")
@@ -1254,7 +1254,7 @@ struct SwimmingLiveView: View {
             } else if testComplete {
                 // Finish button
                 Button {
-                    tracker.stopSession()
+                    tracker?.stopSession()
                 } label: {
                     Label("Save & Finish", systemImage: "checkmark.circle.fill")
                         .font(.title3.bold())
@@ -1314,7 +1314,7 @@ struct SwimmingLiveView: View {
     // MARK: - Length Recording
 
     private func recordLength() {
-        swimmingPlugin?.recordLength(stroke: swimmingPlugin?.currentStroke ?? .freestyle, elapsedTime: tracker.elapsedTime)
+        swimmingPlugin?.recordLength(stroke: swimmingPlugin?.currentStroke ?? .freestyle, elapsedTime: tracker?.elapsedTime ?? 0)
 
         // Show stroke picker briefly
         showStrokeQuickPicker()

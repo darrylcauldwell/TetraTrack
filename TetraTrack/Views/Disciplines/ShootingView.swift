@@ -17,7 +17,7 @@ import WidgetKit
 struct ShootingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingFreePractice = false
     @State private var showingHistory = false
@@ -122,7 +122,7 @@ struct ShootingView: View {
     private func startCompetitionSession(context: ShootingSessionContext) {
         let plugin = ShootingPlugin(sessionContext: context)
         Task {
-            await tracker.startSession(plugin: plugin)
+            await tracker?.startSession(plugin: plugin)
         }
     }
 }

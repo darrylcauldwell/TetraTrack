@@ -38,7 +38,7 @@ struct ShootingCompetitionView: View {
     var onEnd: ((Int) -> Void)? = nil
     var onComplete: ((Int) -> Void)? = nil
 
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
@@ -120,10 +120,10 @@ struct ShootingCompetitionView: View {
 
                     Button(action: {
                         if isStandalone {
-                            tracker.discardSession()
+                            tracker?.discardSession()
                             onEnd?(0)
                         } else {
-                            tracker.discardSession()
+                            tracker?.discardSession()
                         }
                     }) {
                         Image(systemName: "xmark")
@@ -151,17 +151,17 @@ struct ShootingCompetitionView: View {
         }
         .onAppear {
             // Standalone mode (competition day): start session here
-            if let context = standaloneContext, tracker.sessionState == .idle {
+            if let context = standaloneContext, tracker?.sessionState == .idle {
                 let plugin = ShootingPlugin(sessionContext: context)
                 Task {
-                    await tracker.startSession(plugin: plugin)
+                    await tracker?.startSession(plugin: plugin)
                 }
             }
         }
         .onDisappear {
             // Standalone mode: discard if still active
-            if isStandalone && tracker.sessionState.isActive {
-                tracker.discardSession()
+            if isStandalone && tracker?.sessionState.isActive == true {
+                tracker?.discardSession()
             }
         }
     }
@@ -398,7 +398,7 @@ struct ShootingCompetitionView: View {
     // MARK: - Plugin Access
 
     private var shootingPlugin: ShootingPlugin? {
-        tracker.plugin(as: ShootingPlugin.self)
+        tracker?.plugin(as: ShootingPlugin.self)
     }
 
     private var watchShotMetrics: [DetectedShotMetrics] {
@@ -621,7 +621,7 @@ struct ShootingCompetitionView: View {
         )
 
         // Stop session (triggers HealthKit enrichment, workout save, widget sync, artifact conversion)
-        tracker.stopSession()
+        tracker?.stopSession()
 
         // Standalone mode (competition day): bridge score back via callbacks
         if isStandalone {

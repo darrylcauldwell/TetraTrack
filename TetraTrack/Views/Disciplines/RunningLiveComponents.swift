@@ -24,7 +24,7 @@ enum RunningTab {
 struct RunningLiveView: View {
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @Environment(GPSSessionTracker.self) private var gpsTracker: GPSSessionTracker?
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingCancelConfirmation = false
     @State private var selectedTab: RunningTab = .stats
@@ -61,7 +61,7 @@ struct RunningLiveView: View {
     // MARK: - Plugin Access
 
     private var runningPlugin: RunningPlugin? {
-        tracker.plugin(as: RunningPlugin.self)
+        tracker?.plugin(as: RunningPlugin.self)
     }
 
     private var session: RunningSession {
@@ -126,21 +126,21 @@ struct RunningLiveView: View {
         )
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
-                tracker.stopSession()
+                tracker?.stopSession()
             }
             Button("Discard", role: .destructive) {
-                tracker.discardSession()
+                tracker?.discardSession()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Do you want to save or discard this session?")
         }
         .alert("Vehicle Detected", isPresented: Binding(
-            get: { tracker.showingVehicleAlert },
-            set: { tracker.showingVehicleAlert = $0 }
+            get: { tracker?.showingVehicleAlert ?? false },
+            set: { tracker?.showingVehicleAlert = $0 }
         )) {
             Button("Stop & Save") {
-                tracker.stopSession()
+                tracker?.stopSession()
             }
             Button("Keep Tracking", role: .cancel) {}
         } message: {
@@ -177,7 +177,7 @@ struct RunningLiveView: View {
             Spacer()
 
             // Weather badge (for outdoor runs)
-            if session.isOutdoor, let weather = tracker.currentWeather {
+            if session.isOutdoor, let weather = tracker?.currentWeather {
                 WeatherBadgeView(weather: weather)
             }
 
@@ -208,7 +208,7 @@ struct RunningLiveView: View {
                 }
 
                 // Voice notes button - only show when paused
-                if tracker.sessionState == .paused {
+                if tracker?.sessionState == .paused {
                     VoiceNoteToolbarButton { note in
                         let service = VoiceNotesService.shared
                         session.notes = service.appendNote(note, to: session.notes)
@@ -232,7 +232,7 @@ struct RunningLiveView: View {
     // MARK: - Full Stats View with integrated pause/stop
 
     private var runningStatsFullView: some View {
-        let isTracking = tracker.sessionState == .tracking
+        let isTracking = tracker?.sessionState == .tracking
         return VStack(spacing: 0) {
             // Tap hint at top
             Text(!isTracking ? "Tap to Resume" : "Tap to Pause")
@@ -254,16 +254,16 @@ struct RunningLiveView: View {
                 isPaused: !isTracking,
                 onTap: {
                     if isTracking {
-                        tracker.pauseSession()
+                        tracker?.pauseSession()
                     } else {
-                        tracker.resumeSession()
+                        tracker?.resumeSession()
                     }
                 },
                 onStop: {
-                    tracker.stopSession()
+                    tracker?.stopSession()
                 },
                 onDiscard: {
-                    tracker.discardSession()
+                    tracker?.discardSession()
                 }
             )
             .padding(.bottom, 20)
@@ -280,8 +280,8 @@ struct RunningLiveView: View {
             if let intervals = programIntervals, !intervals.isEmpty {
                 ProgramLiveOverlay(
                     intervals: intervals,
-                    elapsedTime: tracker.elapsedTime,
-                    isRunning: tracker.sessionState == .tracking
+                    elapsedTime: tracker?.elapsedTime ?? 0,
+                    isRunning: tracker?.sessionState == .tracking
                 )
             }
 
@@ -290,7 +290,7 @@ struct RunningLiveView: View {
                 Text("Duration")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(formatTime(tracker.elapsedTime))
+                Text(formatTime(tracker?.elapsedTime ?? 0))
                     .scaledFont(size: 56, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
             }
@@ -360,7 +360,7 @@ struct RunningLiveView: View {
 
     private var displayCadence: Int {
         let watchCadence = runningPlugin?.currentCadence ?? 0
-        return watchCadence > 0 ? watchCadence : tracker.pedometerCadence
+        return watchCadence > 0 ? watchCadence : (tracker?.pedometerCadence ?? 0)
     }
 
     private var hasWatchMotion: Bool {
@@ -373,7 +373,7 @@ struct RunningLiveView: View {
         VStack(spacing: 24) {
             // Distance - prominent
             VStack(spacing: 4) {
-                Text(formatDistance(tracker.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
                     .foregroundStyle(AppColors.primary)
@@ -381,10 +381,10 @@ struct RunningLiveView: View {
 
             // HR + Zone — prominent (primary training signal)
             HeartRateZoneCard(
-                heartRate: tracker.currentHeartRate,
-                zone: tracker.currentHeartRateZone,
-                averageHeartRate: tracker.averageHeartRate,
-                maxHeartRate: tracker.maxHeartRate,
+                heartRate: tracker?.currentHeartRate ?? 0,
+                zone: tracker?.currentHeartRateZone ?? .zone1,
+                averageHeartRate: tracker?.averageHeartRate ?? 0,
+                maxHeartRate: tracker?.maxHeartRate ?? 0,
                 isProminent: true
             )
 
@@ -419,8 +419,8 @@ struct RunningLiveView: View {
             }
 
             // Elevation (outdoor only, when > 0)
-            if usesGPS && (tracker.elevationGain > 0 || tracker.elevationLoss > 0) {
-                ElevationCard(gain: tracker.elevationGain, loss: tracker.elevationLoss)
+            if usesGPS && ((tracker?.elevationGain ?? 0) > 0 || (tracker?.elevationLoss ?? 0) > 0) {
+                ElevationCard(gain: tracker?.elevationGain ?? 0, loss: tracker?.elevationLoss ?? 0)
             }
 
             // Track mode: Lap counter
@@ -465,7 +465,7 @@ struct RunningLiveView: View {
         VStack(spacing: 24) {
             // Distance
             VStack(spacing: 4) {
-                Text(formatDistance(tracker.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
                     .foregroundStyle(AppColors.primary)
@@ -499,10 +499,10 @@ struct RunningLiveView: View {
 
             // HR + Zone — compact (secondary for tempo/race)
             HeartRateZoneCard(
-                heartRate: tracker.currentHeartRate,
-                zone: tracker.currentHeartRateZone,
-                averageHeartRate: tracker.averageHeartRate,
-                maxHeartRate: tracker.maxHeartRate,
+                heartRate: tracker?.currentHeartRate ?? 0,
+                zone: tracker?.currentHeartRateZone ?? .zone1,
+                averageHeartRate: tracker?.averageHeartRate ?? 0,
+                maxHeartRate: tracker?.maxHeartRate ?? 0,
                 isProminent: false
             )
 
@@ -521,8 +521,8 @@ struct RunningLiveView: View {
             }
 
             // Elevation (outdoor only, when > 0)
-            if usesGPS && (tracker.elevationGain > 0 || tracker.elevationLoss > 0) {
-                ElevationCard(gain: tracker.elevationGain, loss: tracker.elevationLoss)
+            if usesGPS && ((tracker?.elevationGain ?? 0) > 0 || (tracker?.elevationLoss ?? 0) > 0) {
+                ElevationCard(gain: tracker?.elevationGain ?? 0, loss: tracker?.elevationLoss ?? 0)
             }
 
             // Enhanced sensor metrics — Watch only
@@ -627,10 +627,10 @@ struct RunningLiveView: View {
     // MARK: - Projected Points
 
     private var projectedPoints: Double {
-        guard targetDistance > 0, tracker.totalDistance > 50, tracker.elapsedTime > 0 else { return 0 }
-        let percentComplete = tracker.totalDistance / targetDistance
+        guard targetDistance > 0, (tracker?.totalDistance ?? 0) > 50, (tracker?.elapsedTime ?? 0) > 0 else { return 0 }
+        let percentComplete = (tracker?.totalDistance ?? 0) / targetDistance
         guard percentComplete > 0.05 else { return 0 }
-        let projectedTime = tracker.elapsedTime / percentComplete
+        let projectedTime = (tracker?.elapsedTime ?? 0) / percentComplete
         return max(0, 1000.0 - ((projectedTime - standardTime) * 3.0))
     }
 
@@ -649,7 +649,7 @@ struct RunningLiveView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(formatDistance(tracker.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 48, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                     .monospacedDigit()
                     .foregroundStyle(.purple)
@@ -663,7 +663,7 @@ struct RunningLiveView: View {
                                 .frame(height: 8)
                             Capsule()
                                 .fill(Color.purple)
-                                .frame(width: min(geo.size.width, geo.size.width * (tracker.totalDistance / targetDistance)), height: 8)
+                                .frame(width: min(geo.size.width, geo.size.width * ((tracker?.totalDistance ?? 0) / targetDistance)), height: 8)
                         }
                     }
                     .frame(height: 8)
@@ -764,10 +764,10 @@ struct RunningLiveView: View {
 
             // HR zone (compact — secondary for time trial)
             HeartRateZoneCard(
-                heartRate: tracker.currentHeartRate,
-                zone: tracker.currentHeartRateZone,
-                averageHeartRate: tracker.averageHeartRate,
-                maxHeartRate: tracker.maxHeartRate,
+                heartRate: tracker?.currentHeartRate ?? 0,
+                zone: tracker?.currentHeartRateZone ?? .zone1,
+                averageHeartRate: tracker?.averageHeartRate ?? 0,
+                maxHeartRate: tracker?.maxHeartRate ?? 0,
                 isProminent: false
             )
 
@@ -905,17 +905,17 @@ struct RunningLiveView: View {
                 Text("Total Distance")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(formatDistance(tracker.totalDistance))
+                Text(formatDistance(tracker?.totalDistance ?? 0))
                     .scaledFont(size: 20, weight: .semibold, design: .rounded, relativeTo: .title3)
                     .monospacedDigit()
             }
 
             // HR zone (compact — for recovery monitoring between intervals)
             HeartRateZoneCard(
-                heartRate: tracker.currentHeartRate,
-                zone: tracker.currentHeartRateZone,
-                averageHeartRate: tracker.averageHeartRate,
-                maxHeartRate: tracker.maxHeartRate,
+                heartRate: tracker?.currentHeartRate ?? 0,
+                zone: tracker?.currentHeartRateZone ?? .zone1,
+                averageHeartRate: tracker?.averageHeartRate ?? 0,
+                maxHeartRate: tracker?.maxHeartRate ?? 0,
                 isProminent: false
             )
 
@@ -964,22 +964,22 @@ struct RunningLiveView: View {
     // MARK: - Pace Calculations
 
     private var averagePaceSeconds: TimeInterval {
-        guard tracker.totalDistance > 0 else { return 0 }
-        return (tracker.elapsedTime / tracker.totalDistance) * 1000
+        guard (tracker?.totalDistance ?? 0) > 0 else { return 0 }
+        return ((tracker?.elapsedTime ?? 0) / (tracker?.totalDistance ?? 1)) * 1000
     }
 
     private var averagePace: String {
-        guard tracker.totalDistance > 100 else { return "--:--" }
+        guard (tracker?.totalDistance ?? 0) > 100 else { return "--:--" }
         return formatPace(averagePaceSeconds)
     }
 
     private var currentPaceSeconds: TimeInterval {
-        guard tracker.totalDistance > 0 else { return 0 }
-        return (tracker.elapsedTime / tracker.totalDistance) * 1000
+        guard (tracker?.totalDistance ?? 0) > 0 else { return 0 }
+        return ((tracker?.elapsedTime ?? 0) / (tracker?.totalDistance ?? 1)) * 1000
     }
 
     private var currentPace: String {
-        guard tracker.totalDistance > 100 else { return "--:--" }
+        guard (tracker?.totalDistance ?? 0) > 100 else { return "--:--" }
         return formatPace(currentPaceSeconds)
     }
 
@@ -1023,7 +1023,7 @@ struct RunningLiveView: View {
 // MARK: - Treadmill Live View
 
 struct TreadmillLiveView: View {
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingCancelConfirmation = false
     @State private var showingDistanceInput = false
@@ -1038,7 +1038,7 @@ struct TreadmillLiveView: View {
     // MARK: - Plugin Access
 
     private var runningPlugin: RunningPlugin? {
-        tracker.plugin(as: RunningPlugin.self)
+        tracker?.plugin(as: RunningPlugin.self)
     }
 
     private var session: RunningSession {
@@ -1090,7 +1090,7 @@ struct TreadmillLiveView: View {
                     Text("Duration")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(formatTime(tracker.elapsedTime))
+                    Text(formatTime(tracker?.elapsedTime ?? 0))
                         .scaledFont(size: 56, weight: .bold, design: .rounded, relativeTo: .largeTitle)
                         .monospacedDigit()
                 }
@@ -1102,19 +1102,19 @@ struct TreadmillLiveView: View {
 
                 // Pause/Resume button with stop option
                 PauseResumeButton(
-                    isPaused: tracker.sessionState != .tracking,
+                    isPaused: tracker?.sessionState != .tracking,
                     onTap: {
-                        if tracker.sessionState == .tracking {
-                            tracker.pauseSession()
+                        if tracker?.sessionState == .tracking {
+                            tracker?.pauseSession()
                         } else {
-                            tracker.resumeSession()
+                            tracker?.resumeSession()
                         }
                     },
                     onStop: {
                         showingDistanceInput = true
                     },
                     onDiscard: {
-                        tracker.discardSession()
+                        tracker?.discardSession()
                     }
                 )
                 .padding(.bottom, 20)
@@ -1143,7 +1143,7 @@ struct TreadmillLiveView: View {
                 endSession()
             }
             Button("Discard", role: .destructive) {
-                tracker.discardSession()
+                tracker?.discardSession()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -1156,7 +1156,7 @@ struct TreadmillLiveView: View {
                 speedKmh: $manualSpeedKmh,
                 speedText: $manualSpeedText,
                 incline: $inclinePercentage,
-                duration: tracker.elapsedTime,
+                duration: tracker?.elapsedTime ?? 0,
                 onSave: {
                     endSession()
                 },
@@ -1214,16 +1214,16 @@ struct TreadmillLiveView: View {
 
             // Heart rate with zone (always visible)
             HeartRateZoneCard(
-                heartRate: tracker.currentHeartRate,
-                zone: tracker.currentHeartRateZone,
-                averageHeartRate: tracker.averageHeartRate,
-                maxHeartRate: tracker.maxHeartRate,
+                heartRate: tracker?.currentHeartRate ?? 0,
+                zone: tracker?.currentHeartRateZone ?? .zone1,
+                averageHeartRate: tracker?.averageHeartRate ?? 0,
+                maxHeartRate: tracker?.maxHeartRate ?? 0,
                 isProminent: true
             )
 
             // Cadence (always visible — Watch or pedometer fallback)
             CadenceCard(
-                cadence: runningPlugin?.currentCadence ?? tracker.pedometerCadence,
+                cadence: runningPlugin?.currentCadence ?? (tracker?.pedometerCadence ?? 0),
                 isWatchSource: runningPlugin?.currentCadence ?? 0 > 0,
                 target: targetCadence,
                 verticalOscillation: runningPlugin?.verticalOscillation ?? 0,
@@ -1246,7 +1246,7 @@ struct TreadmillLiveView: View {
     // MARK: - Calculated Values
 
     private var calculatedPace: String {
-        let elapsed = tracker.elapsedTime
+        let elapsed = tracker?.elapsedTime ?? 0
         guard manualDistanceKm > 0, elapsed > 0 else { return "--:--" }
         let paceSecondsPerKm = elapsed / manualDistanceKm
         let mins = Int(paceSecondsPerKm) / 60
@@ -1255,7 +1255,7 @@ struct TreadmillLiveView: View {
     }
 
     private var calculatedSpeed: String {
-        let elapsed = tracker.elapsedTime
+        let elapsed = tracker?.elapsedTime ?? 0
         guard manualDistanceKm > 0, elapsed > 0 else { return "--.- km/h" }
         let speedKmh = manualDistanceKm / (elapsed / 3600)
         return String(format: "%.1f km/h", speedKmh)
@@ -1270,7 +1270,7 @@ struct TreadmillLiveView: View {
         session.manualDistance = true
         showingDistanceInput = false
         UIApplication.shared.isIdleTimerDisabled = false
-        tracker.stopSession()
+        tracker?.stopSession()
     }
 
     private func formatTime(_ interval: TimeInterval) -> String {

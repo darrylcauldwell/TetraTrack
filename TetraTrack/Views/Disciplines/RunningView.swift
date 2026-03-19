@@ -36,7 +36,7 @@ enum PendingRunStart {
 struct RunningView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
     @Query private var profiles: [RiderProfile]
     @Query private var sharingContacts: [SharingRelationship]
 
@@ -194,7 +194,7 @@ struct RunningView: View {
         session.programSessionId = programSession.id
         modelContext.insert(session)
 
-        tracker.isSharingWithFamily = shareWithFamily
+        tracker?.isSharingWithFamily = shareWithFamily
         let plugin = RunningPlugin(
             session: session,
             intervalSettings: nil,
@@ -203,7 +203,7 @@ struct RunningView: View {
             targetCadence: 0
         )
         Task {
-            await tracker.startSession(plugin: plugin)
+            await tracker?.startSession(plugin: plugin)
         }
     }
 
@@ -219,7 +219,7 @@ struct RunningView: View {
             session.trackLength = config.trackLength
             modelContext.insert(session)
 
-            tracker.isSharingWithFamily = shareWithFamily
+            tracker?.isSharingWithFamily = shareWithFamily
             let plugin = RunningPlugin(
                 session: session,
                 intervalSettings: nil,
@@ -228,7 +228,7 @@ struct RunningView: View {
                 targetCadence: config.targetCadence
             )
             Task {
-                await tracker.startSession(plugin: plugin)
+                await tracker?.startSession(plugin: plugin)
             }
 
         case .interval(let settings):
@@ -240,7 +240,7 @@ struct RunningView: View {
             session.targetCadence = config.targetCadence
             modelContext.insert(session)
 
-            tracker.isSharingWithFamily = shareWithFamily
+            tracker?.isSharingWithFamily = shareWithFamily
             let plugin = RunningPlugin(
                 session: session,
                 intervalSettings: settings,
@@ -249,7 +249,7 @@ struct RunningView: View {
                 targetCadence: config.targetCadence
             )
             Task {
-                await tracker.startSession(plugin: plugin)
+                await tracker?.startSession(plugin: plugin)
             }
 
         case .pacer(let settings):
@@ -266,7 +266,7 @@ struct RunningView: View {
                 VirtualPacer.shared.start(targetPace: settings.targetPace)
             }
 
-            tracker.isSharingWithFamily = shareWithFamily
+            tracker?.isSharingWithFamily = shareWithFamily
             let plugin = RunningPlugin(
                 session: session,
                 intervalSettings: nil,
@@ -275,7 +275,7 @@ struct RunningView: View {
                 targetCadence: config.targetCadence
             )
             Task {
-                await tracker.startSession(plugin: plugin)
+                await tracker?.startSession(plugin: plugin)
             }
         }
     }

@@ -9,23 +9,27 @@
 import SwiftUI
 
 struct ActiveSessionView: View {
-    @Environment(SessionTracker.self) private var tracker: SessionTracker
+    @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     var body: some View {
-        if let _ = tracker.plugin(as: RidingPlugin.self) {
-            TrackingView()
-        } else if let _ = tracker.plugin(as: WalkingPlugin.self) {
-            WalkingLiveView()
-        } else if let plugin = tracker.plugin(as: RunningPlugin.self) {
-            if plugin.session.sessionType == .treadmill {
-                TreadmillLiveView()
+        if let tracker {
+            if let _ = tracker.plugin(as: RidingPlugin.self) {
+                TrackingView()
+            } else if let _ = tracker.plugin(as: WalkingPlugin.self) {
+                WalkingLiveView()
+            } else if let plugin = tracker.plugin(as: RunningPlugin.self) {
+                if plugin.session.sessionType == .treadmill {
+                    TreadmillLiveView()
+                } else {
+                    RunningLiveView()
+                }
+            } else if let _ = tracker.plugin(as: SwimmingPlugin.self) {
+                SwimmingLiveView()
+            } else if let _ = tracker.plugin(as: ShootingPlugin.self) {
+                ShootingCompetitionView()
             } else {
-                RunningLiveView()
+                ProgressView("Starting session...")
             }
-        } else if let _ = tracker.plugin(as: SwimmingPlugin.self) {
-            SwimmingLiveView()
-        } else if let _ = tracker.plugin(as: ShootingPlugin.self) {
-            ShootingCompetitionView()
         } else {
             ProgressView("Starting session...")
         }
