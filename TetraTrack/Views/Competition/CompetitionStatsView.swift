@@ -187,43 +187,30 @@ struct CompetitionStatsView: View {
             return
         }
 
-        // Load insights concurrently
-        // nonisolated(unsafe) because Competition (SwiftData) isn't Sendable but is only read here
-        nonisolated(unsafe) let comps = competitions
-        await withTaskGroup(of: Void.self) { group in
-            // Performance Summary
-            group.addTask {
-                do {
-                    let summary = try await service.generateCompetitionPerformanceSummary(stats: statistics)
-                    await MainActor.run { performanceSummary = summary }
-                } catch {
-                    await MainActor.run { insightsError = error.localizedDescription }
-                }
-            }
+        // Load insights sequentially to avoid nonisolated(unsafe) SwiftData model captures
+        do {
+            let summary = try await service.generateCompetitionPerformanceSummary(stats: statistics)
+            performanceSummary = summary
+        } catch {
+            insightsError = error.localizedDescription
+        }
 
-            // Trend Analysis (needs 2+ competitions)
-            if statistics.completedCompetitions >= 2 {
-                group.addTask {
-                    do {
-                        let trends = try await service.analyzeCompetitionTrends(competitions: comps)
-                        await MainActor.run { trendAnalysis = trends }
-                    } catch {
-                        // Silent fail for optional insight
-                    }
-                }
+        if statistics.completedCompetitions >= 2 {
+            do {
+                let trends = try await service.analyzeCompetitionTrends(competitions: competitions)
+                trendAnalysis = trends
+            } catch {
+                // Silent fail for optional insight
             }
+        }
 
-            // Weather Impact (needs competitions with weather data)
-            let compsWithWeather = comps.filter { $0.isCompleted && $0.hasWeatherData }
-            if compsWithWeather.count >= 2 {
-                group.addTask {
-                    do {
-                        let weather = try await service.analyzeWeatherImpact(competitions: comps)
-                        await MainActor.run { weatherAnalysis = weather }
-                    } catch {
-                        // Silent fail for optional insight
-                    }
-                }
+        let compsWithWeather = competitions.filter { $0.isCompleted && $0.hasWeatherData }
+        if compsWithWeather.count >= 2 {
+            do {
+                let weather = try await service.analyzeWeatherImpact(competitions: competitions)
+                weatherAnalysis = weather
+            } catch {
+                // Silent fail for optional insight
             }
         }
 

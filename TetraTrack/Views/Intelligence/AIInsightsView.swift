@@ -280,12 +280,8 @@ struct AIInsightsView: View {
                         return
                     }
 
-                    // nonisolated(unsafe) because Ride (SwiftData) isn't Sendable but is only read here
-                    nonisolated(unsafe) let safeRides = rides
-                    async let insightsTask = service.analyzeTrainingPatterns(rides: safeRides)
-                    async let recsTask = service.generateRecommendations(recentRides: safeRides, goals: nil)
-
-                    let (fetchedInsights, fetchedRecs) = try await (insightsTask, recsTask)
+                    let fetchedInsights = try await service.analyzeTrainingPatterns(rides: rides)
+                    let fetchedRecs = try await service.generateRecommendations(recentRides: rides, goals: nil)
 
                     self.insights = fetchedInsights
                     self.recommendations = fetchedRecs
