@@ -127,6 +127,16 @@ struct EmergencyAlertSentView: View {
     let onDismiss: () -> Void
     let onCallContact: (SharingRelationship) -> Void
 
+    /// Locale-aware emergency services number
+    private var emergencyNumber: String {
+        switch Locale.current.region?.identifier {
+        case "US", "CA": return "911"
+        case "AU": return "000"
+        case "NZ": return "111"
+        default: return "112"  // International GSM standard (works in UK, EU, and most countries)
+        }
+    }
+
     /// Contacts that have a valid phone number and can be called
     private var callableContacts: [SharingRelationship] {
         emergencyContacts
@@ -210,13 +220,13 @@ struct EmergencyAlertSentView: View {
 
                 // Emergency services fallback
                 Button {
-                    if let url = URL(string: "tel://999") {
+                    if let url = URL(string: "tel://\(emergencyNumber)") {
                         UIApplication.shared.open(url)
                     }
                 } label: {
                     HStack {
                         Image(systemName: "phone.arrow.up.right")
-                        Text("Call 999")
+                        Text("Call \(emergencyNumber)")
                             .fontWeight(.semibold)
                     }
                     .foregroundStyle(.white)
