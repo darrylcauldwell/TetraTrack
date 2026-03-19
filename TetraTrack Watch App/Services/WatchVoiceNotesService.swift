@@ -40,7 +40,7 @@ final class WatchVoiceNotesService: NSObject {
         ) { [weak self] results in
             guard let self else { return }
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.isRecording = false
 
                 // Process dictation results

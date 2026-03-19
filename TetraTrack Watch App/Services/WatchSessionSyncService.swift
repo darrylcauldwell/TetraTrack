@@ -87,24 +87,24 @@ final class WatchSessionSyncService: NSObject {
             WCSession.default.sendMessage(message, replyHandler: { [weak self] reply in
                 // Handle success
                 if let success = reply["success"] as? Bool, success {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.sessionStore.markSessionSynced(id: session.id)
                         self?.lastSyncTime = Date()
                         Log.sync.info("Session \(session.id) synced successfully")
                     }
                 } else {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.sessionStore.markSyncAttemptFailed(id: session.id)
                         self?.lastSyncError = reply["error"] as? String ?? "Unknown error"
                     }
                 }
 
                 // Check if sync is complete
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.checkSyncComplete()
                 }
             }, errorHandler: { [weak self] error in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self?.sessionStore.markSyncAttemptFailed(id: session.id)
                     self?.lastSyncError = error.localizedDescription
                     Log.sync.error("Sync error: \(error.localizedDescription)")
