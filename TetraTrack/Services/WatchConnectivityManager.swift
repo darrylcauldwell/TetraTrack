@@ -765,10 +765,15 @@ extension WatchConnectivityManager: WCSessionDelegate {
             for crumb in breadcrumbs {
                 Log.watch.error("TT: WATCH: \(crumb, privacy: .public)")
             }
-            return
         }
 
-        handleReceivedMessage(applicationContext)
+        // Strip diagnostic keys before forwarding — the payload may also contain
+        // HR, motion, or status data that handleReceivedMessage needs to process.
+        var payload = applicationContext
+        payload.removeValue(forKey: "diagnosticBreadcrumbs")
+        payload.removeValue(forKey: "watchDiagnosticTimestamp")
+        guard !payload.isEmpty else { return }
+        handleReceivedMessage(payload)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {

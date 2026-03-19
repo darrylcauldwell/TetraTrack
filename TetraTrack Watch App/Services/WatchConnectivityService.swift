@@ -381,6 +381,9 @@ final class WatchConnectivityService: NSObject {
             }
             do {
                 try session.updateApplicationContext(merged)
+                // Clear breadcrumbs after successful send so they aren't
+                // re-merged into every subsequent applicationContext payload.
+                WatchConnectivityService.breadcrumbLog.removeAll()
             } catch {
                 Log.watch.error("Context update error: \(error.localizedDescription)")
             }
