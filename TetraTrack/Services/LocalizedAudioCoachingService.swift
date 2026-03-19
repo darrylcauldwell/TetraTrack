@@ -99,6 +99,7 @@ enum CoachingMessageType: String {
 // MARK: - Audio Coaching Service
 
 @Observable
+@MainActor
 final class LocalizedAudioCoachingService {
     static let shared = LocalizedAudioCoachingService()
 

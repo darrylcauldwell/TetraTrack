@@ -13,6 +13,7 @@ import Observation
 import os
 
 @Observable
+@MainActor
 final class VoiceNotesService: NSObject {
     static let shared = VoiceNotesService()
 
@@ -142,7 +143,6 @@ final class VoiceNotesService: NSObject {
 
     // MARK: - Recording Control
 
-    @MainActor
     func startRecording() async {
         guard !isRecording else { return }
 
@@ -233,13 +233,11 @@ final class VoiceNotesService: NSObject {
         }
     }
 
-    @MainActor
     func stopRecording() {
         guard isRecording else { return }
         finishRecording()
     }
 
-    @MainActor
     private func finishRecording() {
         // Stop silence timer
         silenceTimer?.invalidate()
@@ -331,7 +329,7 @@ final class VoiceNotesService: NSObject {
 // MARK: - SFSpeechRecognizerDelegate
 
 extension VoiceNotesService: SFSpeechRecognizerDelegate {
-    func speechRecognizer(_ speechRecognizer: SFSpeechRecognizer, availabilityDidChange available: Bool) {
+    nonisolated func speechRecognizer(_ speechRecognizer: SFSpeechRecognizer, availabilityDidChange available: Bool) {
         Task { @MainActor in
             if !available && isRecording {
                 stopRecording()
