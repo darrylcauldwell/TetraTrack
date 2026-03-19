@@ -68,6 +68,9 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, 
     @Relationship(deleteRule: .cascade, inverse: \SwimmingLocationPoint.session)
     var locationPoints: [SwimmingLocationPoint]? = []
 
+    @Relationship(deleteRule: .cascade, inverse: \SwimmingScore.session)
+    var scores: [SwimmingScore]? = []
+
     var poolMode: SwimmingPoolMode {
         get { SwimmingPoolMode(rawValue: poolModeRaw) ?? .pool }
         set { poolModeRaw = newValue.rawValue }
