@@ -37,6 +37,7 @@ struct WatchLocationPoint: Codable, Identifiable {
 }
 
 /// Manages GPS tracking on Apple Watch with adaptive sampling
+@MainActor
 @Observable
 final class WatchLocationManager: NSObject {
     static let shared = WatchLocationManager()
@@ -274,26 +275,30 @@ final class WatchLocationManager: NSObject {
 // MARK: - CLLocationManagerDelegate
 
 extension WatchLocationManager: CLLocationManagerDelegate {
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isTracking else { return }
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let validLocations = locations.filter {
+            $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy < 100
+        }
+        guard !validLocations.isEmpty else { return }
 
-        for location in locations {
-            // Filter out inaccurate readings
-            guard location.horizontalAccuracy >= 0,
-                  location.horizontalAccuracy < 100 else {
-                continue
+        Task { @MainActor in
+            guard self.isTracking else { return }
+            for location in validLocations {
+                self.processLocation(location)
             }
-
-            processLocation(location)
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Log.location.error("Location error: \(error.localizedDescription)")
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            Log.location.error("Location error: \(error.localizedDescription)")
+        }
     }
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        updateAuthorizationStatus()
-        Log.location.info("Authorization changed to \(self.authorizationStatus.rawValue)")
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            self.updateAuthorizationStatus()
+            Log.location.info("Authorization changed to \(self.authorizationStatus.rawValue)")
+        }
     }
 }
