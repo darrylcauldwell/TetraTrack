@@ -381,7 +381,9 @@ final class RunningPlugin: DisciplinePlugin {
                 gctReadings.append(gctVal)
                 sampleGCT = gctVal
             }
-            let cadVal = watchManager.cadence
+            let watchCadVal = watchManager.cadence
+            let phoneCadVal = tracker.pedometerCadence
+            let cadVal = watchCadVal > 0 ? watchCadVal : phoneCadVal
             if cadVal > 0 {
                 currentCadence = cadVal
                 cadenceReadings.append(cadVal)

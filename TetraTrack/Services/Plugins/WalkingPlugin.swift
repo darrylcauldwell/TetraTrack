@@ -173,11 +173,13 @@ final class WalkingPlugin: DisciplinePlugin {
     }
 
     func onTimerTick(elapsedTime: TimeInterval, tracker: SessionTracker) {
-        // Update cadence from Watch
+        // Update cadence: prefer Watch, fallback to iPhone CMPedometer
         let watchCadence = watchManager.cadence
-        if watchCadence > 0 {
-            currentCadence = watchCadence
-            cadenceReadings.append(watchCadence)
+        let phoneCadence = tracker.pedometerCadence
+        let cadence = watchCadence > 0 ? watchCadence : phoneCadence
+        if cadence > 0 {
+            currentCadence = cadence
+            cadenceReadings.append(cadence)
         }
 
         // Cadence feedback every 2 minutes
@@ -390,6 +392,57 @@ final class WalkingPlugin: DisciplinePlugin {
                 try? modelContext?.save()
             }
         }
+
+        // Retry HealthKit metrics that may not have synced yet (Watch-primary mode)
+        let needsSteadiness = session.healthKitWalkingSteadiness == nil
+        let needsAsymmetry = session.healthKitAsymmetry == nil
+        let needsHRRecovery = session.healthKitHRRecoveryOneMinute == nil
+
+        if needsSteadiness || needsAsymmetry || needsHRRecovery, let endDate = session.endDate {
+            try? await Task.sleep(for: .seconds(30))
+            let healthKit = HealthKitManager.shared
+            let startDate = session.startDate
+
+            let walkingMetrics = needsSteadiness
+                ? await healthKit.fetchWalkingMetrics(from: startDate, to: endDate)
+                : nil
+            let runningMetrics = needsAsymmetry
+                ? await healthKit.fetchRunningMetrics(from: startDate, to: endDate)
+                : nil
+            let hrRecovery = needsHRRecovery
+                ? await healthKit.fetchHeartRateRecoveryOneMinute(from: startDate, to: endDate)
+                : nil
+
+            await MainActor.run {
+                var updated = false
+
+                if let walkingMetrics, let steadiness = walkingMetrics.walkingSteadiness {
+                    session.healthKitWalkingSteadiness = steadiness
+                    session.walkingStabilityScore = steadiness
+                    updated = true
+                }
+
+                if let runningMetrics, let asymmetry = runningMetrics.asymmetryPercentage {
+                    session.healthKitAsymmetry = asymmetry
+                    session.walkingSymmetryScore = max(0, 100 - (asymmetry * 5))
+                    updated = true
+                }
+
+                if let hrRecovery {
+                    session.healthKitHRRecoveryOneMinute = hrRecovery
+                    updated = true
+                }
+
+                if updated {
+                    let walkingService = WalkingAnalysisService()
+                    let updatedScores = walkingService.computeScores(from: session)
+                    walkingService.applyScores(updatedScores, to: session)
+                    try? modelContext?.save()
+                    Log.tracking.info("Walking HealthKit retry: updated metrics after 30s delay")
+                }
+            }
+        }
+
         await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
     }
 

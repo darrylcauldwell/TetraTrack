@@ -440,7 +440,7 @@ final class WatchMotionManager: NSObject {
         let timestamp = sample.timestamp
 
         // Lower impact threshold for walking foot strikes
-        let impactThreshold: Double = 0.8
+        let impactThreshold: Double = 0.4
         let minStepInterval: TimeInterval = 0.3  // Max cadence ~200 spm for brisk walking
 
         if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
