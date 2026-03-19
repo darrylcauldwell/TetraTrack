@@ -177,7 +177,8 @@ final class WalkingPlugin: DisciplinePlugin {
         let watchCadence = watchManager.cadence
         let phoneCadence = tracker.pedometerCadence
         let cadence = watchCadence > 0 ? watchCadence : phoneCadence
-        if cadence > 0 {
+        // Filter sub-40 spm readings — CMPedometer reports low values during warmup
+        if cadence >= 40 {
             currentCadence = cadence
             cadenceReadings.append(cadence)
         }
