@@ -331,11 +331,7 @@ final class ShootingPlugin: DisciplinePlugin {
             for score in scores {
                 ctx.insert(score)
             }
-            do {
-                try ctx.save()
-            } catch {
-                Log.tracking.error("Failed to save shooting skill domain scores: \(error)")
-            }
+            // save() removed — SessionTracker.stopSession() owns the final save
         }
 
         Log.tracking.info("Shooting plugin stopped")

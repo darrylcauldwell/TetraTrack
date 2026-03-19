@@ -549,12 +549,7 @@ final class RidingPlugin: DisciplinePlugin {
             }
 
             // HealthKit workout UUID will be set by SessionTracker's endWorkoutTask
-
-            do {
-                try modelContext?.save()
-            } catch {
-                Log.tracking.error("Failed to save ride data: \(error)")
-            }
+            // save() removed — SessionTracker.stopSession() owns the final save
 
             // Compute skill domain scores
             if let ctx = modelContext {
@@ -563,11 +558,7 @@ final class RidingPlugin: DisciplinePlugin {
                 for score in scores {
                     ctx.insert(score)
                 }
-                do {
-                    try ctx.save()
-                } catch {
-                    Log.tracking.error("Failed to save skill domain scores: \(error)")
-                }
+                // save() removed — SessionTracker.stopSession() owns the final save
             }
 
             // Learn gait characteristics for this horse
@@ -1111,11 +1102,7 @@ final class RidingPlugin: DisciplinePlugin {
         }
 
         ride.aiSummary = summary
-        do {
-            try modelContext?.save()
-        } catch {
-            Log.services.error("Failed to save AI summary: \(error)")
-        }
+        // save() removed — SessionTracker.stopSession() owns the final save
 
         summaryService.readSummaryAloud(summary, brief: false)
 

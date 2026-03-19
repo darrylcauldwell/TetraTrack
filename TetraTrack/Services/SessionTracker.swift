@@ -625,12 +625,7 @@ final class SessionTracker {
                 do {
                     let endWeather = try await self.weatherService.fetchWeather(for: location)
                     await MainActor.run {
-                        // Plugin can access end weather via onSessionCompleted
-                        do {
-                            try modelContext?.save()
-                        } catch {
-                            Log.services.error("Failed to save end weather: \(error)")
-                        }
+                        // save() removed — stopSession() owns the final save
                     }
                     _ = endWeather  // Plugin handles saving to model in onSessionCompleted
                 } catch {

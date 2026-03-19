@@ -318,11 +318,7 @@ final class WalkingPlugin: DisciplinePlugin {
                     self.session.walkingStabilityScore = steadiness
                 }
 
-                do {
-                    try self.modelContext?.save()
-                } catch {
-                    Log.tracking.error("Failed to save walking HealthKit metrics: \(error)")
-                }
+                // save() removed — SessionTracker.stopSession() owns the final save
             }
         }
 
@@ -399,7 +395,7 @@ final class WalkingPlugin: DisciplinePlugin {
             if session.healthKitAsymmetry != nil || session.healthKitDoubleSupportPercentage != nil {
                 let updatedScores = walkingService.computeScores(from: session)
                 walkingService.applyScores(updatedScores, to: session)
-                try? modelContext?.save()
+                // save() removed — SessionTracker.stopSession() owns the final save
             }
         }
 
@@ -447,7 +443,7 @@ final class WalkingPlugin: DisciplinePlugin {
                     let walkingService = WalkingAnalysisService()
                     let updatedScores = walkingService.computeScores(from: session)
                     walkingService.applyScores(updatedScores, to: session)
-                    try? modelContext?.save()
+                    // save() removed — SessionTracker.stopSession() owns the final save
                     Log.tracking.info("Walking HealthKit retry: updated metrics after 30s delay")
                 }
             }
