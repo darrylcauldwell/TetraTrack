@@ -2,7 +2,7 @@
 //  CompetitionHubView.swift
 //  TetraTrack
 //
-//  3-tab hub for competition management: Calendar, Competition Day, Tasks
+//  Segmented hub for competition management: Calendar, Competition Day, Tasks
 //
 
 import SwiftUI
@@ -11,24 +11,24 @@ struct CompetitionHubView: View {
     @State private var selectedTab = 0
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            CompetitionCalendarView()
-                .tabItem {
-                    Label("Calendar", systemImage: "calendar")
-                }
-                .tag(0)
+        VStack(spacing: 0) {
+            Picker("Section", selection: $selectedTab) {
+                Text("Calendar").tag(0)
+                Text("Comp Day").tag(1)
+                Text("Tasks").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
 
-            CompetitionDayView()
-                .tabItem {
-                    Label("Competition Day", systemImage: "flag.fill")
+            Group {
+                switch selectedTab {
+                case 0: CompetitionCalendarView()
+                case 1: CompetitionDayView()
+                case 2: TaskListView()
+                default: CompetitionCalendarView()
                 }
-                .tag(1)
-
-            TaskListView()
-                .tabItem {
-                    Label("Tasks", systemImage: "checklist")
-                }
-                .tag(2)
+            }
         }
         .navigationTitle("Competitions")
         .navigationBarTitleDisplayMode(.inline)
