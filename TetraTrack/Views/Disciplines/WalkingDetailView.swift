@@ -33,7 +33,7 @@ struct WalkingDetailView: View {
                 // Biomechanics dashboard
                 if session.hasWalkingScores {
                     WalkingSteadinessCard(
-                        symmetryScore: session.walkingSymmetryScore,
+                        postureScore: session.goodPosturePercent > 0 ? session.goodPosturePercent : session.postureStability,
                         rhythmScore: session.walkingRhythmScore,
                         stabilityScore: session.walkingStabilityScore
                     )
@@ -49,7 +49,7 @@ struct WalkingDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Session Insights")
                                     .font(.headline)
-                                Text("Stability · Rhythm · Symmetry · Economy")
+                                Text("Stability · Rhythm · Posture · Economy")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

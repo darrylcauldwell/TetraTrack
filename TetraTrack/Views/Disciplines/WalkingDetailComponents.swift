@@ -12,7 +12,7 @@ import Charts
 // MARK: - Walking Steadiness Card
 
 struct WalkingSteadinessCard: View {
-    let symmetryScore: Double
+    let postureScore: Double
     let rhythmScore: Double
     let stabilityScore: Double
 
@@ -23,10 +23,10 @@ struct WalkingSteadinessCard: View {
 
             HStack(spacing: 16) {
                 gaugeView(
-                    label: "Symmetry",
-                    score: symmetryScore,
-                    icon: "arrow.left.arrow.right",
-                    color: .blue
+                    label: "Posture",
+                    score: postureScore,
+                    icon: "figure.stand",
+                    color: .orange
                 )
                 gaugeView(
                     label: "Rhythm",
