@@ -2,7 +2,7 @@
 #
 # validate_metadata.sh - Validate App Store metadata character limits
 #
-# Checks all locale directories under fastlane/metadata/en-*/ for:
+# Checks all locale directories under fastlane/metadata/ for:
 #   name.txt: 30 chars
 #   subtitle.txt: 30 chars
 #   keywords.txt: 100 chars
@@ -47,8 +47,8 @@ check_length() {
 echo "Validating App Store metadata character limits..."
 echo ""
 
-# Find all locale directories matching en-*
-for locale_dir in "${METADATA_DIR}"/en-*/; do
+# Find all locale directories
+for locale_dir in "${METADATA_DIR}"/*/; do
     if [ ! -d "$locale_dir" ]; then
         continue
     fi
