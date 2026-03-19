@@ -1,6 +1,6 @@
 Votre cheval vient de s'effrayer d'un sac plastique. Encore. Mais pas d'inquiétude — TetraTrack a quand même enregistré votre transition involontaire au galop.
 
-Bienvenue dans la seule application d'entraînement qui comprend vraiment le concours complet et l'équitation. Nous savons que vous n'êtes pas juste un coureur qui monte occasionnellement à cheval, ou un nageur qui s'essaie au tir. Vous êtes glorieusement, chaotiquement multi-talentueux — et enfin, il y a une app pour ça.
+Bienvenue dans la seule application d'entraînement qui comprend vraiment le concours complet et l'équitation. Nous savons que vous n'êtes pas juste un coureur qui monte occasionnellement à cheval, ou un nageur qui s'essaie au tir. Vous êtes glorieusement multi-talentueux — et enfin, il y a une app pour ça.
 
 DÉTECTION AUTOMATIQUE DES ALLURES (AUSSI APPELÉE MAGIE)
 
@@ -45,4 +45,4 @@ Vos données restent sur vos appareils. Apple Intelligence traite localement. No
 
 Nécessite iOS 26+. Les fonctionnalités Apple Watch nécessitent watchOS 26+. Les fonctionnalités Apple Intelligence nécessitent iPhone 15 Pro ou plus récent.
 
-Entraînez. Suivez. Triomphez. (Essayez de ne pas vous effrayer des sacs plastiques.)
+Entraînez. Suivez. Triomphez. (Évitez les sacs plastiques.)
