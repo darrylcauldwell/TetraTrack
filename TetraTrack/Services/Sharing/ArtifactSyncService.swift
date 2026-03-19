@@ -49,6 +49,7 @@ struct SyncOperation: Codable, Identifiable {
 
 // MARK: - Artifact Sync Service
 
+@MainActor
 @Observable
 final class ArtifactSyncService {
     static let shared = ArtifactSyncService()

@@ -10,6 +10,7 @@ import SwiftData
 import os
 
 /// Service for converting completed training sessions into shareable artifacts.
+@MainActor
 @Observable
 final class ArtifactConversionService {
     static let shared = ArtifactConversionService()
