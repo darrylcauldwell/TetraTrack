@@ -377,7 +377,7 @@ struct RideHistoryView: View {
 
     private func deleteRides(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(rides[index])
+            modelContext.delete(displayedRides[index])
         }
         // Sync sessions to widgets
         WidgetDataSyncService.shared.syncRecentSessions(context: modelContext)
