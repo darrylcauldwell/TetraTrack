@@ -334,8 +334,21 @@ final class WorkoutManager: NSObject {
                 WatchConnectivityService.sendDiagnostic("startWorkout: mirroring SUCCEEDED")
             } catch {
                 let errMsg = error.localizedDescription
-                Log.tracking.error("TT: startMirroringToCompanionDevice FAILED: \(errMsg, privacy: .public) — continuing with local Watch workout")
-                WatchConnectivityService.sendDiagnostic("startWorkout: mirroring FAILED: \(errMsg) — continuing locally")
+                Log.tracking.error("TT: startMirroringToCompanionDevice FAILED: \(errMsg, privacy: .public) — wiring WCSession fallback")
+                WatchConnectivityService.sendDiagnostic("startWorkout: mirroring FAILED: \(errMsg) — wiring WCSession fallback")
+            }
+
+            // Safety net: when mirroring fails, wire WCSession callbacks so HR + motion
+            // still reach iPhone. This is NOT the primary path — mirroring is preferred.
+            if !mirroringSucceeded {
+                WorkoutManager.shared.onHeartRateUpdate = { bpm in
+                    WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+                }
+                WorkoutManager.shared.onMotionDataSend = {
+                    WatchConnectivityService.shared.sendMotionUpdate()
+                }
+                Log.tracking.error("TT: WCSession fallback wired — HR + motion will use WCSession transport")
+                WatchConnectivityService.sendDiagnostic("startWorkout: WCSession fallback wired for HR + motion")
             }
 
             let startDate = Date()
@@ -718,8 +731,19 @@ final class WorkoutManager: NSObject {
             } else if motionSendTickCount % 30 == 0 {
                 Log.tracking.info("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
             }
+            // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
+            if motionSendTickCount % 30 == 0 {
+                let hr = currentHeartRate
+                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=MIRRORED HR=\(hr, privacy: .public)")
+            }
         } else {
             onMotionDataSend?()
+            // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
+            if motionSendTickCount % 30 == 0 {
+                let hr = currentHeartRate
+                let hasCallback = onMotionDataSend != nil
+                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public) callbackWired=\(hasCallback, privacy: .public)")
+            }
         }
     }
 

@@ -332,7 +332,7 @@ final class WorkoutLifecycleService: NSObject {
         isWatchPrimary = false
 
         // Send session control commands to Watch (WCSession fallback path)
-        watchConnectivity.sendCommand(.startRide)
+        watchConnectivity.sendReliableCommand(.startRide)
         watchConnectivity.startMotionTracking(mode: watchMotionMode)
 
         do {
@@ -483,7 +483,7 @@ final class WorkoutLifecycleService: NSObject {
             sendControlCommand("pause")
         } else {
             workoutSession?.pause()
-            watchConnectivity.sendCommand(.pauseRide)
+            watchConnectivity.sendReliableCommand(.pauseRide)
         }
         state = .paused
     }
@@ -493,7 +493,7 @@ final class WorkoutLifecycleService: NSObject {
             sendControlCommand("resume")
         } else {
             workoutSession?.resume()
-            watchConnectivity.sendCommand(.resumeRide)
+            watchConnectivity.sendReliableCommand(.resumeRide)
         }
         state = .active
     }
@@ -564,7 +564,7 @@ final class WorkoutLifecycleService: NSObject {
     private func endIPhonePrimaryWorkout(metadata: [String: Any]?) async -> HKWorkout? {
         // Stop watch session via WCSession (fallback path)
         watchConnectivity.stopMotionTracking()
-        watchConnectivity.sendCommand(.stopRide)
+        watchConnectivity.sendReliableCommand(.stopRide)
 
         guard let session = workoutSession,
               let builder = workoutBuilder else {
@@ -681,7 +681,7 @@ final class WorkoutLifecycleService: NSObject {
             sendControlCommand("stop")
         } else {
             watchConnectivity.stopMotionTracking()
-            watchConnectivity.sendCommand(.stopRide)
+            watchConnectivity.sendReliableCommand(.stopRide)
 
             guard let session = workoutSession else {
                 cleanup()

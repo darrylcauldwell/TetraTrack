@@ -332,6 +332,30 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         sendMessage(message)
     }
 
+    /// Send a lifecycle command to Watch with guaranteed delivery.
+    /// Uses dual transport: sendMessage (fast path when reachable) + transferUserInfo (FIFO guaranteed).
+    /// applicationContext is NOT used — the 1Hz status timer overwrites it before Watch reads commands.
+    func sendReliableCommand(_ command: WatchCommand) {
+        let message = WatchMessage.command(command)
+        let dict = message.toDictionary()
+
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.error("TT: sendReliableCommand(\(command.rawValue, privacy: .public)) — session not activated, skipping")
+            return
+        }
+
+        if session.isReachable {
+            Log.watch.error("TT: sendReliableCommand(\(command.rawValue, privacy: .public)) — sending via sendMessage (reachable)")
+            session.sendMessage(dict, replyHandler: nil) { error in
+                Log.watch.error("TT: sendReliableCommand sendMessage error: \(error)")
+            }
+        }
+
+        session.transferUserInfo(dict)
+        Log.watch.error("TT: sendReliableCommand(\(command.rawValue, privacy: .public)) — queued via transferUserInfo")
+    }
+
     /// Start motion tracking on Watch for a specific discipline
     func startMotionTracking(mode: WatchMotionModeShared) {
         let message = WatchMessage.startMotionTracking(mode: mode)

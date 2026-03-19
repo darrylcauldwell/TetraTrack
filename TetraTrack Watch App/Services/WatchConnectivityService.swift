@@ -451,6 +451,7 @@ final class WatchConnectivityService: NSObject {
                 // the Watch receives the mirrored session via workoutSessionMirroringStartHandler
                 // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
                 case .startRide:
+                    Log.watch.error("TT: received .startRide command")
                     guard self.rideState != .tracking else {
                         Log.watch.debug("Ignoring duplicate startRide — already tracking")
                         break
@@ -460,6 +461,7 @@ final class WatchConnectivityService: NSObject {
                     Log.watch.info("Session started from iPhone")
 
                 case .stopRide:
+                    Log.watch.error("TT: received .stopRide command")
                     guard self.rideState != .idle else {
                         Log.watch.debug("Ignoring duplicate stopRide — already idle")
                         break
@@ -481,10 +483,12 @@ final class WatchConnectivityService: NSObject {
                     Log.watch.info("Session stopped from iPhone")
 
                 case .pauseRide:
+                    Log.watch.error("TT: received .pauseRide command")
                     self.rideState = .paused
                     Log.watch.info("Session paused from iPhone")
 
                 case .resumeRide:
+                    Log.watch.error("TT: received .resumeRide command")
                     self.rideState = .tracking
                     Log.watch.info("Session resumed from iPhone")
 
@@ -902,12 +906,20 @@ extension WatchConnectivityService: WCSessionDelegate {
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
-        Log.watch.debug("didReceiveApplicationContext called with keys: \(applicationContext.keys)")
+        let keys = applicationContext.keys.joined(separator: ", ")
+        if let cmd = applicationContext["command"] as? String {
+            Log.watch.error("TT: didReceiveApplicationContext command=\(cmd, privacy: .public) transport=applicationContext")
+        }
+        Log.watch.debug("didReceiveApplicationContext called with keys: \(keys)")
         handleReceivedMessage(applicationContext)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        Log.watch.error("TT: didReceiveUserInfo called with keys: \(userInfo.keys.joined(separator: ", "), privacy: .public)")
+        let keys = userInfo.keys.joined(separator: ", ")
+        if let cmd = userInfo["command"] as? String {
+            Log.watch.error("TT: didReceiveUserInfo command=\(cmd, privacy: .public) transport=transferUserInfo")
+        }
+        Log.watch.error("TT: didReceiveUserInfo called with keys: \(keys, privacy: .public)")
         handleReceivedMessage(userInfo)
     }
 }

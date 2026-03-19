@@ -180,6 +180,8 @@ protocol WatchConnecting: AnyObject {
     var syncedSessionSequence: Int { get }
     var lastSyncedSession: WatchSyncedSession? { get }
 
+    func sendReliableCommand(_ command: WatchCommand)
+
     func sendStatusUpdate(
         rideState: SharedRideState,
         duration: TimeInterval,

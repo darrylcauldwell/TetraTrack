@@ -122,4 +122,116 @@ struct WatchConnectivityTests {
         #expect(manager.cadence == 130)
         #expect(manager.motionUpdateSequence > previousSeq)
     }
+
+    // MARK: - Reliable command transport (#268)
+
+    @Test func sendReliableCommandMethodExists() {
+        // sendReliableCommand with nil session should early-return without crash
+        let manager = WatchConnectivityManager.shared
+        manager.sendReliableCommand(.stopRide)
+        // No crash = pass. Session is nil so it skips the send.
+    }
+
+    @Test func stopRideViaUserInfoUpdatesCommandSequence() {
+        let manager = WatchConnectivityManager.shared
+        let previousSeq = manager.commandSequence
+
+        // Simulate stopRide arriving via transferUserInfo (the reliable path)
+        let payload: [String: Any] = [
+            "command": "stopRide",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        manager.session(WCSession.default, didReceiveUserInfo: payload)
+
+        #expect(manager.lastReceivedCommand == .stopRide)
+        #expect(manager.commandSequence == previousSeq + 1)
+    }
+
+    @Test func pauseRideViaUserInfoUpdatesCommandSequence() {
+        let manager = WatchConnectivityManager.shared
+        let previousSeq = manager.commandSequence
+
+        let payload: [String: Any] = [
+            "command": "pauseRide",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        manager.session(WCSession.default, didReceiveUserInfo: payload)
+
+        #expect(manager.lastReceivedCommand == .pauseRide)
+        #expect(manager.commandSequence == previousSeq + 1)
+    }
+
+    @Test func resumeRideViaUserInfoUpdatesCommandSequence() {
+        let manager = WatchConnectivityManager.shared
+        let previousSeq = manager.commandSequence
+
+        let payload: [String: Any] = [
+            "command": "resumeRide",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        manager.session(WCSession.default, didReceiveUserInfo: payload)
+
+        #expect(manager.lastReceivedCommand == .resumeRide)
+        #expect(manager.commandSequence == previousSeq + 1)
+    }
+
+    @Test func mirroredMotionDictWithWalkingMode() {
+        let manager = WatchConnectivityManager.shared
+
+        let motionDict: [String: Any] = [
+            "mode": "walking",
+            "cadence": 112,
+            "breathingRate": 20.0,
+            "groundContactTime": 245.0
+        ]
+
+        manager.updateFromMirroredMotionDict(motionDict)
+
+        #expect(manager.cadence == 112)
+        #expect(manager.breathingRate == 20.0)
+        #expect(manager.groundContactTime == 245.0)
+    }
+
+    @Test func mirroredHeartRateWithWalkingValues() {
+        let manager = WatchConnectivityManager.shared
+        let previousSeq = manager.heartRateSequence
+
+        // Walking HR range (typically 90-140 bpm)
+        manager.updateFromMirroredHeartRate(118)
+
+        #expect(manager.lastReceivedHeartRate == 118)
+        #expect(manager.heartRateSequence == previousSeq + 1)
+    }
+
+    @Test func stopRideViaApplicationContextNotClobberedByStatusUpdate() {
+        let manager = WatchConnectivityManager.shared
+
+        // First: deliver stopRide via userInfo (transferUserInfo path)
+        let stopPayload: [String: Any] = [
+            "command": "stopRide",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        manager.session(WCSession.default, didReceiveUserInfo: stopPayload)
+        #expect(manager.lastReceivedCommand == .stopRide)
+        let seqAfterStop = manager.commandSequence
+
+        // Second: a status update arrives via applicationContext (1Hz timer).
+        // This must NOT change lastReceivedCommand back from .stopRide.
+        let statusPayload: [String: Any] = [
+            "rideState": "tracking",
+            "duration": 120.0,
+            "distance": 500.0,
+            "speed": 4.2,
+            "gait": "Walk",
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        manager.session(WCSession.default, didReceiveApplicationContext: statusPayload)
+
+        // Command sequence should not have changed (status updates have no command key)
+        #expect(manager.commandSequence == seqAfterStop)
+        #expect(manager.lastReceivedCommand == .stopRide)
+    }
 }
