@@ -8,6 +8,7 @@
 
 import AVFoundation
 import SwiftUI
+import os
 
 // MARK: - Supported Coaching Languages
 
@@ -148,7 +149,7 @@ final class LocalizedAudioCoachingService {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
         } catch {
-            print("Failed to configure audio session: \(error)")
+            Log.audio.error("Failed to configure audio session: \(error)")
         }
     }
 

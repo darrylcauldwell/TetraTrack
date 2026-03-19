@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import os
 
 /// Service for managing target thumbnail storage
 final class TargetThumbnailService {
@@ -39,7 +40,7 @@ final class TargetThumbnailService {
 
         let resizedImage = resizeImage(image, maxDimension: maxDimension)
         guard let data = resizedImage.jpegData(compressionQuality: jpegQuality) else {
-            print("[TargetThumbnailService] Failed to create JPEG data for pattern \(patternId)")
+            Log.shooting.error("Failed to create JPEG data for pattern \(patternId)")
             return false
         }
 
@@ -48,10 +49,10 @@ final class TargetThumbnailService {
             try data.write(to: fileURL, options: .atomic)
             // Verify the file was written
             let exists = FileManager.default.fileExists(atPath: fileURL.path)
-            print("[TargetThumbnailService] Saved thumbnail for \(patternId): \(exists ? "SUCCESS" : "FAILED") at \(fileURL.path)")
+            Log.shooting.debug("Saved thumbnail for \(patternId): \(exists ? "SUCCESS" : "FAILED")")
             return exists
         } catch {
-            print("[TargetThumbnailService] Failed to save thumbnail for \(patternId): \(error)")
+            Log.shooting.error("Failed to save thumbnail for \(patternId): \(error)")
             return false
         }
     }
@@ -62,7 +63,7 @@ final class TargetThumbnailService {
     func loadThumbnail(forPatternId patternId: UUID) -> UIImage? {
         let fileURL = thumbnailURL(for: patternId)
         let exists = FileManager.default.fileExists(atPath: fileURL.path)
-        print("[TargetThumbnailService] Loading thumbnail for \(patternId): exists=\(exists) at \(fileURL.path)")
+        Log.shooting.debug("Loading thumbnail for \(patternId): exists=\(exists)")
 
         guard exists else {
             return nil
@@ -71,10 +72,10 @@ final class TargetThumbnailService {
         do {
             let data = try Data(contentsOf: fileURL)
             let image = UIImage(data: data)
-            print("[TargetThumbnailService] Loaded thumbnail for \(patternId): \(image != nil ? "SUCCESS" : "FAILED to decode")")
+            Log.shooting.debug("Loaded thumbnail for \(patternId): \(image != nil ? "SUCCESS" : "FAILED to decode")")
             return image
         } catch {
-            print("[TargetThumbnailService] Failed to load thumbnail data for \(patternId): \(error)")
+            Log.shooting.error("Failed to load thumbnail data for \(patternId): \(error)")
             return nil
         }
     }
@@ -103,7 +104,7 @@ final class TargetThumbnailService {
                 return UUID(uuidString: filename)
             }
         } catch {
-            print("[TargetThumbnailService] Failed to list thumbnails: \(error)")
+            Log.shooting.error("Failed to list thumbnails: \(error)")
             return []
         }
     }
@@ -114,9 +115,9 @@ final class TargetThumbnailService {
         if !FileManager.default.fileExists(atPath: thumbnailsDirectory.path) {
             do {
                 try FileManager.default.createDirectory(at: thumbnailsDirectory, withIntermediateDirectories: true)
-                print("[TargetThumbnailService] Created thumbnails directory at \(thumbnailsDirectory.path)")
+                Log.shooting.debug("Created thumbnails directory")
             } catch {
-                print("[TargetThumbnailService] Failed to create thumbnails directory: \(error)")
+                Log.shooting.error("Failed to create thumbnails directory: \(error)")
             }
         }
     }
