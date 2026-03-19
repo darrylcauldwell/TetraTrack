@@ -48,7 +48,7 @@ struct PostSessionInsightsView: View {
 
         case "walking":
             if let session: RunningSession = fetchModel() {
-                WalkingInsightsView(session: session)
+                WalkingDetailView(session: session)
             } else {
                 fallbackView
             }

@@ -2,8 +2,9 @@
 //  WalkingDetailView.swift
 //  TetraTrack
 //
-//  Post-session walking detail view with biomechanics dashboard,
-//  route comparison, and running readiness indicator.
+//  Unified walking detail view — used for both post-session insights
+//  and training history. Shows biomechanical pillar analysis, metrics,
+//  splits, map, route comparison, and running readiness.
 //
 
 import SwiftUI
@@ -15,6 +16,7 @@ struct WalkingDetailView: View {
     @Bindable var session: RunningSession
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query private var walkingRoutes: [WalkingRoute]
 
     private var matchedRoute: WalkingRoute? {
@@ -24,46 +26,108 @@ struct WalkingDetailView: View {
 
     private let analysisService = WalkingAnalysisService()
 
+    // MARK: - Biomechanical Scores
+
+    private var stabilityScore: Double {
+        session.walkingStabilityScore
+    }
+
+    private var rhythmScore: Double {
+        session.walkingRhythmScore
+    }
+
+    private var postureScore: Double {
+        session.goodPosturePercent > 0 ? session.goodPosturePercent : session.postureStability
+    }
+
+    private var economyScore: Double {
+        var total: Double = 0
+        var weight: Double = 0
+
+        if session.totalDistance > 0 && session.totalDuration > 0 {
+            let avgSpeed = session.totalDistance / session.totalDuration
+            if avgSpeed > 0 {
+                if avgSpeed >= 1.1 && avgSpeed <= 1.5 { total += 85 * 0.5 }
+                else if avgSpeed >= 0.9 && avgSpeed <= 1.7 { total += 70 * 0.5 }
+                else { total += 50 * 0.5 }
+                weight += 0.5
+            }
+        }
+
+        if session.averageCadence > 0 && session.totalDistance > 0 && session.totalDuration > 0 {
+            let stepsPerMinute = Double(session.averageCadence)
+            let metersPerMinute = session.totalDistance / (session.totalDuration / 60)
+            if metersPerMinute > 0 {
+                let stepsPerMeter = stepsPerMinute / metersPerMinute
+                if stepsPerMeter < 1.5 { total += 85 * 0.5 }
+                else if stepsPerMeter < 2.0 { total += 70 * 0.5 }
+                else { total += 50 * 0.5 }
+                weight += 0.5
+            }
+        }
+
+        return weight > 0 ? total / weight : 0
+    }
+
+    private var physiologyScore: Double {
+        guard session.averageHeartRate > 0, session.maxHeartRate > 0 else { return 0 }
+
+        let avgHR = Double(session.averageHeartRate)
+        let maxHR = Double(session.maxHeartRate)
+        guard maxHR > 0 else { return 0 }
+
+        let efficiency = avgHR / maxHR
+        let hrRange = maxHR - Double(session.minHeartRate > 0 ? session.minHeartRate : session.averageHeartRate)
+
+        var score: Double = 0
+
+        if efficiency < 0.75 { score += 60 }
+        else if efficiency < 0.80 { score += 50 }
+        else if efficiency < 0.85 { score += 40 }
+        else if efficiency < 0.90 { score += 30 }
+        else { score += 20 }
+
+        if hrRange > 30 { score += 40 }
+        else if hrRange > 20 { score += 32 }
+        else if hrRange > 15 { score += 24 }
+        else if hrRange > 10 { score += 16 }
+        else { score += 10 }
+
+        return min(score, 100)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Summary header
                 summaryHeader
 
-                // Biomechanics dashboard
-                if session.hasWalkingScores {
-                    WalkingSteadinessCard(
-                        postureScore: session.goodPosturePercent > 0 ? session.goodPosturePercent : session.postureStability,
-                        rhythmScore: session.walkingRhythmScore,
-                        stabilityScore: session.walkingStabilityScore
-                    )
-                }
-
-                // Walk Insights link
+                // Biomechanical pillar analysis
                 if session.hasWalkingScores || session.averageHeartRate > 0 {
-                    NavigationLink(destination: WalkingInsightsView(session: session)) {
-                        HStack {
-                            Image(systemName: "figure.walk")
-                                .font(.title2)
-                                .foregroundStyle(.teal)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Session Insights")
-                                    .font(.headline)
-                                Text("Stability · Rhythm · Posture · Economy")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(.tertiary)
+                    OverallBiomechanicalScore(
+                        stabilityScore: stabilityScore,
+                        rhythmScore: rhythmScore,
+                        economyScore: economyScore,
+                        postureScore: postureScore
+                    )
+
+                    if horizontalSizeClass == .regular {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 16) {
+                            stabilityCard
+                            rhythmCard
+                            postureCard
+                            economyCard
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.ultraThinMaterial)
-                        )
+                    } else {
+                        stabilityCard
+                        rhythmCard
+                        postureCard
+                        economyCard
                     }
-                    .buttonStyle(.plain)
+
+                    physiologyCard
                 }
 
                 // Route comparison
@@ -111,7 +175,6 @@ struct WalkingDetailView: View {
 
     private var summaryHeader: some View {
         VStack(spacing: 16) {
-            // Icon + route name
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
@@ -133,7 +196,6 @@ struct WalkingDetailView: View {
                 Spacer()
             }
 
-            // Big metrics
             HStack(spacing: 24) {
                 summaryMetric(
                     value: session.formattedDistance,
@@ -167,6 +229,127 @@ struct WalkingDetailView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Pillar Cards
+
+    private var stabilityCard: some View {
+        let hasData = stabilityScore > 0
+        let steadiness = session.healthKitWalkingSteadiness
+
+        return PillarScoreCard(
+            pillar: .stability,
+            subtitle: "Gait Steadiness",
+            score: stabilityScore,
+            keyMetric: {
+                if let steadiness, steadiness > 0 {
+                    return String(format: "%.0f%% Apple Steadiness", steadiness)
+                }
+                if hasData { return "Score: \(Int(stabilityScore))" }
+                return "No steadiness data"
+            }(),
+            tip: {
+                if !hasData { return "Wear Apple Watch for gait steadiness analysis" }
+                if stabilityScore >= 80 { return "Very steady gait — consistent pace and smooth movement" }
+                if stabilityScore >= 60 { return "Good stability — minor pace fluctuations detected" }
+                if stabilityScore >= 40 { return "Moderate variability — focus on posture and even terrain" }
+                return "Gait unsteady — try shorter walks on flat ground and build up gradually"
+            }()
+        )
+    }
+
+    private var rhythmCard: some View {
+        let hasData = rhythmScore > 0
+        let cadence = session.averageCadence
+
+        return PillarScoreCard(
+            pillar: .rhythm,
+            subtitle: "Step Tempo",
+            score: rhythmScore,
+            keyMetric: {
+                if cadence > 0 {
+                    let target = session.targetCadence > 0 ? session.targetCadence : 120
+                    let diff = cadence - target
+                    if diff >= 0 {
+                        return "\(cadence) SPM (+\(diff) vs target)"
+                    } else {
+                        return "\(cadence) SPM (\(diff) vs target)"
+                    }
+                }
+                if hasData { return "Score: \(Int(rhythmScore))" }
+                return "No cadence data"
+            }(),
+            tip: {
+                if !hasData { return "Walk for longer to capture cadence consistency data" }
+                if rhythmScore >= 80 { return "Very consistent cadence — great walking rhythm" }
+                if rhythmScore >= 60 { return "Good rhythm — slight cadence variation between segments" }
+                if rhythmScore >= 40 { return "Moderate variation — try using a metronome app to build rhythm" }
+                return "Cadence inconsistent — focus on maintaining steady step rate"
+            }()
+        )
+    }
+
+    private var postureCard: some View {
+        let hasData = postureScore > 0
+        let goodPercent = session.goodPosturePercent
+        let stability = session.postureStability
+
+        return PillarScoreCard(
+            pillar: .posture,
+            subtitle: "Upper Body",
+            score: postureScore,
+            keyMetric: {
+                if goodPercent > 0 {
+                    return String(format: "%.0f%% good posture", goodPercent)
+                }
+                if stability > 0 {
+                    return String(format: "%.0f%% stability", stability)
+                }
+                if hasData { return "Score: \(Int(postureScore))" }
+                return "Wear Apple Watch for posture tracking"
+            }(),
+            tip: {
+                if !hasData { return "Apple Watch tracks upper body stability while walking" }
+                if postureScore >= 80 { return "Excellent posture — stable upper body throughout the walk" }
+                if postureScore >= 60 { return "Good posture — minor instability in some segments" }
+                if postureScore >= 40 { return "Moderate instability — focus on keeping shoulders relaxed and core engaged" }
+                return "Significant instability — try shorter walks with focus on upright posture"
+            }()
+        )
+    }
+
+    private var economyCard: some View {
+        let hasData = economyScore > 0
+
+        return PillarScoreCard(
+            pillar: .economy,
+            subtitle: "Gait Efficiency",
+            score: economyScore,
+            keyMetric: hasData ? "\(Int(economyScore))% economy" : "Needs pace + cadence",
+            tip: {
+                if !hasData { return "Walk with consistent pace and cadence for economy analysis" }
+                if economyScore >= 80 { return "Very efficient gait — optimal speed and stride length" }
+                if economyScore >= 60 { return "Good economy — minor room for improvement" }
+                return "Gait efficiency low — try maintaining a natural, brisk pace"
+            }()
+        )
+    }
+
+    private var physiologyCard: some View {
+        let hasHR = session.averageHeartRate > 0
+
+        return PhysiologySectionCard(
+            score: physiologyScore,
+            keyMetric: hasHR ? "\(session.averageHeartRate) avg bpm" : "Needs heart rate",
+            tip: {
+                if !hasHR { return "Wear Apple Watch for heart rate efficiency analysis" }
+                if physiologyScore >= 80 { return "Excellent efficiency — heart rate well controlled during walk" }
+                if physiologyScore >= 60 { return "Good cardiovascular effort — steady heart rate response" }
+                if physiologyScore >= 40 { return "Moderate effort — try maintaining a conversational pace" }
+                return "High cardiac effort — consider shorter walks or slower pace to build base"
+            }(),
+            subtitle: "HR Efficiency"
+        )
     }
 
     // MARK: - Metrics Grid
