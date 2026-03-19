@@ -223,9 +223,9 @@ struct RiderProfileView: View {
             // Personal Info
             Section("Personal Information") {
                 // Sex
-                Picker("Sex", selection: $profile.sex) {
+                Picker("Sex", selection: $profile.sexValue) {
                     ForEach(BiologicalSex.allCases, id: \.self) { sex in
-                        Text(sex.rawValue).tag(sex)
+                        Text(sex.rawValue).tag(sex.rawValue)
                     }
                 }
 

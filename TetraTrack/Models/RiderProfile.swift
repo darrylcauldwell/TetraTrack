@@ -12,7 +12,12 @@ final class RiderProfile {
     var weight: Double = 70.0  // kg
     var height: Double = 170.0  // cm
     var dateOfBirth: Date?
-    var sex: BiologicalSex = BiologicalSex.notSet
+    var sexValue: String = BiologicalSex.notSet.rawValue
+
+    var sex: BiologicalSex {
+        get { BiologicalSex(rawValue: sexValue) ?? .notSet }
+        set { sexValue = newValue.rawValue }
+    }
     var lastUpdatedFromHealthKit: Date?
     var useHealthKitData: Bool = true
 
