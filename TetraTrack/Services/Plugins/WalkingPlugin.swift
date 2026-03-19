@@ -182,6 +182,15 @@ final class WalkingPlugin: DisciplinePlugin {
             cadenceReadings.append(cadence)
         }
 
+        // Diagnostic: log cadence sources every 10s
+        let tenSecMark = Int(elapsedTime) / 10
+        if tenSecMark > 0 && Int(elapsedTime) % 10 == 0 {
+            let wCad = watchCadence
+            let pCad = phoneCadence
+            let cCad = currentCadence
+            Log.tracking.error("TT: walking cadence watch=\(wCad) phone=\(pCad) current=\(cCad)")
+        }
+
         // Cadence feedback every 2 minutes
         let twoMinMark = Int(elapsedTime) / 120
         if twoMinMark > lastCadenceAnnouncementMark && currentCadence > 0 && targetCadence > 0 {

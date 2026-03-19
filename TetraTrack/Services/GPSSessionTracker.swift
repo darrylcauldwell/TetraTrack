@@ -571,6 +571,9 @@ final class GPSSessionTracker {
         // Extract cadence and floor data
         if let cadence = data.currentCadence {
             pedometerCadence = Int(cadence.doubleValue * 60)  // steps/sec → steps/min
+            let steps = Int(truncating: data.numberOfSteps)
+            let cad = pedometerCadence
+            Log.tracking.error("TT: pedometer cadence=\(cad) spm, steps=\(steps)")
         }
         pedometerFloorsAscended = data.floorsAscended?.intValue ?? 0
         pedometerFloorsDescended = data.floorsDescended?.intValue ?? 0

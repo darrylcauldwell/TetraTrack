@@ -433,14 +433,15 @@ final class WatchMotionManager: NSObject {
     // MARK: - Walking Analysis
 
     private func processWalkingMotion(_ sample: WatchMotionSample) {
-        // Walking creates lower-amplitude vertical acceleration peaks than running.
-        // Typical walking impact is 0.5-1.0G vs 1.5G+ for running.
+        // Walking user-acceleration peaks (gravity removed) are 0.1–0.3G.
+        // Total acceleration would be 0.5–1.0G, but CMDeviceMotion.userAcceleration
+        // subtracts gravity, so the threshold must be much lower.
 
         let verticalAccel = sample.accelerationY
         let timestamp = sample.timestamp
 
-        // Lower impact threshold for walking foot strikes
-        let impactThreshold: Double = 0.4
+        // Threshold for userAcceleration (gravity removed) walking foot strikes
+        let impactThreshold: Double = 0.15
         let minStepInterval: TimeInterval = 0.3  // Max cadence ~200 spm for brisk walking
 
         if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
