@@ -422,6 +422,7 @@ final class RunningPlugin: DisciplinePlugin {
 
         // Handle automatic phase transitions for intervals
         if intervalSettings != nil {
+            phaseTime += 1
             checkPhaseTransition()
         }
 
@@ -712,11 +713,7 @@ final class RunningPlugin: DisciplinePlugin {
                     self.session.walkingStabilityScore = steadiness
                 }
 
-                do {
-                    try self.modelContext?.save()
-                } catch {
-                    Log.tracking.error("Failed to save running HealthKit metrics: \(error)")
-                }
+                // save() removed — SessionTracker.stopSession() owns the final save
             }
         }
 
