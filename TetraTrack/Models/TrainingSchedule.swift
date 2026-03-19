@@ -13,6 +13,7 @@ import SwiftData
 /// Tracks training consistency and streaks across disciplines
 @Model
 final class TrainingStreak {
+    var id: UUID = UUID()
     var currentStreak: Int = 0
     var longestStreak: Int = 0
     var totalTrainingDays: Int = 0
