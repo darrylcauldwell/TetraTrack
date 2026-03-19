@@ -321,7 +321,7 @@ final class WatchGaitAnalyzer {
                 acceptedConfidence = confidence
                 pendingState = nil
                 pendingStateCount = 0
-                logger.error("TT: Gait transition: \(newState.name) (conf: \(String(format: "%.2f", confidence)))")
+                logger.debug("Gait transition: \(newState.name) (conf: \(String(format: "%.2f", confidence)))")
             }
         } else if newState == acceptedState {
             // Current state confirmed — reset pending
