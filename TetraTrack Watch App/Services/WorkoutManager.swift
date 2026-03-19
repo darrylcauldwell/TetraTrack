@@ -42,6 +42,7 @@ enum WatchActivityType: String {
 }
 
 /// Manages autonomous workout sessions on Apple Watch
+@MainActor
 @Observable
 final class WorkoutManager: NSObject {
     static let shared = WorkoutManager()
@@ -699,7 +700,7 @@ final class WorkoutManager: NSObject {
         let source = DispatchSource.makeTimerSource(queue: timerQueue)
         source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
         source.setEventHandler { [weak self] in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self else { return }
                 self.motionSendTickCount += 1
                 if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
@@ -867,7 +868,7 @@ final class WorkoutManager: NSObject {
         let source = DispatchSource.makeTimerSource(queue: timerQueue)
         source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
         source.setEventHandler { [weak self] in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self, let start = self.startTime, !self.isPaused else { return }
                 self.elapsedTime = Date().timeIntervalSince(start)
             }
@@ -1137,7 +1138,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         }
     }
 
-    private func processHeartRateStatistics(_ statistics: HKStatistics?) {
+    nonisolated private func processHeartRateStatistics(_ statistics: HKStatistics?) {
         guard let statistics = statistics else { return }
 
         let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
