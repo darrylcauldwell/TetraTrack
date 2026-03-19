@@ -12,7 +12,7 @@ import SwiftUI
 // MARK: - Biomechanical Pillar
 
 enum BiomechanicalPillar: String, CaseIterable {
-    case stability, rhythm, symmetry, economy
+    case stability, rhythm, symmetry, economy, posture
 
     var title: String {
         switch self {
@@ -20,6 +20,7 @@ enum BiomechanicalPillar: String, CaseIterable {
         case .rhythm: return "Rhythm"
         case .symmetry: return "Symmetry"
         case .economy: return "Economy"
+        case .posture: return "Posture"
         }
     }
 
@@ -29,6 +30,7 @@ enum BiomechanicalPillar: String, CaseIterable {
         case .rhythm: return "metronome.fill"
         case .symmetry: return "arrow.left.arrow.right"
         case .economy: return "arrow.triangle.2.circlepath"
+        case .posture: return "figure.stand"
         }
     }
 
@@ -38,6 +40,7 @@ enum BiomechanicalPillar: String, CaseIterable {
         case .rhythm: return .indigo
         case .symmetry: return .orange
         case .economy: return .purple
+        case .posture: return .orange
         }
     }
 
@@ -113,11 +116,19 @@ struct PillarScoreCard: View {
 struct OverallBiomechanicalScore: View {
     let stabilityScore: Double
     let rhythmScore: Double
-    let symmetryScore: Double
+    var symmetryScore: Double = 0
     let economyScore: Double
+    var postureScore: Double = 0
+
+    /// Third pillar is symmetry by default, or posture if symmetry is 0 and posture is provided
+    private var thirdPillar: (BiomechanicalPillar, Double) {
+        postureScore > 0 && symmetryScore == 0
+            ? (.posture, postureScore)
+            : (.symmetry, symmetryScore)
+    }
 
     private var scores: [Double] {
-        [stabilityScore, rhythmScore, symmetryScore, economyScore].filter { $0 > 0 }
+        [stabilityScore, rhythmScore, thirdPillar.1, economyScore].filter { $0 > 0 }
     }
 
     private var overall: Double {
@@ -137,7 +148,7 @@ struct OverallBiomechanicalScore: View {
             HStack(spacing: 16) {
                 pillarMini(.stability, score: stabilityScore)
                 pillarMini(.rhythm, score: rhythmScore)
-                pillarMini(.symmetry, score: symmetryScore)
+                pillarMini(thirdPillar.0, score: thirdPillar.1)
                 pillarMini(.economy, score: economyScore)
             }
         }

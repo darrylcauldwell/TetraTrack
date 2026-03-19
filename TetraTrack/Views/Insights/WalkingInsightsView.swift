@@ -4,7 +4,7 @@
 //
 //  Walking insights using 4 biomechanical pillars + physiology.
 //  Pillars: Stability (gait steadiness), Rhythm (step tempo consistency),
-//  Symmetry (L/R balance), Economy (gait efficiency).
+//  Posture (upper body stability from Watch), Economy (gait efficiency).
 //  Physiology: HR efficiency / endurance.
 //
 
@@ -27,9 +27,9 @@ struct WalkingInsightsView: View {
         session.walkingRhythmScore
     }
 
-    /// Symmetry — left-right balance
-    private var symmetryScore: Double {
-        session.walkingSymmetryScore
+    /// Posture — upper body stability during walking (from Watch sensors)
+    private var postureScore: Double {
+        session.goodPosturePercent > 0 ? session.goodPosturePercent : session.postureStability
     }
 
     /// Economy — gait economy from pace and cadence efficiency
@@ -115,8 +115,8 @@ struct WalkingInsightsView: View {
             OverallBiomechanicalScore(
                 stabilityScore: stabilityScore,
                 rhythmScore: rhythmScore,
-                symmetryScore: symmetryScore,
-                economyScore: economyScore
+                economyScore: economyScore,
+                postureScore: postureScore
             )
             sessionSummaryCard
 
@@ -126,7 +126,7 @@ struct WalkingInsightsView: View {
             ], spacing: 16) {
                 stabilityCard
                 rhythmCard
-                symmetryCard
+                postureCard
                 economyCard
             }
 
@@ -142,13 +142,13 @@ struct WalkingInsightsView: View {
             OverallBiomechanicalScore(
                 stabilityScore: stabilityScore,
                 rhythmScore: rhythmScore,
-                symmetryScore: symmetryScore,
-                economyScore: economyScore
+                economyScore: economyScore,
+                postureScore: postureScore
             )
             sessionSummaryCard
             stabilityCard
             rhythmCard
-            symmetryCard
+            postureCard
             economyCard
             physiologyCard
         }
@@ -274,33 +274,33 @@ struct WalkingInsightsView: View {
         )
     }
 
-    // MARK: - Symmetry Card
+    // MARK: - Posture Card
 
-    private var symmetryCard: some View {
-        let hasData = symmetryScore > 0
-        let asymmetry = session.healthKitAsymmetry
-        let doubleSupport = session.healthKitDoubleSupportPercentage
+    private var postureCard: some View {
+        let hasData = postureScore > 0
+        let goodPercent = session.goodPosturePercent
+        let stability = session.postureStability
 
         return PillarScoreCard(
-            pillar: .symmetry,
-            subtitle: "L/R Balance",
-            score: symmetryScore,
+            pillar: .posture,
+            subtitle: "Upper Body",
+            score: postureScore,
             keyMetric: {
-                if let asymmetry, asymmetry > 0 {
-                    return String(format: "%.1f%% asymmetry", asymmetry)
+                if goodPercent > 0 {
+                    return String(format: "%.0f%% good posture", goodPercent)
                 }
-                if let doubleSupport, doubleSupport > 0 {
-                    return String(format: "%.1f%% double support", doubleSupport)
+                if stability > 0 {
+                    return String(format: "%.0f%% stability", stability)
                 }
-                if hasData { return "Score: \(Int(symmetryScore))" }
-                return "No Watch data"
+                if hasData { return "Score: \(Int(postureScore))" }
+                return "Wear Apple Watch for posture tracking"
             }(),
             tip: {
-                if !hasData { return "Wear Apple Watch for left-right balance analysis" }
-                if symmetryScore >= 80 { return "Excellent symmetry — even stride pattern on both sides" }
-                if symmetryScore >= 60 { return "Good balance — minor asymmetry between left and right strides" }
-                if symmetryScore >= 40 { return "Moderate imbalance — focus on even weight distribution" }
-                return "Significant asymmetry — consider gait assessment or targeted exercises"
+                if !hasData { return "Apple Watch tracks upper body stability while walking" }
+                if postureScore >= 80 { return "Excellent posture — stable upper body throughout the walk" }
+                if postureScore >= 60 { return "Good posture — minor instability in some segments" }
+                if postureScore >= 40 { return "Moderate instability — focus on keeping shoulders relaxed and core engaged" }
+                return "Significant instability — try shorter walks with focus on upright posture"
             }()
         )
     }
