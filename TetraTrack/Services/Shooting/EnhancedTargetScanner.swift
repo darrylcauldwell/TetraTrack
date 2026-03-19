@@ -406,7 +406,7 @@ actor EnhancedTargetScanner {
         state: EnhancedScannerState
     ) async -> TargetScanAnalysis? {
         // Read all needed state on MainActor
-        let stateSnapshot = await MainActor.run { () -> (shots: [ScanShot], geometry: TargetCropGeometry?, imageQuality: ImageQualityAssessment?, alignment: TargetAlignment?)? in
+        let stateSnapshot = await MainActor.run { () -> (shots: [ScanShot], geometry: TargetCropGeometry, imageQuality: ImageQualityAssessment?, alignment: TargetAlignment?)? in
             guard !state.confirmedShots.isEmpty,
                   let geometry = state.cropGeometry else {
                 return nil
@@ -462,7 +462,7 @@ actor EnhancedTargetScanner {
             let analysis = TargetScanAnalysis()
             analysis.calculateEnhancedMetrics(
                 from: snapshot.shots,
-                cropGeometry: snapshot.geometry!,
+                cropGeometry: snapshot.geometry,
                 targetType: config.targetType
             )
             analysis.targetAlignment = snapshot.alignment

@@ -123,7 +123,11 @@ extension DownloadState {
 extension DownloadState {
     /// Directory for storing downloaded JSON files
     nonisolated static var jsonCacheDirectory: URL {
-        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            let fallback = FileManager.default.temporaryDirectory.appendingPathComponent("OSMDownloads", isDirectory: true)
+            try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
+            return fallback
+        }
         let osmDir = cacheDir.appendingPathComponent("OSMDownloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: osmDir, withIntermediateDirectories: true)
         return osmDir
