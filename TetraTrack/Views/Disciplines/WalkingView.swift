@@ -58,7 +58,7 @@ struct WalkingView: View {
                     }
                 )
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
     }
 
     // MARK: - Start Walking

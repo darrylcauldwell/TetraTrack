@@ -104,7 +104,7 @@ struct UnifiedTrainingView: View {
             .sheet(isPresented: $showChallenges) {
                 CrossDisciplineChallengeView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

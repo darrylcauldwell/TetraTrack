@@ -453,6 +453,11 @@ extension View {
     func glassNavigation() -> some View {
         modifier(GlassNavigationStyle())
     }
+
+    /// Standard dark background for sheet presentations
+    func sheetBackground() -> some View {
+        presentationBackground(Color.black)
+    }
 }
 
 // MARK: - Preview

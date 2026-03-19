@@ -46,7 +46,7 @@ struct HorseDetailView: View {
         }
         .sheet(isPresented: $showingEditSheet) {
             HorseEditView(horse: horse)
-                .presentationBackground(Color.black)
+                .sheetBackground()
         }
     }
 
@@ -227,7 +227,7 @@ struct HorseDetailView: View {
         .sheet(isPresented: $showingVideoPlayer) {
             if let index = selectedVideoIndex, index < horse.videoAssetIdentifiers.count {
                 HorseVideoPlayer(assetIdentifier: horse.videoAssetIdentifiers[index])
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
         }
     }

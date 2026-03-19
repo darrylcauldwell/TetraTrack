@@ -180,7 +180,7 @@ struct RunningView: View {
                     }
                 )
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
     }
 
     // MARK: - Start from Config

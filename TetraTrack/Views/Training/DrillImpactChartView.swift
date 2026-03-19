@@ -188,7 +188,7 @@ struct DrillImpactChartView: View {
         .sheet(isPresented: $showCorrelationDetails) {
             CorrelationDetailSheet(correlations: significantCorrelations)
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Drill Type Selector

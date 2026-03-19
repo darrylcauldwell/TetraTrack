@@ -95,24 +95,24 @@ struct RoutePlannerView: View {
             }
             .sheet(isPresented: $showingRegionDownload) {
                 RegionDownloadView()
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
             .sheet(isPresented: $showingSavedRoutes) {
                 SavedRoutesView { route in
                     loadSavedRoute(route)
                 }
-                .presentationBackground(Color.black)
+                .sheetBackground()
             }
             .sheet(isPresented: $showingPreferences) {
                 RoutingPreferencesView(preferences: $preferences)
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
             .sheet(isPresented: $showingRouteDetails) {
                 if let route = calculatedRoute {
                     RouteDetailsView(route: route) {
                         showingSaveDialog = true
                     }
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
                 }
             }
             .alert("Save Route", isPresented: $showingSaveDialog) {
@@ -151,7 +151,7 @@ struct RoutePlannerView: View {
                     Text("Route planning requires map data. Please download map data for your area to plan bridleway and trail routes.")
                 }
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

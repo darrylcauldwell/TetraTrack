@@ -92,7 +92,7 @@ struct DebugFolderSelectorView: View {
                     )
                 }
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -292,7 +292,7 @@ struct FolderImagePickerView: View {
                     }
                 )
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

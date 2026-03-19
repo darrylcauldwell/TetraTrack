@@ -63,11 +63,11 @@ struct IdleSetupView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
         .sheet(item: $showingDisciplineSetup) { rideType in
             DisciplineSetupSheet(rideType: rideType, tracker: tracker)
-                .presentationBackground(Color.black)
+                .sheetBackground()
                 .onAppear {
                     Log.ui.info("Sheet presenting for rideType: \(rideType.rawValue)")
                 }
@@ -75,7 +75,7 @@ struct IdleSetupView: View {
         .onChange(of: showingDisciplineSetup) { oldValue, newValue in
             Log.ui.info("showingDisciplineSetup changed: \(oldValue?.rawValue ?? "nil") -> \(newValue?.rawValue ?? "nil")")
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -349,7 +349,7 @@ struct DisciplineSetupSheet: View {
             NavigationStack {
                 AudioCoachingView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
         .sheet(isPresented: $showingExerciseLibrary) {
             FlatworkLibraryView { exercise in
@@ -389,7 +389,7 @@ struct DisciplineSetupSheet: View {
         .onAppear {
             Log.ui.info("DisciplineSetupSheet appeared for \(rideType.rawValue)")
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -490,7 +490,7 @@ struct FlatworkSetupView: View {
                     }
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Flatwork Content
@@ -1111,7 +1111,7 @@ struct ActiveExerciseView: View {
                     }
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

@@ -60,7 +60,7 @@ struct MovementDNAView: View {
         .onAppear {
             ensureProfileExists()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Header Section

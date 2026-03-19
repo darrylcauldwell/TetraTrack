@@ -75,7 +75,7 @@ struct CoachingNotesSheet: View {
                 isTextFieldFocused = true
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func addNote() {

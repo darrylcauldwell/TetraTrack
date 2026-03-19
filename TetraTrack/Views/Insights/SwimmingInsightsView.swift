@@ -116,7 +116,7 @@ struct SwimmingInsightsView: View {
         .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
         .glassNavigation()
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - iPad Layout

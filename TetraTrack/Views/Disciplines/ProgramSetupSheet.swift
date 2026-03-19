@@ -86,7 +86,7 @@ struct ProgramSetupSheet: View {
                 }
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Overview Card

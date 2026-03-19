@@ -114,7 +114,7 @@ struct ShootingView: View {
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()
             }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Start Competition

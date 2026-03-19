@@ -97,7 +97,7 @@ struct SwimmingView: View {
                     }
                 )
             }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func startSession(type: SwimSessionType) {

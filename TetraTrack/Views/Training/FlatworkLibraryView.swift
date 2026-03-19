@@ -112,7 +112,7 @@ struct FlatworkLibraryView: View {
             .onAppear {
                 initializeBuiltInExercisesIfNeeded()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

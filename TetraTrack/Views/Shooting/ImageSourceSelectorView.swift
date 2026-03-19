@@ -144,7 +144,7 @@ struct ImageSourceSelectorView: View {
                 })
             }
             #endif
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 }
@@ -243,7 +243,7 @@ private struct DebugFolderSelectorSheet: View {
             .sheet(item: $selectedFolder) { folder in
                 FolderImageListSheet(folder: folder, onImageSelected: onImageSelected)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 }

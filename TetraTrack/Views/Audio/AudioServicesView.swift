@@ -269,7 +269,7 @@ struct CompactMusicButton: View {
         .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in
             isPlaying = player.playbackState == .playing
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -320,7 +320,7 @@ struct CompactAudioControls: View {
         .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in
             isPlaying = player.playbackState == .playing
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

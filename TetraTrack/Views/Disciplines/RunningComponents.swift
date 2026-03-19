@@ -835,7 +835,7 @@ struct RunningSettingsView: View {
                     onLevelChange(level)
                     showingLevelPicker = false
                 })
-                .presentationBackground(Color.black)
+                .sheetBackground()
             }
         }
     }
@@ -1565,7 +1565,7 @@ struct RunningSessionDetailView: View {
             }
             .sheet(isPresented: $showingTrimView) {
                 RunningSessionTrimView(session: session)
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
             .sheet(isPresented: $showingMediaEditor) {
                 RunningMediaEditorView(session: session) {
@@ -1574,16 +1574,16 @@ struct RunningSessionDetailView: View {
                         await loadMedia()
                     }
                 }
-                .presentationBackground(Color.black)
+                .sheetBackground()
             }
             .sheet(item: $selectedVideo) { video in
                 VideoPlayerView(asset: video)
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
             .task {
                 await loadMedia()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -1786,16 +1786,16 @@ struct RunningMediaGalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedPhoto) { asset in
             PhotoDetailView(asset: asset)
-                .presentationBackground(Color.black)
+                .sheetBackground()
         }
         .sheet(item: $selectedVideo) { asset in
             VideoPlayerView(asset: asset)
-                .presentationBackground(Color.black)
+                .sheetBackground()
         }
         .task {
             await loadMedia()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func loadMedia() async {

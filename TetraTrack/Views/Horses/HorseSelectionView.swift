@@ -68,7 +68,7 @@ struct HorseSelectionView: View {
             NavigationStack {
                 HorseListView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
         .onAppear {
             // Auto-select first horse if none selected and horses exist
@@ -76,7 +76,7 @@ struct HorseSelectionView: View {
                 selectedHorse = firstHorse
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

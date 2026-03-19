@@ -1165,7 +1165,7 @@ struct TreadmillLiveView: View {
                 }
             )
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Treadmill Metrics View

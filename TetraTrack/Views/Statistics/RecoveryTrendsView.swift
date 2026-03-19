@@ -189,12 +189,12 @@ struct RecoveryTrendsView: View {
                 NavigationStack {
                     AddFatigueEntryView()
                 }
-                .presentationBackground(Color.black)
+                .sheetBackground()
             }
             .onChange(of: timeRange) { _, _ in
                 aiInsights = nil
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

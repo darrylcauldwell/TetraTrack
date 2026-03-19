@@ -200,7 +200,7 @@ struct RouteMapView: View {
         .task {
             await loadPhotoAnnotations()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Route Content

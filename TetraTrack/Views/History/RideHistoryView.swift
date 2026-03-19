@@ -317,7 +317,7 @@ struct RideHistoryView: View {
             .onChange(of: aiSearchResults) { _, _ in updateFilterCache() }
             .onChange(of: rides.count) { _, _ in updateFilterCache() }
             .onAppear { updateFilterCache() }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

@@ -51,7 +51,7 @@ struct DebugFixtureSelectorView: View {
                     }
                 )
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -440,7 +440,7 @@ struct InlineFixturePicker: View {
                 selectedFixture = fixture
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

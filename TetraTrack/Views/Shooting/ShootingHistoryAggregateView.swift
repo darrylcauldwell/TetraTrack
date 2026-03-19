@@ -125,7 +125,7 @@ struct ShootingHistoryAggregateView: View {
                     showingPressureInsights = false
                 })
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

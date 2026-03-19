@@ -166,7 +166,7 @@ struct LiveTrackingMapView: View {
         .onDisappear {
             sharingCoordinator.stopWatchingLocations()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func centerOnRider() {
@@ -487,7 +487,7 @@ struct SpectatorFlatworkList: View {
                     }
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -591,7 +591,7 @@ struct SpectatorPoleworkList: View {
                     }
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

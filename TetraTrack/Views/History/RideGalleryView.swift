@@ -94,7 +94,7 @@ struct RideGalleryView: View {
         .task {
             await loadPhotos()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func loadPhotos() async {
@@ -191,7 +191,7 @@ struct RideMediaGalleryView: View {
         .task {
             await loadMedia()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func loadMedia() async {

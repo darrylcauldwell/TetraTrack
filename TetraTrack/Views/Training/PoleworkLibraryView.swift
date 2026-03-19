@@ -98,7 +98,7 @@ struct PoleworkLibraryView: View {
             .onAppear {
                 initializeBuiltInExercisesIfNeeded()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

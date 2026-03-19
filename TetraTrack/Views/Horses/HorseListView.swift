@@ -115,7 +115,7 @@ struct HorseListView: View {
                 } message: {
                     Text("This will permanently delete the horse and remove it from all ride history. Archive instead to hide the horse but keep historical data.")
                 }
-                .presentationBackground(Color.black)
+                .sheetBackground()
         }
     }
 

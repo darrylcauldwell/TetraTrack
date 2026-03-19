@@ -83,7 +83,7 @@ struct ChildDashboardView: View {
                     friends: friendRelationships
                 )
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -523,7 +523,7 @@ struct FriendManagementView: View {
             .sheet(isPresented: $showingAddFriend) {
                 AddFriendView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

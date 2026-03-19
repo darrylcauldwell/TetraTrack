@@ -82,7 +82,7 @@ struct ShootingHistoryView: View {
                 AnalysisDetailView(analysis: analysis)
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Empty State

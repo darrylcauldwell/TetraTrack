@@ -71,7 +71,7 @@ struct FamilyView: View {
             }
             .sheet(isPresented: $showingAddMember) {
                 AddFamilyMemberView()
-                    .presentationBackground(Color.black)
+                    .sheetBackground()
             }
             .task {
                 sharingCoordinator.loadLinkedRiders()
@@ -80,7 +80,7 @@ struct FamilyView: View {
                 await sharingCoordinator.updateInviteStatuses()
                 loadContacts()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -982,7 +982,7 @@ struct ContactRow: View {
         .onChange(of: contact.isPrimaryEmergency) { _, newValue in
             if isPrimary != newValue { isPrimary = newValue }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -1304,7 +1304,7 @@ struct AddFamilyMemberView: View {
             } message: {
                 Text(errorMessage)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 

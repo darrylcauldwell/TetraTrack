@@ -113,7 +113,7 @@ struct WalkingSetupSheet: View {
             NavigationStack {
                 AudioCoachingView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
         .alert("New Route", isPresented: $showingNewRoute) {
             TextField("Route name (e.g., School Run)", text: $newRouteName)
@@ -129,7 +129,7 @@ struct WalkingSetupSheet: View {
                 newRouteName = ""
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Route Selection Card

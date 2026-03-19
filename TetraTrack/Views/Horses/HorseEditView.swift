@@ -238,7 +238,7 @@ struct HorseEditView: View {
                     videoThumbnails = horse.videoThumbnails
                 }
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -520,7 +520,7 @@ struct HorseProfilePhotoSection: View {
                 photoThumbnail: $photoThumbnail,
                 legacyPhotoData: $legacyPhotoData
             )
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
         .confirmationDialog("Photo", isPresented: $showingActionSheet) {
             Button("Choose New Photo") {
@@ -533,7 +533,7 @@ struct HorseProfilePhotoSection: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -708,7 +708,7 @@ struct HorseVideoSection: View {
                 HorseVideoPlayer(assetIdentifier: videoAssetIdentifiers[index])
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func removeVideo(at index: Int) {

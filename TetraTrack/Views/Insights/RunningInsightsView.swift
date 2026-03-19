@@ -236,7 +236,7 @@ struct RunningInsightsView: View {
         .navigationTitle("Session Insights")
         .navigationBarTitleDisplayMode(.inline)
         .glassNavigation()
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - iPad Layout (2-column grid)

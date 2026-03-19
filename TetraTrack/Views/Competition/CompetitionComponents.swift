@@ -840,7 +840,7 @@ struct CompetitionDetailView: View {
             } message: {
                 Text(calendarSyncMessage)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -2270,7 +2270,7 @@ struct CompetitionMediaFullGalleryView: View {
         .sheet(item: $selectedVideo) { asset in
             VideoPlayerView(asset: asset)
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private func formattedDateRange(_ start: Date, _ end: Date) -> String {
@@ -2551,7 +2551,7 @@ struct ShowjumpingResultsView: View {
                 }
             )
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 
@@ -2923,7 +2923,7 @@ struct DressageResultsView: View {
                 }
             )
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

@@ -220,9 +220,9 @@ struct RunningSetupSheet: View {
             NavigationStack {
                 AudioCoachingView()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
         .task {
             guard HealthKitManager.shared.hasConnectedToHealthKit else { return }
             fitnessMetrics = await HealthKitManager.shared.fetchFitnessMetrics()

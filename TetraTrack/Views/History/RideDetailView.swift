@@ -46,7 +46,7 @@ struct RideDetailView: View {
         .task {
             await loadMedia()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - iPad Layout (Side-by-Side)

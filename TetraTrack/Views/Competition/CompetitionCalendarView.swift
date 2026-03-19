@@ -328,7 +328,7 @@ struct CompetitionCalendarView: View {
                     )
                     .presentationDetents([.medium, .large])
                 }
-                .presentationBackground(Color.black)
+                .sheetBackground()
         }
     }
 

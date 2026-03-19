@@ -107,7 +107,7 @@ struct WorkoutListView: View {
             .onAppear {
                 initializeBuiltInWorkoutsIfNeeded()
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
@@ -427,7 +427,7 @@ struct WorkoutBuilderView: View {
                 blocks = template.sortedBlocks
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private var formattedTotalDuration: String {

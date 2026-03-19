@@ -92,7 +92,7 @@ struct TaskListView: View {
             .sheet(item: $selectedTask) { task in
                 TaskEditView(task: task, competition: task.competition)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     fetchRemindersCompletionUpdates()
@@ -835,7 +835,7 @@ struct CompetitionTasksSection: View {
         .sheet(item: $selectedTask) { task in
             TaskEditView(task: task, competition: competition)
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     private var quickTaskSuggestions: some View {

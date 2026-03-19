@@ -163,7 +163,7 @@ struct SymmetryRhythmView: View {
         .sheet(isPresented: $showingInfo) {
             TrainingScaleInfoSheet()
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 }
 

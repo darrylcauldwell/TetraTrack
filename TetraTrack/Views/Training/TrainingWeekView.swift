@@ -151,7 +151,7 @@ struct TrainingWeekView: View {
                 regeneratePlan()
             }
         }
-        .presentationBackground(Color.black)
+        .sheetBackground()
     }
 
     // MARK: - Weekly Focus Header

@@ -173,7 +173,7 @@ struct DisciplineScoreCardView: View {
             .fullScreenCover(item: $activeLiveDiscipline) { discipline in
                 liveEntryView(for: discipline)
             }
-            .presentationBackground(Color.black)
+            .sheetBackground()
         }
     }
 
