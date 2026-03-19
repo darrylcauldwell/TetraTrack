@@ -79,6 +79,8 @@ final class WorkoutLifecycleService: NSObject {
 
     // Track whether we're building a route (outdoor sessions)
     private var isOutdoorSession: Bool = false
+    // Track whether any route data was inserted (avoid finalizing empty routes)
+    private var hasInsertedRouteData: Bool = false
 
     // Track activity type for watch motion mode mapping
     private var currentActivityType: HKWorkoutActivityType?
@@ -412,6 +414,7 @@ final class WorkoutLifecycleService: NSObject {
 
         do {
             try await routeBuilder.insertRouteData(locations)
+            hasInsertedRouteData = true
         } catch {
             let hasSession = workoutSession != nil
             Log.health.error("WorkoutLifecycleService: failed to insert route data: \(error) — isWatchPrimary=\(self.isWatchPrimary), hasWorkoutSession=\(hasSession)")
@@ -503,6 +506,11 @@ final class WorkoutLifecycleService: NSObject {
     /// Send a control command to Watch via the mirrored workout session.
     func sendControlCommand(_ action: String) {
         guard let session = workoutSession else { return }
+        guard session.state == .running || session.state == .paused else {
+            let state = session.state.rawValue
+            Log.health.warning("sendControlCommand: skipping '\(action)' — session state \(state)")
+            return
+        }
 
         let payload: [String: Any] = [
             "type": "control",
@@ -542,7 +550,7 @@ final class WorkoutLifecycleService: NSObject {
         // Attach route to the workout synced from Watch.
         // Watch saves the workout to HealthKit. After sync, iPhone can query it
         // and attach the GPS route captured on iPhone.
-        if let routeBuilder {
+        if let routeBuilder, hasInsertedRouteData {
             let workout = await queryRecentWorkoutWithRetry()
             if let workout {
                 do {
@@ -573,6 +581,7 @@ final class WorkoutLifecycleService: NSObject {
         }
 
         state = .ending
+        var sessionEnded = false
 
         do {
             // Apply metadata before ending collection
@@ -588,9 +597,10 @@ final class WorkoutLifecycleService: NSObject {
 
             // End session AFTER builder operations complete (Apple docs requirement)
             session.end()
+            sessionEnded = true
 
             // Attach route if we have one
-            if let routeBuilder = routeBuilder, let workout = workout {
+            if let routeBuilder = routeBuilder, hasInsertedRouteData, let workout = workout {
                 do {
                     try await routeBuilder.finishRoute(with: workout, metadata: nil)
                     Log.health.info("WorkoutLifecycleService: route attached to workout")
@@ -605,7 +615,7 @@ final class WorkoutLifecycleService: NSObject {
 
         } catch {
             // End session even on failure to avoid orphaned sessions
-            session.end()
+            if !sessionEnded { session.end() }
             Log.health.error("WorkoutLifecycleService: failed to end workout: \(error)")
             cleanup()
             return nil
@@ -842,6 +852,7 @@ final class WorkoutLifecycleService: NSObject {
         // awaitWorkoutSave() needs it after cleanup runs inside endAndSave().
         // It is nilled on the next requestWatchWorkout() or discard() call.
         isOutdoorSession = false
+        hasInsertedRouteData = false
         isWatchPrimary = false
         currentActivityType = nil
         pendingWatchConfiguration = nil

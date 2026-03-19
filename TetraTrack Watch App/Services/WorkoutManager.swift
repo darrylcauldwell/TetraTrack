@@ -459,7 +459,9 @@ final class WorkoutManager: NSObject {
         }
 
         // End session AFTER builder operations complete (Apple docs requirement)
-        workoutSession?.end()
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
 
         // Update session store with final metrics (only for non-iPhone-triggered workouts)
         if !isMirroredFromiPhone {
@@ -509,7 +511,9 @@ final class WorkoutManager: NSObject {
 
         try? await workoutBuilder?.endCollection(at: Date())
         workoutBuilder?.discardWorkout()
-        workoutSession?.end()
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
 
         sessionStore.discardSession()
         clearRecoveryContext()
@@ -673,7 +677,9 @@ final class WorkoutManager: NSObject {
 
         try? await workoutBuilder?.endCollection(at: Date())
         workoutBuilder?.discardWorkout()
-        workoutSession?.end()
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
 
         workoutSession = nil
         workoutBuilder = nil
