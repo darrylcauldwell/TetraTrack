@@ -12,6 +12,7 @@ import HealthKit
 import Observation
 import os
 
+@MainActor
 @Observable
 final class WatchConnectivityService: NSObject {
     // MARK: - State from iPhone
@@ -122,12 +123,12 @@ final class WatchConnectivityService: NSObject {
     /// Accumulated breadcrumb log — sent to iPhone via applicationContext (last value wins).
     /// Using applicationContext instead of transferUserInfo because transferUserInfo
     /// queues can get poisoned by burst sends, causing all transfers to silently fail.
-    private static var breadcrumbLog: [String] = []
+    nonisolated(unsafe) private static var breadcrumbLog: [String] = []
 
     /// Send a diagnostic message to iPhone via applicationContext.
     /// Messages accumulate in a log array and are sent as a batch (last value wins).
     /// This works even when isReachable is false, unlike sendMessage.
-    static func sendDiagnostic(_ message: String) {
+    nonisolated static func sendDiagnostic(_ message: String) {
         let timestamped = "\(Int(Date().timeIntervalSince1970)): \(message)"
         breadcrumbLog.append(timestamped)
         // Keep only the last 20 breadcrumbs to avoid payload size issues
@@ -147,7 +148,7 @@ final class WatchConnectivityService: NSObject {
     }
 
     /// Flush pending breadcrumbs on activation — just re-sends the current log.
-    static func flushPendingBreadcrumbs() {
+    nonisolated static func flushPendingBreadcrumbs() {
         guard WCSession.default.activationState == .activated, !breadcrumbLog.isEmpty else { return }
         do {
             try WCSession.default.updateApplicationContext([
@@ -226,7 +227,7 @@ final class WatchConnectivityService: NSObject {
         }
     }
 
-    private func processSpO2Samples(_ samples: [HKSample]?) {
+    nonisolated private func processSpO2Samples(_ samples: [HKSample]?) {
         guard let quantitySamples = samples as? [HKQuantitySample],
               let latest = quantitySamples.last else { return }
 
@@ -412,10 +413,8 @@ final class WatchConnectivityService: NSObject {
     }
 
     private func handleReceivedMessage(_ message: [String: Any]) {
-        DispatchQueue.main.async {
-            self.messageCount += 1
-        }
-        Log.watch.debug("Received message #\(self.messageCount + 1) with keys: \(message.keys)")
+        self.messageCount += 1
+        Log.watch.debug("Received message #\(self.messageCount) with keys: \(message.keys)")
 
         // Handle insights data updates
         if let type = message["type"] as? String {
@@ -439,280 +438,278 @@ final class WatchConnectivityService: NSObject {
 
         Log.watch.debug("Parsed message - rideState: \(String(describing: watchMessage.rideState)), gait: \(String(describing: watchMessage.gait))")
 
-        DispatchQueue.main.async {
-            self.lastUpdateTime = watchMessage.timestamp
+        self.lastUpdateTime = watchMessage.timestamp
 
-            // Handle commands from iPhone
-            if let command = watchMessage.command {
-                switch command {
-                // Session control commands - update Watch state to match iPhone
-                // NOTE: These companion HR commands serve as fallback when HKWorkoutSession
-                // mirroring is unavailable. When mirroring is active (iOS 17+/watchOS 10+),
-                // the Watch receives the mirrored session via workoutSessionMirroringStartHandler
-                // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
-                case .startRide:
-                    Log.watch.error("TT: received .startRide command")
-                    guard self.rideState != .tracking else {
-                        Log.watch.debug("Ignoring duplicate startRide — already tracking")
-                        break
-                    }
-                    self.rideState = .tracking
-                    HapticManager.shared.playStartHaptic()
-                    Log.watch.info("Session started from iPhone")
-
-                case .stopRide:
-                    Log.watch.error("TT: received .stopRide command")
-                    guard self.rideState != .idle else {
-                        Log.watch.debug("Ignoring duplicate stopRide — already idle")
-                        break
-                    }
-                    self.rideState = .idle
-                    WorkoutManager.shared.stopMotionDataSending()
-                    WorkoutManager.shared.onMotionDataSend = nil
-                    Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
-                    WorkoutManager.shared.onHeartRateUpdate = nil
-                    // Reset session data
-                    self.duration = 0
-                    self.distance = 0
-                    self.speed = 0
-                    self.gait = "Stationary"
-                    self.heartRate = 0
-                    // cadence/targetCadence are managed by WorkoutManager
-                    self.horseName = nil
-                    self.rideType = nil
-                    Log.watch.info("Session stopped from iPhone")
-
-                case .pauseRide:
-                    Log.watch.error("TT: received .pauseRide command")
-                    self.rideState = .paused
-                    Log.watch.info("Session paused from iPhone")
-
-                case .resumeRide:
-                    Log.watch.error("TT: received .resumeRide command")
-                    self.rideState = .tracking
-                    Log.watch.info("Session resumed from iPhone")
-
-                // Motion tracking commands
-                case .startMotionTracking:
-                    if let sharedMode = watchMessage.motionMode {
-                        // Convert from shared enum to Watch-local enum
-                        let mode: WatchMotionMode = switch sharedMode {
-                        case .shooting: .shooting
-                        case .swimming: .swimming
-                        case .running: .running
-                        case .walking: .walking
-                        case .riding: .riding
-                        case .idle: .idle
-                        }
-
-                        // In Watch-primary mode, startWorkoutFromiPhone() handles all
-                        // sensor setup. This handler is a fallback for iPhone-only mode.
-                        guard !WorkoutManager.shared.isMirroredFromiPhone else {
-                            Log.watch.debug("Ignoring startMotionTracking — Watch-primary session already active")
-                            break
-                        }
-
-                        guard WatchMotionManager.shared.currentMode != mode else {
-                            Log.watch.debug("Ignoring duplicate startMotionTracking — already in \(mode.rawValue)")
-                            break
-                        }
-                        WatchMotionManager.shared.startTracking(mode: mode)
-
-                        // Start HR monitoring for active disciplines (fallback path).
-                        if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
-                            let activityType: WatchActivityType = switch sharedMode {
-                            case .running: .running
-                            case .swimming: .swimming
-                            default: .riding
-                            }
-                            WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
-                                self?.sendHeartRateUpdate(bpm)
-                            }
-                            Task {
-                                await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
-                            }
-                        }
-
-                        // Wire up motion data sending (1Hz) — WCSession fallback
-                        WorkoutManager.shared.onMotionDataSend = { [weak self] in
-                            self?.sendMotionUpdate()
-                        }
-                        WorkoutManager.shared.startMotionDataSending()
-
-                        Log.location.info("Motion tracking started (WCSession fallback) - \(mode.rawValue)")
-                    }
-
-                case .stopMotionTracking:
-                    guard WatchMotionManager.shared.currentMode != .idle else {
-                        Log.watch.debug("Ignoring duplicate stopMotionTracking — already idle")
-                        break
-                    }
-                    WatchMotionManager.shared.stopTracking()
-                    WorkoutManager.shared.stopMotionDataSending()
-                    WorkoutManager.shared.onMotionDataSend = nil
-                    Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
-                    WorkoutManager.shared.onHeartRateUpdate = nil
-                    Log.location.info("Motion tracking stopped")
-
-                // Fall detection sync
-                case .syncFallState:
-                    let detected = watchMessage.fallDetected ?? false
-                    let countdown = watchMessage.fallCountdown
-                    WatchFallDetectionManager.shared.handleSyncedFallState(
-                        detected: detected,
-                        countdown: countdown
-                    )
-
-                // Haptic commands from iPhone
-                case .hapticMilestone:
-                    HapticManager.shared.playMilestoneHaptic()
-                    Log.watch.info("Haptic: milestone")
-
-                case .hapticComplete:
-                    HapticManager.shared.playLapCompleteHaptic()
-                    Log.watch.info("Haptic: complete")
-
-                case .hapticUrgent:
-                    HapticManager.shared.playCountdownUrgentHaptic()
-                    Log.watch.info("Haptic: urgent countdown")
-
-                case .hapticRestStart:
-                    HapticManager.shared.playRestIntervalStartHaptic()
-                    Log.watch.info("Haptic: rest start")
-
-                case .hapticRestEnd:
-                    HapticManager.shared.playRestIntervalEndHaptic()
-                    Log.watch.info("Haptic: rest end")
-
-                // Autonomous workout: iPhone asks Watch to start its own HKWorkoutSession
-                case .startAutonomousWorkout:
-                    if let discipline = watchMessage.discipline,
-                       let type = WatchActivityType(rawValue: discipline) {
-                        // Guard against duplicate delivery (sendMessage + transferUserInfo).
-                        // Check both isWorkoutActive (set deep in async flow) and
-                        // isProcessingAutonomousStart (set synchronously here on main queue).
-                        guard !WorkoutManager.shared.isWorkoutActive,
-                              !self.isProcessingAutonomousStart else {
-                            Log.watch.error("TT: startAutonomousWorkout IGNORED (already active or processing)")
-                            return
-                        }
-
-                        // Set synchronous flag BEFORE async Task to block duplicates
-                        self.isProcessingAutonomousStart = true
-
-                        Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
-                        WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
-
-                        // Send acknowledgment to iPhone via transferUserInfo (guaranteed delivery,
-                        // not applicationContext which status updates would overwrite)
-                        let ack = WatchMessage.workoutCommandAcknowledged(discipline: discipline)
-                        self.sendReliableMessage(ack.toDictionary())
-                        Log.watch.error("TT: sent workoutCommandAcknowledged to iPhone via transferUserInfo")
-
-                        Task {
-                            await WorkoutManager.shared.startWorkout(type: type)
-                            // Clear the flag once startWorkout completes (success or failure)
-                            await MainActor.run { self.isProcessingAutonomousStart = false }
-                        }
-                    }
-
-                // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
-                case .workoutCommandAcknowledged, .mirroringStarted:
-                    break
-
-                // Commands sent from Watch to iPhone (ignore on Watch side)
-                case .requestStatus, .heartRateUpdate, .voiceNote,
-                     .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:
+        // Handle commands from iPhone
+        if let command = watchMessage.command {
+            switch command {
+            // Session control commands - update Watch state to match iPhone
+            // NOTE: These companion HR commands serve as fallback when HKWorkoutSession
+            // mirroring is unavailable. When mirroring is active (iOS 17+/watchOS 10+),
+            // the Watch receives the mirrored session via workoutSessionMirroringStartHandler
+            // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
+            case .startRide:
+                Log.watch.error("TT: received .startRide command")
+                guard self.rideState != .tracking else {
+                    Log.watch.debug("Ignoring duplicate startRide — already tracking")
                     break
                 }
-            }
+                self.rideState = .tracking
+                HapticManager.shared.playStartHaptic()
+                Log.watch.info("Session started from iPhone")
 
-            // Update session state from status updates only (not from command messages,
-            // which already set rideState above — a delayed status update could overwrite
-            // a more recent command like .stopRide)
-            if let state = watchMessage.rideState, watchMessage.command == nil {
-                self.rideState = state
-            }
-            if let dur = watchMessage.duration {
-                self.duration = dur
-            }
-            if let dist = watchMessage.distance {
-                self.distance = dist
-            }
-            if let spd = watchMessage.speed {
-                self.speed = spd
-            }
-            if let g = watchMessage.gait {
-                self.gait = g
-            }
-            if let hr = watchMessage.heartRate {
-                self.heartRate = hr
-            }
-            if let zone = watchMessage.heartRateZone {
-                self.heartRateZone = zone
-            }
-            if let avg = watchMessage.averageHeartRate {
-                self.averageHeartRate = avg
-            }
-            if let max = watchMessage.maxHeartRate {
-                self.maxHeartRate = max
-            }
-            self.horseName = watchMessage.horseName
-            self.rideType = watchMessage.rideType
+            case .stopRide:
+                Log.watch.error("TT: received .stopRide command")
+                guard self.rideState != .idle else {
+                    Log.watch.debug("Ignoring duplicate stopRide — already idle")
+                    break
+                }
+                self.rideState = .idle
+                WorkoutManager.shared.stopMotionDataSending()
+                WorkoutManager.shared.onMotionDataSend = nil
+                Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
+                WorkoutManager.shared.onHeartRateUpdate = nil
+                // Reset session data
+                self.duration = 0
+                self.distance = 0
+                self.speed = 0
+                self.gait = "Stationary"
+                self.heartRate = 0
+                // cadence/targetCadence are managed by WorkoutManager
+                self.horseName = nil
+                self.rideType = nil
+                Log.watch.info("Session stopped from iPhone")
 
-            // Discipline-specific ride metrics
-            if let walk = watchMessage.walkPercent {
-                self.walkPercent = walk
+            case .pauseRide:
+                Log.watch.error("TT: received .pauseRide command")
+                self.rideState = .paused
+                Log.watch.info("Session paused from iPhone")
+
+            case .resumeRide:
+                Log.watch.error("TT: received .resumeRide command")
+                self.rideState = .tracking
+                Log.watch.info("Session resumed from iPhone")
+
+            // Motion tracking commands
+            case .startMotionTracking:
+                if let sharedMode = watchMessage.motionMode {
+                    // Convert from shared enum to Watch-local enum
+                    let mode: WatchMotionMode = switch sharedMode {
+                    case .shooting: .shooting
+                    case .swimming: .swimming
+                    case .running: .running
+                    case .walking: .walking
+                    case .riding: .riding
+                    case .idle: .idle
+                    }
+
+                    // In Watch-primary mode, startWorkoutFromiPhone() handles all
+                    // sensor setup. This handler is a fallback for iPhone-only mode.
+                    guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                        Log.watch.debug("Ignoring startMotionTracking — Watch-primary session already active")
+                        break
+                    }
+
+                    guard WatchMotionManager.shared.currentMode != mode else {
+                        Log.watch.debug("Ignoring duplicate startMotionTracking — already in \(mode.rawValue)")
+                        break
+                    }
+                    WatchMotionManager.shared.startTracking(mode: mode)
+
+                    // Start HR monitoring for active disciplines (fallback path).
+                    if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
+                        let activityType: WatchActivityType = switch sharedMode {
+                        case .running: .running
+                        case .swimming: .swimming
+                        default: .riding
+                        }
+                        WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
+                            self?.sendHeartRateUpdate(bpm)
+                        }
+                        Task {
+                            await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
+                        }
+                    }
+
+                    // Wire up motion data sending (1Hz) — WCSession fallback
+                    WorkoutManager.shared.onMotionDataSend = { [weak self] in
+                        self?.sendMotionUpdate()
+                    }
+                    WorkoutManager.shared.startMotionDataSending()
+
+                    Log.location.info("Motion tracking started (WCSession fallback) - \(mode.rawValue)")
+                }
+
+            case .stopMotionTracking:
+                guard WatchMotionManager.shared.currentMode != .idle else {
+                    Log.watch.debug("Ignoring duplicate stopMotionTracking — already idle")
+                    break
+                }
+                WatchMotionManager.shared.stopTracking()
+                WorkoutManager.shared.stopMotionDataSending()
+                WorkoutManager.shared.onMotionDataSend = nil
+                Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
+                WorkoutManager.shared.onHeartRateUpdate = nil
+                Log.location.info("Motion tracking stopped")
+
+            // Fall detection sync
+            case .syncFallState:
+                let detected = watchMessage.fallDetected ?? false
+                let countdown = watchMessage.fallCountdown
+                WatchFallDetectionManager.shared.handleSyncedFallState(
+                    detected: detected,
+                    countdown: countdown
+                )
+
+            // Haptic commands from iPhone
+            case .hapticMilestone:
+                HapticManager.shared.playMilestoneHaptic()
+                Log.watch.info("Haptic: milestone")
+
+            case .hapticComplete:
+                HapticManager.shared.playLapCompleteHaptic()
+                Log.watch.info("Haptic: complete")
+
+            case .hapticUrgent:
+                HapticManager.shared.playCountdownUrgentHaptic()
+                Log.watch.info("Haptic: urgent countdown")
+
+            case .hapticRestStart:
+                HapticManager.shared.playRestIntervalStartHaptic()
+                Log.watch.info("Haptic: rest start")
+
+            case .hapticRestEnd:
+                HapticManager.shared.playRestIntervalEndHaptic()
+                Log.watch.info("Haptic: rest end")
+
+            // Autonomous workout: iPhone asks Watch to start its own HKWorkoutSession
+            case .startAutonomousWorkout:
+                if let discipline = watchMessage.discipline,
+                   let type = WatchActivityType(rawValue: discipline) {
+                    // Guard against duplicate delivery (sendMessage + transferUserInfo).
+                    // Check both isWorkoutActive (set deep in async flow) and
+                    // isProcessingAutonomousStart (set synchronously here on main queue).
+                    guard !WorkoutManager.shared.isWorkoutActive,
+                          !self.isProcessingAutonomousStart else {
+                        Log.watch.error("TT: startAutonomousWorkout IGNORED (already active or processing)")
+                        return
+                    }
+
+                    // Set synchronous flag BEFORE async Task to block duplicates
+                    self.isProcessingAutonomousStart = true
+
+                    Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
+                    WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
+
+                    // Send acknowledgment to iPhone via transferUserInfo (guaranteed delivery,
+                    // not applicationContext which status updates would overwrite)
+                    let ack = WatchMessage.workoutCommandAcknowledged(discipline: discipline)
+                    self.sendReliableMessage(ack.toDictionary())
+                    Log.watch.error("TT: sent workoutCommandAcknowledged to iPhone via transferUserInfo")
+
+                    Task {
+                        await WorkoutManager.shared.startWorkout(type: type)
+                        // Clear the flag once startWorkout completes (success or failure)
+                        await MainActor.run { self.isProcessingAutonomousStart = false }
+                    }
+                }
+
+            // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
+            case .workoutCommandAcknowledged, .mirroringStarted:
+                break
+
+            // Commands sent from Watch to iPhone (ignore on Watch side)
+            case .requestStatus, .heartRateUpdate, .voiceNote,
+                 .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:
+                break
             }
-            if let trot = watchMessage.trotPercent {
-                self.trotPercent = trot
-            }
-            if let canter = watchMessage.canterPercent {
-                self.canterPercent = canter
-            }
-            if let gallop = watchMessage.gallopPercent {
-                self.gallopPercent = gallop
-            }
-            if let leftTurns = watchMessage.leftTurnCount {
-                self.leftTurnCount = leftTurns
-            }
-            if let rightTurns = watchMessage.rightTurnCount {
-                self.rightTurnCount = rightTurns
-            }
-            if let leftRein = watchMessage.leftReinPercent {
-                self.leftReinPercent = leftRein
-            }
-            if let rightRein = watchMessage.rightReinPercent {
-                self.rightReinPercent = rightRein
-            }
-            if let leftLead = watchMessage.leftLeadPercent {
-                self.leftLeadPercent = leftLead
-            }
-            if let rightLead = watchMessage.rightLeadPercent {
-                self.rightLeadPercent = rightLead
-            }
-            if let symmetry = watchMessage.symmetryScore {
-                self.symmetryScore = symmetry
-            }
-            if let rhythm = watchMessage.rhythmScore {
-                self.rhythmScore = rhythm
-            }
-            if let optimal = watchMessage.optimalTime {
-                self.optimalTime = optimal
-            }
-            if let diff = watchMessage.timeDifference {
-                self.timeDifference = diff
-            }
-            if let elev = watchMessage.elevation {
-                self.elevation = elev
-            }
-            // Phone running form data
-            if let rp = watchMessage.runningPhase {
-                self.runningPhase = rp
-            }
-            if let ai = watchMessage.asymmetryIndex {
-                self.asymmetryIndex = ai
-            }
+        }
+
+        // Update session state from status updates only (not from command messages,
+        // which already set rideState above — a delayed status update could overwrite
+        // a more recent command like .stopRide)
+        if let state = watchMessage.rideState, watchMessage.command == nil {
+            self.rideState = state
+        }
+        if let dur = watchMessage.duration {
+            self.duration = dur
+        }
+        if let dist = watchMessage.distance {
+            self.distance = dist
+        }
+        if let spd = watchMessage.speed {
+            self.speed = spd
+        }
+        if let g = watchMessage.gait {
+            self.gait = g
+        }
+        if let hr = watchMessage.heartRate {
+            self.heartRate = hr
+        }
+        if let zone = watchMessage.heartRateZone {
+            self.heartRateZone = zone
+        }
+        if let avg = watchMessage.averageHeartRate {
+            self.averageHeartRate = avg
+        }
+        if let max = watchMessage.maxHeartRate {
+            self.maxHeartRate = max
+        }
+        self.horseName = watchMessage.horseName
+        self.rideType = watchMessage.rideType
+
+        // Discipline-specific ride metrics
+        if let walk = watchMessage.walkPercent {
+            self.walkPercent = walk
+        }
+        if let trot = watchMessage.trotPercent {
+            self.trotPercent = trot
+        }
+        if let canter = watchMessage.canterPercent {
+            self.canterPercent = canter
+        }
+        if let gallop = watchMessage.gallopPercent {
+            self.gallopPercent = gallop
+        }
+        if let leftTurns = watchMessage.leftTurnCount {
+            self.leftTurnCount = leftTurns
+        }
+        if let rightTurns = watchMessage.rightTurnCount {
+            self.rightTurnCount = rightTurns
+        }
+        if let leftRein = watchMessage.leftReinPercent {
+            self.leftReinPercent = leftRein
+        }
+        if let rightRein = watchMessage.rightReinPercent {
+            self.rightReinPercent = rightRein
+        }
+        if let leftLead = watchMessage.leftLeadPercent {
+            self.leftLeadPercent = leftLead
+        }
+        if let rightLead = watchMessage.rightLeadPercent {
+            self.rightLeadPercent = rightLead
+        }
+        if let symmetry = watchMessage.symmetryScore {
+            self.symmetryScore = symmetry
+        }
+        if let rhythm = watchMessage.rhythmScore {
+            self.rhythmScore = rhythm
+        }
+        if let optimal = watchMessage.optimalTime {
+            self.optimalTime = optimal
+        }
+        if let diff = watchMessage.timeDifference {
+            self.timeDifference = diff
+        }
+        if let elev = watchMessage.elevation {
+            self.elevation = elev
+        }
+        // Phone running form data
+        if let rp = watchMessage.runningPhase {
+            self.runningPhase = rp
+        }
+        if let ai = watchMessage.asymmetryIndex {
+            self.asymmetryIndex = ai
         }
     }
 
@@ -721,58 +718,52 @@ final class WatchConnectivityService: NSObject {
     private func handleRecentSessionsUpdate(_ message: [String: Any]) {
         guard let sessionsData = message["sessions"] as? [[String: Any]] else { return }
 
-        DispatchQueue.main.async {
-            self.recentSessions = sessionsData.compactMap { dict -> TrainingSessionSummary? in
-                guard let idString = dict["id"] as? String,
-                      let id = UUID(uuidString: idString),
-                      let discipline = dict["discipline"] as? String,
-                      let timestamp = dict["date"] as? TimeInterval,
-                      let duration = dict["duration"] as? TimeInterval,
-                      let keyMetric = dict["keyMetric"] as? String,
-                      let keyMetricLabel = dict["keyMetricLabel"] as? String else {
-                    return nil
-                }
-                return TrainingSessionSummary(
-                    id: id,
-                    discipline: discipline,
-                    date: Date(timeIntervalSince1970: timestamp),
-                    duration: duration,
-                    keyMetric: keyMetric,
-                    keyMetricLabel: keyMetricLabel
-                )
+        self.recentSessions = sessionsData.compactMap { dict -> TrainingSessionSummary? in
+            guard let idString = dict["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  let discipline = dict["discipline"] as? String,
+                  let timestamp = dict["date"] as? TimeInterval,
+                  let duration = dict["duration"] as? TimeInterval,
+                  let keyMetric = dict["keyMetric"] as? String,
+                  let keyMetricLabel = dict["keyMetricLabel"] as? String else {
+                return nil
             }
+            return TrainingSessionSummary(
+                id: id,
+                discipline: discipline,
+                date: Date(timeIntervalSince1970: timestamp),
+                duration: duration,
+                keyMetric: keyMetric,
+                keyMetricLabel: keyMetricLabel
+            )
         }
     }
 
     private func handleTrendsUpdate(_ message: [String: Any]) {
-        DispatchQueue.main.async {
-            self.trends = TrainingTrends(
-                periodLabel: message["periodLabel"] as? String ?? "This Week",
-                sessionCount: message["sessionCount"] as? Int ?? 0,
-                totalDuration: message["totalDuration"] as? TimeInterval ?? 0,
-                ridingCount: message["ridingCount"] as? Int ?? 0,
-                runningCount: message["runningCount"] as? Int ?? 0,
-                swimmingCount: message["swimmingCount"] as? Int ?? 0,
-                shootingCount: message["shootingCount"] as? Int ?? 0,
-                comparedToPrevious: message["comparedToPrevious"] as? Double ?? 0
-            )
-        }
+        self.trends = TrainingTrends(
+            periodLabel: message["periodLabel"] as? String ?? "This Week",
+            sessionCount: message["sessionCount"] as? Int ?? 0,
+            totalDuration: message["totalDuration"] as? TimeInterval ?? 0,
+            ridingCount: message["ridingCount"] as? Int ?? 0,
+            runningCount: message["runningCount"] as? Int ?? 0,
+            swimmingCount: message["swimmingCount"] as? Int ?? 0,
+            shootingCount: message["shootingCount"] as? Int ?? 0,
+            comparedToPrevious: message["comparedToPrevious"] as? Double ?? 0
+        )
     }
 
     private func handleWorkloadUpdate(_ message: [String: Any]) {
-        DispatchQueue.main.async {
-            let recommendationString = message["recommendation"] as? String ?? "ready"
-            let recommendation = WorkloadData.WorkloadRecommendation(rawValue: recommendationString) ?? .ready
+        let recommendationString = message["recommendation"] as? String ?? "ready"
+        let recommendation = WorkloadData.WorkloadRecommendation(rawValue: recommendationString) ?? .ready
 
-            self.workload = WorkloadData(
-                sessionsThisWeek: message["sessionsThisWeek"] as? Int ?? 0,
-                targetSessionsPerWeek: message["targetSessionsPerWeek"] as? Int ?? 4,
-                totalDurationThisWeek: message["totalDurationThisWeek"] as? TimeInterval ?? 0,
-                restDays: message["restDays"] as? Int ?? 0,
-                consecutiveTrainingDays: message["consecutiveTrainingDays"] as? Int ?? 0,
-                recommendation: recommendation
-            )
-        }
+        self.workload = WorkloadData(
+            sessionsThisWeek: message["sessionsThisWeek"] as? Int ?? 0,
+            targetSessionsPerWeek: message["targetSessionsPerWeek"] as? Int ?? 4,
+            totalDurationThisWeek: message["totalDurationThisWeek"] as? TimeInterval ?? 0,
+            restDays: message["restDays"] as? Int ?? 0,
+            consecutiveTrainingDays: message["consecutiveTrainingDays"] as? Int ?? 0,
+            recommendation: recommendation
+        )
     }
 
     // MARK: - Formatted Values
@@ -851,7 +842,7 @@ final class WatchConnectivityService: NSObject {
 // MARK: - WCSessionDelegate
 
 extension WatchConnectivityService: WCSessionDelegate {
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
@@ -861,48 +852,54 @@ extension WatchConnectivityService: WCSessionDelegate {
             return
         }
 
-        DispatchQueue.main.async {
-            self.isReachable = session.isReachable
-        }
+        let reachable = session.isReachable
 
         // Flush any breadcrumbs that were queued before activation completed
         WatchConnectivityService.flushPendingBreadcrumbs()
 
-        // Request initial statistics on activation
-        if session.isReachable {
-            requestStatisticsUpdate()
-        }
+        Log.watch.info("Activated - reachable: \(reachable)")
 
-        Log.watch.info("Activated - reachable: \(session.isReachable)")
-    }
-
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        DispatchQueue.main.async {
-            self.isReachable = session.isReachable
-        }
-
-        // Request statistics when connection is restored
-        if session.isReachable {
-            requestStatisticsUpdate()
+        Task { @MainActor in
+            self.isReachable = reachable
+            if reachable {
+                self.requestStatisticsUpdate()
+            }
         }
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+
+        Task { @MainActor in
+            self.isReachable = reachable
+            // Request statistics when connection is restored
+            if reachable {
+                self.requestStatisticsUpdate()
+            }
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         Log.watch.debug("didReceiveMessage called")
-        handleReceivedMessage(message)
+        Task { @MainActor in
+            self.handleReceivedMessage(message)
+        }
     }
 
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
         Log.watch.debug("didReceiveMessage (with reply) called")
-        handleReceivedMessage(message)
+        // Reply immediately — replyHandler must be called synchronously
         replyHandler(["status": "received"])
+        Task { @MainActor in
+            self.handleReceivedMessage(message)
+        }
     }
 
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
@@ -911,15 +908,19 @@ extension WatchConnectivityService: WCSessionDelegate {
             Log.watch.error("TT: didReceiveApplicationContext command=\(cmd, privacy: .public) transport=applicationContext")
         }
         Log.watch.debug("didReceiveApplicationContext called with keys: \(keys)")
-        handleReceivedMessage(applicationContext)
+        Task { @MainActor in
+            self.handleReceivedMessage(applicationContext)
+        }
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
         let keys = userInfo.keys.joined(separator: ", ")
         if let cmd = userInfo["command"] as? String {
             Log.watch.error("TT: didReceiveUserInfo command=\(cmd, privacy: .public) transport=transferUserInfo")
         }
         Log.watch.error("TT: didReceiveUserInfo called with keys: \(keys, privacy: .public)")
-        handleReceivedMessage(userInfo)
+        Task { @MainActor in
+            self.handleReceivedMessage(userInfo)
+        }
     }
 }
