@@ -149,13 +149,11 @@ struct ShootingCompetitionView: View {
             }
             .padding(.top, 8)
         }
-        .onAppear {
+        .task {
             // Standalone mode (competition day): start session here
             if let context = standaloneContext, tracker?.sessionState == .idle {
                 let plugin = ShootingPlugin(sessionContext: context)
-                Task {
-                    await tracker?.startSession(plugin: plugin)
-                }
+                await tracker?.startSession(plugin: plugin)
             }
         }
         .onDisappear {
