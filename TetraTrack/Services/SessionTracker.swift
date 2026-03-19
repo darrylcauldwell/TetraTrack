@@ -1188,10 +1188,7 @@ final class SessionTracker {
         postSessionSummaryTask = nil
 
         if postSessionBackgroundTaskId != .invalid {
-            let taskId = postSessionBackgroundTaskId
-            DispatchQueue.main.async {
-                UIApplication.shared.endBackgroundTask(taskId)
-            }
+            UIApplication.shared.endBackgroundTask(postSessionBackgroundTaskId)
             postSessionBackgroundTaskId = .invalid
         }
     }
@@ -1207,11 +1204,8 @@ final class SessionTracker {
             postSessionSummaryTask = nil
         }
 
-        let taskId = postSessionBackgroundTaskId
-        if taskId != .invalid {
-            DispatchQueue.main.async {
-                UIApplication.shared.endBackgroundTask(taskId)
-            }
+        if postSessionBackgroundTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(postSessionBackgroundTaskId)
             postSessionBackgroundTaskId = .invalid
         }
         Log.tracking.info("All post-session tasks completed")
