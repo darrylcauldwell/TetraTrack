@@ -458,7 +458,12 @@ final class WatchMotionManager: NSObject {
                     intervals.append(runningPeaks[i] - runningPeaks[i-1])
                 }
                 let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-                cadence = min(Int(60.0 / avgInterval), 180)  // Clamp to 180 spm max
+                let newCadence = min(Int(60.0 / avgInterval), 180)  // Clamp to 180 spm max
+                if newCadence != cadence {
+                    let accel = verticalAccel
+                    Log.tracking.error("TT: walkCadence=\(newCadence, privacy: .public) peaks=\(self.runningPeaks.count, privacy: .public) avgInterval=\(avgInterval, privacy: .public) accelY=\(accel, privacy: .public)")
+                }
+                cadence = newCadence
             }
 
             onStepDetected?()
