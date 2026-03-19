@@ -13,6 +13,7 @@ import os
 
 /// Manages syncing Watch sessions to iPhone
 @Observable
+@MainActor
 final class WatchSessionSyncService: NSObject {
     static let shared = WatchSessionSyncService()
 

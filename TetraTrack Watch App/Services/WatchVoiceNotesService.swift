@@ -9,6 +9,7 @@ import Foundation
 import WatchKit
 
 @Observable
+@MainActor
 final class WatchVoiceNotesService: NSObject {
     static let shared = WatchVoiceNotesService()
 
@@ -22,7 +23,6 @@ final class WatchVoiceNotesService: NSObject {
     // MARK: - Recording Control
 
     /// Start dictation using watchOS text input controller
-    @MainActor
     func startDictation() {
         guard !isRecording else { return }
         isRecording = true
@@ -61,7 +61,6 @@ final class WatchVoiceNotesService: NSObject {
         WKInterfaceDevice.current().play(.start)
     }
 
-    @MainActor
     func stopRecording() {
         // Dictation stops automatically when user taps Done
         isRecording = false
