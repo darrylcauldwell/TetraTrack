@@ -2,7 +2,9 @@
 //  RidingDrillSession.swift
 //  TetraTrack
 //
-//  Model for storing completed off-horse riding training drills
+//  SCHEMA-ONLY — retained for CloudKit backward compatibility.
+//  All new drills use UnifiedDrillSession. Do not add new code here.
+//  Removing this model from the schema causes a store migration crash.
 //
 
 import Foundation

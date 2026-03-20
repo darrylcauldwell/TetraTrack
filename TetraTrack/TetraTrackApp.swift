@@ -69,8 +69,8 @@ struct TetraTrackApp: App {
             TrainingStreak.self,
             ScheduledWorkout.self,
             TrainingWeekFocus.self,
-            RidingDrillSession.self,
-            ShootingDrillSession.self,
+            RidingDrillSession.self,   // SCHEMA-ONLY: CloudKit backward compat
+            ShootingDrillSession.self, // SCHEMA-ONLY: CloudKit backward compat
             UnifiedDrillSession.self,
             RunningSession.self,
             SwimmingSession.self,
