@@ -34,9 +34,9 @@ enum RunningCoachingLevel: String, CaseIterable, Identifiable {
         case .silent:
             return "No voice coaching. Run in peace."
         case .essential:
-            return "Key milestones only: km splits, lap completions, session start/end."
+            return "Pace, laps, virtual pacer, and form reminders."
         case .full:
-            return "Everything: PB coaching, virtual pacer, cadence, form reminders, biomechanics."
+            return "Everything: pace, laps, pacer, cadence, PB coaching, biomechanics, form."
         }
     }
 
@@ -69,9 +69,114 @@ enum RidingCoachingLevel: String, CaseIterable, Identifiable {
         case .silent:
             return "No voice coaching. Ride in peace."
         case .essential:
-            return "Key events only: gait changes, distance milestones, session start/end."
+            return "Key events only: distance milestones, cross-country timing, session start/end."
         case .full:
             return "Everything: gait, distance, time, heart rate zones, biomechanics feedback."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .silent: return "speaker.slash"
+        case .essential: return "speaker.wave.1"
+        case .full: return "speaker.wave.3"
+        }
+    }
+}
+
+// MARK: - Walking Coaching Level
+
+/// Quick coaching verbosity presets for walking sessions
+enum WalkingCoachingLevel: String, CaseIterable, Identifiable {
+    case silent, essential, full
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .silent: return "Silent"
+        case .essential: return "Essential"
+        case .full: return "Full"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .silent:
+            return "No voice coaching. Walk in peace."
+        case .essential:
+            return "Distance milestones only."
+        case .full:
+            return "Everything: distance milestones, cadence coaching, symmetry alerts."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .silent: return "speaker.slash"
+        case .essential: return "speaker.wave.1"
+        case .full: return "speaker.wave.3"
+        }
+    }
+}
+
+// MARK: - Swimming Coaching Level
+
+/// Quick coaching verbosity presets for swimming sessions
+enum SwimmingCoachingLevel: String, CaseIterable, Identifiable {
+    case silent, essential, full
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .silent: return "Silent"
+        case .essential: return "Essential"
+        case .full: return "Full"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .silent:
+            return "No announcements."
+        case .essential:
+            return "Session start and completion only."
+        case .full:
+            return "Everything: session summary, rest intervals, pace."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .silent: return "speaker.slash"
+        case .essential: return "speaker.wave.1"
+        case .full: return "speaker.wave.3"
+        }
+    }
+}
+
+// MARK: - Shooting Coaching Level
+
+/// Quick coaching verbosity presets for shooting sessions
+enum ShootingCoachingLevel: String, CaseIterable, Identifiable {
+    case silent, essential, full
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .silent: return "Silent"
+        case .essential: return "Essential"
+        case .full: return "Full"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .silent:
+            return "No voice coaching."
+        case .essential:
+            return "Breathing and stance cues only."
+        case .full:
+            return "Everything: breathing, stance, drill feedback."
         }
     }
 
@@ -172,6 +277,11 @@ final class AudioCoachManager: AudioCoaching {
     var announceSwimmingRest: Bool = true
     var announceSwimmingPace: Bool = true
 
+    // MARK: - Walking Announcements
+    var announceWalkingMilestones: Bool = true
+    var announceWalkingCadence: Bool = true
+    var announceWalkingSymmetry: Bool = true
+
     // MARK: - Shooting Announcements
     var announceShootingDrills: Bool = true
     var announceShootingStance: Bool = true
@@ -188,6 +298,9 @@ final class AudioCoachManager: AudioCoaching {
     // Coaching level presets
     var runningCoachingLevel: RunningCoachingLevel = .full
     var ridingCoachingLevel: RidingCoachingLevel = .full
+    var walkingCoachingLevel: WalkingCoachingLevel = .full
+    var swimmingCoachingLevel: SwimmingCoachingLevel = .full
+    var shootingCoachingLevel: ShootingCoachingLevel = .full
 
     // Running form reminder interval (in seconds)
     var formReminderIntervalSeconds: TimeInterval = 300 // Every 5 minutes by default
@@ -359,16 +472,16 @@ final class AudioCoachManager: AudioCoaching {
         case .essential:
             announceRunningPace = true
             announceRunningLaps = true
-            announceSessionStartEnd = true
-            announceVirtualPacer = false
+            announceSessionStartEnd = false
+            announceVirtualPacer = true
             announceCadenceFeedback = false
             announcePBRaceCoaching = false
             announceRunningBiomechanics = false
-            announceRunningFormReminders = false
+            announceRunningFormReminders = true
         case .full:
             announceRunningPace = true
             announceRunningLaps = true
-            announceSessionStartEnd = true
+            announceSessionStartEnd = false
             announceVirtualPacer = true
             announceCadenceFeedback = true
             announcePBRaceCoaching = true
@@ -390,7 +503,7 @@ final class AudioCoachManager: AudioCoaching {
             announceRidingBiomechanics = false
             announceCrossCountry = false
         case .essential:
-            announceGaitChanges = true
+            announceGaitChanges = false
             announceDistanceMilestones = true
             announceTimeMilestones = false
             announceHeartRateZones = false
@@ -405,6 +518,60 @@ final class AudioCoachManager: AudioCoaching {
             announceWorkoutIntervals = true
             announceRidingBiomechanics = true
             announceCrossCountry = true
+        }
+        saveSettings()
+    }
+
+    func applyWalkingCoachingLevel(_ level: WalkingCoachingLevel) {
+        walkingCoachingLevel = level
+        switch level {
+        case .silent:
+            announceWalkingMilestones = false
+            announceWalkingCadence = false
+            announceWalkingSymmetry = false
+        case .essential:
+            announceWalkingMilestones = true
+            announceWalkingCadence = false
+            announceWalkingSymmetry = false
+        case .full:
+            announceWalkingMilestones = true
+            announceWalkingCadence = true
+            announceWalkingSymmetry = true
+        }
+        saveSettings()
+    }
+
+    func applySwimmingCoachingLevel(_ level: SwimmingCoachingLevel) {
+        swimmingCoachingLevel = level
+        switch level {
+        case .silent:
+            announceSwimmingLaps = false
+            announceSwimmingRest = false
+            announceSwimmingPace = false
+        case .essential:
+            announceSwimmingLaps = true
+            announceSwimmingRest = false
+            announceSwimmingPace = false
+        case .full:
+            announceSwimmingLaps = true
+            announceSwimmingRest = true
+            announceSwimmingPace = true
+        }
+        saveSettings()
+    }
+
+    func applyShootingCoachingLevel(_ level: ShootingCoachingLevel) {
+        shootingCoachingLevel = level
+        switch level {
+        case .silent:
+            announceShootingStance = false
+            announceShootingDrills = false
+        case .essential:
+            announceShootingStance = true
+            announceShootingDrills = false
+        case .full:
+            announceShootingStance = true
+            announceShootingDrills = true
         }
         saveSettings()
     }
@@ -763,12 +930,20 @@ extension AudioCoachManager {
         // Cross-Country
         static let announceCrossCountry = "audioCoach.announceCrossCountry"
 
+        // Walking
+        static let walkingCoachingLevel = "audioCoach.walkingCoachingLevel"
+        static let announceWalkingMilestones = "audioCoach.announceWalkingMilestones"
+        static let announceWalkingCadence = "audioCoach.announceWalkingCadence"
+        static let announceWalkingSymmetry = "audioCoach.announceWalkingSymmetry"
+
         // Swimming
+        static let swimmingCoachingLevel = "audioCoach.swimmingCoachingLevel"
         static let announceSwimmingLaps = "audioCoach.announceSwimmingLaps"
         static let announceSwimmingRest = "audioCoach.announceSwimmingRest"
         static let announceSwimmingPace = "audioCoach.announceSwimmingPace"
 
         // Shooting
+        static let shootingCoachingLevel = "audioCoach.shootingCoachingLevel"
         static let announceShootingDrills = "audioCoach.announceShootingDrills"
         static let announceShootingStance = "audioCoach.announceShootingStance"
 
@@ -863,7 +1038,26 @@ extension AudioCoachManager {
             announceCrossCountry = defaults.bool(forKey: Keys.announceCrossCountry)
         }
 
+        // Walking
+        if let levelRaw = defaults.string(forKey: Keys.walkingCoachingLevel),
+           let level = WalkingCoachingLevel(rawValue: levelRaw) {
+            walkingCoachingLevel = level
+        }
+        if defaults.object(forKey: Keys.announceWalkingMilestones) != nil {
+            announceWalkingMilestones = defaults.bool(forKey: Keys.announceWalkingMilestones)
+        }
+        if defaults.object(forKey: Keys.announceWalkingCadence) != nil {
+            announceWalkingCadence = defaults.bool(forKey: Keys.announceWalkingCadence)
+        }
+        if defaults.object(forKey: Keys.announceWalkingSymmetry) != nil {
+            announceWalkingSymmetry = defaults.bool(forKey: Keys.announceWalkingSymmetry)
+        }
+
         // Swimming
+        if let levelRaw = defaults.string(forKey: Keys.swimmingCoachingLevel),
+           let level = SwimmingCoachingLevel(rawValue: levelRaw) {
+            swimmingCoachingLevel = level
+        }
         if defaults.object(forKey: Keys.announceSwimmingLaps) != nil {
             announceSwimmingLaps = defaults.bool(forKey: Keys.announceSwimmingLaps)
         }
@@ -875,6 +1069,10 @@ extension AudioCoachManager {
         }
 
         // Shooting
+        if let levelRaw = defaults.string(forKey: Keys.shootingCoachingLevel),
+           let level = ShootingCoachingLevel(rawValue: levelRaw) {
+            shootingCoachingLevel = level
+        }
         if defaults.object(forKey: Keys.announceShootingDrills) != nil {
             announceShootingDrills = defaults.bool(forKey: Keys.announceShootingDrills)
         }
@@ -944,12 +1142,20 @@ extension AudioCoachManager {
         // Cross-Country
         defaults.set(announceCrossCountry, forKey: Keys.announceCrossCountry)
 
+        // Walking
+        defaults.set(walkingCoachingLevel.rawValue, forKey: Keys.walkingCoachingLevel)
+        defaults.set(announceWalkingMilestones, forKey: Keys.announceWalkingMilestones)
+        defaults.set(announceWalkingCadence, forKey: Keys.announceWalkingCadence)
+        defaults.set(announceWalkingSymmetry, forKey: Keys.announceWalkingSymmetry)
+
         // Swimming
+        defaults.set(swimmingCoachingLevel.rawValue, forKey: Keys.swimmingCoachingLevel)
         defaults.set(announceSwimmingLaps, forKey: Keys.announceSwimmingLaps)
         defaults.set(announceSwimmingRest, forKey: Keys.announceSwimmingRest)
         defaults.set(announceSwimmingPace, forKey: Keys.announceSwimmingPace)
 
         // Shooting
+        defaults.set(shootingCoachingLevel.rawValue, forKey: Keys.shootingCoachingLevel)
         defaults.set(announceShootingDrills, forKey: Keys.announceShootingDrills)
         defaults.set(announceShootingStance, forKey: Keys.announceShootingStance)
 
@@ -2105,7 +2311,7 @@ extension AudioCoachManager {
 
     /// Announce walking km milestone
     func announceWalkingMilestone(km: Int, splitTime: TimeInterval, totalDistance: Double, cadence: Int) {
-        guard isEnabled else { return }
+        guard isEnabled, announceWalkingMilestones else { return }
         let splitStr = formatTimeForSpeech(splitTime)
         var message = "\(km) kilometre. Split time \(splitStr)."
         if cadence > 0 {
@@ -2116,7 +2322,7 @@ extension AudioCoachManager {
 
     /// Announce walking cadence feedback relative to target
     func announceWalkingCadenceFeedback(currentCadence: Int, targetCadence: Int) {
-        guard isEnabled else { return }
+        guard isEnabled, announceWalkingCadence else { return }
         let deviation = currentCadence - targetCadence
         if abs(deviation) <= 5 {
             announce("Great rhythm. Right on target at \(currentCadence) steps per minute.")
@@ -2129,7 +2335,7 @@ extension AudioCoachManager {
 
     /// Announce walking symmetry alert (when asymmetry detected)
     func announceWalkingSymmetryAlert(asymmetry: Double) {
-        guard isEnabled else { return }
+        guard isEnabled, announceWalkingSymmetry else { return }
         if asymmetry > 10 {
             announce("Gait asymmetry detected. Focus on even left and right strides.")
         }

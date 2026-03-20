@@ -37,6 +37,9 @@ struct AudioCoachingView: View {
                 // Running
                 runningSection
 
+                // Walking
+                walkingSection
+
                 // Swimming
                 swimmingSection
 
@@ -184,6 +187,20 @@ struct AudioCoachingView: View {
 
     private var ridingSection: some View {
         Section {
+            Picker("Coaching Level", selection: Binding(
+                get: { audioCoach.ridingCoachingLevel },
+                set: { audioCoach.applyRidingCoachingLevel($0) }
+            )) {
+                ForEach(RidingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.ridingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             AnnouncementToggle(
                 title: "Gait Changes",
                 description: "Announce transitions between walk, trot, canter, and gallop",
@@ -224,6 +241,20 @@ struct AudioCoachingView: View {
 
     private var runningSection: some View {
         Section {
+            Picker("Coaching Level", selection: Binding(
+                get: { audioCoach.runningCoachingLevel },
+                set: { audioCoach.applyRunningCoachingLevel($0) }
+            )) {
+                ForEach(RunningCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.runningCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             AnnouncementToggle(
                 title: "Pace Updates",
                 description: "Announce current and average pace per kilometre",
@@ -284,10 +315,66 @@ struct AudioCoachingView: View {
         }
     }
 
+    // MARK: - Walking Section
+
+    private var walkingSection: some View {
+        Section {
+            Picker("Coaching Level", selection: Binding(
+                get: { audioCoach.walkingCoachingLevel },
+                set: { audioCoach.applyWalkingCoachingLevel($0) }
+            )) {
+                ForEach(WalkingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.walkingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            AnnouncementToggle(
+                title: "Distance Milestones",
+                description: "Announce distance covered at regular intervals",
+                isOn: $audioCoach.announceWalkingMilestones
+            )
+
+            AnnouncementToggle(
+                title: "Cadence Coaching",
+                description: "Feedback when cadence drifts from target",
+                isOn: $audioCoach.announceWalkingCadence
+            )
+
+            AnnouncementToggle(
+                title: "Symmetry Alerts",
+                description: "Alert when gait asymmetry is detected",
+                isOn: $audioCoach.announceWalkingSymmetry
+            )
+        } header: {
+            Label("Walking", systemImage: "figure.walk")
+        } footer: {
+            Text("Example: \"1 kilometre\" • \"Cadence 118, try to pick up the pace\" • \"Gait asymmetry detected\"")
+        }
+    }
+
     // MARK: - Swimming Section
 
     private var swimmingSection: some View {
         Section {
+            Picker("Coaching Level", selection: Binding(
+                get: { audioCoach.swimmingCoachingLevel },
+                set: { audioCoach.applySwimmingCoachingLevel($0) }
+            )) {
+                ForEach(SwimmingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.swimmingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             AnnouncementToggle(
                 title: "Session Announcements",
                 description: "Announce session start and completion summary",
@@ -316,6 +403,20 @@ struct AudioCoachingView: View {
 
     private var shootingSection: some View {
         Section {
+            Picker("Coaching Level", selection: Binding(
+                get: { audioCoach.shootingCoachingLevel },
+                set: { audioCoach.applyShootingCoachingLevel($0) }
+            )) {
+                ForEach(ShootingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.shootingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             AnnouncementToggle(
                 title: "Drill Feedback",
                 description: "Audio cues for shooting drills and competitions",

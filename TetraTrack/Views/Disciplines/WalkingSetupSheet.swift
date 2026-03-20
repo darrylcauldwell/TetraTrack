@@ -91,7 +91,7 @@ struct WalkingSetupSheet: View {
                         targetCadenceCard
 
                         // Coaching level picker
-                        CoachingLevelCard(showingSettings: $showingAudioCoachingSettings)
+                        WalkingCoachingLevelCard(showingSettings: $showingAudioCoachingSettings)
                     }
                     .padding(.bottom, 40)
                 }

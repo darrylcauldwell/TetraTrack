@@ -154,7 +154,7 @@ struct AudioCoachManagerTests {
 
         manager.applyRidingCoachingLevel(.essential)
 
-        #expect(manager.announceGaitChanges == true)
+        #expect(manager.announceGaitChanges == false)
         #expect(manager.announceDistanceMilestones == true)
         #expect(manager.announceTimeMilestones == false)
         #expect(manager.announceHeartRateZones == false)
