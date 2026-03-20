@@ -108,13 +108,6 @@ final class WatchMotionManager: NSObject {
     private let motionManager = CMMotionManager()
     private let altimeter = CMAltimeter()
     private let locationManager = CLLocationManager()
-    private let motionQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.name = "dev.dreamfold.TetraTrack.watchMotion"
-        queue.maxConcurrentOperationCount = 1
-        queue.qualityOfService = .userInteractive
-        return queue
-    }()
     private var sampleBuffer: [WatchMotionSample] = []
     private var lastStrokeTime: Date?
     private var strokeTimes: [TimeInterval] = []
@@ -188,36 +181,15 @@ final class WatchMotionManager: NSObject {
 
         motionManager.deviceMotionUpdateInterval = interval
 
-        motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, error in
-            guard let self, let motion else {
-                if let error {
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+            guard let self = self, let motion = motion else {
+                if let error = error {
                     Log.location.error("Motion update error: \(error.localizedDescription)")
                 }
                 return
             }
 
-            // Build value-type sample on background queue, process on main
-            let q = motion.attitude.quaternion
-            let sample = WatchMotionSample(
-                timestamp: motion.timestamp,
-                accelerationX: motion.userAcceleration.x,
-                accelerationY: motion.userAcceleration.y,
-                accelerationZ: motion.userAcceleration.z,
-                rotationX: motion.rotationRate.x,
-                rotationY: motion.rotationRate.y,
-                rotationZ: motion.rotationRate.z,
-                pitch: motion.attitude.pitch,
-                roll: motion.attitude.roll,
-                yaw: motion.attitude.yaw,
-                quaternionW: q.w,
-                quaternionX: q.x,
-                quaternionY: q.y,
-                quaternionZ: q.z
-            )
-
-            Task { @MainActor in
-                self.processMotion(sample)
-            }
+            self.processMotion(motion)
         }
 
         // Start barometric altimeter
@@ -285,7 +257,25 @@ final class WatchMotionManager: NSObject {
         movementIntensity = 0.0
     }
 
-    private func processMotion(_ sample: WatchMotionSample) {
+    private func processMotion(_ motion: CMDeviceMotion) {
+        let q = motion.attitude.quaternion
+        let sample = WatchMotionSample(
+            timestamp: motion.timestamp,
+            accelerationX: motion.userAcceleration.x,
+            accelerationY: motion.userAcceleration.y,
+            accelerationZ: motion.userAcceleration.z,
+            rotationX: motion.rotationRate.x,
+            rotationY: motion.rotationRate.y,
+            rotationZ: motion.rotationRate.z,
+            pitch: motion.attitude.pitch,
+            roll: motion.attitude.roll,
+            yaw: motion.attitude.yaw,
+            quaternionW: q.w,
+            quaternionX: q.x,
+            quaternionY: q.y,
+            quaternionZ: q.z
+        )
+
         sampleBuffer.append(sample)
 
         // Keep buffer size manageable (last 5 seconds at 50Hz = 250 samples)
@@ -533,9 +523,9 @@ final class WatchMotionManager: NSObject {
             return
         }
 
-        altimeter.startRelativeAltitudeUpdates(to: motionQueue) { [weak self] data, error in
-            guard let self, let data else {
-                if let error {
+        altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
+            guard let self = self, let data = data else {
+                if let error = error {
                     Log.location.error("Altimeter error: \(error.localizedDescription)")
                 }
                 return
@@ -544,29 +534,27 @@ final class WatchMotionManager: NSObject {
             let altitude = data.relativeAltitude.doubleValue
             let pressure = data.pressure.doubleValue  // kPa
 
-            Task { @MainActor in
-                // Set start altitude on first reading
-                if self.startAltitude == nil {
-                    self.startAltitude = altitude
-                }
-
-                // Calculate relative altitude from session start
-                self.relativeAltitude = altitude - (self.startAltitude ?? 0)
-                self.barometricPressure = pressure
-
-                // Calculate climb rate (meters per second)
-                let now = Date()
-                if let lastTime = self.lastAltitudeTime {
-                    let timeDelta = now.timeIntervalSince(lastTime)
-                    if timeDelta > 0 {
-                        let altitudeDelta = altitude - self.lastAltitude
-                        self.altitudeChangeRate = altitudeDelta / timeDelta
-                    }
-                }
-
-                self.lastAltitude = altitude
-                self.lastAltitudeTime = now
+            // Set start altitude on first reading
+            if self.startAltitude == nil {
+                self.startAltitude = altitude
             }
+
+            // Calculate relative altitude from session start
+            self.relativeAltitude = altitude - (self.startAltitude ?? 0)
+            self.barometricPressure = pressure
+
+            // Calculate climb rate (meters per second)
+            let now = Date()
+            if let lastTime = self.lastAltitudeTime {
+                let timeDelta = now.timeIntervalSince(lastTime)
+                if timeDelta > 0 {
+                    let altitudeDelta = altitude - self.lastAltitude
+                    self.altitudeChangeRate = altitudeDelta / timeDelta
+                }
+            }
+
+            self.lastAltitude = altitude
+            self.lastAltitudeTime = now
         }
 
         Log.location.info("Altimeter started")
