@@ -64,8 +64,36 @@ enum WatchMotionMode: String, Codable {
     case idle
 }
 
+/// Computed results from background motion processing, applied to @Observable properties on main.
+private struct MotionResults {
+    // Shooting
+    var stanceStability: Double?
+    var movementMagnitude: Double?
+    // Swimming
+    var strokeCount: Int?
+    var strokeRate: Double?
+    var didDetectStroke: Bool = false
+    // Running / Walking
+    var verticalOscillation: Double?
+    var groundContactTime: Double?
+    var cadence: Int?
+    var didDetectStep: Bool = false
+    // Riding
+    var postureStability: Double?
+    var rhythmScore: Double?
+    // Enhanced
+    var posturePitch: Double?
+    var postureRoll: Double?
+    var tremorLevel: Double?
+    var movementIntensity: Double?
+    var breathingRate: Double?
+}
+
 /// Captures and processes Watch IMU data for all training disciplines.
 /// Acts as a sensor companion - computed metrics are sent to iPhone.
+///
+/// Motion updates are delivered to a serial background queue for processing.
+/// Computed results are dispatched to main for @Observable property assignment.
 @Observable
 final class WatchMotionManager: NSObject {
     // MARK: - State
@@ -108,12 +136,26 @@ final class WatchMotionManager: NSObject {
     private let motionManager = CMMotionManager()
     private let altimeter = CMAltimeter()
     private let locationManager = CLLocationManager()
+
+    /// Serial queue for 50Hz motion processing — keeps DSP off the main thread.
+    private let motionQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "dev.dreamfold.TetraTrack.motionProcessing"
+        q.maxConcurrentOperationCount = 1
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+
+    // All mutable buffers below are only accessed on motionQueue.
     private var sampleBuffer: [WatchMotionSample] = []
     private var lastStrokeTime: Date?
     private var strokeTimes: [TimeInterval] = []
     private var runningPeaks: [TimeInterval] = []
     private var lastPeakTime: TimeInterval = 0
     private var peakDetectionThreshold: Double = 1.2  // G-force threshold
+
+    // Cumulative stroke counter on motionQueue; synced to public strokeCount on main.
+    private var _internalStrokeCount: Int = 0
 
     // Altitude tracking
     private var startAltitude: Double?
@@ -181,7 +223,8 @@ final class WatchMotionManager: NSObject {
 
         motionManager.deviceMotionUpdateInterval = interval
 
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+        // Deliver to background motionQueue — all processing happens off main.
+        motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, error in
             guard let self = self, let motion = motion else {
                 if let error = error {
                     Log.location.error("Motion update error: \(error.localizedDescription)")
@@ -192,7 +235,7 @@ final class WatchMotionManager: NSObject {
             self.processMotion(motion)
         }
 
-        // Start barometric altimeter
+        // Start barometric altimeter (low-frequency ~1Hz, stays on main)
         startAltimeter()
 
         // Start compass heading
@@ -222,18 +265,25 @@ final class WatchMotionManager: NSObject {
     // MARK: - Private Methods
 
     private func resetMetrics() {
+        // Reset buffers (safe — called before motionQueue starts delivering)
         sampleBuffer = []
+        strokeTimes = []
+        runningPeaks = []
+        lastPeakTime = 0
+        lastStrokeTime = nil
+        _internalStrokeCount = 0
+        breathingSamples = []
+        lastBreathingCalc = nil
+        tremorBuffer = []
+
+        // Reset @Observable properties (on main before tracking starts)
         stanceStability = 100.0
         movementMagnitude = 0.0
         strokeCount = 0
         strokeRate = 0.0
-        strokeTimes = []
         verticalOscillation = 0.0
         groundContactTime = 0.0
         cadence = 0
-        runningPeaks = []
-        lastPeakTime = 0
-        lastStrokeTime = nil
         postureStability = 100.0
         rhythmScore = 100.0
 
@@ -248,15 +298,13 @@ final class WatchMotionManager: NSObject {
         waterDepth = 0.0
         compassHeading = 0.0
         breathingRate = 0.0
-        breathingSamples = []
-        lastBreathingCalc = nil
         posturePitch = 0.0
         postureRoll = 0.0
         tremorLevel = 0.0
-        tremorBuffer = []
         movementIntensity = 0.0
     }
 
+    /// Called on motionQueue. Computes all metrics on background, then dispatches results to main.
     private func processMotion(_ motion: CMDeviceMotion) {
         let q = motion.attitude.quaternion
         let sample = WatchMotionSample(
@@ -283,166 +331,157 @@ final class WatchMotionManager: NSObject {
             sampleBuffer.removeFirst(sampleBuffer.count - 250)
         }
 
-        // Process based on mode
+        // Compute discipline-specific metrics (returns values, no property mutation)
+        var results = MotionResults()
+
         switch currentMode {
         case .shooting:
-            processShootingMotion(sample)
+            let r = computeShootingMotion(sample)
+            results.stanceStability = r.stability
+            results.movementMagnitude = r.magnitude
         case .swimming:
-            processSwimmingMotion(sample)
+            let r = computeSwimmingMotion(sample)
+            results.strokeCount = r.strokeCount
+            results.strokeRate = r.strokeRate
+            results.didDetectStroke = r.didDetectStroke
         case .running:
-            processRunningMotion(sample)
+            let r = computeRunningMotion(sample)
+            results.verticalOscillation = r.oscillation
+            results.groundContactTime = r.groundContact
+            results.cadence = r.cadence
+            results.didDetectStep = r.didStep
         case .walking:
-            processWalkingMotion(sample)
+            let r = computeWalkingMotion(sample)
+            results.verticalOscillation = r.oscillation
+            results.groundContactTime = r.groundContact
+            results.cadence = r.cadence
+            results.didDetectStep = r.didStep
         case .riding:
-            processRidingMotion(sample)
+            let r = computeRidingMotion(sample)
+            results.postureStability = r.postureStability
+            results.rhythmScore = r.rhythmScore
         case .idle:
             break
         }
 
-        // Always process enhanced metrics for all modes
-        processEnhancedMetrics(sample)
+        // Always compute enhanced metrics for all modes
+        let enhanced = computeEnhancedMetrics(sample)
+        results.posturePitch = enhanced.pitch
+        results.postureRoll = enhanced.roll
+        results.tremorLevel = enhanced.tremor
+        results.movementIntensity = enhanced.intensity
+        results.breathingRate = enhanced.breathing
 
-        onMotionUpdate?(sample)
+        // Single dispatch to main: assign all properties + fire callbacks
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+
+            // Shooting
+            if let v = results.stanceStability { self.stanceStability = v }
+            if let v = results.movementMagnitude { self.movementMagnitude = v }
+
+            // Swimming
+            if let v = results.strokeCount { self.strokeCount = v }
+            if let v = results.strokeRate { self.strokeRate = v }
+
+            // Running / Walking
+            if let v = results.verticalOscillation { self.verticalOscillation = v }
+            if let v = results.groundContactTime { self.groundContactTime = v }
+            if let v = results.cadence { self.cadence = v }
+
+            // Riding
+            if let v = results.postureStability { self.postureStability = v }
+            if let v = results.rhythmScore { self.rhythmScore = v }
+
+            // Enhanced
+            if let v = results.posturePitch { self.posturePitch = v }
+            if let v = results.postureRoll { self.postureRoll = v }
+            if let v = results.tremorLevel { self.tremorLevel = v }
+            if let v = results.movementIntensity { self.movementIntensity = v }
+            if let v = results.breathingRate { self.breathingRate = v }
+
+            // Callbacks
+            self.onMotionUpdate?(sample)
+
+            if results.didDetectStroke {
+                self.onStrokeDetected?()
+                HapticManager.shared.playClickHaptic()
+            }
+
+            if results.didDetectStep {
+                self.onStepDetected?()
+            }
+        }
     }
 
-    // MARK: - Shooting Analysis
+    // MARK: - Shooting Analysis (motionQueue)
 
-    private func processShootingMotion(_ sample: WatchMotionSample) {
-        // Calculate stance stability from recent samples
-        // Lower movement = higher stability
+    private func computeShootingMotion(_ sample: WatchMotionSample) -> (stability: Double, magnitude: Double) {
         let recentSamples = Array(sampleBuffer.suffix(25))  // Last 0.5 seconds
-        guard recentSamples.count >= 10 else { return }
+        guard recentSamples.count >= 10 else { return (stanceStability, movementMagnitude) }
 
-        // Calculate average movement magnitude
         let avgMagnitude = recentSamples.map { $0.accelerationMagnitude }.reduce(0, +) / Double(recentSamples.count)
-        movementMagnitude = avgMagnitude
-
-        // Calculate rotation variance
         let rotationVar = calculateVariance(recentSamples.map { $0.rotationMagnitude })
 
-        // Stability score: lower movement and rotation = higher stability
-        // Scale so typical steady hold is 70-90%, perfect stillness is 100%
-        let movementPenalty = min(avgMagnitude * 100, 50)  // Max 50% penalty
-        let rotationPenalty = min(rotationVar * 20, 30)     // Max 30% penalty
+        let movementPenalty = min(avgMagnitude * 100, 50)
+        let rotationPenalty = min(rotationVar * 20, 30)
+        let stability = max(0, min(100, 100 - movementPenalty - rotationPenalty))
 
-        stanceStability = max(0, min(100, 100 - movementPenalty - rotationPenalty))
+        return (stability, avgMagnitude)
     }
 
-    // MARK: - Swimming Analysis
+    // MARK: - Swimming Analysis (motionQueue)
 
-    private func processSwimmingMotion(_ sample: WatchMotionSample) {
-        // Detect strokes using lateral acceleration peaks
-        // Swimming strokes create distinctive acceleration patterns
+    private func computeSwimmingMotion(_ sample: WatchMotionSample) -> (strokeCount: Int, strokeRate: Double, didDetectStroke: Bool) {
+        let lateralAccel = abs(sample.accelerationX)
+        let threshold: Double = 0.8
 
-        let lateralAccel = abs(sample.accelerationX)  // Lateral (arm swing) acceleration
-        let threshold: Double = 0.8  // G threshold for stroke detection
-
-        // Simple peak detection with debouncing
         let now = Date()
-        let minStrokeInterval: TimeInterval = 0.5  // Minimum 0.5s between strokes (max 120 strokes/min)
+        let minStrokeInterval: TimeInterval = 0.5
+
+        var didDetect = false
+        var currentRate = strokeRate  // Read last-known rate for return
 
         if lateralAccel > threshold {
             if let lastStroke = lastStrokeTime {
                 let interval = now.timeIntervalSince(lastStroke)
                 if interval >= minStrokeInterval {
-                    strokeCount += 1
+                    _internalStrokeCount += 1
                     strokeTimes.append(interval)
                     lastStrokeTime = now
 
-                    // Keep last 10 stroke times for rate calculation
                     if strokeTimes.count > 10 {
                         strokeTimes.removeFirst()
                     }
 
-                    // Calculate stroke rate
                     if strokeTimes.count >= 2 {
                         let avgInterval = strokeTimes.reduce(0, +) / Double(strokeTimes.count)
-                        strokeRate = 60.0 / avgInterval  // Strokes per minute
+                        currentRate = 60.0 / avgInterval
                     }
 
-                    onStrokeDetected?()
-                    HapticManager.shared.playClickHaptic()
+                    didDetect = true
                 }
             } else {
-                // First stroke
-                strokeCount = 1
+                _internalStrokeCount = 1
                 lastStrokeTime = now
-                onStrokeDetected?()
+                didDetect = true
             }
         }
+
+        return (_internalStrokeCount, currentRate, didDetect)
     }
 
-    // MARK: - Running Analysis
+    // MARK: - Running Analysis (motionQueue)
 
-    private func processRunningMotion(_ sample: WatchMotionSample) {
-        // Analyze vertical oscillation and ground contact time
-        // Running creates vertical acceleration peaks at foot strike and toe-off
-
-        let verticalAccel = sample.accelerationY  // Vertical acceleration (Y on wrist)
-        let timestamp = sample.timestamp
-
-        // Detect foot strike peaks (positive vertical acceleration spike)
-        let impactThreshold: Double = 1.5  // G threshold for foot strike
-        let minStepInterval: TimeInterval = 0.25  // Max cadence ~240 spm
-
-        if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
-            runningPeaks.append(timestamp)
-            lastPeakTime = timestamp
-
-            // Keep last 20 peaks
-            if runningPeaks.count > 20 {
-                runningPeaks.removeFirst()
-            }
-
-            // Calculate cadence from peak intervals
-            if runningPeaks.count >= 4 {
-                var intervals: [TimeInterval] = []
-                for i in 1..<runningPeaks.count {
-                    intervals.append(runningPeaks[i] - runningPeaks[i-1])
-                }
-                let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-                cadence = Int(60.0 / avgInterval)  // Steps per minute
-            }
-
-            onStepDetected?()
-        }
-
-        // Calculate vertical oscillation from recent samples
-        let recentSamples = Array(sampleBuffer.suffix(50))  // Last 1 second
-        guard recentSamples.count >= 20 else { return }
-
-        let verticalAccels = recentSamples.map { $0.accelerationY }
-        let maxVert = verticalAccels.max() ?? 0
-        let minVert = verticalAccels.min() ?? 0
-
-        // Convert acceleration range to estimated oscillation in cm
-        // This is an approximation based on typical running biomechanics
-        let oscillationRange = maxVert - minVert
-        verticalOscillation = oscillationRange * 4.0  // Scale factor to cm
-
-        // Estimate ground contact time from acceleration pattern
-        // Ground contact shows sustained positive vertical acceleration
-        let contactSamples = recentSamples.filter { $0.accelerationY > 0.5 }
-        let contactRatio = Double(contactSamples.count) / Double(recentSamples.count)
-
-        // Typical ground contact is 200-300ms, scale from ratio
-        // At 50Hz, 250ms contact = 12.5 samples out of 50 = 25%
-        groundContactTime = contactRatio * 1000 * 0.5  // Convert to ms estimate
-    }
-
-    // MARK: - Walking Analysis
-
-    private func processWalkingMotion(_ sample: WatchMotionSample) {
-        // Walking user-acceleration peaks (gravity removed) are 0.1–0.3G.
-        // Total acceleration would be 0.5–1.0G, but CMDeviceMotion.userAcceleration
-        // subtracts gravity, so the threshold must be much lower.
-
+    private func computeRunningMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
         let verticalAccel = sample.accelerationY
         let timestamp = sample.timestamp
 
-        // Threshold for userAcceleration (gravity removed) walking foot strikes
-        let impactThreshold: Double = 0.15
-        let minStepInterval: TimeInterval = 0.3  // Max cadence ~200 spm for brisk walking
+        let impactThreshold: Double = 1.5
+        let minStepInterval: TimeInterval = 0.25
+
+        var didStep = false
+        var computedCadence: Int?
 
         if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
             runningPeaks.append(timestamp)
@@ -458,61 +497,102 @@ final class WatchMotionManager: NSObject {
                     intervals.append(runningPeaks[i] - runningPeaks[i-1])
                 }
                 let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-                let newCadence = min(Int(60.0 / avgInterval), 180)  // Clamp to 180 spm max
-                if newCadence != cadence {
-                    let accel = verticalAccel
-                    Log.tracking.error("TT: walkCadence=\(newCadence, privacy: .public) peaks=\(self.runningPeaks.count, privacy: .public) avgInterval=\(avgInterval, privacy: .public) accelY=\(accel, privacy: .public)")
-                }
-                cadence = newCadence
+                computedCadence = Int(60.0 / avgInterval)
             }
 
-            onStepDetected?()
+            didStep = true
         }
 
-        // Vertical oscillation (walking has lower bounce than running)
         let recentSamples = Array(sampleBuffer.suffix(50))
-        guard recentSamples.count >= 20 else { return }
+        guard recentSamples.count >= 20 else {
+            return (nil, nil, computedCadence, didStep)
+        }
 
         let verticalAccels = recentSamples.map { $0.accelerationY }
         let maxVert = verticalAccels.max() ?? 0
         let minVert = verticalAccels.min() ?? 0
         let oscillationRange = maxVert - minVert
-        verticalOscillation = oscillationRange * 2.5  // Lower scale than running (4.0)
+        let oscillation = oscillationRange * 4.0
 
-        // Ground contact time (walking has longer contact than running)
-        let contactSamples = recentSamples.filter { $0.accelerationY > 0.3 }
+        let contactSamples = recentSamples.filter { $0.accelerationY > 0.5 }
         let contactRatio = Double(contactSamples.count) / Double(recentSamples.count)
-        groundContactTime = contactRatio * 1000 * 0.6  // Longer contact for walking
+        let groundContact = contactRatio * 1000 * 0.5
+
+        return (oscillation, groundContact, computedCadence, didStep)
     }
 
-    // MARK: - Riding Analysis
+    // MARK: - Walking Analysis (motionQueue)
 
-    private func processRidingMotion(_ sample: WatchMotionSample) {
-        // Analyze rider posture and rhythm during riding
-        // Measures how well the rider maintains stable position and moves with the horse
+    private func computeWalkingMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
+        let verticalAccel = sample.accelerationY
+        let timestamp = sample.timestamp
 
-        let recentSamples = Array(sampleBuffer.suffix(50))  // Last 1 second
-        guard recentSamples.count >= 20 else { return }
+        let impactThreshold: Double = 0.15
+        let minStepInterval: TimeInterval = 0.3
 
-        // Posture stability: low roll/pitch variance = stable position
+        var didStep = false
+        var computedCadence: Int?
+
+        if verticalAccel > impactThreshold && (timestamp - lastPeakTime) > minStepInterval {
+            runningPeaks.append(timestamp)
+            lastPeakTime = timestamp
+
+            if runningPeaks.count > 20 {
+                runningPeaks.removeFirst()
+            }
+
+            if runningPeaks.count >= 4 {
+                var intervals: [TimeInterval] = []
+                for i in 1..<runningPeaks.count {
+                    intervals.append(runningPeaks[i] - runningPeaks[i-1])
+                }
+                let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
+                let newCadence = min(Int(60.0 / avgInterval), 180)
+                computedCadence = newCadence
+            }
+
+            didStep = true
+        }
+
+        let recentSamples = Array(sampleBuffer.suffix(50))
+        guard recentSamples.count >= 20 else {
+            return (nil, nil, computedCadence, didStep)
+        }
+
+        let verticalAccels = recentSamples.map { $0.accelerationY }
+        let maxVert = verticalAccels.max() ?? 0
+        let minVert = verticalAccels.min() ?? 0
+        let oscillationRange = maxVert - minVert
+        let oscillation = oscillationRange * 2.5
+
+        let contactSamples = recentSamples.filter { $0.accelerationY > 0.3 }
+        let contactRatio = Double(contactSamples.count) / Double(recentSamples.count)
+        let groundContact = contactRatio * 1000 * 0.6
+
+        return (oscillation, groundContact, computedCadence, didStep)
+    }
+
+    // MARK: - Riding Analysis (motionQueue)
+
+    private func computeRidingMotion(_ sample: WatchMotionSample) -> (postureStability: Double?, rhythmScore: Double?) {
+        let recentSamples = Array(sampleBuffer.suffix(50))
+        guard recentSamples.count >= 20 else { return (nil, nil) }
+
         let rollVariance = calculateVariance(recentSamples.map { $0.roll })
         let pitchVariance = calculateVariance(recentSamples.map { $0.pitch })
 
-        // Convert variance to stability score (lower variance = higher stability)
         let rollPenalty = min(rollVariance * 50, 40)
         let pitchPenalty = min(pitchVariance * 50, 40)
-        postureStability = max(0, min(100, 100 - rollPenalty - pitchPenalty))
+        let posture = max(0, min(100, 100 - rollPenalty - pitchPenalty))
 
-        // Rhythm score: consistent vertical movement pattern
-        // Good riding shows regular, rhythmic vertical oscillation matching gait
         let verticalAccels = recentSamples.map { $0.accelerationY }
         let accelVariance = calculateVariance(verticalAccels)
 
-        // Some variance is expected (movement with horse), but should be consistent
-        // Very low variance = too stiff, very high = bouncing/unbalanced
         let idealVariance: Double = 0.3
         let varianceDeviation = abs(accelVariance - idealVariance)
-        rhythmScore = max(0, min(100, 100 - varianceDeviation * 100))
+        let rhythm = max(0, min(100, 100 - varianceDeviation * 100))
+
+        return (posture, rhythm)
     }
 
     // MARK: - Barometric Altimeter
@@ -612,26 +692,20 @@ final class WatchMotionManager: NSObject {
         #endif
     }
 
-    // MARK: - Enhanced Motion Analysis
+    // MARK: - Enhanced Motion Analysis (motionQueue)
 
-    private func processEnhancedMetrics(_ sample: WatchMotionSample) {
-        // Update posture angles (convert radians to degrees)
-        posturePitch = sample.pitch * 180.0 / .pi
-        postureRoll = sample.roll * 180.0 / .pi
+    private func computeEnhancedMetrics(_ sample: WatchMotionSample) -> (pitch: Double, roll: Double, tremor: Double?, intensity: Double?, breathing: Double?) {
+        let pitch = sample.pitch * 180.0 / .pi
+        let roll = sample.roll * 180.0 / .pi
 
-        // Calculate tremor level (high-frequency motion > 3Hz)
-        calculateTremorLevel(sample)
+        let tremor = calculateTremorLevel(sample)
+        let intensity = calculateMovementIntensity(sample)
+        let breathing = estimateBreathingRate(sample)
 
-        // Calculate movement intensity
-        calculateMovementIntensity(sample)
-
-        // Estimate breathing rate (from chest wall motion patterns)
-        estimateBreathingRate(sample)
+        return (pitch, roll, tremor, intensity, breathing)
     }
 
-    private func calculateTremorLevel(_ sample: WatchMotionSample) {
-        // Tremor is high-frequency (>3Hz) small amplitude motion
-        // Use a high-pass filter approach by looking at rapid changes
+    private func calculateTremorLevel(_ sample: WatchMotionSample) -> Double? {
         let accelMag = sample.accelerationMagnitude
 
         tremorBuffer.append(accelMag)
@@ -639,35 +713,25 @@ final class WatchMotionManager: NSObject {
             tremorBuffer.removeFirst()
         }
 
-        guard tremorBuffer.count >= 10 else { return }
+        guard tremorBuffer.count >= 10 else { return nil }
 
-        // Calculate variance of recent samples (high variance = tremor)
         let variance = calculateVariance(tremorBuffer)
-
-        // Scale to 0-100 range (typical tremor variance 0.001-0.05)
-        tremorLevel = min(100, variance * 2000)
+        return min(100, variance * 2000)
     }
 
-    private func calculateMovementIntensity(_ sample: WatchMotionSample) {
-        // Overall movement intensity based on acceleration magnitude
+    private func calculateMovementIntensity(_ sample: WatchMotionSample) -> Double? {
         let recentSamples = Array(sampleBuffer.suffix(50))
-        guard recentSamples.count >= 10 else { return }
+        guard recentSamples.count >= 10 else { return nil }
 
         let avgMagnitude = recentSamples.map { $0.accelerationMagnitude }.reduce(0, +) / Double(recentSamples.count)
         let maxMagnitude = recentSamples.map { $0.accelerationMagnitude }.max() ?? 0
 
-        // Scale: 0G = 0%, 2G average = 100%
-        movementIntensity = min(100, (avgMagnitude + maxMagnitude) * 25)
+        return min(100, (avgMagnitude + maxMagnitude) * 25)
     }
 
-    private func estimateBreathingRate(_ sample: WatchMotionSample) {
-        // Breathing creates subtle chest wall motion in the 0.2-0.4 Hz range
-        // (12-24 breaths per minute)
-        // Best detected from Z-axis acceleration when Watch is on wrist
-
+    private func estimateBreathingRate(_ sample: WatchMotionSample) -> Double? {
         breathingSamples.append(sample.accelerationZ)
 
-        // Keep 10 seconds of samples at 50Hz = 500 samples
         if breathingSamples.count > 500 {
             breathingSamples.removeFirst()
         }
@@ -675,15 +739,13 @@ final class WatchMotionManager: NSObject {
         // Only calculate every 2 seconds
         let now = Date()
         if let lastCalc = lastBreathingCalc, now.timeIntervalSince(lastCalc) < 2.0 {
-            return
+            return nil
         }
         lastBreathingCalc = now
 
-        guard breathingSamples.count >= 200 else { return }  // Need at least 4 seconds
+        guard breathingSamples.count >= 200 else { return nil }
 
-        // Simple peak detection in breathing frequency range
-        // Count zero-crossings of smoothed signal
-        let smoothed = movingAverage(breathingSamples, windowSize: 25)  // 0.5s smoothing
+        let smoothed = movingAverage(breathingSamples, windowSize: 25)
         var crossings = 0
         for i in 1..<smoothed.count {
             if (smoothed[i-1] < 0 && smoothed[i] >= 0) ||
@@ -692,12 +754,8 @@ final class WatchMotionManager: NSObject {
             }
         }
 
-        // Each breath cycle has 2 zero crossings
-        // Samples span ~10 seconds, so multiply by 6 for per-minute rate
         let rawRate = Double(crossings) / 2.0 * 6.0
-
-        // Clamp to reasonable breathing range (8-30 breaths/min)
-        breathingRate = min(30, max(8, rawRate))
+        return min(30, max(8, rawRate))
     }
 
     private func movingAverage(_ values: [Double], windowSize: Int) -> [Double] {
@@ -749,16 +807,6 @@ final class WatchMotionManager: NSObject {
             tremorLevel: tremorLevel,
             movementIntensity: movementIntensity
         )
-    }
-
-    /// Get raw motion sample for detailed iPhone analysis
-    func latestSample() -> WatchMotionSample? {
-        sampleBuffer.last
-    }
-
-    /// Get recent samples buffer for bulk transfer to iPhone
-    func recentSamples(count: Int = 50) -> [WatchMotionSample] {
-        Array(sampleBuffer.suffix(count))
     }
 }
 
