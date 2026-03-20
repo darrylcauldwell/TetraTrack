@@ -421,12 +421,11 @@ struct RecoilControlDrillView: View {
         let score = max(0, min(100, (1.0 - avgRecovery) * 100))
 
         // Save session
-        let session = ShootingDrillSession(
+        let session = UnifiedDrillSession(
             drillType: .recoilControl,
             duration: TimeInterval(totalRounds * 3),
             score: score,
-            stabilityScore: 0,
-            recoveryScore: score,
+            reactionScore: score,
             bestReactionTime: recoveryTimes.min() ?? 0
         )
         DrillSensorEnrichment.enrich(session)

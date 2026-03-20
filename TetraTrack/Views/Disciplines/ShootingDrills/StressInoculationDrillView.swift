@@ -474,7 +474,7 @@ struct StressInoculationDrillView: View {
 
         // Save session
         sensorAnalyzer.stopSession()
-        let session = ShootingDrillSession(
+        let session = UnifiedDrillSession(
             drillType: .stressInoculation,
             duration: targetDuration + 30, // Include warmup
             score: avgStability,

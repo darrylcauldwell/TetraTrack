@@ -440,12 +440,11 @@ struct SplitTimeDrillView: View {
         let score = max(0, min(100, (1.5 - avgSplit) / 1.5 * 100))
 
         // Save session
-        let session = ShootingDrillSession(
+        let session = UnifiedDrillSession(
             drillType: .splitTime,
             duration: splitTimes.reduce(0, +),
             score: score,
-            stabilityScore: 0,
-            transitionScore: score,
+            reactionScore: score,
             averageSplitTime: avgSplit
         )
         DrillSensorEnrichment.enrich(session)

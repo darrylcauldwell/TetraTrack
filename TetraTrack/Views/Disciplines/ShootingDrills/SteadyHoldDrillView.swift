@@ -312,13 +312,13 @@ struct SteadyHoldDrillView: View {
 
         // Save drill session to history
         sensorAnalyzer.stopSession()
-        let session = ShootingDrillSession(
+        let session = UnifiedDrillSession(
             drillType: .steadyHold,
             duration: targetDuration,
-            score: score
+            score: score,
+            stabilityScore: score,
+            averageWobble: avgWobble
         )
-        session.stabilityScore = score
-        session.averageWobble = avgWobble
         DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()

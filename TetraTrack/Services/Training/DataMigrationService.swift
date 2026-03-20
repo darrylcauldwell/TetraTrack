@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import SwiftData
 
 /// Service for migrating legacy drill sessions to the unified model
@@ -187,8 +188,12 @@ extension DataMigrationService {
     /// Run migration if needed (call from app launch)
     @MainActor
     static func runMigrationIfNeeded(context: ModelContext) async {
-        guard !isMigrationComplete else { return }
+        guard !isMigrationComplete else {
+            Log.app.debug("Drill migration already complete, skipping")
+            return
+        }
 
+        Log.app.info("Starting legacy drill session migration")
         let service = DataMigrationService()
 
         // Fetch legacy sessions
@@ -201,17 +206,23 @@ extension DataMigrationService {
 
             // Only run migration if there are sessions to migrate
             if ridingSessions.isEmpty && shootingSessions.isEmpty {
+                Log.app.info("No legacy drill sessions found, marking migration complete")
                 markMigrationComplete()
                 return
             }
+
+            let ridingCount = ridingSessions.count
+            let shootingCount = shootingSessions.count
+            Log.app.info("Migrating \(ridingCount) riding + \(shootingCount) shooting drill sessions")
 
             try await service.migrateAllSessions(
                 ridingSessions: ridingSessions,
                 shootingSessions: shootingSessions,
                 context: context
             )
+            Log.app.info("Drill migration completed successfully")
         } catch {
-            // Migration error - silently fail
+            Log.app.error("Drill migration failed: \(error.localizedDescription)")
         }
     }
 }

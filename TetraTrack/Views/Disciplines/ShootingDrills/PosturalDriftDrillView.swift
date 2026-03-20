@@ -460,7 +460,7 @@ struct PosturalDriftDrillView: View {
 
         // Save session
         sensorAnalyzer.stopSession()
-        let session = ShootingDrillSession(
+        let session = UnifiedDrillSession(
             drillType: .posturalDrift,
             duration: targetDuration,
             score: enduranceScore,

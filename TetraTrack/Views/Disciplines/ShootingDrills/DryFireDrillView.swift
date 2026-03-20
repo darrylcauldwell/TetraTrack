@@ -461,7 +461,7 @@ struct DryFireDrillView: View {
             let score = max(0, min(100, (1.0 - avgReaction) * 100))
 
             // Save drill session to history
-            let session = ShootingDrillSession(
+            let session = UnifiedDrillSession(
                 drillType: .dryFire,
                 duration: TimeInterval(totalShots * 3),  // ~3s per shot
                 score: score

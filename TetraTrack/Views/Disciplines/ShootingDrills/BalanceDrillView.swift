@@ -339,12 +339,12 @@ struct BalanceDrillView: View {
 
         // Save drill session to history
         sensorAnalyzer.stopSession()
-        let session = ShootingDrillSession(
-            drillType: .balance,
+        let session = UnifiedDrillSession(
+            drillType: .standingBalance,
             duration: targetDuration,
-            score: avgStability * 100
+            score: avgStability * 100,
+            stabilityScore: avgStability * 100
         )
-        session.stabilityScore = avgStability * 100
         DrillSensorEnrichment.enrich(session)
         modelContext.insert(session)
         try? modelContext.save()

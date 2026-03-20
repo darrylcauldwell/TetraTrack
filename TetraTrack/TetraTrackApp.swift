@@ -310,6 +310,11 @@ struct TetraTrackApp: App {
         // Configure SessionTracker with model context
         tracker.configure(with: sharedModelContainer.mainContext)
 
+        // Migrate legacy drill sessions to UnifiedDrillSession
+        Task {
+            await DataMigrationService.runMigrationIfNeeded(context: sharedModelContainer.mainContext)
+        }
+
         // Auto-generate screenshot data when launched in screenshot mode
         if Self.isScreenshotMode {
             ScreenshotDataGenerator.generateScreenshotData(in: sharedModelContainer.mainContext)

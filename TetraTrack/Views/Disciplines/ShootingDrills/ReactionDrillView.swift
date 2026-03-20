@@ -356,12 +356,13 @@ struct ReactionDrillView: View {
             let score = max(0, min(100, (1.5 - avgReaction) / 1.5 * 100))
 
             // Save drill session to history
-            let session = ShootingDrillSession(
-                drillType: .reaction,
+            let session = UnifiedDrillSession(
+                drillType: .reactionTime,
                 duration: TimeInterval(totalRounds * 5),  // ~5s per round
-                score: score
+                score: score,
+                reactionScore: score,
+                bestReactionTime: reactionTimes.min() ?? 0
             )
-            session.bestReactionTime = reactionTimes.min() ?? 0
             DrillSensorEnrichment.enrich(session)
             modelContext.insert(session)
             try? modelContext.save()
