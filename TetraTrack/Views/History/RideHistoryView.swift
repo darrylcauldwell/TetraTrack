@@ -586,5 +586,5 @@ struct RideFilterSheet: View {
 
 #Preview {
     RideHistoryView()
-        .modelContainer(for: [Ride.self, LocationPoint.self, Horse.self], inMemory: true)
+        .modelContainer(for: [Ride.self, GPSPoint.self, Horse.self], inMemory: true)
 }

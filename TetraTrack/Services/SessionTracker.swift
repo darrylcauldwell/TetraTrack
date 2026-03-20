@@ -1238,7 +1238,7 @@ final class SessionTracker {
 // MARK: - GPSSessionDelegate
 
 extension SessionTracker: GPSSessionDelegate {
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
         guard let plugin = activePlugin else {
             Log.tracking.error("GPS delegate: createLocationPoint called with nil plugin")
             return nil

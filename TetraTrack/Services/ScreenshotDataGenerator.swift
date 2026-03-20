@@ -2069,7 +2069,7 @@ struct ScreenshotDataGenerator {
                 currentAlt = startAlt + Double.random(in: -1...1)
             }
 
-            let point = LocationPoint(
+            let point = GPSPoint(
                 latitude: currentLat,
                 longitude: currentLon,
                 altitude: max(0, currentAlt),

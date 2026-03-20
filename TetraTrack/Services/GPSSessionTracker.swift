@@ -54,7 +54,7 @@ final class GPSDiagnostics {
 @MainActor
 protocol GPSSessionDelegate: AnyObject {
     /// Create a discipline-specific location point model. GPSSessionTracker inserts it.
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)?
+    func createLocationPoint(from location: CLLocation) -> GPSPoint?
     /// Called after location is processed and persisted. For discipline-specific analysis.
     func didProcessLocation(_ location: CLLocation, distanceDelta: Double, tracker: GPSSessionTracker)
 }

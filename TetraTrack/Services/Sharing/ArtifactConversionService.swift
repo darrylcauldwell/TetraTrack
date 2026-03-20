@@ -47,7 +47,7 @@ final class ArtifactConversionService {
                 RoutePoint(
                     latitude: point.latitude,
                     longitude: point.longitude,
-                    gait: "unknown",  // Gaits tracked via GaitSegments, not on LocationPoint
+                    gait: "unknown",  // Gaits tracked via GaitSegments, not on GPSPoint
                     timestamp: point.timestamp
                 )
             }

@@ -120,11 +120,11 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     var intervals: [RunningInterval]? = []
 
     // GPS location points for route display and trim capability
-    @Relationship(deleteRule: .cascade, inverse: \RunningLocationPoint.session)
-    var locationPoints: [RunningLocationPoint]? = []
+    @Relationship(deleteRule: .cascade, inverse: \GPSPoint.runningSession)
+    var locationPoints: [GPSPoint]? = []
 
     // Cached sorted points (not persisted)
-    @Transient private var _cachedSortedLocationPoints: [RunningLocationPoint]?
+    @Transient private var _cachedSortedLocationPoints: [GPSPoint]?
     @Transient private var _cachedHeartRateSamples: [HeartRateSample]?
     @Transient private var _cachedFormSamples: [RunningFormSample]?
 
@@ -479,7 +479,7 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     // MARK: - Location Points
 
     /// Sorted location points by timestamp (cached for efficiency)
-    var sortedLocationPoints: [RunningLocationPoint] {
+    var sortedLocationPoints: [GPSPoint] {
         if let cached = _cachedSortedLocationPoints { return cached }
         let sorted = (locationPoints ?? []).sorted { $0.timestamp < $1.timestamp }
         _cachedSortedLocationPoints = sorted

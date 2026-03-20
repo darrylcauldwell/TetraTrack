@@ -65,8 +65,8 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, 
     @Relationship(deleteRule: .cascade, inverse: \SwimmingInterval.session)
     var intervals: [SwimmingInterval]? = []
 
-    @Relationship(deleteRule: .cascade, inverse: \SwimmingLocationPoint.session)
-    var locationPoints: [SwimmingLocationPoint]? = []
+    @Relationship(deleteRule: .cascade, inverse: \GPSPoint.swimmingSession)
+    var locationPoints: [GPSPoint]? = []
 
     @Relationship(deleteRule: .cascade, inverse: \SwimmingScore.session)
     var scores: [SwimmingScore]? = []
@@ -172,7 +172,7 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, 
         !(locationPoints ?? []).isEmpty
     }
 
-    var sortedLocationPoints: [SwimmingLocationPoint] {
+    var sortedLocationPoints: [GPSPoint] {
         (locationPoints ?? []).sorted { $0.timestamp < $1.timestamp }
     }
 

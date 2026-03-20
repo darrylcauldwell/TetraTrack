@@ -96,7 +96,7 @@ final class ShootingPlugin: DisciplinePlugin {
         return session
     }
 
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
         // Shooting does not track GPS location points
         nil
     }

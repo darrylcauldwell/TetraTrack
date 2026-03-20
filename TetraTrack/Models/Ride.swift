@@ -111,14 +111,14 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     @Transient private var _cachedAISummary: SessionSummary??
     @Transient private var _cachedVoiceNotes: [String]?
     @Transient private var _cachedGaitDurations: [GaitType: TimeInterval]?
-    @Transient private var _cachedSortedLocationPoints: [LocationPoint]?
+    @Transient private var _cachedSortedLocationPoints: [GPSPoint]?
     @Transient private var _cachedElevationProfile: [(distance: Double, altitude: Double)]?
     @Transient private var _cachedTransitionCounts: (upward: Int, downward: Int)?
     @Transient private var _cachedGaitDiagnostics: [GaitDiagnosticEntry]?
 
     // Relationships - MUST be optional for CloudKit
-    @Relationship(deleteRule: .cascade, inverse: \LocationPoint.ride)
-    var locationPoints: [LocationPoint]? = []
+    @Relationship(deleteRule: .cascade, inverse: \GPSPoint.ride)
+    var locationPoints: [GPSPoint]? = []
 
     @Relationship(deleteRule: .cascade, inverse: \GaitSegment.ride)
     var gaitSegments: [GaitSegment]? = []
@@ -170,7 +170,7 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
         Formatters.dateTime(startDate)
     }
 
-    var sortedLocationPoints: [LocationPoint] {
+    var sortedLocationPoints: [GPSPoint] {
         if let cached = _cachedSortedLocationPoints { return cached }
         let sorted = (locationPoints ?? []).sorted { $0.timestamp < $1.timestamp }
         _cachedSortedLocationPoints = sorted
@@ -258,7 +258,7 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
 
         var cumulativeDistance: Double = 0
         var profile: [(Double, Double)] = []
-        var lastPoint: LocationPoint?
+        var lastPoint: GPSPoint?
 
         for point in sortedLocationPoints {
             if let last = lastPoint {

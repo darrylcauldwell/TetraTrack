@@ -1,8 +1,9 @@
 //
-//  RunningLocationPoint.swift
+//  GPSPoint.swift
 //  TetraTrack
 //
-//  GPS location point for running sessions - enables route display and trim capability
+//  Unified GPS location point for all disciplines.
+//  Replaces LocationPoint, RunningLocationPoint, and SwimmingLocationPoint.
 //
 
 import Foundation
@@ -10,56 +11,54 @@ import SwiftData
 import CoreLocation
 
 @Model
-final class RunningLocationPoint {
-    // All properties have defaults for CloudKit compatibility
+final class GPSPoint {
     var id: UUID = UUID()
     var latitude: Double = 0.0
     var longitude: Double = 0.0
     var altitude: Double = 0.0
+    @Attribute(.spotlight)
     var timestamp: Date = Date()
-    var speed: Double = 0.0  // m/s from CLLocation
     var horizontalAccuracy: Double = 0.0
+    var speed: Double = 0.0  // m/s from CLLocation
 
-    // Relationship back to running session
-    var session: RunningSession?
+    // Parent relationships — only one is populated per point. MUST be optional for CloudKit.
+    var ride: Ride?
+    var runningSession: RunningSession?
+    var swimmingSession: SwimmingSession?
 
     init() {}
 
-    convenience init(
+    init(
         latitude: Double,
         longitude: Double,
         altitude: Double,
         timestamp: Date,
-        speed: Double,
-        horizontalAccuracy: Double
+        horizontalAccuracy: Double,
+        speed: Double
     ) {
-        self.init()
         self.latitude = latitude
         self.longitude = longitude
         self.altitude = altitude
         self.timestamp = timestamp
-        self.speed = speed
         self.horizontalAccuracy = horizontalAccuracy
+        self.speed = speed
     }
 
-    /// Convenience initializer from CLLocation
     convenience init(from location: CLLocation) {
         self.init(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
             altitude: location.altitude,
             timestamp: location.timestamp,
-            speed: max(0, location.speed),
-            horizontalAccuracy: location.horizontalAccuracy
+            horizontalAccuracy: location.horizontalAccuracy,
+            speed: max(0, location.speed)
         )
     }
 
-    /// Coordinate for MapKit
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    /// Convert to CLLocation
     var clLocation: CLLocation {
         CLLocation(
             coordinate: coordinate,

@@ -108,7 +108,7 @@ protocol DisciplinePlugin: AnyObject {
     func createSessionModel(in context: ModelContext) -> any SessionWritable
 
     /// Create a location point for GPS persistence
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)?
+    func createLocationPoint(from location: CLLocation) -> GPSPoint?
 
     // MARK: - Lifecycle Hooks
 

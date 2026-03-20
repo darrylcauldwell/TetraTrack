@@ -188,11 +188,11 @@ final class SwimmingPlugin: DisciplinePlugin {
         return session
     }
 
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
         // Only create location points for open water swimming
         guard !isPoolMode else { return nil }
-        let point = SwimmingLocationPoint(from: location)
-        point.session = session
+        let point = GPSPoint(from: location)
+        point.swimmingSession = session
         return point
     }
 

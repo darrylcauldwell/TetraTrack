@@ -127,7 +127,7 @@ struct PaceZoneTimeline: View {
 // MARK: - Elevation Profile Chart
 
 struct ElevationProfileChart: View {
-    let points: [RunningLocationPoint]
+    let points: [GPSPoint]
 
     var body: some View {
         Chart {

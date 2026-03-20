@@ -55,7 +55,7 @@ enum SegmentPBAnalyzer {
     /// Only analyzes runs longer than the target distance by >10% (skips dedicated time trials).
     /// Only reports results within 10% of PB to filter noise.
     static func analyze(
-        locationPoints: [RunningLocationPoint],
+        locationPoints: [GPSPoint],
         totalDistance: Double,
         personalBests: RunningPersonalBests
     ) -> [SegmentPBResult] {

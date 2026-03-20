@@ -39,5 +39,5 @@ struct ContentView: View {
         .environment(locManager)
         .environment(gpsTracker)
         .environment(SessionTracker(locationManager: locManager, gpsTracker: gpsTracker))
-        .modelContainer(for: [Ride.self, LocationPoint.self, GaitSegment.self, FlatworkExercise.self], inMemory: true)
+        .modelContainer(for: [Ride.self, GPSPoint.self, GaitSegment.self, FlatworkExercise.self], inMemory: true)
 }

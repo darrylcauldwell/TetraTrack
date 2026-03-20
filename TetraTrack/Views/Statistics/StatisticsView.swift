@@ -236,5 +236,5 @@ struct StatisticsView: View {
 
 #Preview {
     StatisticsView()
-        .modelContainer(for: [Ride.self, LocationPoint.self, GaitSegment.self, TrainingStreak.self], inMemory: true)
+        .modelContainer(for: [Ride.self, GPSPoint.self, GaitSegment.self, TrainingStreak.self], inMemory: true)
 }

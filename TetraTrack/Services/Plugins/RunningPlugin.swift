@@ -186,11 +186,11 @@ final class RunningPlugin: DisciplinePlugin {
         return session
     }
 
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
         // Treadmill and indoor modes do not record GPS points
         guard usesGPS else { return nil }
-        let point = RunningLocationPoint(from: location)
-        point.session = session
+        let point = GPSPoint(from: location)
+        point.runningSession = session
         return point
     }
 

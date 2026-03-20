@@ -53,7 +53,7 @@ struct TetraTrackApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Ride.self,
-            LocationPoint.self,
+            GPSPoint.self,
             GaitSegment.self,
             ReinSegment.self,
             GaitTransition.self,
@@ -75,8 +75,6 @@ struct TetraTrackApp: App {
             RunningSession.self,
             SwimmingSession.self,
             ShootingSession.self,
-            RunningLocationPoint.self,
-            SwimmingLocationPoint.self,
             // Route planning models
             PlannedRoute.self,
             RouteWaypoint.self,

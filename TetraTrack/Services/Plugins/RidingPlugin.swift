@@ -258,9 +258,9 @@ final class RidingPlugin: DisciplinePlugin {
         return ride
     }
 
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
         guard let ride = currentRide else { return nil }
-        let point = LocationPoint(from: location)
+        let point = GPSPoint(from: location)
         point.ride = ride
         return point
     }

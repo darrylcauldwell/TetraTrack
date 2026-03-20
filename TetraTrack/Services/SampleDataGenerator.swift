@@ -275,7 +275,7 @@ struct SampleDataGenerator {
             currentLon += Double.random(in: -0.0003...0.0008)
             currentAlt += Double.random(in: -3...4)
 
-            let point = LocationPoint(
+            let point = GPSPoint(
                 latitude: currentLat,
                 longitude: currentLon,
                 altitude: max(50, currentAlt),
@@ -301,7 +301,7 @@ struct SampleDataGenerator {
             let lat = centerLat + arenaRadius * cos(angle)
             let lon = centerLon + arenaRadius * sin(angle) * 1.5 // Ellipse shape
 
-            let point = LocationPoint(
+            let point = GPSPoint(
                 latitude: lat,
                 longitude: lon,
                 altitude: 100,

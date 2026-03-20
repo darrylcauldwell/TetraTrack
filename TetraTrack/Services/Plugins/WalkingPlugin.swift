@@ -103,9 +103,9 @@ final class WalkingPlugin: DisciplinePlugin {
         return session
     }
 
-    func createLocationPoint(from location: CLLocation) -> (any PersistentModel)? {
-        let point = RunningLocationPoint(from: location)
-        point.session = session
+    func createLocationPoint(from location: CLLocation) -> GPSPoint? {
+        let point = GPSPoint(from: location)
+        point.runningSession = session
         return point
     }
 
