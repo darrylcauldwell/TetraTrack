@@ -8,6 +8,7 @@
 import CoreLocation
 import HealthKit
 import SwiftData
+import SwiftUI
 
 // MARK: - Supporting Types
 
@@ -54,6 +55,14 @@ protocol DisciplinePlugin: AnyObject {
 
     /// Activity type string for family sharing
     var sharingActivityType: String { get }
+
+    // MARK: - UI Identity
+
+    /// SF Symbol name for this discipline (e.g. "figure.equestrian.sports")
+    var disciplineIcon: String { get }
+
+    /// Theme color for this discipline
+    var disciplineColor: Color { get }
 
     // MARK: - Feature Flags (defaults via extension)
 
@@ -149,6 +158,9 @@ protocol DisciplinePlugin: AnyObject {
 // MARK: - Default Implementations
 
 extension DisciplinePlugin {
+    var disciplineIcon: String { "figure.run" }
+    var disciplineColor: Color { AppColors.primary }
+
     var usesGPS: Bool { true }
     var usesFallDetection: Bool { false }
     var usesVehicleDetection: Bool { false }

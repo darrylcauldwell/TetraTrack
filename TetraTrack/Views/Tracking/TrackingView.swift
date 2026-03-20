@@ -14,7 +14,6 @@ struct TrackingView: View {
     @Environment(LocationManager.self) private var locationManager: LocationManager?
     @State private var selectedTab: TrackingTab = .stats
     @State private var showingExerciseLibrary = false
-    @State private var showingExitConfirmation = false
     @State private var emergencyAlertSent = false
     @Query(filter: #Predicate<SharingRelationship> { $0.receiveFallAlerts == true && $0.phoneNumber != nil }) private var emergencyContacts: [SharingRelationship]
 
@@ -79,19 +78,6 @@ struct TrackingView: View {
                                     }
                                     .frame(width: 44, height: 44)
                                 }
-
-                                // X button to close
-                                Button {
-                                    showingExitConfirmation = true
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                        .frame(width: 44, height: 44)
-                                        .background(AppColors.cardBackground)
-                                        .clipShape(Circle())
-                                }
-                                .accessibleButton("End session", hint: "Opens options to save or discard this session")
                             }
                         }
                         .padding(.horizontal, 16)
@@ -104,18 +90,8 @@ struct TrackingView: View {
                                 // Stats View with integrated pause/resume/stop
                                 StatsContentView(
                                     tracker: tracker,
-                                    ridingPlugin: plugin,
-                                    onPauseResume: {
-                                        if tracker.sessionState == .paused {
-                                            tracker.resumeSession()
-                                        } else {
-                                            tracker.pauseSession()
-                                        }
-                                    },
-                                    onStop: { tracker.stopSession() },
-                                    onDiscard: { tracker.discardSession() }
+                                    ridingPlugin: plugin
                                 )
-                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.sessionState)
                                 .tag(TrackingTab.stats)
 
                                 // Map View
@@ -143,18 +119,8 @@ struct TrackingView: View {
                                 // Stats View with integrated pause/resume/stop
                                 StatsContentView(
                                     tracker: tracker,
-                                    ridingPlugin: plugin,
-                                    onPauseResume: {
-                                        if tracker.sessionState == .paused {
-                                            tracker.resumeSession()
-                                        } else {
-                                            tracker.pauseSession()
-                                        }
-                                    },
-                                    onStop: { tracker.stopSession() },
-                                    onDiscard: { tracker.discardSession() }
+                                    ridingPlugin: plugin
                                 )
-                                .sensoryFeedback(.impact(weight: .heavy), trigger: tracker.sessionState)
                                 .tag(TrackingTab.stats)
 
                                 // Exercises View
@@ -172,16 +138,18 @@ struct TrackingView: View {
         .overlay(alignment: .top) {
             VoiceNoteRecordingOverlay()
         }
-        .confirmationDialog("End Session", isPresented: $showingExitConfirmation, titleVisibility: .visible) {
-            Button("Save") {
-                sessionTracker?.stopSession()
+        .overlay(alignment: .bottom) {
+            if sessionTracker?.sessionState == .tracking || sessionTracker?.sessionState == .paused {
+                FloatingControlPanel(
+                    disciplineIcon: sessionTracker?.activePlugin?.disciplineIcon ?? "figure.run",
+                    disciplineColor: sessionTracker?.activePlugin?.disciplineColor ?? AppColors.primary,
+                    onStop: { sessionTracker?.stopSession() },
+                    onDiscard: { sessionTracker?.discardSession() },
+                    onVoiceNote: ridingPlugin != nil ? { note in
+                        ridingPlugin?.appendVoiceNote(note)
+                    } : nil
+                )
             }
-            Button("Discard", role: .destructive) {
-                sessionTracker?.discardSession()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Do you want to save or discard this session?")
         }
         .alert("Vehicle Detected", isPresented: vehicleAlertBinding) {
             Button("Stop & Save") {

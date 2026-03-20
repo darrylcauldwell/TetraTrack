@@ -9,6 +9,7 @@
 import CoreLocation
 import HealthKit
 import SwiftData
+import SwiftUI
 import Observation
 import UIKit
 import os
@@ -22,6 +23,11 @@ final class RidingPlugin: DisciplinePlugin {
     let activityType: GPSActivityType = .riding
     let watchDiscipline: WatchSessionDiscipline = .riding
     let sharingActivityType = "riding"
+
+    // MARK: - UI Identity
+
+    let disciplineIcon = "figure.equestrian.sports"
+    let disciplineColor = AppColors.riding
 
     // MARK: - Feature Flags
 

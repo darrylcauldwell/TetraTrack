@@ -445,6 +445,58 @@ struct RidingCoachingLevelCard: View {
     }
 }
 
+// MARK: - Walking Coaching Level Card
+
+struct WalkingCoachingLevelCard: View {
+    @Binding var showingSettings: Bool
+    private var audioCoach: AudioCoachManager { AudioCoachManager.shared }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: audioCoach.walkingCoachingLevel.icon)
+                    .foregroundStyle(.blue)
+                    .frame(width: 20)
+                Text("Voice Coaching")
+                    .font(.subheadline.weight(.medium))
+            }
+
+            Picker("Level", selection: Binding(
+                get: { audioCoach.walkingCoachingLevel },
+                set: { audioCoach.applyWalkingCoachingLevel($0) }
+            )) {
+                ForEach(WalkingCoachingLevel.allCases) { level in
+                    Text(level.displayName).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(audioCoach.walkingCoachingLevel.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Button {
+                showingSettings = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.caption2)
+                    Text("Customise in Settings")
+                        .font(.caption)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 20)
+    }
+}
+
 // MARK: - Flatwork Setup View
 
 struct FlatworkSetupView: View {
@@ -683,9 +735,6 @@ struct FlatworkSetupView: View {
 struct StatsContentView: View {
     let tracker: SessionTracker
     var ridingPlugin: RidingPlugin? = nil
-    var onPauseResume: (() -> Void)? = nil
-    var onStop: (() -> Void)? = nil
-    var onDiscard: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -698,13 +747,6 @@ struct StatsContentView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 8)
             }
-
-            // Tap hint at top
-            Text(tracker.sessionState == .paused ? "Tap to Resume" : "Tap to Pause")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 8)
 
             // Stats - scrollable if needed
             ScrollView(showsIndicators: false) {
@@ -767,26 +809,15 @@ struct StatsContentView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.bottom, 140)
             }
-
-            Spacer(minLength: 20)
-
-            // Pause/Resume button with stop option
-            PauseResumeButton(
-                isPaused: tracker.sessionState == .paused,
-                onTap: {
-                    onPauseResume?()
-                },
-                onStop: onStop,
-                onDiscard: onDiscard
-            )
-            .padding(.bottom, 20)
         }
     }
 }
 
 // MARK: - Pause/Resume Button with Stop option
 
+@available(*, deprecated, message: "Use FloatingControlPanel")
 struct PauseResumeButton: View {
     let isPaused: Bool
     let onTap: () -> Void
@@ -857,6 +888,7 @@ struct PauseResumeButton: View {
 
 // MARK: - Pause/Stop Button
 
+@available(*, deprecated, message: "Use FloatingControlPanel")
 struct PauseStopButton: View {
     let isPaused: Bool
     let onPauseResume: () -> Void

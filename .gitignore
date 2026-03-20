@@ -82,3 +82,4 @@ playground.xcworkspace
 *.provisionprofile
 AuthKey_*.p8
 fastlane/api_key.json
+.mcp.json
