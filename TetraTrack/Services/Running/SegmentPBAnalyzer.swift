@@ -46,6 +46,7 @@ struct SegmentPBResult: Codable, Identifiable, Sendable {
 
 // MARK: - Segment PB Analyzer
 
+@MainActor
 enum SegmentPBAnalyzer {
     /// Standard distances to search for within longer runs
     static let trackedDistances: [Double] = [1000, 1500, 2000, 3000]

@@ -764,7 +764,7 @@ final class RunningPlugin: DisciplinePlugin {
 
         // Analyze segment PBs for outdoor GPS runs longer than 1200m
         if session.runMode == .outdoor && tracker.totalDistance > 1200 {
-            nonisolated(unsafe) let points = session.sortedLocationPoints
+            let points = session.sortedLocationPoints
             let pbs = RunningPersonalBests.shared
             let segmentResults = SegmentPBAnalyzer.analyze(
                 locationPoints: points,
