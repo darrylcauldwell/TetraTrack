@@ -15,6 +15,7 @@ struct TrackedPoint: Identifiable {
     let timestamp: Date
 }
 
+@MainActor
 @Observable
 final class LocationManager: NSObject {
     // Published state

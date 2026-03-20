@@ -10,6 +10,7 @@ import SwiftData
 import os
 
 /// GPS session diagnostics for debugging location persistence issues
+@MainActor
 @Observable
 final class GPSDiagnostics {
     private(set) var totalRawReceived: Int = 0
@@ -50,6 +51,7 @@ final class GPSDiagnostics {
 /// Delegate for discipline-specific GPS session behavior.
 /// GPSSessionTracker owns persistence and checkpoint saves; disciplines provide
 /// location point creation and analysis logic.
+@MainActor
 protocol GPSSessionDelegate: AnyObject {
     /// Create a discipline-specific location point model. GPSSessionTracker inserts it.
     func createLocationPoint(from location: CLLocation) -> (any PersistentModel)?
@@ -71,6 +73,7 @@ struct GPSSessionConfig {
 /// elevation tracking (barometric + GPS fallback), GPS signal quality, persistence, and checkpoint saves.
 ///
 /// Discipline-specific logic hooks in via `GPSSessionDelegate`.
+@MainActor
 @Observable
 final class GPSSessionTracker {
     // MARK: - Observable State (views bind to these)

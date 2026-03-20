@@ -29,8 +29,9 @@ enum UserRole: String, Sendable {
 
 /// Context object providing role and mode information to views.
 /// Injected via environment to enable conditional UI rendering.
+@MainActor
 @Observable
-final class ViewContext: Sendable {
+final class ViewContext {
 
     // MARK: - Properties
 
