@@ -653,7 +653,7 @@ final class SwimmingPlugin: DisciplinePlugin {
         generator.notificationOccurred(.warning)
 
         restTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+            Task { @MainActor in
                 guard let self else { return }
                 self.restTimeRemaining -= 1
 
