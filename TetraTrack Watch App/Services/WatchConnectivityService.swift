@@ -465,10 +465,7 @@ final class WatchConnectivityService: NSObject {
                     break
                 }
                 self.rideState = .idle
-                WorkoutManager.shared.stopMotionDataSending()
-                WorkoutManager.shared.onMotionDataSend = nil
-                Task { await WorkoutManager.shared.stopHeartRateMonitoring() }
-                WorkoutManager.shared.onHeartRateUpdate = nil
+                Task { await WorkoutManager.shared.stopWorkout() }
                 // Reset session data
                 self.duration = 0
                 self.distance = 0
@@ -483,11 +480,13 @@ final class WatchConnectivityService: NSObject {
             case .pauseRide:
                 Log.watch.error("TT: received .pauseRide command")
                 self.rideState = .paused
+                WorkoutManager.shared.pauseWorkout()
                 Log.watch.info("Session paused from iPhone")
 
             case .resumeRide:
                 Log.watch.error("TT: received .resumeRide command")
                 self.rideState = .tracking
+                WorkoutManager.shared.resumeWorkout()
                 Log.watch.info("Session resumed from iPhone")
 
             // Motion tracking commands
