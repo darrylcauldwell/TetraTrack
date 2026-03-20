@@ -45,6 +45,11 @@ struct TetraTrackApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
+    /// Whether the app was launched for screenshot capture (simctl-based)
+    private static var isScreenshotMode: Bool {
+        ScreenshotScreen.isScreenshotMode
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Ride.self,
@@ -89,9 +94,9 @@ struct TetraTrackApp: App {
             LinkedRiderRecord.self,
         ])
 
-        // UI testing, unit testing, and CI: use in-memory local-only storage to avoid CloudKit crashes
-        if isUITesting || isUnitTesting {
-            Log.app.info("Testing mode: using in-memory local-only ModelContainer")
+        // UI testing, unit testing, screenshot mode, and CI: use in-memory local-only storage to avoid CloudKit crashes
+        if isUITesting || isUnitTesting || isScreenshotMode {
+            Log.app.info("Testing/screenshot mode: using in-memory local-only ModelContainer")
             let testConfig = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: true,
@@ -174,6 +179,14 @@ struct TetraTrackApp: App {
     private var rootContentView: some View {
         if Self.isUnitTesting {
             Color.clear // Minimal view for unit test host — avoids CloudKit singleton access
+        } else if let screen = ScreenshotScreen.fromLaunchArguments() {
+        ScreenshotRouterView(screen: screen)
+            .environment(\.locale, LocalizationManager.shared.locale)
+            .environment(locationManager)
+            .environment(gpsTracker)
+            .environment(sessionTracker)
+            .viewContext(viewContext)
+            .onAppear(perform: handleAppear)
         } else {
         ContentView()
             .environment(\.locale, LocalizationManager.shared.locale)
@@ -226,7 +239,7 @@ struct TetraTrackApp: App {
     }
 
     private func handleInitialSetup() async {
-        guard !Self.isUITesting, !Self.isUnitTesting else { return }
+        guard !Self.isUITesting, !Self.isUnitTesting, !Self.isScreenshotMode else { return }
         _ = await NotificationManager.shared.requestAuthorization()
         await NotificationManager.shared.setupCloudKitSubscriptions()
     }
@@ -297,15 +310,15 @@ struct TetraTrackApp: App {
         // Configure SessionTracker with model context
         tracker.configure(with: sharedModelContainer.mainContext)
 
-        // Auto-generate screenshot data when launched with -screenshotMode
-        if ProcessInfo.processInfo.arguments.contains("-screenshotMode") {
+        // Auto-generate screenshot data when launched in screenshot mode
+        if Self.isScreenshotMode {
             ScreenshotDataGenerator.generateScreenshotData(in: sharedModelContainer.mainContext)
             try? sharedModelContainer.mainContext.save()
             Log.app.info("Screenshot mode: generated demonstration data")
         }
 
-        // Skip CloudKit and connectivity services during testing
-        guard !Self.isUITesting, !Self.isUnitTesting else {
+        // Skip CloudKit and connectivity services during testing or screenshot capture
+        guard !Self.isUITesting, !Self.isUnitTesting, !Self.isScreenshotMode else {
             isConfigured = true
             return
         }

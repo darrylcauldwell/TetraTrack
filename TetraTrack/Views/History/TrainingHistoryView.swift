@@ -16,6 +16,7 @@ import Charts
 struct SessionHistoryView: View {
     // Optional initial values for navigation from other views
     var initialDiscipline: DisciplineFilter?
+    var initialTab: HistoryTab?
     var onDismiss: (() -> Void)?
 
     @Environment(\.modelContext) private var modelContext
@@ -38,9 +39,11 @@ struct SessionHistoryView: View {
 
     init(
         initialDiscipline: DisciplineFilter? = nil,
+        initialTab: HistoryTab? = nil,
         onDismiss: (() -> Void)? = nil
     ) {
         self.initialDiscipline = initialDiscipline
+        self.initialTab = initialTab
         self.onDismiss = onDismiss
     }
 
@@ -170,6 +173,9 @@ struct SessionHistoryView: View {
                     if discipline == .shooting {
                         showingShootingHistory = true
                     }
+                }
+                if let tab = initialTab {
+                    selectedTab = tab
                 }
                 hasAppliedInitialValues = true
             }
