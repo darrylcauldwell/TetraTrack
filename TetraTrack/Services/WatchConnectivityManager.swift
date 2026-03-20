@@ -11,18 +11,6 @@ import Observation
 import os
 import TetraTrackShared
 
-// MARK: - Watch Session Discipline
-
-/// Discipline for active Watch connectivity session
-enum WatchSessionDiscipline: String, Sendable {
-    case riding
-    case walking
-    case running
-    case treadmill
-    case swimming
-    case shooting
-}
-
 // MARK: - Fall Event Type
 
 /// Discriminated fall event from Watch
