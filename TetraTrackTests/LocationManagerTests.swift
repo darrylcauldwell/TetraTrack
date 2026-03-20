@@ -171,6 +171,7 @@ struct CircularBufferTests {
 
 // MARK: - TrackedPoint Tests
 
+@MainActor
 struct TrackedPointTests {
 
     @Test func initializationWithCoordinateAndGait() {
@@ -208,6 +209,7 @@ struct TrackedPointTests {
 
 // MARK: - LocationManager Tests
 
+@MainActor
 struct LocationManagerTests {
 
     @Test func initialState() {
@@ -323,6 +325,7 @@ struct LocationManagerTests {
 
 // MARK: - Authorization State Tests
 
+@MainActor
 struct LocationAuthorizationTests {
 
     @Test func needsPermissionWhenNotDetermined() {
