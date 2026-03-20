@@ -1033,10 +1033,14 @@ final class RidingPlugin: DisciplinePlugin {
 
                 let vo = wm.verticalOscillation
                 let mi = wm.movementIntensity
-                if vo > 0 || mi > 0 {
+                let rs = wm.rhythmScore
+                let ps = wm.postureStability
+                if vo > 0 || mi > 0 || rs > 0 || ps > 0 {
                     self.gaitAnalyzer.updateWatchData(
                         verticalOscillation: vo,
-                        movementIntensity: mi
+                        movementIntensity: mi,
+                        rhythmScore: rs,
+                        postureStability: ps
                     )
                 }
             }

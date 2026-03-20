@@ -801,6 +801,69 @@ struct GaitHMMTests {
         #expect(hmm.currentState == .trot)
     }
 
+    // MARK: - Watch Rhythm/Posture Tests
+
+    @Test func watchRhythmScoreHelpsCanterGallopDiscrimination() {
+        let canterHMM = GaitHMM()
+        let gallopHMM = GaitHMM()
+
+        // Build up through gaits to canter in both
+        for _ in 0..<10 { canterHMM.update(with: walkFeatures()); gallopHMM.update(with: walkFeatures()) }
+        for _ in 0..<10 { canterHMM.update(with: trotFeatures()); gallopHMM.update(with: trotFeatures()) }
+        for _ in 0..<15 { canterHMM.update(with: canterFeatures()); gallopHMM.update(with: canterFeatures()) }
+
+        // Same IMU features at canter/gallop boundary speed, but different rhythm/posture
+        let canterLikeWatch = GaitFeatureVector(
+            strideFrequency: 2.8, h2Ratio: 0.6, h3Ratio: 1.2,
+            spectralEntropy: 0.55, xyCoherence: 0.3, zYawCoherence: 0.75,
+            normalizedVerticalRMS: 0.38, yawRateRMS: 0.55,
+            gpsSpeed: 6.0, gpsAccuracy: 8.0,
+            watchVerticalOscillation: 5.5, watchMovementIntensity: 62.0,
+            watchRhythmScore: 72, watchPostureStability: 68, watchDataAge: 1.0
+        )
+        let gallopLikeWatch = GaitFeatureVector(
+            strideFrequency: 2.8, h2Ratio: 0.6, h3Ratio: 1.2,
+            spectralEntropy: 0.55, xyCoherence: 0.3, zYawCoherence: 0.75,
+            normalizedVerticalRMS: 0.38, yawRateRMS: 0.55,
+            gpsSpeed: 6.0, gpsAccuracy: 8.0,
+            watchVerticalOscillation: 5.5, watchMovementIntensity: 62.0,
+            watchRhythmScore: 40, watchPostureStability: 45, watchDataAge: 1.0
+        )
+
+        for _ in 0..<15 {
+            canterHMM.update(with: canterLikeWatch)
+            gallopHMM.update(with: gallopLikeWatch)
+        }
+
+        // Canter-like rhythm/posture should favor canter more than gallop-like values
+        #expect(canterHMM.probability(of: .canter) > gallopHMM.probability(of: .canter))
+    }
+
+    @Test func staleWatchRhythmPostureDoNotDestabilize() {
+        let hmm = GaitHMM()
+
+        // Establish trot
+        for _ in 0..<10 { hmm.update(with: walkFeatures()) }
+        for _ in 0..<15 { hmm.update(with: trotFeatures()) }
+        #expect(hmm.currentState == .trot)
+
+        // Feed trot IMU features with stale Watch rhythm/posture data (age=60s)
+        let staleWatch = GaitFeatureVector(
+            strideFrequency: 2.9, h2Ratio: 1.85, h3Ratio: 0.55,
+            spectralEntropy: 0.45, xyCoherence: 0.85, zYawCoherence: 0.25,
+            normalizedVerticalRMS: 0.25, yawRateRMS: 0.35,
+            gpsSpeed: 3.0, gpsAccuracy: 10.0,
+            watchVerticalOscillation: 7.25, watchMovementIntensity: 47.5,
+            watchRhythmScore: 85, watchPostureStability: 72, watchDataAge: 60.0
+        )
+        for _ in 0..<15 {
+            hmm.update(with: staleWatch)
+        }
+
+        // Trot classification should hold — stale Watch data is uninformative
+        #expect(hmm.currentState == .trot)
+    }
+
     // MARK: - Helpers
 
     private func stationaryFeatures() -> GaitFeatureVector {

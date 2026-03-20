@@ -90,12 +90,21 @@ final class GaitAnalyzer: Resettable {
 
     private var lastWatchVerticalOscillation: Double = 0
     private var lastWatchMovementIntensity: Double = 0
+    private var lastWatchRhythmScore: Double = 0
+    private var lastWatchPostureStability: Double = 0
     private var lastWatchUpdateTime: Date = .distantPast
 
     /// Update Watch motion data for gait feature vector enrichment
-    func updateWatchData(verticalOscillation: Double, movementIntensity: Double) {
+    func updateWatchData(
+        verticalOscillation: Double,
+        movementIntensity: Double,
+        rhythmScore: Double = 0,
+        postureStability: Double = 0
+    ) {
         lastWatchVerticalOscillation = verticalOscillation
         lastWatchMovementIntensity = movementIntensity
+        lastWatchRhythmScore = rhythmScore
+        lastWatchPostureStability = postureStability
         lastWatchUpdateTime = Date()
     }
 
@@ -279,6 +288,8 @@ final class GaitAnalyzer: Resettable {
         lastFFTTime = .distantPast
         lastWatchVerticalOscillation = 0
         lastWatchMovementIntensity = 0
+        lastWatchRhythmScore = 0
+        lastWatchPostureStability = 0
         lastWatchUpdateTime = .distantPast
     }
 
@@ -478,6 +489,8 @@ final class GaitAnalyzer: Resettable {
             gpsAccuracy: lastGPSAccuracy,
             watchVerticalOscillation: lastWatchVerticalOscillation,
             watchMovementIntensity: lastWatchMovementIntensity,
+            watchRhythmScore: lastWatchRhythmScore,
+            watchPostureStability: lastWatchPostureStability,
             watchDataAge: watchDataAge
         )
 
@@ -509,6 +522,8 @@ final class GaitAnalyzer: Resettable {
                 gpsAccuracy: features.gpsAccuracy,
                 watchVerticalOscillation: features.watchVerticalOscillation,
                 watchMovementIntensity: features.watchMovementIntensity,
+                watchRhythmScore: features.watchRhythmScore,
+                watchPostureStability: features.watchPostureStability,
                 watchDataAge: features.watchDataAge
             )
             diagnosticEntries.append(entry)
@@ -531,7 +546,12 @@ final class GaitAnalyzer: Resettable {
                 yawRMS: yawRMS,
                 xyCoherence: leftRightSymmetry,
                 zYawCoherence: verticalYawCoherence,
-                gpsSpeed: lastGPSSpeed
+                gpsSpeed: lastGPSSpeed,
+                watchVerticalOscillation: lastWatchVerticalOscillation,
+                watchMovementIntensity: lastWatchMovementIntensity,
+                watchRhythmScore: lastWatchRhythmScore,
+                watchPostureStability: lastWatchPostureStability,
+                watchDataAge: watchDataAge
             )
 
             let horseSnapshot = HorseProfileSnapshot(
@@ -746,7 +766,12 @@ final class GaitAnalyzer: Resettable {
                 yawRMS: features.yawRateRMS,
                 xyCoherence: features.xyCoherence,
                 zYawCoherence: features.zYawCoherence,
-                gpsSpeed: features.gpsSpeed
+                gpsSpeed: features.gpsSpeed,
+                watchVerticalOscillation: features.watchVerticalOscillation,
+                watchMovementIntensity: features.watchMovementIntensity,
+                watchRhythmScore: features.watchRhythmScore,
+                watchPostureStability: features.watchPostureStability,
+                watchDataAge: features.watchDataAge
             )
 
             let snapshot = GaitDiagnosticSnapshot(
