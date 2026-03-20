@@ -9,15 +9,7 @@
 import Foundation
 import Observation
 import os
-
-/// Discipline type for Watch sessions
-enum WatchSessionDiscipline: String, Codable {
-    case riding
-    case running
-    case walking
-    case swimming
-    case shooting
-}
+import TetraTrackShared
 
 /// A complete session recorded on Watch
 struct WatchSession: Codable, Identifiable {

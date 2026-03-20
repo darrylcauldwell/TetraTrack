@@ -249,7 +249,7 @@ struct LocalSessionCard: View {
     private var disciplineIcon: String {
         switch session.discipline {
         case .riding: return "figure.equestrian.sports"
-        case .running: return "figure.run"
+        case .running, .treadmill: return "figure.run"
         case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
@@ -259,7 +259,7 @@ struct LocalSessionCard: View {
     private var disciplineColor: Color {
         switch session.discipline {
         case .riding: return WatchAppColors.riding
-        case .running, .walking: return WatchAppColors.running
+        case .running, .walking, .treadmill: return WatchAppColors.running
         case .swimming: return WatchAppColors.swimming
         case .shooting: return WatchAppColors.shooting
         }
