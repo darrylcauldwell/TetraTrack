@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import Combine
 import WidgetKit
 import Photos
 import MapKit
@@ -16,71 +15,60 @@ import MapKit
 
 struct NextCompetitionCard: View {
     let competition: Competition
-    @State private var now = Date()
-    @State private var timerCancellable: AnyCancellable?
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: competition.competitionType.icon)
-                    .font(.title2)
-                Text("Next Competition")
-                    .font(.headline)
-                Spacer()
-                Text(competition.level.rawValue)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(AppColors.primary.opacity(0.2))
-                    .clipShape(Capsule())
-            }
-
-            Text(competition.name)
-                .font(.title2.bold())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Countdown
-            CountdownView(targetDate: competition.date, now: now)
-
-            HStack {
-                Label(competition.venue.isEmpty ? "No venue" : competition.venue, systemImage: "mappin")
-                Spacer()
-                Text(competition.formattedDate)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-
-            if competition.isEntered {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(spacing: 16) {
                 HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Entered")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.green)
+                    Image(systemName: competition.competitionType.icon)
+                        .font(.title2)
+                    Text("Next Competition")
+                        .font(.headline)
+                    Spacer()
+                    Text(competition.level.rawValue)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppColors.primary.opacity(0.2))
+                        .clipShape(Capsule())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(competition.name)
+                    .font(.title2.bold())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Countdown
+                CountdownView(targetDate: competition.date, now: context.date)
+
+                HStack {
+                    Label(competition.venue.isEmpty ? "No venue" : competition.venue, systemImage: "mappin")
+                    Spacer()
+                    Text(competition.formattedDate)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+                if competition.isEntered {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Entered")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.green)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(AppColors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(AppColors.primary.opacity(0.3), lineWidth: 2)
-        )
-        .padding(.horizontal)
-        .onAppear {
-            // Start timer only when view appears
-            timerCancellable = Timer.publish(every: 1, on: .main, in: .common)
-                .autoconnect()
-                .sink { _ in now = Date() }
-        }
-        .onDisappear {
-            // Cancel timer when view disappears to prevent resource leak
-            timerCancellable?.cancel()
-            timerCancellable = nil
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AppColors.cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppColors.primary.opacity(0.3), lineWidth: 2)
+            )
+            .padding(.horizontal)
         }
     }
 }
