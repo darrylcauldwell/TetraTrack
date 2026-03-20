@@ -621,7 +621,8 @@ final class SessionTracker {
 
         // Capture end weather
         if let location = locationManager.currentLocation {
-            let weatherTask = Task { [modelContext] in
+            let weatherTask = Task { [weak self] in
+                guard let self else { return }
                 do {
                     let endWeather = try await self.weatherService.fetchWeather(for: location)
                     await MainActor.run {
