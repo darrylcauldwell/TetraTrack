@@ -11,22 +11,22 @@ TetraTrack is a multi-discipline training app for iOS 26+ and watchOS 26+ target
 
 ```bash
 # Build main iOS app
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrack -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrack -destination 'generic/platform=iOS Simulator' build
 
 # Build and run all unit tests
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrack test
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrack test
 
 # Run specific test class
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrack test -only-testing:TetraTrackTests/RideModelTests
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrack test -only-testing:TetraTrackTests/RideModelTests
 
 # Build watch app
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme "TetraTrack Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' build
+xcodebuild -project TetraTrack.xcodeproj -scheme "TetraTrack Watch App" -destination 'generic/platform=watchOS Simulator' build
 
 # Build widgets
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrackWidgetExtension -configuration Debug build
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrackWidgetExtension -configuration Debug build
 
 # Build shared package
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrackShared -configuration Debug build
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrackShared -configuration Debug build
 ```
 
 ## Architecture
@@ -224,16 +224,28 @@ locationManager.activityType = .fitness
 
 ## WatchConnectivity
 
-```swift
-// Real-time (when reachable)
-session.sendMessage(["command": "start"], replyHandler: nil)
+**Transport selection is critical** — wrong transport causes lost commands.
 
-// Stats updates (background delivery, last value wins)
-try? session.updateApplicationContext(["distance": distance])
+| Message Type | Transport | Why |
+|-------------|-----------|-----|
+| Lifecycle (start/stop/pause/resume) | `sendReliableCommand()` — dual sendMessage + transferUserInfo | Must survive disconnect; applicationContext clobbered by 1Hz timer |
+| Status updates (1Hz) | `sendMessage()` / `applicationContext` | Last-value-wins is acceptable |
+| Haptic commands | `sendMessage()` | Non-critical; don't flood transferUserInfo queue |
+| Handshake (ack, mirroringStarted) | `sendReliableMessage()` — dual sendMessage + transferUserInfo | Must not be clobbered |
 
-// Commands that must be queued
-session.transferUserInfo(["command": "stop"])
-```
+**Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
+
+### Mirroring Pipeline
+iPhone sends `.startAutonomousWorkout` via WCSession → Watch starts HKWorkoutSession → mirrors back via `startMirroringToCompanionDevice()`. 45s adaptive fallback (15s ack + 30s mirroring) to iPhone-primary mode.
+
+### Key Files
+
+| File | Side | Role |
+|------|------|------|
+| `WatchConnectivityManager.swift` | iPhone | Sends commands, receives Watch data |
+| `WorkoutLifecycleService.swift` | iPhone | Manages workout lifecycle |
+| `WorkoutManager.swift` | Watch | Manages workouts, wires mirroring/fallback |
+| `WatchConnectivityService.swift` | Watch | Receives commands, sends data |
 
 ## UI Guidelines
 
@@ -287,6 +299,6 @@ Issues are grouped into milestones that represent themed releases:
 
 ```bash
 rm -rf ~/Library/Developer/Xcode/DerivedData/TetraTrack-*
-xcodebuild -project TetraTrack/TetraTrack.xcodeproj -scheme TetraTrack -configuration Release -archivePath /tmp/TetraTrack.xcarchive clean archive
+xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrack -configuration Release -archivePath /tmp/TetraTrack.xcarchive clean archive
 xcodebuild -exportArchive -archivePath /tmp/TetraTrack.xcarchive -exportPath /tmp/TetraTrackExport -exportOptionsPlist TetraTrack/ExportOptions.plist
 ```
