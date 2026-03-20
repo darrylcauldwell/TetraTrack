@@ -210,18 +210,6 @@ struct ScreenshotDataGenerator {
             drills.forEach { context.delete($0) }
         }
 
-        // Clear legacy riding drill sessions
-        let ridingDrillDescriptor = FetchDescriptor<RidingDrillSession>()
-        if let drills = try? context.fetch(ridingDrillDescriptor) {
-            drills.forEach { context.delete($0) }
-        }
-
-        // Clear legacy shooting drill sessions
-        let shootingDrillDescriptor = FetchDescriptor<ShootingDrillSession>()
-        if let drills = try? context.fetch(shootingDrillDescriptor) {
-            drills.forEach { context.delete($0) }
-        }
-
         // Clear shot pattern history (UserDefaults) and thumbnails
         UserDefaults.standard.removeObject(forKey: "shotPatternHistory")
         for thumbnailId in TargetThumbnailService.shared.listAllThumbnails() {

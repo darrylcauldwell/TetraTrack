@@ -736,24 +736,9 @@ private struct UnifiedTrendRow: View {
 struct UnifiedDrillHistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \UnifiedDrillSession.startDate, order: .reverse) private var unifiedSessions: [UnifiedDrillSession]
-    @Query(sort: \RidingDrillSession.startDate, order: .reverse) private var ridingDrillSessions: [RidingDrillSession]
-    @Query(sort: \ShootingDrillSession.startDate, order: .reverse) private var shootingDrillSessions: [ShootingDrillSession]
 
-    /// Combined and sorted list of all drill sessions
     private var allDrillSessions: [DrillHistoryItem] {
-        var items: [DrillHistoryItem] = []
-
-        // Add unified sessions
-        items += unifiedSessions.map { DrillHistoryItem(unifiedSession: $0) }
-
-        // Add legacy riding drill sessions
-        items += ridingDrillSessions.map { DrillHistoryItem(ridingSession: $0) }
-
-        // Add legacy shooting drill sessions
-        items += shootingDrillSessions.map { DrillHistoryItem(shootingSession: $0) }
-
-        // Sort by date, most recent first
-        return items.sorted { $0.date > $1.date }
+        unifiedSessions.map { DrillHistoryItem(unifiedSession: $0) }
     }
 
     var body: some View {
@@ -801,28 +786,6 @@ private struct DrillHistoryItem: Identifiable {
         self.icon = unifiedSession.drillType.icon
         self.color = unifiedSession.drillType.color
         self.category = unifiedSession.drillType.primaryCategory.displayName
-    }
-
-    init(ridingSession: RidingDrillSession) {
-        self.id = ridingSession.id
-        self.name = ridingSession.name
-        self.date = ridingSession.startDate
-        self.duration = ridingSession.duration
-        self.score = ridingSession.score
-        self.icon = "figure.equestrian.sports"
-        self.color = .brown
-        self.category = "Riding"
-    }
-
-    init(shootingSession: ShootingDrillSession) {
-        self.id = shootingSession.id
-        self.name = shootingSession.name
-        self.date = shootingSession.startDate
-        self.duration = shootingSession.duration
-        self.score = shootingSession.score
-        self.icon = "target"
-        self.color = .red
-        self.category = "Shooting"
     }
 
     var formattedScore: String {
