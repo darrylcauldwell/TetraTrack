@@ -97,6 +97,16 @@ enum CoachingMessageType: String {
     case strokeEfficiency
 }
 
+// MARK: - Speech Delegate Handler
+
+private final class LocalizedSpeechDelegateHandler: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+    var onDidFinish: (@Sendable () -> Void)?
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        onDidFinish?()
+    }
+}
+
 // MARK: - Audio Coaching Service
 
 @Observable
@@ -107,6 +117,7 @@ final class LocalizedAudioCoachingService {
     // MARK: - Properties
 
     private let synthesizer = AVSpeechSynthesizer()
+    private let speechDelegate = LocalizedSpeechDelegateHandler()
     private var currentVoice: AVSpeechSynthesisVoice?
 
     var isEnabled: Bool {
@@ -143,13 +154,37 @@ final class LocalizedAudioCoachingService {
     private init() {
         updateVoice()
         configureAudioSession()
+        speechDelegate.onDidFinish = { [weak self] in
+            Task { @MainActor in
+                self?.deactivateAudioSession()
+            }
+        }
+        synthesizer.delegate = speechDelegate
     }
 
     private func configureAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         } catch {
             Log.audio.error("Failed to configure audio session: \(error)")
+        }
+    }
+
+    private func activateAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setActive(true)
+        } catch {
+            Log.audio.error("Failed to activate audio session: \(error)")
+        }
+    }
+
+    private func deactivateAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            Log.audio.error("Failed to deactivate audio session: \(error)")
         }
     }
 
@@ -191,6 +226,8 @@ final class LocalizedAudioCoachingService {
             synthesizer.stopSpeaking(at: .word)
         }
 
+        activateAudioSession()
+
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = currentVoice
         utterance.rate = speechRate
@@ -213,6 +250,7 @@ final class LocalizedAudioCoachingService {
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
+        deactivateAudioSession()
     }
 
     // MARK: - Localized Messages

@@ -124,6 +124,16 @@ enum CoachLanguage: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Speech Delegate Handler
+
+private final class SpeechDelegateHandler: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+    var onDidFinish: (@Sendable () -> Void)?
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        onDidFinish?()
+    }
+}
+
 @Observable
 @MainActor
 final class AudioCoachManager: AudioCoaching {
@@ -199,6 +209,8 @@ final class AudioCoachManager: AudioCoaching {
     // MARK: - Private
 
     private let synthesizer = AVSpeechSynthesizer()
+    private let speechDelegate = SpeechDelegateHandler()
+    private var isAudioSessionActive = false
     private var lastDistanceMilestone: Double = 0
     private var lastTimeMilestone: TimeInterval = 0
     private var lastHeartRateZone: HeartRateZone?
@@ -282,6 +294,12 @@ final class AudioCoachManager: AudioCoaching {
 
     init() {
         setupAudioSession()
+        speechDelegate.onDidFinish = { [weak self] in
+            Task { @MainActor in
+                self?.handleUtteranceFinished()
+            }
+        }
+        synthesizer.delegate = speechDelegate
     }
 
     // MARK: - Audio Session
@@ -289,17 +307,19 @@ final class AudioCoachManager: AudioCoaching {
     private func setupAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         } catch {
             Log.audio.error("Failed to setup audio session: \(error)")
         }
     }
 
     func activateAudioSession() {
+        guard !isAudioSessionActive else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
+            isAudioSessionActive = true
             Log.audio.info("Audio session activated for background speech")
         } catch {
             Log.audio.error("Failed to activate audio session: \(error)")
@@ -307,9 +327,11 @@ final class AudioCoachManager: AudioCoaching {
     }
 
     func deactivateAudioSession() {
+        guard isAudioSessionActive else { return }
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setActive(false, options: .notifyOthersOnDeactivation)
+            isAudioSessionActive = false
             Log.audio.info("Audio session deactivated")
         } catch {
             Log.audio.error("Failed to deactivate audio session: \(error)")
@@ -390,7 +412,6 @@ final class AudioCoachManager: AudioCoaching {
     // MARK: - Public Methods
 
     func startSession() {
-        activateAudioSession()
         isMuted = false
 
         lastDistanceMilestone = 0
@@ -405,10 +426,8 @@ final class AudioCoachManager: AudioCoaching {
 
     func endSession(distance: Double, duration: TimeInterval) {
         // No generic end announcement — each plugin announces its own
-        // Delay deactivation so any plugin announcement can finish playing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
-            self?.deactivateAudioSession()
-        }
+        // Guard deactivation in case no speech is pending (delegate handles normal case)
+        deactivateAudioSession()
     }
 
     // MARK: - Session Summary Readback
@@ -658,6 +677,7 @@ final class AudioCoachManager: AudioCoaching {
         announcementQueue.removeAll()
         isProcessingQueue = false
         isSpeaking = false
+        deactivateAudioSession()
     }
 
     // MARK: - Private Methods
@@ -676,6 +696,11 @@ final class AudioCoachManager: AudioCoaching {
             return
         }
 
+        // Activate audio session before first utterance in batch
+        if !isAudioSessionActive {
+            activateAudioSession()
+        }
+
         let message = announcementQueue.removeFirst()
         lastAnnouncement = message
 
@@ -690,13 +715,18 @@ final class AudioCoachManager: AudioCoaching {
 
         isSpeaking = true
 
-        // Use delegate to chain announcements
+        // Delegate handles chaining via handleUtteranceFinished()
         synthesizer.speak(utterance)
+    }
 
-        // Schedule next announcement after this one completes
-        let estimatedDuration = Double(message.count) * 0.05 + 0.5
-        DispatchQueue.main.asyncAfter(deadline: .now() + estimatedDuration) { [weak self] in
-            self?.speakNext()
+    /// Called by speech delegate when an utterance finishes
+    func handleUtteranceFinished() {
+        if announcementQueue.isEmpty {
+            isProcessingQueue = false
+            isSpeaking = false
+            deactivateAudioSession()
+        } else {
+            speakNext()
         }
     }
 }

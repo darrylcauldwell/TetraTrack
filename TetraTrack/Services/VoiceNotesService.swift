@@ -245,13 +245,12 @@ final class VoiceNotesService: NSObject {
         recordingLevel = 0.0
         onRecordingStateChanged?(false)
 
-        // Reset audio session for playback
+        // Deactivate recording session — AudioCoachManager will reactivate on-demand for speech
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
-            try audioSession.setActive(true)
+            try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
-            Log.audio.error("Failed to reset audio session: \(error)")
+            Log.audio.error("Failed to deactivate recording audio session: \(error)")
         }
 
         // Notify completion with transcribed text
