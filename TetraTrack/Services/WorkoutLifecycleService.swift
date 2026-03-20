@@ -12,7 +12,6 @@ import CoreLocation
 import Observation
 import os
 import TetraTrackShared
-import WatchConnectivity
 
 // MARK: - Workout State
 
@@ -29,7 +28,6 @@ enum WorkoutLifecycleState: Sendable {
 enum MirroringPipelineState: String, Sendable {
     case idle
     case commandSent
-    case commandAcknowledged
     case mirroringInProgress
     case mirroredSessionReceived
     case fallbackTriggered
@@ -39,10 +37,9 @@ enum MirroringPipelineState: String, Sendable {
         switch self {
         case .idle: 0
         case .commandSent: 1
-        case .commandAcknowledged: 2
-        case .mirroringInProgress: 3
-        case .mirroredSessionReceived: 4
-        case .fallbackTriggered: 4  // Terminal, same rank as received
+        case .mirroringInProgress: 2
+        case .mirroredSessionReceived: 3
+        case .fallbackTriggered: 3  // Terminal, same rank as received
         }
     }
 }
@@ -109,9 +106,10 @@ final class WorkoutLifecycleService: NSObject {
     // MARK: - Watch-Primary Workout
 
     /// Request the Watch to start a primary workout session.
-    /// Sends a WCSession command to Watch, which starts its own HKWorkoutSession
-    /// and mirrors it back to iPhone via startMirroringToCompanionDevice().
-    /// iPhone receives the mirrored session and acts as a display/route device.
+    /// Uses `HKHealthStore.startWatchApp(toHandle:)` to wake the Watch app and deliver
+    /// the workout configuration via `handle(_ workoutConfiguration:)`.
+    /// Watch creates its own HKWorkoutSession and mirrors it back to iPhone
+    /// via `startMirroringToCompanionDevice()`.
     func requestWatchWorkout(configuration: HKWorkoutConfiguration) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
@@ -140,41 +138,16 @@ final class WorkoutLifecycleService: NSObject {
         // Store configuration for auto-fallback
         pendingWatchConfiguration = configuration
 
-        // Map HKWorkoutActivityType to WatchActivityType discipline string
-        let discipline: String = switch configuration.activityType {
-        case .equestrianSports: "riding"
-        case .running: "running"
-        case .walking: "walking"
-        case .swimming: "swimming"
-        case .archery: "shooting"
-        default: "running"
-        }
-
-        // Log WCSession state before sending command
-        let wc = WCSession.default
-        let paired = wc.isPaired
-        let installed = wc.isWatchAppInstalled
-        let reachable = wc.isReachable
-        let activated = wc.activationState.rawValue
-        Log.health.error("TT: WCSession state — paired=\(paired, privacy: .public), installed=\(installed, privacy: .public), reachable=\(reachable, privacy: .public), activated=\(activated, privacy: .public)")
-
-        // Step 1: Use startWatchApp to wake/launch the Watch app (best-effort).
-        // This is the only API that can launch the Watch app from background.
-        // We don't rely on handle() firing — just using it as a wake-up mechanism.
+        // Use startWatchApp to wake/launch the Watch app and deliver the configuration.
+        // Watch receives it via handle(_ workoutConfiguration:) → startWorkoutFromiPhone().
         do {
             try await healthStore.startWatchApp(toHandle: configuration)
-            Log.health.error("TT: startWatchApp returned OK (wake-up only)")
+            mirroringState = .commandSent
+            Log.health.error("TT: startWatchApp succeeded — mirroring pipeline → commandSent")
         } catch {
             let errMsg = error.localizedDescription
-            Log.health.error("TT: startWatchApp failed (non-fatal, Watch may already be running): \(errMsg, privacy: .public)")
+            Log.health.error("TT: startWatchApp failed: \(errMsg, privacy: .public)")
         }
-
-        // Step 2: Send the actual workout command via WCSession.
-        // Watch creates HKWorkoutSession, mirrors it back to iPhone via startMirroringToCompanionDevice().
-        // iPhone receives the mirrored session through setupMirroringHandler() above.
-        mirroringState = .commandSent
-        Log.health.error("TT: mirroring pipeline → commandSent")
-        watchConnectivity.requestAutonomousWorkout(discipline: discipline)
 
         // Persist context for crash recovery
         persistSessionContext(
@@ -182,35 +155,18 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        // TT: error level so it appears in Console.app on physical devices
-        Log.health.error("TT: requestWatchWorkout — sent startAutonomousWorkout(\(discipline, privacy: .public)) via WCSession")
-
-        // Adaptive two-phase fallback with cancellation support.
-        // Phase 1: Wait up to 15s for Watch acknowledgment. If not received, retry via transferUserInfo.
-        // Phase 2: Wait up to 30s more for mirrored session arrival.
-        // Total max: 45s before fallback (vs previous 10s).
+        // Single-phase fallback: wait up to 30s for mirrored session from Watch.
+        // If no mirrored session arrives, fall back to iPhone-primary mode.
         fallbackTask?.cancel()
         fallbackTask = Task { @MainActor [weak self] in
-            // Phase 1: Wait for Watch acknowledgment (15s)
-            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
             guard let self else { return }
             guard !Task.isCancelled else { return }
 
-            if self.mirroringState == .commandSent {
-                // Watch hasn't acknowledged — retry via transferUserInfo (guaranteed delivery)
-                Log.health.error("TT: no ack after 15s — retrying via transferUserInfo")
-                self.watchConnectivity.retryAutonomousWorkoutViaUserInfo(discipline: discipline)
-            }
-
-            // Phase 2: Wait for mirrored session (30s more)
-            try? await Task.sleep(nanoseconds: 30_000_000_000)
-            guard !Task.isCancelled else { return }
-
             if self.workoutSession == nil {
-                // Final cancellation check right before committing to fallback
                 guard !Task.isCancelled else { return }
                 let state = self.mirroringState.rawValue
-                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received after 45s (state=\(state, privacy: .public))")
+                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received after 30s (state=\(state, privacy: .public))")
                 self.mirroringState = .fallbackTriggered
                 Log.health.error("TT: mirroring pipeline → fallbackTriggered")
                 self.isWatchPrimary = false

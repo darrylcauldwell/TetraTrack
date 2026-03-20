@@ -102,10 +102,7 @@ public enum WatchCommand: String, Codable, Sendable {
     case hapticUrgent = "hapticUrgent"        // Final countdown (last 10s)
     case hapticRestStart = "hapticRestStart"  // Interval rest begins
     case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
-    // Autonomous workout (iPhone -> Watch: start your own HKWorkoutSession)
-    case startAutonomousWorkout = "startAutonomousWorkout"
-    // Mirroring handshake (Watch -> iPhone: acknowledge command receipt and mirroring progress)
-    case workoutCommandAcknowledged = "workoutCommandAcknowledged"
+    // Mirroring handshake (Watch -> iPhone: mirroring progress)
     case mirroringStarted = "mirroringStarted"
 }
 
@@ -345,16 +342,6 @@ public struct WatchMessage: Codable, Sendable {
     /// Create a voice note message from Watch to iPhone
     public static func voiceNote(_ text: String) -> WatchMessage {
         WatchMessage(command: .voiceNote, voiceNoteText: text)
-    }
-
-    /// Create a command for Watch to start its own autonomous HKWorkoutSession
-    public static func startAutonomousWorkout(discipline: String) -> WatchMessage {
-        WatchMessage(command: .startAutonomousWorkout, discipline: discipline)
-    }
-
-    /// Watch acknowledges receipt of startAutonomousWorkout command
-    public static func workoutCommandAcknowledged(discipline: String) -> WatchMessage {
-        WatchMessage(command: .workoutCommandAcknowledged, discipline: discipline)
     }
 
     /// Watch confirms mirroring has started successfully

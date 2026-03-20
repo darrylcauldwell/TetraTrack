@@ -86,11 +86,6 @@ final class WatchConnectivityService: NSObject {
     private var healthStore: HKHealthStore?
     private var spo2Query: HKAnchoredObjectQuery?
 
-    // Synchronous flag to prevent duplicate startAutonomousWorkout processing.
-    // Set immediately on main queue before the async Task starts the workout.
-    // Prevents the race where transferUserInfo delivers before isWorkoutActive is set.
-    private var isProcessingAutonomousStart: Bool = false
-
     // MARK: - Private
 
     private var session: WCSession?
@@ -581,40 +576,8 @@ final class WatchConnectivityService: NSObject {
                 HapticManager.shared.playRestIntervalEndHaptic()
                 Log.watch.info("Haptic: rest end")
 
-            // Autonomous workout: iPhone asks Watch to start its own HKWorkoutSession
-            case .startAutonomousWorkout:
-                if let discipline = watchMessage.discipline,
-                   let type = WatchActivityType(rawValue: discipline) {
-                    // Guard against duplicate delivery (sendMessage + transferUserInfo).
-                    // Check both isWorkoutActive (set deep in async flow) and
-                    // isProcessingAutonomousStart (set synchronously here on main queue).
-                    guard !WorkoutManager.shared.isWorkoutActive,
-                          !self.isProcessingAutonomousStart else {
-                        Log.watch.error("TT: startAutonomousWorkout IGNORED (already active or processing)")
-                        return
-                    }
-
-                    // Set synchronous flag BEFORE async Task to block duplicates
-                    self.isProcessingAutonomousStart = true
-
-                    Log.watch.error("TT: startAutonomousWorkout received: \(discipline, privacy: .public)")
-                    WatchConnectivityService.sendDiagnostic("startAutonomousWorkout received: \(discipline)")
-
-                    // Send acknowledgment to iPhone via transferUserInfo (guaranteed delivery,
-                    // not applicationContext which status updates would overwrite)
-                    let ack = WatchMessage.workoutCommandAcknowledged(discipline: discipline)
-                    self.sendReliableMessage(ack.toDictionary())
-                    Log.watch.error("TT: sent workoutCommandAcknowledged to iPhone via transferUserInfo")
-
-                    Task {
-                        await WorkoutManager.shared.startWorkout(type: type)
-                        // Clear the flag once startWorkout completes (success or failure)
-                        await MainActor.run { self.isProcessingAutonomousStart = false }
-                    }
-                }
-
             // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
-            case .workoutCommandAcknowledged, .mirroringStarted:
+            case .mirroringStarted:
                 break
 
             // Commands sent from Watch to iPhone (ignore on Watch side)
