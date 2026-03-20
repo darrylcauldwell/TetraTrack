@@ -317,6 +317,14 @@ final class GPSSessionTracker {
         currentActivityType = nil
     }
 
+    // MARK: - External Start Time
+
+    /// Set the session start time from an external source (e.g., Watch's mirrored session startDate).
+    /// Used to sync elapsed time when Watch starts the workout before iPhone begins tracking.
+    func setStartTime(_ date: Date) {
+        sessionStartTime = date
+    }
+
     // MARK: - Location Processing
 
     private func handleRawLocation(_ location: CLLocation) {

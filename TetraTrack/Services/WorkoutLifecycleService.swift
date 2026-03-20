@@ -92,12 +92,16 @@ final class WorkoutLifecycleService: NSObject {
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
 
+    // The mirrored session's startDate (Watch's actual workout start time)
+    private(set) var mirroredSessionStartDate: Date?
+
     // Tracked workout save task for ordered post-session pipeline
     private var workoutSaveTask: Task<HKWorkout?, Never>?
 
     /// Callback fired when a mirrored session arrives autonomously (Watch-initiated).
     /// SessionTracker wires this to create a DisciplinePlugin and start tracking.
-    var onAutonomousMirroredSession: ((HKWorkoutActivityType) -> Void)?
+    /// The Date parameter is the Watch's workout start time for elapsed time sync.
+    var onAutonomousMirroredSession: ((HKWorkoutActivityType, Date) -> Void)?
 
     private override init() {
         super.init()
@@ -221,6 +225,10 @@ final class WorkoutLifecycleService: NSObject {
                 // Clear pending config — mirrored session arrived, no fallback needed
                 self.pendingWatchConfiguration = nil
 
+                // Capture Watch's workout start time for elapsed time sync
+                let watchStartDate = mirroredSession.startDate ?? Date()
+                self.mirroredSessionStartDate = watchStartDate
+
                 // If this session arrived without requestWatchWorkout() (autonomous Watch start),
                 // configure state so pause/resume/endAndSave use the correct Watch-primary path.
                 if !self.isWatchPrimary {
@@ -236,11 +244,11 @@ final class WorkoutLifecycleService: NSObject {
 
                     self.persistSessionContext(
                         discipline: "\(config.activityType.rawValue)",
-                        startDate: Date()
+                        startDate: watchStartDate
                     )
 
                     // Notify SessionTracker to create a plugin and start tracking
-                    self.onAutonomousMirroredSession?(config.activityType)
+                    self.onAutonomousMirroredSession?(config.activityType, watchStartDate)
 
                     Log.health.info("WorkoutLifecycleService: configured Watch-primary state for autonomous workout")
                 }
@@ -810,6 +818,7 @@ final class WorkoutLifecycleService: NSObject {
         isOutdoorSession = false
         hasInsertedRouteData = false
         isWatchPrimary = false
+        mirroredSessionStartDate = nil
         currentActivityType = nil
         pendingWatchConfiguration = nil
         mirroringState = .idle

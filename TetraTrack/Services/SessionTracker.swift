@@ -185,10 +185,10 @@ final class SessionTracker {
 
     /// Wire the callback so autonomous Watch workouts create a plugin on iPhone.
     private func setupMirroredSessionCallback() {
-        workoutLifecycle.onAutonomousMirroredSession = { [weak self] activityType in
+        workoutLifecycle.onAutonomousMirroredSession = { [weak self] activityType, watchStartDate in
             guard let self else { return }
             Task { @MainActor in
-                await self.startSessionFromMirroredWorkout(activityType: activityType)
+                await self.startSessionFromMirroredWorkout(activityType: activityType, startDate: watchStartDate)
             }
         }
     }
@@ -208,7 +208,8 @@ final class SessionTracker {
     /// Start a full session in response to an autonomous mirrored workout from Watch.
     /// Reuses startSession() logic but skips requestWatchWorkout() since Watch already
     /// owns the workout session.
-    func startSessionFromMirroredWorkout(activityType: HKWorkoutActivityType) async {
+    /// - Parameter startDate: The Watch's workout start time for elapsed time sync.
+    func startSessionFromMirroredWorkout(activityType: HKWorkoutActivityType, startDate: Date) async {
         guard sessionState == .idle else {
             Log.tracking.warning("startSessionFromMirroredWorkout: not idle, ignoring")
             return
@@ -272,7 +273,7 @@ final class SessionTracker {
         gpsHorizontalAccuracy = -1
         currentWeather = nil
         weatherError = nil
-        startTime = Date()
+        startTime = startDate
         timerTickCount = 0
         pausedAccumulated = 0
         lastPauseDate = nil
@@ -289,6 +290,7 @@ final class SessionTracker {
                 workoutLifecycle: workoutLifecycle
             )
             await gpsTracker.start(config: gpsConfig, delegate: self)
+            gpsTracker.setStartTime(startDate)
         }
 
         // Family sharing
@@ -460,6 +462,26 @@ final class SessionTracker {
         do {
             try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
             // disableAutoCalories not needed — builder runs on Watch
+
+            // Correct start time when mirrored session arrives with Watch's start date.
+            // requestWatchWorkout() returns after startWatchApp succeeds, but the mirrored
+            // session may arrive later. Observe mirroredSessionStartDate to sync elapsed time.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Poll briefly for the mirrored start date (arrives within ~30s)
+                for _ in 0..<60 {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    guard self.sessionState == .tracking else { return }
+                    if let watchStart = self.workoutLifecycle.mirroredSessionStartDate {
+                        self.startTime = watchStart
+                        if self.activePlugin?.usesGPS == true {
+                            self.gpsTracker.setStartTime(watchStart)
+                        }
+                        Log.tracking.info("Corrected startTime to Watch's mirrored session startDate")
+                        return
+                    }
+                }
+            }
         } catch {
             Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
             do {
