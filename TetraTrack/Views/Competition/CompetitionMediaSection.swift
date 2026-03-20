@@ -113,7 +113,7 @@ struct CompetitionMediaSection: View {
     private var photoGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                     if let uiImage = UIImage(data: photoData) {
                         ZStack(alignment: .topTrailing) {
                             Image(uiImage: uiImage)
@@ -197,7 +197,7 @@ struct CompetitionMediaSection: View {
     private var videoGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.offset) { index, _ in
+                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.element) { index, _ in
                     ZStack(alignment: .topTrailing) {
                         if index < videoThumbnails.count,
                            let uiImage = UIImage(data: videoThumbnails[index]) {
@@ -386,7 +386,7 @@ struct CompetitionMediaGallery: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                                     if let uiImage = UIImage(data: photoData) {
                                         Button {
                                             selectedPhotoIndex = index
@@ -420,7 +420,7 @@ struct CompetitionMediaGallery: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.offset) { index, identifier in
+                                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.element) { index, identifier in
                                     Button {
                                         selectedVideoIdentifier = identifier
                                     } label: {
@@ -511,7 +511,7 @@ struct CompetitionPhotoViewer: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                     if let uiImage = UIImage(data: photoData) {
                         Image(uiImage: uiImage)
                             .resizable()

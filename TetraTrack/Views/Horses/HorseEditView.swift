@@ -647,7 +647,7 @@ struct HorseVideoSection: View {
             if !videoThumbnails.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(Array(videoThumbnails.enumerated()), id: \.offset) { index, thumbnailData in
+                        ForEach(Array(videoThumbnails.enumerated()), id: \.element) { index, thumbnailData in
                             ZStack(alignment: .topTrailing) {
                                 if let image = UIImage(data: thumbnailData) {
                                     Image(uiImage: image)

@@ -719,7 +719,7 @@ struct CompetitionDetailView: View {
                                             }
                                     }
                                     // Manually added photos (stored as Data) - preserve aspect ratio
-                                    ForEach(Array(competition.photos.prefix(2).enumerated()), id: \.offset) { index, photoData in
+                                    ForEach(Array(competition.photos.prefix(2).enumerated()), id: \.element) { index, photoData in
                                         if let uiImage = UIImage(data: photoData) {
                                             let aspectRatio = uiImage.size.width / uiImage.size.height
                                             Image(uiImage: uiImage)
@@ -2241,7 +2241,7 @@ struct CompetitionMediaFullGalleryView: View {
                         .padding(.top, 8)
 
                     LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(Array(competition.photos.enumerated()), id: \.offset) { index, photoData in
+                        ForEach(Array(competition.photos.enumerated()), id: \.element) { index, photoData in
                             if let uiImage = UIImage(data: photoData) {
                                 Image(uiImage: uiImage)
                                     .resizable()

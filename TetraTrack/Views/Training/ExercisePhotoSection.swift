@@ -44,7 +44,7 @@ struct ExercisePhotoSection: View {
         if !photos.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                    ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                         photoThumbnail(data: photoData, index: index)
                     }
                 }
@@ -265,7 +265,7 @@ struct ExerciseMediaSection: View {
     private var photoGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                     if let uiImage = UIImage(data: photoData) {
                         ZStack(alignment: .topTrailing) {
                             Image(uiImage: uiImage)
@@ -352,7 +352,7 @@ struct ExerciseMediaSection: View {
     private var videoGrid: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.offset) { index, _ in
+                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.element) { index, _ in
                     ZStack(alignment: .topTrailing) {
                         if index < videoThumbnails.count,
                            let uiImage = UIImage(data: videoThumbnails[index]) {
@@ -534,7 +534,7 @@ struct ExerciseMediaGallery: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                                     if let uiImage = UIImage(data: photoData) {
                                         Button {
                                             selectedPhotoIndex = index
@@ -564,7 +564,7 @@ struct ExerciseMediaGallery: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.offset) { index, identifier in
+                                ForEach(Array(videoAssetIdentifiers.enumerated()), id: \.element) { index, identifier in
                                     Button {
                                         selectedVideoIdentifier = identifier
                                     } label: {
@@ -640,7 +640,7 @@ struct ExercisePhotoGallery: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                        ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                             galleryThumbnail(data: photoData, index: index)
                         }
                     }
@@ -715,7 +715,7 @@ struct ExercisePhotoFullScreenViewer: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                     if let uiImage = UIImage(data: photoData) {
                         Image(uiImage: uiImage)
                             .resizable()
@@ -883,7 +883,7 @@ struct PhotoViewer: View {
             Color.black.ignoresSafeArea()
 
             TabView(selection: $currentIndex) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photoData in
+                ForEach(Array(photos.enumerated()), id: \.element) { index, photoData in
                     photoPage(data: photoData, index: index)
                 }
             }

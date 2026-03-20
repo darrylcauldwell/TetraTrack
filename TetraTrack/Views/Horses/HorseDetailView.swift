@@ -199,7 +199,7 @@ struct HorseDetailView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(Array(horse.videoThumbnails.enumerated()), id: \.offset) { index, thumbnailData in
+                    ForEach(Array(horse.videoThumbnails.enumerated()), id: \.element) { index, thumbnailData in
                         if let image = UIImage(data: thumbnailData) {
                             Image(uiImage: image)
                                 .resizable()
