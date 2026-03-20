@@ -8,7 +8,6 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
-import Combine
 
 // MARK: - Reaction Drill View
 
@@ -16,7 +15,7 @@ struct ReactionDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    @StateObject private var voiceManager = RangeOfficerVoice()
+    @State private var voiceManager = RangeOfficerVoice()
     @State private var phase: RangePhase = .idle
     @State private var currentRound = 0
     @State private var totalRounds = 10
@@ -478,8 +477,9 @@ struct ReactionDrillView: View {
 
 // MARK: - Range Officer Voice
 
-class RangeOfficerVoice: ObservableObject {
-    private let synthesizer = AVSpeechSynthesizer()
+@Observable
+final class RangeOfficerVoice {
+    @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
 
     func speak(_ text: String, completion: (() -> Void)? = nil) {
         let utterance = AVSpeechUtterance(string: text)

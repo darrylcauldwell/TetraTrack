@@ -312,7 +312,7 @@ struct NoteField: View {
     let placeholder: String
     @Binding var text: String
 
-    @StateObject private var transcriber = VoiceTranscriber()
+    @State private var transcriber = VoiceTranscriber()
     @State private var showingPermissionAlert = false
 
     var body: some View {
@@ -407,15 +407,16 @@ struct NoteField: View {
 // MARK: - Voice Transcriber
 
 @MainActor
-class VoiceTranscriber: ObservableObject {
-    @Published var isTranscribing = false
-    @Published var transcribedText = ""
-    @Published var errorMessage: String?
+@Observable
+final class VoiceTranscriber {
+    var isTranscribing = false
+    var transcribedText = ""
+    var errorMessage: String?
 
-    private var audioEngine: AVAudioEngine?
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var recognitionTask: SFSpeechRecognitionTask?
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    @ObservationIgnored private var audioEngine: AVAudioEngine?
+    @ObservationIgnored private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @ObservationIgnored private var recognitionTask: SFSpeechRecognitionTask?
+    @ObservationIgnored private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
 
     func requestAuthorization() async -> Bool {
         // Check speech recognition authorization
