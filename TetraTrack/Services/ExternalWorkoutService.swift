@@ -131,6 +131,7 @@ final class ExternalWorkoutService {
             let results = try await descriptor.result(for: healthStore)
             return !results.isEmpty
         } catch {
+            Log.health.error("Failed to check route availability: \(error)")
             return false
         }
     }
