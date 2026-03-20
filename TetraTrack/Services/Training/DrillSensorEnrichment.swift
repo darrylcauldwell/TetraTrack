@@ -57,16 +57,4 @@ struct DrillSensorEnrichment {
         }
     }
 
-    /// Enrich a ShootingDrillSession with current Watch sensor readings
-    static func enrich(_ session: ShootingDrillSession) {
-        let watchManager = WatchConnectivityManager.shared
-
-        // Heart rate from Watch
-        let hr = watchManager.lastReceivedHeartRate
-        if hr > 0 {
-            if session.startHeartRate == 0 {
-                session.startHeartRate = Double(hr)
-            }
-        }
-    }
 }
