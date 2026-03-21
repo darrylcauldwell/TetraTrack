@@ -176,12 +176,16 @@ struct SessionStatistics {
 // MARK: - Discipline Type
 
 /// Enum representing different training disciplines
-enum TrainingDiscipline: String, CaseIterable, Codable {
+enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
     case riding = "Riding"
     case running = "Running"
     case walking = "Walking"
     case swimming = "Swimming"
     case shooting = "Shooting"
+
+    var id: String { rawValue }
+
+    var displayName: String { rawValue }
 
     var icon: String {
         switch self {
@@ -193,17 +197,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
         }
     }
 
-    var color: String {
-        switch self {
-        case .riding: return "brown"
-        case .running: return "green"
-        case .walking: return "teal"
-        case .swimming: return "blue"
-        case .shooting: return "orange"
-        }
-    }
-
-    var swiftUIColor: Color {
+    var color: Color {
         switch self {
         case .riding: return .brown
         case .running: return .green
@@ -227,5 +221,10 @@ enum TrainingDiscipline: String, CaseIterable, Codable {
         case .swimming: return "/100m"
         case .shooting: return ""
         }
+    }
+
+    /// Disciplines that have drills (excludes walking)
+    static var drillDisciplines: [TrainingDiscipline] {
+        [.riding, .running, .swimming, .shooting]
     }
 }

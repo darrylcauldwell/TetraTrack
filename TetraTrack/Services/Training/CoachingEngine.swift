@@ -34,9 +34,9 @@ struct Weakness: Identifiable {
     let severity: Double       // 0-1 (1 being most severe)
     let evidence: String       // e.g., "Your scores dropped 20%..."
     let recommendedDrills: [String]
-    let discipline: Discipline
+    let discipline: TrainingDiscipline?
 
-    init(area: String, severity: Double, evidence: String, recommendedDrills: [String], discipline: Discipline) {
+    init(area: String, severity: Double, evidence: String, recommendedDrills: [String], discipline: TrainingDiscipline?) {
         self.area = area
         self.severity = severity
         self.evidence = evidence
@@ -54,8 +54,8 @@ struct DrillRecommendation: Identifiable {
     let reason: String
     let priority: DrillPriority
     let suggestedDuration: TimeInterval
-    let discipline: Discipline
-    let benefitsDisciplines: Set<Discipline>
+    let discipline: TrainingDiscipline
+    let benefitsDisciplines: Set<TrainingDiscipline>
     let crossTrainingNote: String?
 
     /// Full initializer with cross-training support
@@ -65,8 +65,8 @@ struct DrillRecommendation: Identifiable {
         reason: String,
         priority: DrillPriority,
         suggestedDuration: TimeInterval,
-        discipline: Discipline,
-        benefitsDisciplines: Set<Discipline> = [],
+        discipline: TrainingDiscipline,
+        benefitsDisciplines: Set<TrainingDiscipline> = [],
         crossTrainingNote: String? = nil
     ) {
         self.drillType = drillType
@@ -107,13 +107,13 @@ final class CoachingEngine {
     /// Identify weaknesses across unified drill history
     func identifyWeaknesses(
         drillHistory: [UnifiedDrillSession],
-        focusDiscipline: Discipline? = nil
+        focusDiscipline: TrainingDiscipline? = nil
     ) -> [Weakness] {
         var weaknesses: [Weakness] = []
 
         // Filter by discipline if specified
         let sessions: [UnifiedDrillSession]
-        if let focus = focusDiscipline, focus != .all {
+        if let focus = focusDiscipline {
             sessions = drillHistory.filter { $0.primaryDiscipline == focus }
         } else {
             sessions = drillHistory
@@ -122,7 +122,7 @@ final class CoachingEngine {
         // Check each drill type for declining performance
         for drillType in UnifiedDrillType.allCases {
             // Skip drills not in focus discipline
-            if let focus = focusDiscipline, focus != .all, !drillType.benefitsDisciplines.contains(focus) {
+            if let focus = focusDiscipline, !drillType.benefitsDisciplines.contains(focus) {
                 continue
             }
 
@@ -155,7 +155,7 @@ final class CoachingEngine {
                     severity: (60 - avgScore) / 60,
                     evidence: "Your \(weakSubscore.lowercased()) subscore averages \(String(format: "%.0f", avgScore))% across recent drills.",
                     recommendedDrills: recommendedDrills,
-                    discipline: .all
+                    discipline: nil
                 ))
             }
         }
@@ -164,7 +164,7 @@ final class CoachingEngine {
         let sessionsByType = Dictionary(grouping: sessions) { $0.drillType }
         for drillType in UnifiedDrillType.allCases {
             // Skip drills not in focus discipline
-            if let focus = focusDiscipline, focus != .all, !drillType.benefitsDisciplines.contains(focus) {
+            if let focus = focusDiscipline, !drillType.benefitsDisciplines.contains(focus) {
                 continue
             }
 
@@ -189,12 +189,12 @@ final class CoachingEngine {
     func recommendDrills(
         weaknesses: [Weakness],
         recentDrills: [UnifiedDrillSession],
-        focusDiscipline: Discipline? = nil
+        focusDiscipline: TrainingDiscipline? = nil
     ) -> [DrillRecommendation] {
         var recommendations: [DrillRecommendation] = []
 
         // Prioritize universal drills when no specific focus
-        let prioritizeUniversal = focusDiscipline == nil || focusDiscipline == .all
+        let prioritizeUniversal = focusDiscipline == nil
 
         // High priority: address severe weaknesses
         for weakness in weaknesses where weakness.severity > 0.5 {

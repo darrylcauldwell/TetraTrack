@@ -623,8 +623,7 @@ final class SkillDomainService {
         var scores: [SkillDomainScore] = []
         let drillType = session.drillType
 
-        // Convert Discipline to TrainingDiscipline
-        let discipline = trainingDiscipline(from: session.primaryDiscipline)
+        let discipline = session.primaryDiscipline
 
         // Primary domain score based on drill type
         let primaryDomain = domainForDrillType(drillType)
@@ -710,17 +709,6 @@ final class SkillDomainService {
         }
 
         return scores
-    }
-
-    /// Convert Discipline enum to TrainingDiscipline enum
-    private func trainingDiscipline(from discipline: Discipline) -> TrainingDiscipline {
-        switch discipline {
-        case .riding: return .riding
-        case .running: return .running
-        case .swimming: return .swimming
-        case .shooting: return .shooting
-        case .all: return .riding // Default for generic drills
-        }
     }
 
     /// Map a drill type to its primary skill domain

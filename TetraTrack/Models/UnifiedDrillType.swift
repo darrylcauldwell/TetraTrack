@@ -61,7 +61,7 @@ enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
     // MARK: - Discipline Mapping
 
     /// Primary discipline this drill belongs to
-    var primaryDiscipline: Discipline {
+    var primaryDiscipline: TrainingDiscipline {
         switch self {
         // Riding
         case .heelPosition, .coreStability, .twoPoint, .balanceBoard,
@@ -88,7 +88,7 @@ enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
     }
 
     /// All disciplines that benefit from this drill
-    var benefitsDisciplines: Set<Discipline> {
+    var benefitsDisciplines: Set<TrainingDiscipline> {
         switch self {
         // Universal drills (benefit ALL)
         case .coreStability, .boxBreathing, .standingBalance:
@@ -325,11 +325,9 @@ enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
 
     // MARK: - Static Helpers
 
-    /// Get all drills for a specific discipline
-    static func drills(for discipline: Discipline) -> [UnifiedDrillType] {
-        if discipline == .all {
-            return allCases
-        }
+    /// Get all drills for a specific discipline (nil means all)
+    static func drills(for discipline: TrainingDiscipline?) -> [UnifiedDrillType] {
+        guard let discipline else { return allCases }
         return allCases.filter { $0.benefitsDisciplines.contains(discipline) }
     }
 
@@ -339,10 +337,8 @@ enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
     }
 
     /// Get drills filtered by both discipline and category
-    static func drills(for discipline: Discipline, in category: MovementCategory) -> [UnifiedDrillType] {
-        if discipline == .all {
-            return drills(for: category)
-        }
+    static func drills(for discipline: TrainingDiscipline?, in category: MovementCategory) -> [UnifiedDrillType] {
+        guard let discipline else { return drills(for: category) }
         return allCases.filter {
             $0.primaryCategory == category && $0.benefitsDisciplines.contains(discipline)
         }

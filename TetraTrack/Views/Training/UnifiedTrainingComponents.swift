@@ -127,7 +127,7 @@ struct MovementPatternTransferCard: View {
         sessions.filter { $0.primaryCategory == category }
     }
 
-    private var disciplinesUsed: Set<Discipline> {
+    private var disciplinesUsed: Set<TrainingDiscipline> {
         Set(categorySessions.map(\.primaryDiscipline))
     }
 
@@ -149,7 +149,7 @@ struct MovementPatternTransferCard: View {
                 Text("Used in:")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                ForEach(Array(disciplinesUsed).filter { $0 != .all }, id: \.self) { discipline in
+                ForEach(Array(disciplinesUsed), id: \.self) { discipline in
                     Image(systemName: discipline.icon)
                         .font(.caption2)
                         .foregroundStyle(discipline.color)
@@ -172,7 +172,7 @@ struct MovementPatternTransferCard: View {
 // MARK: - Empty Training State
 
 struct EmptyTrainingState: View {
-    let discipline: Discipline
+    let discipline: TrainingDiscipline?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -183,13 +183,13 @@ struct EmptyTrainingState: View {
             Text("Start Your Training Journey")
                 .font(.headline)
 
-            if discipline == .all {
-                Text("Complete drills across any discipline to build movement patterns that transfer to all sports.")
+            if let discipline {
+                Text("Complete \(discipline.displayName.lowercased()) drills to improve your performance and unlock coaching insights.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             } else {
-                Text("Complete \(discipline.displayName.lowercased()) drills to improve your performance and unlock coaching insights.")
+                Text("Complete drills across any discipline to build movement patterns that transfer to all sports.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -465,7 +465,7 @@ extension UnifiedDrillType {
         VStack(spacing: 16) {
             UnifiedStreakBanner(sessions: [])
 
-            EmptyTrainingState(discipline: .all)
+            EmptyTrainingState(discipline: nil)
 
             PhonePlacementGuidanceView(placement: .chestHeld)
             PhonePlacementGuidanceView(placement: .twoHandedGrip)

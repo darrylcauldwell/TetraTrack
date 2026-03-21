@@ -504,7 +504,7 @@ struct ArtifactSidebarItem: View {
     }
 
     private var disciplineColor: Color {
-        artifact.discipline.swiftUIColor
+        artifact.discipline.color
     }
 }
 
@@ -668,7 +668,7 @@ struct DisciplineStatCard: View {
     }
 
     private var disciplineColor: Color {
-        discipline.swiftUIColor
+        discipline.color
     }
 }
 
@@ -778,7 +778,7 @@ struct ArtifactDetailView: View {
     }
 
     private var disciplineColor: Color {
-        artifact.discipline.swiftUIColor
+        artifact.discipline.color
     }
 }
 
@@ -1108,7 +1108,7 @@ struct ArtifactSummaryRow: View {
     }
 
     private var disciplineColor: Color {
-        artifact.discipline.swiftUIColor
+        artifact.discipline.color
     }
 }
 
@@ -1218,7 +1218,7 @@ struct FamilyDisciplineBreakdownChart: View {
     }
 
     private func disciplineColor(_ discipline: TrainingDiscipline) -> Color {
-        discipline.swiftUIColor
+        discipline.color
     }
 }
 

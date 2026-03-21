@@ -81,11 +81,11 @@ struct SessionHistoryView: View {
         var color: Color {
             switch self {
             case .all: return .purple
-            case .riding: return TrainingDiscipline.riding.swiftUIColor
-            case .running: return TrainingDiscipline.running.swiftUIColor
-            case .walking: return TrainingDiscipline.walking.swiftUIColor
-            case .swimming: return TrainingDiscipline.swimming.swiftUIColor
-            case .shooting: return TrainingDiscipline.shooting.swiftUIColor
+            case .riding: return TrainingDiscipline.riding.color
+            case .running: return TrainingDiscipline.running.color
+            case .walking: return TrainingDiscipline.walking.color
+            case .swimming: return TrainingDiscipline.swimming.color
+            case .shooting: return TrainingDiscipline.shooting.color
             }
         }
 
@@ -510,7 +510,7 @@ struct SessionHistoryRow: View {
             ZStack(alignment: .bottomTrailing) {
                 Image(systemName: item.isExternal ? (item.externalWorkout?.activityIcon ?? item.discipline.icon) : item.discipline.icon)
                     .font(.title2)
-                    .foregroundStyle(item.isExternal ? .blue : item.discipline.swiftUIColor)
+                    .foregroundStyle(item.isExternal ? .blue : item.discipline.color)
                     .frame(width: 32)
 
                 if item.isExternal {
@@ -593,10 +593,10 @@ struct SessionInsightsView: View {
         var color: Color {
             switch self {
             case .unified: return .purple
-            case .riding: return TrainingDiscipline.riding.swiftUIColor
-            case .running: return TrainingDiscipline.running.swiftUIColor
-            case .swimming: return TrainingDiscipline.swimming.swiftUIColor
-            case .shooting: return TrainingDiscipline.shooting.swiftUIColor
+            case .riding: return TrainingDiscipline.riding.color
+            case .running: return TrainingDiscipline.running.color
+            case .swimming: return TrainingDiscipline.swimming.color
+            case .shooting: return TrainingDiscipline.shooting.color
             }
         }
     }

@@ -12,7 +12,7 @@ struct UnifiedTrainingView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \UnifiedDrillSession.startDate, order: .reverse) private var drillSessions: [UnifiedDrillSession]
 
-    @State private var selectedDiscipline: Discipline
+    @State private var selectedDiscipline: TrainingDiscipline?
     @State private var selectedDrill: UnifiedDrillType?
     @State private var showCoaching = false
     @State private var showDrillHistory = false
@@ -20,7 +20,7 @@ struct UnifiedTrainingView: View {
     @State private var showCompetitionSimulation = false
     @State private var showChallenges = false
 
-    init(initialDiscipline: Discipline = .all) {
+    init(initialDiscipline: TrainingDiscipline? = nil) {
         _selectedDiscipline = State(initialValue: initialDiscipline)
     }
 
@@ -175,9 +175,19 @@ struct UnifiedTrainingView: View {
     private var disciplinePicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(Discipline.allCases) { discipline in
-                    DisciplineChip(
-                        discipline: discipline,
+                // "All" chip
+                DrillDisciplineChip(
+                    name: "All",
+                    icon: "square.grid.2x2",
+                    chipColor: .mint,
+                    isSelected: selectedDiscipline == nil,
+                    onTap: { selectedDiscipline = nil }
+                )
+                ForEach(TrainingDiscipline.drillDisciplines) { discipline in
+                    DrillDisciplineChip(
+                        name: discipline.displayName,
+                        icon: discipline.icon,
+                        chipColor: discipline.color,
                         isSelected: selectedDiscipline == discipline,
                         onTap: { selectedDiscipline = discipline }
                     )
@@ -190,7 +200,7 @@ struct UnifiedTrainingView: View {
     // MARK: - Categories for Selected Discipline
 
     private var categoriesForDiscipline: [MovementCategory] {
-        if selectedDiscipline == .all {
+        guard let selectedDiscipline else {
             return MovementCategory.allCases
         }
 
@@ -201,24 +211,26 @@ struct UnifiedTrainingView: View {
     }
 }
 
-// MARK: - Discipline Chip
+// MARK: - Drill Discipline Chip
 
-private struct DisciplineChip: View {
-    let discipline: Discipline
+private struct DrillDisciplineChip: View {
+    let name: String
+    let icon: String
+    let chipColor: Color
     let isSelected: Bool
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
-                Image(systemName: discipline.icon)
+                Image(systemName: icon)
                     .font(.caption)
-                Text(discipline.displayName)
+                Text(name)
                     .font(.subheadline.weight(.medium))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isSelected ? discipline.color : AppColors.elevatedSurface)
+            .background(isSelected ? chipColor : AppColors.elevatedSurface)
             .foregroundStyle(isSelected ? .white : .primary)
             .clipShape(Capsule())
         }
@@ -329,8 +341,8 @@ private struct DrillCard: View {
 // MARK: - Discipline Badges
 
 private struct DisciplineBadges: View {
-    let disciplines: Set<Discipline>
-    let primaryDiscipline: Discipline
+    let disciplines: Set<TrainingDiscipline>
+    let primaryDiscipline: TrainingDiscipline
 
     var body: some View {
         HStack(spacing: 2) {
@@ -354,10 +366,10 @@ private struct DisciplineBadges: View {
         .clipShape(Capsule())
     }
 
-    /// Get additional disciplines sorted, excluding primary and .all
-    private var sortedAdditionalDisciplines: [Discipline] {
+    /// Get additional disciplines sorted, excluding primary
+    private var sortedAdditionalDisciplines: [TrainingDiscipline] {
         Array(disciplines)
-            .filter { $0 != primaryDiscipline && $0 != .all }
+            .filter { $0 != primaryDiscipline }
             .sorted { $0.rawValue < $1.rawValue }
             .prefix(2)
             .map { $0 }
@@ -376,7 +388,7 @@ struct UnifiedCoachingDashboardView: View {
 
     @State private var coachingEngine = CoachingEngine()
     @State private var trendAnalyzer = DrillTrendAnalyzer()
-    @State private var selectedDiscipline: Discipline = .all
+    @State private var selectedDiscipline: TrainingDiscipline?
 
     /// Check if any training data exists across all disciplines
     private var hasAnyTrainingData: Bool {
@@ -389,15 +401,16 @@ struct UnifiedCoachingDashboardView: View {
             VStack(spacing: 20) {
                 // Discipline Filter for Coaching
                 Picker("Focus", selection: $selectedDiscipline) {
-                    ForEach(Discipline.allCases) { discipline in
-                        Text(discipline.displayName).tag(discipline)
+                    Text("All").tag(TrainingDiscipline?.none)
+                    ForEach(TrainingDiscipline.drillDisciplines) { discipline in
+                        Text(discipline.displayName).tag(Optional(discipline))
                     }
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
 
                 // Cross-Discipline Training (when All selected)
-                if selectedDiscipline == .all && !sessions.isEmpty {
+                if selectedDiscipline == nil && !sessions.isEmpty {
                     crossDisciplineSection
                 }
 
@@ -611,12 +624,12 @@ private struct UnifiedWeaknessCard: View {
                     Text(weakness.area)
                         .font(.subheadline.bold())
                     Spacer()
-                    Text(weakness.discipline.displayName)
+                    Text(weakness.discipline?.displayName ?? "All")
                         .font(.caption2)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(weakness.discipline.color.opacity(0.2))
-                        .foregroundStyle(weakness.discipline.color)
+                        .background((weakness.discipline?.color ?? .mint).opacity(0.2))
+                        .foregroundStyle(weakness.discipline?.color ?? .mint)
                         .clipShape(Capsule())
                 }
                 Text(weakness.evidence)
@@ -885,10 +898,10 @@ struct TrainingInsightsView: View {
         var color: Color {
             switch self {
             case .overview: return .purple
-            case .riding: return TrainingDiscipline.riding.swiftUIColor
-            case .running: return TrainingDiscipline.running.swiftUIColor
-            case .swimming: return TrainingDiscipline.swimming.swiftUIColor
-            case .shooting: return TrainingDiscipline.shooting.swiftUIColor
+            case .riding: return TrainingDiscipline.riding.color
+            case .running: return TrainingDiscipline.running.color
+            case .swimming: return TrainingDiscipline.swimming.color
+            case .shooting: return TrainingDiscipline.shooting.color
             }
         }
     }

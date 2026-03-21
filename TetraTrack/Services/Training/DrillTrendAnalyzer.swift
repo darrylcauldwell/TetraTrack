@@ -102,14 +102,14 @@ final class DrillTrendAnalyzer {
 
     /// Calculate trend for a discipline
     func disciplineTrend(
-        for discipline: Discipline,
+        for discipline: TrainingDiscipline?,
         sessions: [UnifiedDrillSession]
     ) -> TrendDirection {
         let filtered: [UnifiedDrillSession]
-        if discipline == .all {
-            filtered = sessions
-        } else {
+        if let discipline {
             filtered = sessions.filter { $0.primaryDiscipline == discipline }
+        } else {
+            filtered = sessions
         }
         return calculateTrendFromSessions(filtered.map { ($0.startDate, $0.score) })
     }
@@ -126,9 +126,9 @@ final class DrillTrendAnalyzer {
     }
 
     /// Find the strongest drill type based on recent sessions
-    func strongestDrill(sessions: [UnifiedDrillSession], discipline: Discipline? = nil) -> UnifiedDrillType? {
+    func strongestDrill(sessions: [UnifiedDrillSession], discipline: TrainingDiscipline? = nil) -> UnifiedDrillType? {
         var filteredSessions = Array(sessions.suffix(20))
-        if let discipline = discipline, discipline != .all {
+        if let discipline {
             filteredSessions = filteredSessions.filter { $0.primaryDiscipline == discipline }
         }
 
@@ -147,9 +147,9 @@ final class DrillTrendAnalyzer {
     }
 
     /// Find the weakest drill type that needs more practice
-    func weakestDrill(sessions: [UnifiedDrillSession], discipline: Discipline? = nil) -> UnifiedDrillType? {
+    func weakestDrill(sessions: [UnifiedDrillSession], discipline: TrainingDiscipline? = nil) -> UnifiedDrillType? {
         var filteredSessions = Array(sessions.suffix(20))
-        if let discipline = discipline, discipline != .all {
+        if let discipline {
             filteredSessions = filteredSessions.filter { $0.primaryDiscipline == discipline }
         }
 

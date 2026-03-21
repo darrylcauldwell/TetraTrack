@@ -143,7 +143,7 @@ struct DrillPlaceholderView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         HStack(spacing: 12) {
-                            ForEach(Array(drillType.benefitsDisciplines).filter { $0 != .all }, id: \.self) { discipline in
+                            ForEach(Array(drillType.benefitsDisciplines), id: \.self) { discipline in
                                 VStack(spacing: 4) {
                                     Image(systemName: discipline.icon)
                                         .font(.title2)

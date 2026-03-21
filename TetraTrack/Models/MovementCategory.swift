@@ -83,7 +83,7 @@ enum MovementCategory: String, CaseIterable, Codable, Identifiable {
     }
 
     /// Which disciplines benefit from this movement category
-    var benefitsDisciplines: Set<Discipline> {
+    var benefitsDisciplines: Set<TrainingDiscipline> {
         switch self {
         case .stability, .balance, .breathing, .coordination, .endurance:
             return [.riding, .running, .swimming, .shooting]
@@ -101,37 +101,3 @@ enum MovementCategory: String, CaseIterable, Codable, Identifiable {
     }
 }
 
-/// Training discipline filter options
-enum Discipline: String, CaseIterable, Codable, Identifiable {
-    case all = "All"
-    case riding = "Riding"
-    case running = "Running"
-    case swimming = "Swimming"
-    case shooting = "Shooting"
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        rawValue
-    }
-
-    var icon: String {
-        switch self {
-        case .all: return "square.grid.2x2"
-        case .riding: return "figure.equestrian.sports"
-        case .running: return "figure.run"
-        case .swimming: return "figure.pool.swim"
-        case .shooting: return "scope"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .all: return .mint
-        case .riding: return .purple
-        case .running: return .green
-        case .swimming: return .blue
-        case .shooting: return .red
-        }
-    }
-}

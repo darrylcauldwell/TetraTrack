@@ -335,7 +335,7 @@ struct FullMetricsArtifactRow: View {
     }
 
     private var disciplineColor: Color {
-        artifact.discipline.swiftUIColor
+        artifact.discipline.color
     }
 }
 

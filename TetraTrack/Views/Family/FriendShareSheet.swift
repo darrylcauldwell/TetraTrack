@@ -161,7 +161,7 @@ struct FriendShareSheet: View {
     // MARK: - Helpers
 
     private var disciplineColor: Color {
-        artifact.discipline.swiftUIColor
+        artifact.discipline.color
     }
 
     private func toggleFriend(_ id: UUID) {

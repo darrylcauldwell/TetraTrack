@@ -60,7 +60,7 @@ enum ChallengeType: String, CaseIterable, Identifiable {
         }
     }
 
-    var disciplines: [Discipline] {
+    var disciplines: [TrainingDiscipline] {
         switch self {
         case .steadyUnderPressure: return [.shooting, .riding]
         case .enduranceBlitz: return [.running, .swimming]

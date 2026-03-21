@@ -107,12 +107,12 @@ final class UnifiedDrillSession {
     }
 
     /// All disciplines that benefit from this drill
-    var benefitsDisciplines: Set<Discipline> {
+    var benefitsDisciplines: Set<TrainingDiscipline> {
         drillType.benefitsDisciplines
     }
 
     /// Primary discipline for this drill
-    var primaryDiscipline: Discipline {
+    var primaryDiscipline: TrainingDiscipline {
         drillType.primaryDiscipline
     }
 
