@@ -458,30 +458,13 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone
+        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone only
+        // when Watch is genuinely unavailable (not on transient failures).
         do {
             try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
-            // disableAutoCalories not needed — builder runs on Watch
-
-            // Correct start time when mirrored session arrives with Watch's start date.
-            // requestWatchWorkout() returns after startWatchApp succeeds, but the mirrored
-            // session may arrive later. Observe mirroredSessionStartDate to sync elapsed time.
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                // Poll briefly for the mirrored start date (arrives within ~30s)
-                for _ in 0..<60 {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    guard self.sessionState == .tracking else { return }
-                    if let watchStart = self.workoutLifecycle.mirroredSessionStartDate {
-                        self.startTime = watchStart
-                        if self.activePlugin?.usesGPS == true {
-                            self.gpsTracker.setStartTime(watchStart)
-                        }
-                        Log.tracking.info("Corrected startTime to Watch's mirrored session startDate")
-                        return
-                    }
-                }
-            }
+            // disableAutoCalories not needed — builder runs on Watch.
+            // Start-time correction is no longer needed — Watch sends authoritative
+            // elapsed time at 1Hz via mirrored session (watchElapsedTime).
         } catch {
             Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
             do {
@@ -866,8 +849,11 @@ final class SessionTracker {
             DispatchQueue.main.async {
                 guard let self else { return }
 
-                // Elapsed time: GPS-based or wall-clock based
-                if self.activePlugin?.usesGPS == true {
+                // Elapsed time: Watch-authoritative, GPS-based, or wall-clock based
+                if self.workoutLifecycle.isWatchPrimary && self.workoutLifecycle.watchElapsedTime > 0 {
+                    // Watch sends authoritative elapsed time at 1Hz via mirrored session
+                    self.elapsedTime = self.workoutLifecycle.watchElapsedTime
+                } else if self.activePlugin?.usesGPS == true {
                     self.elapsedTime = self.gpsTracker.elapsedTime
                 } else {
                     guard let start = self.startTime else { return }

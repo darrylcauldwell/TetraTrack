@@ -95,6 +95,13 @@ final class WorkoutLifecycleService: NSObject {
     // The mirrored session's startDate (Watch's actual workout start time)
     private(set) var mirroredSessionStartDate: Date?
 
+    // Watch's authoritative elapsed time (received at 1Hz via mirrored session)
+    private(set) var watchElapsedTime: TimeInterval = 0
+    private(set) var watchIsPaused: Bool = false
+
+    // Whether the mirroring handshake timed out (no competing session created)
+    private(set) var mirroringTimedOut: Bool = false
+
     // Tracked workout save task for ordered post-session pipeline
     private var workoutSaveTask: Task<HKWorkout?, Never>?
 
@@ -131,8 +138,8 @@ final class WorkoutLifecycleService: NSObject {
         self.currentActivityType = configuration.activityType
         isWatchPrimary = true
 
-        // Register to receive the mirrored session from Watch
-        setupMirroringHandler()
+        // Mirroring handler is already registered at app launch via registerMirroringHandler().
+        // No need to call setupMirroringHandler() here.
 
         // Create route builder for outdoor sessions (iPhone captures GPS)
         if isOutdoorSession {
@@ -159,30 +166,21 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        // Single-phase fallback: wait up to 30s for mirrored session from Watch.
-        // If no mirrored session arrives, fall back to iPhone-primary mode.
+        // Wait up to 45s for mirrored session from Watch.
+        // If no mirrored session arrives, set mirroringTimedOut flag but do NOT create
+        // a competing iPhone-primary session. The fallback is only used when Watch is
+        // genuinely unavailable (handled by SessionTracker's catch block).
         fallbackTask?.cancel()
         fallbackTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            try? await Task.sleep(nanoseconds: 45_000_000_000)
             guard let self else { return }
             guard !Task.isCancelled else { return }
 
             if self.workoutSession == nil {
-                guard !Task.isCancelled else { return }
                 let state = self.mirroringState.rawValue
-                Log.health.error("TT: auto-fallback to iPhone-primary — mirrored session NOT received after 30s (state=\(state, privacy: .public))")
+                Log.health.error("TT: mirroring timed out after 45s — no competing session created (state=\(state, privacy: .public))")
+                self.mirroringTimedOut = true
                 self.mirroringState = .fallbackTriggered
-                Log.health.error("TT: mirroring pipeline → fallbackTriggered")
-                self.isWatchPrimary = false
-                if let config = self.pendingWatchConfiguration {
-                    do {
-                        try await self.startWorkoutFallback(configuration: config)
-                        Log.health.error("TT: iPhone-primary fallback workout started successfully")
-                    } catch {
-                        let errMsg = error.localizedDescription
-                        Log.health.error("TT: iPhone-primary fallback ALSO failed: \(errMsg, privacy: .public)")
-                    }
-                }
             } else {
                 Log.health.error("TT: mirrored session confirmed active — no fallback needed")
             }
@@ -446,23 +444,26 @@ final class WorkoutLifecycleService: NSObject {
 
         if isWatchPrimary {
             // In Watch-primary mode, send control command via mirrored session.
-            // Watch pauses the session and state syncs back automatically.
+            // Watch pauses the session → delegate callback updates our state.
             sendControlCommand("pause")
+            // Set state immediately for responsive UI; delegate will confirm.
+            state = .paused
         } else {
             workoutSession?.pause()
             watchConnectivity.sendReliableCommand(.pauseRide)
+            state = .paused
         }
-        state = .paused
     }
 
     func resume() {
         if isWatchPrimary {
             sendControlCommand("resume")
+            state = .active
         } else {
             workoutSession?.resume()
             watchConnectivity.sendReliableCommand(.resumeRide)
+            state = .active
         }
-        state = .active
     }
 
     // MARK: - Mirrored Session Control Commands
@@ -819,6 +820,9 @@ final class WorkoutLifecycleService: NSObject {
         hasInsertedRouteData = false
         isWatchPrimary = false
         mirroredSessionStartDate = nil
+        watchElapsedTime = 0
+        watchIsPaused = false
+        mirroringTimedOut = false
         currentActivityType = nil
         pendingWatchConfiguration = nil
         mirroringState = .idle
@@ -846,13 +850,20 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
         date: Date
     ) {
         Task { @MainActor in
+            let isWP = self.isWatchPrimary
             switch toState {
             case .running:
-                Log.health.debug("WorkoutLifecycleService: session running")
+                Log.health.error("TT: WorkoutLifecycleService session → running (isWatchPrimary=\(isWP, privacy: .public))")
+                if self.isWatchPrimary {
+                    self.state = .active
+                }
             case .paused:
-                Log.health.debug("WorkoutLifecycleService: session paused")
+                Log.health.error("TT: WorkoutLifecycleService session → paused (isWatchPrimary=\(isWP, privacy: .public))")
+                if self.isWatchPrimary {
+                    self.state = .paused
+                }
             case .ended:
-                Log.health.debug("WorkoutLifecycleService: session ended")
+                Log.health.error("TT: WorkoutLifecycleService session → ended (isWatchPrimary=\(isWP, privacy: .public))")
             default:
                 break
             }
@@ -879,6 +890,18 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
                   let type = payload["type"] as? String else { continue }
 
             switch type {
+            case "elapsedTime":
+                // Watch's authoritative elapsed time (1Hz)
+                guard let elapsed = payload["elapsed"] as? TimeInterval else { continue }
+                let paused = payload["isPaused"] as? Bool ?? false
+                Task { @MainActor in
+                    self.watchElapsedTime = elapsed
+                    self.watchIsPaused = paused
+                }
+            case "autoPauseEvent":
+                // HealthKit auto-pause/resume event from Watch (informational)
+                let paused = payload["paused"] as? Bool ?? false
+                Log.health.info("WorkoutLifecycleService: Watch auto-pause event — paused=\(paused)")
             case "heartRate":
                 // HR sent from Watch via mirrored session
                 guard let bpm = payload["bpm"] as? Int, bpm > 0 else { continue }

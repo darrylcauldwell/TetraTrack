@@ -445,6 +445,12 @@ final class WatchConnectivityService: NSObject {
             // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
             case .startRide:
                 Log.watch.error("TT: received .startRide command")
+                // In Watch-primary mode, session lifecycle is managed via mirrored session.
+                // WCSession commands are only for iPhone-primary fallback mode.
+                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                    Log.watch.debug("Ignoring .startRide — Watch-primary session already active")
+                    break
+                }
                 guard self.rideState != .tracking else {
                     Log.watch.debug("Ignoring duplicate startRide — already tracking")
                     break
@@ -455,6 +461,10 @@ final class WatchConnectivityService: NSObject {
 
             case .stopRide:
                 Log.watch.error("TT: received .stopRide command")
+                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                    Log.watch.debug("Ignoring .stopRide — Watch-primary session uses mirrored control")
+                    break
+                }
                 guard self.rideState != .idle else {
                     Log.watch.debug("Ignoring duplicate stopRide — already idle")
                     break
@@ -474,12 +484,20 @@ final class WatchConnectivityService: NSObject {
 
             case .pauseRide:
                 Log.watch.error("TT: received .pauseRide command")
+                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                    Log.watch.debug("Ignoring .pauseRide — Watch-primary session uses mirrored control")
+                    break
+                }
                 self.rideState = .paused
                 WorkoutManager.shared.pauseWorkout()
                 Log.watch.info("Session paused from iPhone")
 
             case .resumeRide:
                 Log.watch.error("TT: received .resumeRide command")
+                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                    Log.watch.debug("Ignoring .resumeRide — Watch-primary session uses mirrored control")
+                    break
+                }
                 self.rideState = .tracking
                 WorkoutManager.shared.resumeWorkout()
                 Log.watch.info("Session resumed from iPhone")

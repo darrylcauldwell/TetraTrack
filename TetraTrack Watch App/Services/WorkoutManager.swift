@@ -51,6 +51,9 @@ final class WorkoutManager: NSObject {
 
     private(set) var isWorkoutActive: Bool = false
     private(set) var isPaused: Bool = false
+    /// Distinguishes user-initiated pause from HealthKit auto-pause (motionPaused).
+    /// Only user pause/resume should stop/start the elapsed timer.
+    private(set) var isUserPaused: Bool = false
     private(set) var isCompanionMode: Bool = false
     private(set) var activityType: WatchActivityType?
 
@@ -121,6 +124,7 @@ final class WorkoutManager: NSObject {
         isMirroredFromiPhone = false
         isMirroringToiPhone = false
         isPaused = false
+        isUserPaused = false
     }
 
     // MARK: - iPhone-Triggered Primary Workout
@@ -214,6 +218,30 @@ final class WorkoutManager: NSObject {
         Log.tracking.error("TT: iPhone-triggered primary workout started: \(typeName, privacy: .public)")
     }
 
+    /// Send authoritative elapsed time to iPhone via mirrored workout session.
+    /// Called at 1Hz from sendMirroredDataTick(). iPhone uses this instead of its own timer.
+    func sendElapsedTimeViaMirroredSession() {
+        guard let session = workoutSession else { return }
+
+        let elapsed = elapsedTime
+        let paused = isUserPaused
+        let envelope: [String: Any] = [
+            "type": "elapsedTime",
+            "elapsed": elapsed,
+            "isPaused": paused
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
+
+        Task {
+            do {
+                try await session.sendToRemoteWorkoutSession(data: data)
+            } catch {
+                Log.tracking.error("Failed to send elapsed time via mirrored session: \(error)")
+            }
+        }
+    }
+
     /// Send heart rate to iPhone via mirrored workout session channel.
     func sendHeartRateViaMirroredSession(_ bpm: Int) {
         guard let session = workoutSession else { return }
@@ -261,6 +289,7 @@ final class WorkoutManager: NSObject {
         lapCount = 0
         swimmingDistance = 0
         currentStrokeType = .unknown
+        isUserPaused = false
     }
 
     // MARK: - Authorization
@@ -404,24 +433,26 @@ final class WorkoutManager: NSObject {
         }
     }
 
-    /// Pause the current workout
+    /// Pause the current workout (user-initiated)
     func pauseWorkout() {
-        guard isWorkoutActive, !isPaused else { return }
+        guard isWorkoutActive, !isUserPaused else { return }
 
         workoutSession?.pause()
         isPaused = true
+        isUserPaused = true
         stopElapsedTimer()
-        Log.tracking.info("Paused workout")
+        Log.tracking.info("Paused workout (user-initiated)")
     }
 
-    /// Resume a paused workout
+    /// Resume a paused workout (user-initiated)
     func resumeWorkout() {
-        guard isWorkoutActive, isPaused else { return }
+        guard isWorkoutActive, isUserPaused else { return }
 
         workoutSession?.resume()
         isPaused = false
+        isUserPaused = false
         startElapsedTimer()
-        Log.tracking.info("Resumed workout")
+        Log.tracking.info("Resumed workout (user-initiated)")
     }
 
     /// Stop and save the workout
@@ -718,6 +749,7 @@ final class WorkoutManager: NSObject {
         let metrics = WatchMotionManager.shared.currentMetrics()
 
         if isMirroringToiPhone {
+            sendElapsedTimeViaMirroredSession()
             sendMotionViaMirroredSession(metrics)
             sendBuilderStatsViaMirroredSession()
             // Send gait classification result if available (riding only — avoids heavy DSP init on Watch for other disciplines)
@@ -862,7 +894,8 @@ final class WorkoutManager: NSObject {
         source.schedule(deadline: .now() + 1.0, repeating: 1.0, leeway: .milliseconds(100))
         source.setEventHandler { [weak self] in
             Task { @MainActor in
-                guard let self, let start = self.startTime, !self.isPaused else { return }
+                // Use isUserPaused (not isPaused) so HealthKit auto-pause doesn't freeze the timer
+                guard let self, let start = self.startTime, !self.isUserPaused else { return }
                 self.elapsedTime = Date().timeIntervalSince(start)
             }
         }
@@ -987,9 +1020,17 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         Task { @MainActor in
             switch toState {
             case .running:
+                // Update isPaused but do NOT clear isUserPaused here —
+                // isUserPaused is only managed by pauseWorkout()/resumeWorkout().
+                // This handles HealthKit auto-resume (motionResumed) without
+                // affecting the elapsed timer guard.
                 self.isPaused = false
+                Log.tracking.info("Session state → running (isUserPaused=\(self.isUserPaused))")
             case .paused:
+                // HealthKit auto-pause (motionPaused) sets isPaused but NOT isUserPaused.
+                // The elapsed timer checks isUserPaused, so it keeps running during auto-pause.
                 self.isPaused = true
+                Log.tracking.info("Session state → paused (isUserPaused=\(self.isUserPaused))")
             case .ended:
                 self.isWorkoutActive = false
                 self.isMirroringToiPhone = false
@@ -1121,7 +1162,6 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     }
 
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
-        // Handle workout events - particularly swimming events
         let events = workoutBuilder.workoutEvents
         guard !events.isEmpty else { return }
 
@@ -1133,6 +1173,44 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                 Task { @MainActor in
                     self.currentStrokeType = strokeStyle
                 }
+            }
+
+            // Handle HealthKit auto-pause events (motionPaused/motionResumed).
+            // Log and forward to iPhone but do NOT stop the elapsed timer —
+            // auto-pause is normal for walking/riding when the user stops moving.
+            switch event.type {
+            case .motionPaused:
+                Task { @MainActor in
+                    Log.tracking.info("HealthKit motionPaused event — timer continues (isUserPaused=\(self.isUserPaused))")
+                    self.sendAutoPauseEventViaMirroredSession(paused: true)
+                }
+            case .motionResumed:
+                Task { @MainActor in
+                    Log.tracking.info("HealthKit motionResumed event — timer continues (isUserPaused=\(self.isUserPaused))")
+                    self.sendAutoPauseEventViaMirroredSession(paused: false)
+                }
+            default:
+                break
+            }
+        }
+    }
+
+    /// Forward auto-pause events to iPhone via mirrored session for logging/UI.
+    private func sendAutoPauseEventViaMirroredSession(paused: Bool) {
+        guard let session = workoutSession, isMirroringToiPhone else { return }
+
+        let envelope: [String: Any] = [
+            "type": "autoPauseEvent",
+            "paused": paused,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
+        Task {
+            do {
+                try await session.sendToRemoteWorkoutSession(data: data)
+            } catch {
+                Log.tracking.error("Failed to send auto-pause event via mirrored session: \(error)")
             }
         }
     }
