@@ -70,6 +70,11 @@ final class SessionTracker {
 
     var isSharingWithFamily: Bool = false
 
+    // MARK: - Errors
+
+    /// Error message shown to the user when Watch workout fails to start
+    var sessionStartError: String?
+
     // MARK: - Post-Session
 
     /// Info captured at session end for post-session insights navigation
@@ -189,6 +194,27 @@ final class SessionTracker {
             guard let self else { return }
             Task { @MainActor in
                 await self.startSessionFromMirroredWorkout(activityType: activityType, startDate: watchStartDate)
+            }
+        }
+
+        workoutLifecycle.onMirroringTimedOut = { [weak self] in
+            guard let self else { return }
+            guard self.sessionState == .tracking else { return }
+            Log.tracking.error("TT: mirroring failed — falling back to iPhone-primary workout")
+            // Fall back to iPhone-primary mode so the session continues
+            guard let plugin = self.activePlugin else { return }
+            Task {
+                do {
+                    try await self.workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
+                    if plugin.disableAutoCalories {
+                        self.workoutLifecycle.disableAutoCalories()
+                    }
+                    self.sessionStartError = "Watch mirroring unavailable. Session continuing without Watch heart rate."
+                } catch {
+                    Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
+                    self.sessionStartError = "Could not start workout: \(error.localizedDescription)"
+                    self.stopSession()
+                }
             }
         }
     }
@@ -458,13 +484,10 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone only
-        // when Watch is genuinely unavailable (not on transient failures).
+        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone-primary
+        // with a visible warning when Watch mirroring is unavailable.
         do {
             try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
-            // disableAutoCalories not needed — builder runs on Watch.
-            // Start-time correction is no longer needed — Watch sends authoritative
-            // elapsed time at 1Hz via mirrored session (watchElapsedTime).
         } catch {
             Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
             do {
@@ -472,8 +495,12 @@ final class SessionTracker {
                 if plugin.disableAutoCalories {
                     workoutLifecycle.disableAutoCalories()
                 }
+                sessionStartError = "Watch unavailable. Session continuing without Watch heart rate."
             } catch {
-                Log.tracking.error("Failed to start workout lifecycle: \(error)")
+                Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
+                sessionStartError = "Could not start workout: \(error.localizedDescription)"
+                stopSession()
+                return
             }
         }
 

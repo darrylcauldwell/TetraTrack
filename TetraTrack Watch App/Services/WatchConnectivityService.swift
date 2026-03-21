@@ -239,7 +239,15 @@ final class WatchConnectivityService: NSObject {
         }
     }
 
-    // MARK: - Sending Messages (Simplified - No Session Control)
+    // MARK: - Sending Messages
+
+    /// Send a session lifecycle command (pause/resume/stop) to iPhone.
+    /// Uses sendReliableMessage (dual sendMessage + transferUserInfo) so
+    /// commands survive brief disconnects per CLAUDE.md transport table.
+    func sendSessionCommand(_ command: WatchCommand) {
+        let message = WatchMessage.command(command)
+        sendReliableMessage(message.toDictionary())
+    }
 
     /// Send heart rate update to iPhone (companion feature - no session control)
     func sendHeartRateUpdate(_ bpm: Int) {
@@ -595,7 +603,7 @@ final class WatchConnectivityService: NSObject {
                 Log.watch.info("Haptic: rest end")
 
             // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
-            case .mirroringStarted:
+            case .mirroringStarted, .mirroringFailed:
                 break
 
             // Commands sent from Watch to iPhone (ignore on Watch side)

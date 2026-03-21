@@ -166,7 +166,28 @@ final class WorkoutManager: NSObject {
         // which interferes with startMirroringToCompanionDevice(). WWDC23 sample and
         // real-world implementations skip prepare() when mirroring immediately.
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
-        try await session.startMirroringToCompanionDevice()
+        var mirroringSucceeded = false
+        for attempt in 1...2 {
+            do {
+                try await session.startMirroringToCompanionDevice()
+                mirroringSucceeded = true
+                break
+            } catch {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: startMirroringToCompanionDevice attempt \(attempt, privacy: .public) FAILED: \(errMsg, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("mirroring attempt \(attempt) FAILED: \(errMsg)")
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                }
+            }
+        }
+        guard mirroringSucceeded else {
+            session.end()
+            WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED after 2 attempts")
+            throw NSError(domain: "WorkoutManager", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "Mirroring failed after 2 attempts"])
+        }
         Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
 
@@ -1055,7 +1076,32 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         Task { @MainActor in
-            Log.tracking.error("Workout session failed: \(error.localizedDescription)")
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: workout session didFailWithError: \(errMsg, privacy: .public)")
+            WatchConnectivityService.sendDiagnostic("didFailWithError: \(errMsg)")
+
+            // Notify iPhone so it can surface the error
+            WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
+
+            // Stop all tracking
+            self.locationManager.stopTracking()
+            self.stopElapsedTimer()
+            self.stopMotionDataSending()
+            self.onMotionDataSend = nil
+            WatchMotionManager.shared.stopTracking()
+
+            // Reset state
+            self.clearRecoveryContext()
+            self.workoutSession = nil
+            self.workoutBuilder = nil
+            self.isWorkoutActive = false
+            self.isCompanionMode = false
+            self.isMirroredFromiPhone = false
+            self.isMirroringToiPhone = false
+            self.isPaused = false
+            self.activityType = nil
+
+            self.onWorkoutStateChanged?(false)
         }
     }
 

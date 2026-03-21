@@ -29,6 +29,15 @@ struct ContentView: View {
                 DisciplinesView()
             }
         }
+        .alert("Watch Notice",
+               isPresented: Binding(
+                   get: { sessionTracker?.sessionStartError != nil },
+                   set: { if !$0 { sessionTracker?.sessionStartError = nil } }
+               )) {
+            Button("OK") { sessionTracker?.sessionStartError = nil }
+        } message: {
+            Text(sessionTracker?.sessionStartError ?? "")
+        }
     }
 }
 

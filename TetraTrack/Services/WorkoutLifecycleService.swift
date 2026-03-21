@@ -110,6 +110,10 @@ final class WorkoutLifecycleService: NSObject {
     /// The Date parameter is the Watch's workout start time for elapsed time sync.
     var onAutonomousMirroredSession: ((HKWorkoutActivityType, Date) -> Void)?
 
+    /// Callback fired when mirroring times out or Watch sends .mirroringFailed.
+    /// SessionTracker wires this to surface an error and stop the session.
+    var onMirroringTimedOut: (() -> Void)?
+
     private override init() {
         super.init()
     }
@@ -153,38 +157,40 @@ final class WorkoutLifecycleService: NSObject {
         // Watch receives it via handle(_ workoutConfiguration:) → startWorkoutFromiPhone().
         do {
             try await healthStore.startWatchApp(toHandle: configuration)
-            mirroringState = .commandSent
+            updateMirroringState(.commandSent)
             Log.health.error("TT: startWatchApp succeeded — mirroring pipeline → commandSent")
         } catch {
             let errMsg = error.localizedDescription
             Log.health.error("TT: startWatchApp failed: \(errMsg, privacy: .public)")
+            cleanup()
+            throw error
         }
 
-        // Persist context for crash recovery
+        // Persist context for crash recovery (only after startWatchApp succeeds)
         persistSessionContext(
             discipline: "\(configuration.activityType.rawValue)",
             startDate: Date()
         )
 
-        // Wait up to 45s for mirrored session from Watch.
-        // If no mirrored session arrives, set mirroringTimedOut flag but do NOT create
-        // a competing iPhone-primary session. The fallback is only used when Watch is
-        // genuinely unavailable (handled by SessionTracker's catch block).
+        // Wait up to 30s for mirrored session from Watch.
+        // Watch needs time to: launch (~5s) + mirroring retry (~6s) + message delivery (~2s).
+        // If no mirrored session arrives, fire onMirroringTimedOut to trigger fallback.
         fallbackTask?.cancel()
         fallbackTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 45_000_000_000)
-            guard let self else { return }
-            guard !Task.isCancelled else { return }
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard let self, !Task.isCancelled else { return }
 
             if self.workoutSession == nil {
                 let state = self.mirroringState.rawValue
-                Log.health.error("TT: mirroring timed out after 45s — no competing session created (state=\(state, privacy: .public))")
+                Log.health.error("TT: mirroring timed out after 30s — no mirrored session (state=\(state, privacy: .public))")
                 self.mirroringTimedOut = true
-                self.mirroringState = .fallbackTriggered
+                self.updateMirroringState(.fallbackTriggered)
+                self.pendingWatchConfiguration = nil
+                self.onMirroringTimedOut?()
             } else {
                 Log.health.error("TT: mirrored session confirmed active — no fallback needed")
+                self.pendingWatchConfiguration = nil
             }
-            self.pendingWatchConfiguration = nil
         }
     }
 
@@ -270,6 +276,19 @@ final class WorkoutLifecycleService: NSObject {
         }
         mirroringState = newState
         Log.health.error("TT: mirroring pipeline → \(newState.rawValue, privacy: .public) (was \(previous.rawValue, privacy: .public))")
+    }
+
+    // MARK: - Watch Mirroring Failure
+
+    /// Called when Watch sends `.mirroringFailed` — immediate error instead of waiting for timeout.
+    func handleWatchMirroringFailed() {
+        fallbackTask?.cancel()
+        fallbackTask = nil
+        guard workoutSession == nil else { return }
+        mirroringTimedOut = true
+        updateMirroringState(.fallbackTriggered)
+        pendingWatchConfiguration = nil
+        onMirroringTimedOut?()
     }
 
     // MARK: - Start Workout (iPhone-Only Fallback)
