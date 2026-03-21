@@ -154,6 +154,98 @@ struct RideInsightsView: View {
         else { return 2 }
     }
 
+    // MARK: - Symmetry Drift Data (#18)
+
+    private var symmetryDriftData: (start: Double, mid: Double, end: Double)? {
+        let segments = ride.sortedGaitSegments
+        guard segments.count >= 3 else { return nil }
+
+        // Divide segments into thirds by time
+        let totalDuration = segments.reduce(0) { $0 + $1.duration }
+        guard totalDuration > 30 else { return nil }
+
+        let thirdDuration = totalDuration / 3.0
+        var cumulative: TimeInterval = 0
+        var startCoherences: [Double] = []
+        var midCoherences: [Double] = []
+        var endCoherences: [Double] = []
+
+        for segment in segments {
+            let coherence = segment.verticalYawCoherence
+            guard coherence > 0 else {
+                cumulative += segment.duration
+                continue
+            }
+
+            if cumulative < thirdDuration {
+                startCoherences.append(coherence)
+            } else if cumulative < thirdDuration * 2 {
+                midCoherences.append(coherence)
+            } else {
+                endCoherences.append(coherence)
+            }
+            cumulative += segment.duration
+        }
+
+        guard !startCoherences.isEmpty, !endCoherences.isEmpty else { return nil }
+
+        let start = (startCoherences.reduce(0, +) / Double(startCoherences.count)) * 100
+        let mid = midCoherences.isEmpty ? (start) : (midCoherences.reduce(0, +) / Double(midCoherences.count)) * 100
+        let end = (endCoherences.reduce(0, +) / Double(endCoherences.count)) * 100
+
+        return (start: start, mid: mid, end: end)
+    }
+
+    // MARK: - Per-Rein by Gait Data (#20)
+
+    private var reinByGaitData: [(gait: String, leftRhythm: Double, rightRhythm: Double, leftSymmetry: Double, rightSymmetry: Double)] {
+        let gaitSegments = ride.sortedGaitSegments
+        let reinSegments = ride.sortedReinSegments
+        guard !gaitSegments.isEmpty, !reinSegments.isEmpty else { return [] }
+
+        var results: [(gait: String, leftRhythm: Double, rightRhythm: Double, leftSymmetry: Double, rightSymmetry: Double)] = []
+
+        for gait in [GaitType.walk, .trot, .canter] {
+            let gaitSegs = gaitSegments.filter { $0.gait == gait }
+            guard !gaitSegs.isEmpty else { continue }
+
+            var leftRhythms: [Double] = []
+            var rightRhythms: [Double] = []
+            var leftSymmetries: [Double] = []
+            var rightSymmetries: [Double] = []
+
+            for reinSeg in reinSegments {
+                guard let reinEnd = reinSeg.endTime else { continue }
+                // Check overlap with gait segments
+                for gaitSeg in gaitSegs {
+                    guard let gaitEnd = gaitSeg.endTime else { continue }
+                    let overlapStart = max(reinSeg.startTime, gaitSeg.startTime)
+                    let overlapEnd = min(reinEnd, gaitEnd)
+                    guard overlapEnd > overlapStart else { continue }
+
+                    if reinSeg.reinDirection == .left {
+                        if gaitSeg.rhythmScore > 0 { leftRhythms.append(gaitSeg.rhythmScore) }
+                        if gaitSeg.verticalYawCoherence > 0 { leftSymmetries.append(gaitSeg.verticalYawCoherence * 100) }
+                    } else if reinSeg.reinDirection == .right {
+                        if gaitSeg.rhythmScore > 0 { rightRhythms.append(gaitSeg.rhythmScore) }
+                        if gaitSeg.verticalYawCoherence > 0 { rightSymmetries.append(gaitSeg.verticalYawCoherence * 100) }
+                    }
+                }
+            }
+
+            guard !leftRhythms.isEmpty || !rightRhythms.isEmpty else { continue }
+
+            let avgLR = leftRhythms.isEmpty ? 0 : leftRhythms.reduce(0, +) / Double(leftRhythms.count)
+            let avgRR = rightRhythms.isEmpty ? 0 : rightRhythms.reduce(0, +) / Double(rightRhythms.count)
+            let avgLS = leftSymmetries.isEmpty ? 0 : leftSymmetries.reduce(0, +) / Double(leftSymmetries.count)
+            let avgRS = rightSymmetries.isEmpty ? 0 : rightSymmetries.reduce(0, +) / Double(rightSymmetries.count)
+
+            results.append((gait: gait.rawValue.capitalized, leftRhythm: avgLR, rightRhythm: avgRR, leftSymmetry: avgLS, rightSymmetry: avgRS))
+        }
+
+        return results
+    }
+
     var body: some View {
         ScrollView {
             if horizontalSizeClass == .regular {
@@ -207,6 +299,22 @@ struct RideInsightsView: View {
                 economyCard
             }
 
+            // Analytics: Symmetry drift over ride duration (#18)
+            if let driftData = symmetryDriftData {
+                SymmetryDriftChart(
+                    startSymmetry: driftData.start,
+                    midSymmetry: driftData.mid,
+                    endSymmetry: driftData.end
+                )
+                .glassCard()
+            }
+
+            // Analytics: Per-rein metrics by gait type (#20)
+            if !reinByGaitData.isEmpty {
+                ReinByGaitBreakdownCard(reinGaitData: reinByGaitData)
+                    .glassCard()
+            }
+
             physiologyCard
 
             if !hasWatchData {
@@ -248,6 +356,23 @@ struct RideInsightsView: View {
             rhythmCard
             symmetryCard
             economyCard
+
+            // Analytics: Symmetry drift over ride duration (#18)
+            if let driftData = symmetryDriftData {
+                SymmetryDriftChart(
+                    startSymmetry: driftData.start,
+                    midSymmetry: driftData.mid,
+                    endSymmetry: driftData.end
+                )
+                .glassCard()
+            }
+
+            // Analytics: Per-rein metrics by gait type (#20)
+            if !reinByGaitData.isEmpty {
+                ReinByGaitBreakdownCard(reinGaitData: reinByGaitData)
+                    .glassCard()
+            }
+
             physiologyCard
 
             if !hasWatchData {
