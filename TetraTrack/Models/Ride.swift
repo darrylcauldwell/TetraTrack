@@ -91,6 +91,13 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     var breathingRateTrend: Double = 0
     var spo2Trend: Double = 0
 
+    // Rider stress analysis (from RiderStressAnalyzer)
+    var riderStabilityBaseline: Double = 0
+    var riderStabilityFinal: Double = 0
+    var riderFatigueDegradation: Double = 0
+    var riderTremorTrend: Double = 0
+    var riderDriftTrend: Double = 0
+
     /// Coaching notes from trusted contact (JSON-encoded [CoachingNote])
     var coachingNotesData: Data?
 

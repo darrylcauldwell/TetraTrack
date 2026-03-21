@@ -212,6 +212,7 @@ final class RidingPlugin: DisciplinePlugin {
     private let reinAnalyzer = ReinAnalyzer()
     private let symmetryAnalyzer = SymmetryAnalyzer()
     private let rhythmAnalyzer = RhythmAnalyzer()
+    private let riderStressAnalyzer = RiderStressAnalyzer()
     private let watchSensorAnalyzer = WatchSensorAnalyzer.shared
     private let pocketModeManager = PocketModeManager.shared
     private let audioCoach = AudioCoachManager.shared
@@ -307,6 +308,7 @@ final class RidingPlugin: DisciplinePlugin {
         reinAnalyzer.reset()
         symmetryAnalyzer.reset()
         rhythmAnalyzer.reset()
+        riderStressAnalyzer.reset()
         watchSensorAnalyzer.startSession(discipline: .riding)
 
         // Reset riding state
@@ -538,6 +540,13 @@ final class RidingPlugin: DisciplinePlugin {
             if watchSensorAnalyzer.minSpO2 < 100 {
                 ride.minSpO2 = watchSensorAnalyzer.minSpO2
             }
+
+            // Rider stress metrics
+            ride.riderStabilityBaseline = riderStressAnalyzer.stabilityBaseline
+            ride.riderStabilityFinal = riderStressAnalyzer.currentStability
+            ride.riderFatigueDegradation = riderStressAnalyzer.fatigueDegradation
+            ride.riderTremorTrend = riderStressAnalyzer.tremorTrend
+            ride.riderDriftTrend = riderStressAnalyzer.driftTrend
 
             // Gait diagnostics for testing rides
             if selectedRideType == .gaitTesting && !gaitAnalyzer.diagnosticEntries.isEmpty {
@@ -940,6 +949,7 @@ final class RidingPlugin: DisciplinePlugin {
         guard _weakTracker?.sessionState == .tracking else { return }
 
         gaitAnalyzer.processMotion(sample)
+        riderStressAnalyzer.process(motion: sample)
 
         leadAnalyzer.processMotionSample(sample, currentGait: currentGait)
         currentLead = leadAnalyzer.currentLead
