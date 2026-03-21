@@ -56,18 +56,21 @@ struct WatchHomeView: View {
             // NEVER use connectivityService.formattedDuration here — it's iPhone's elapsed
             // time relayed via unreliable WCSession, causing drift and jitter.
             // See memory/watch-connectivity.md "Watch UI Duration Source" rule.
-            Text(WorkoutManager.shared.isWorkoutActive
-                 ? WorkoutManager.shared.formattedElapsedTime
-                 : connectivityService.formattedDuration)
-                .scaledFont(size: 44, weight: .bold, design: .monospaced, relativeTo: .largeTitle)
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
+            VStack(spacing: 4) {
+                Text(WorkoutManager.shared.isWorkoutActive
+                     ? WorkoutManager.shared.formattedElapsedTime
+                     : connectivityService.formattedDuration)
+                    .scaledFont(size: 44, weight: .bold, design: .monospaced, relativeTo: .largeTitle)
+                    .foregroundStyle(.primary)
+                    .minimumScaleFactor(0.7)
 
-            // Distance
-            Text(connectivityService.formattedDistance)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .foregroundStyle(activeDisciplineColor)
+                // Distance
+                Text(connectivityService.formattedDistance)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(activeDisciplineColor)
+            }
+            .watchGlassPanel()
 
             Divider()
                 .padding(.vertical, 2)

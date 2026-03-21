@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct WatchStartSessionView: View {
-    @Environment(WorkoutManager.self) private var workoutManager
     @State private var showRideControl = false
     @State private var showRunControl = false
     @State private var showSwimControl = false
@@ -16,15 +15,7 @@ struct WatchStartSessionView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if workoutManager.isWorkoutActive {
-                    // Show active session - tap to return to controls
-                    activeSessionView
-                } else {
-                    // Show discipline selector
-                    disciplineSelectorView
-                }
-            }
+            disciplineSelectorView
             .navigationDestination(isPresented: $showRideControl) {
                 RideControlView()
             }
@@ -37,75 +28,6 @@ struct WatchStartSessionView: View {
             .navigationDestination(isPresented: $showShootingControl) {
                 ShootingControlView()
             }
-        }
-    }
-
-    // MARK: - Active Session View
-
-    private var activeSessionView: some View {
-        VStack(spacing: 12) {
-            // Icon
-            Image(systemName: activityIcon)
-                .font(.system(size: 36))
-                .foregroundStyle(activityColor)
-
-            // Duration
-            Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 32, weight: .bold, design: .monospaced))
-
-            // Distance (not shown for swimming)
-            if workoutManager.activityType != .swimming {
-                Text(workoutManager.formattedDistance)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Return to session button
-            Button {
-                switch workoutManager.activityType {
-                case .riding:
-                    showRideControl = true
-                case .running, .walking:
-                    showRunControl = true
-                case .swimming:
-                    showSwimControl = true
-                case .shooting:
-                    showShootingControl = true
-                case .none:
-                    break
-                }
-            } label: {
-                Text("Return to Session")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(activityColor)
-            .padding(.bottom, 8)
-        }
-        .padding(.horizontal)
-    }
-
-    private var activityIcon: String {
-        switch workoutManager.activityType {
-        case .riding: return "figure.equestrian.sports"
-        case .running: return "figure.run"
-        case .walking: return "figure.walk"
-        case .swimming: return "figure.pool.swim"
-        case .shooting: return "target"
-        case .none: return "figure.stand"
-        }
-    }
-
-    private var activityColor: Color {
-        switch workoutManager.activityType {
-        case .riding: return WatchAppColors.riding
-        case .running, .walking: return WatchAppColors.running
-        case .swimming: return WatchAppColors.swimming
-        case .shooting: return WatchAppColors.shooting
-        case .none: return WatchAppColors.primary
         }
     }
 
