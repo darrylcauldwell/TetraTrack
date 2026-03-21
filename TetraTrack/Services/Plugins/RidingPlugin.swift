@@ -675,7 +675,7 @@ final class RidingPlugin: DisciplinePlugin {
         lastCoordinate = location.coordinate
 
         // Gait analysis — always feed GPS data for distance/speed tracking
-        gaitAnalyzer.processLocation(speed: tracker.currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy)
+        gaitAnalyzer.processLocation(speed: tracker.currentSpeed, distance: distanceDelta, horizontalAccuracy: location.horizontalAccuracy, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude, course: location.course)
 
         // When Watch is primary gait source, skip iPhone HMM classification
         // The Watch drives gait state directly via setGaitFromWatch()

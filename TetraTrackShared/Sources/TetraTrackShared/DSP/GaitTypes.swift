@@ -85,6 +85,16 @@ public struct GaitFeatureVector: Sendable {
     }
 }
 
+// MARK: - Riding Context
+
+/// Detected riding context from GPS trajectory analysis
+public enum RidingContext: String, Sendable {
+    case arena        // Bounding box < 150m, high turn rate
+    case hack         // Bounding box > 500m, linear travel
+    case crossCountry // High speed segments + varied terrain
+    case unknown      // Insufficient data or ambiguous
+}
+
 // MARK: - HMM Gait State
 
 /// HMM gait state

@@ -114,6 +114,57 @@ final class GaitAnalyzer: Resettable {
     private var recentStrideFrequencies: [Double] = []
     private let cadenceBufferSize = 10
 
+    // MARK: - Riding Context Detection
+
+    /// GPS coordinate history for context classification
+    private var gpsHistory: [(lat: Double, lon: Double, speed: Double, bearing: Double)] = []
+    private var contextClassified: Bool = false
+    private var contextClassificationTime: Date = .distantPast
+    private var lastBearing: Double?
+
+    /// Classify riding context from accumulated GPS trajectory
+    private func classifyRidingContext() {
+        guard gpsHistory.count >= 30 else { return }  // Need ~30s of GPS data
+
+        // Bounding box diagonal
+        let lats = gpsHistory.map(\.lat)
+        let lons = gpsHistory.map(\.lon)
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLon = lons.min(), let maxLon = lons.max() else { return }
+
+        let latSpan = (maxLat - minLat) * 111_000  // degrees to meters
+        let lonSpan = (maxLon - minLon) * 111_000 * cos(minLat * .pi / 180)
+        let diagonal = sqrt(latSpan * latSpan + lonSpan * lonSpan)
+
+        // Turn rate: count significant bearing changes
+        var significantTurns = 0
+        for i in 1..<gpsHistory.count {
+            var delta = abs(gpsHistory[i].bearing - gpsHistory[i - 1].bearing)
+            if delta > 180 { delta = 360 - delta }
+            if delta > 15 { significantTurns += 1 }
+        }
+        let turnRate = Double(significantTurns) / Double(gpsHistory.count)
+
+        // Max speed observed
+        let maxSpeed = gpsHistory.map(\.speed).max() ?? 0
+
+        // Classify
+        let context: RidingContext
+        if diagonal < 150 && turnRate > 0.3 {
+            context = .arena
+        } else if diagonal > 500 && turnRate < 0.15 {
+            context = .hack
+        } else if maxSpeed > 6.0 && diagonal > 300 {
+            context = .crossCountry
+        } else {
+            context = .unknown
+        }
+
+        hmm.adjustTransitionMatrix(for: context)
+        contextClassified = true
+        Log.gait.info("Riding context classified: \(context.rawValue) (diagonal: \(String(format: "%.0f", diagonal))m, turnRate: \(String(format: "%.2f", turnRate)))")
+    }
+
     // MARK: - GPS and Legacy Support
 
     private var speedSamples: [Double] = []
@@ -291,6 +342,10 @@ final class GaitAnalyzer: Resettable {
         sampleTimestamps = []
         recentRotationRates = []
         recentStrideFrequencies = []
+        gpsHistory = []
+        contextClassified = false
+        contextClassificationTime = .distantPast
+        lastBearing = nil
         segmentDistance = 0
         lastFFTTime = .distantPast
         lastWatchVerticalOscillation = 0
@@ -307,7 +362,7 @@ final class GaitAnalyzer: Resettable {
     ///   - speed: GPS speed in m/s
     ///   - distance: Distance traveled since last update in meters
     ///   - horizontalAccuracy: GPS horizontal accuracy in meters (lower = better)
-    func processLocation(speed: Double, distance: Double, horizontalAccuracy: Double = 10.0) {
+    func processLocation(speed: Double, distance: Double, horizontalAccuracy: Double = 10.0, latitude: Double = 0, longitude: Double = 0, course: Double = -1) {
         guard isAnalyzing else { return }
 
         speedSamples.append(speed)
@@ -318,6 +373,21 @@ final class GaitAnalyzer: Resettable {
         lastGPSSpeed = speedSamples.isEmpty ? 0 : speedSamples.reduce(0, +) / Double(speedSamples.count)
         lastGPSAccuracy = horizontalAccuracy
         segmentDistance += distance
+
+        // Accumulate GPS history for context detection
+        if horizontalAccuracy < 30 && latitude != 0 {
+            let bearing = course >= 0 ? course : (lastBearing ?? 0)
+            gpsHistory.append((lat: latitude, lon: longitude, speed: speed, bearing: bearing))
+            if course >= 0 { lastBearing = course }
+
+            // Classify after 60 seconds of data, reclassify every 120s
+            if !contextClassified && gpsHistory.count >= 60 {
+                classifyRidingContext()
+            } else if contextClassified && Date().timeIntervalSince(contextClassificationTime) > 120 {
+                contextClassificationTime = Date()
+                classifyRidingContext()
+            }
+        }
     }
 
     // MARK: - Process Motion (Accelerometer + Gyroscope)

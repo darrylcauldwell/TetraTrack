@@ -167,6 +167,76 @@ public final class GaitHMM {
         stateProbs = [1.0, 0, 0, 0, 0]
     }
 
+    // MARK: - Contextual Transition Priors
+
+    /// Current riding context (set by GaitAnalyzer after GPS analysis)
+    public private(set) var ridingContext: RidingContext = .unknown
+
+    /// Adjust transition matrix for detected riding context
+    public func adjustTransitionMatrix(for context: RidingContext) {
+        guard context != ridingContext else { return }
+        ridingContext = context
+
+        switch context {
+        case .arena:
+            // Arena: frequent transitions, suppress gallop
+            let selfProb = 0.75
+            let transProb = 1.0 - selfProb
+            transitionMatrix = [
+                [selfProb, transProb, 0, 0, 0],
+                [transProb / 2, selfProb, transProb / 2, 0, 0],
+                [0, transProb / 2, selfProb, transProb / 2, 0],
+                [0, 0, transProb / 2, selfProb, transProb / 2],
+                [0, 0, 0, transProb, selfProb]
+            ]
+            // Suppress gallop in arena (very unlikely)
+            transitionMatrix[3][4] *= 0.1
+            transitionMatrix[4][4] = 0.99
+            transitionMatrix[4][3] = 0.01
+            normalizeTransitionMatrix()
+
+        case .hack:
+            // Hack: high self-transition (steady gaits), full range
+            let selfProb = 0.90
+            let transProb = 1.0 - selfProb
+            transitionMatrix = [
+                [selfProb, transProb, 0, 0, 0],
+                [transProb / 2, selfProb, transProb / 2, 0, 0],
+                [0, transProb / 2, selfProb, transProb / 2, 0],
+                [0, 0, transProb / 2, selfProb, transProb / 2],
+                [0, 0, 0, transProb, selfProb]
+            ]
+
+        case .crossCountry:
+            // XC: moderate self-transition, rapid transitions allowed
+            let selfProb = 0.85
+            let transProb = 1.0 - selfProb
+            transitionMatrix = [
+                [selfProb, transProb, 0, 0, 0],
+                [transProb / 3, selfProb, transProb / 3, transProb / 3, 0],
+                [0, transProb / 3, selfProb, transProb / 3, transProb / 3],
+                [0, 0, transProb / 2, selfProb, transProb / 2],
+                [0, 0, 0, transProb, selfProb]
+            ]
+            normalizeTransitionMatrix()
+
+        case .unknown:
+            transitionMatrix = Self.defaultTransitionMatrix()
+        }
+    }
+
+    /// Normalize each row of transition matrix to sum to 1
+    private func normalizeTransitionMatrix() {
+        for i in 0..<transitionMatrix.count {
+            let rowSum = transitionMatrix[i].reduce(0, +)
+            if rowSum > 0 {
+                for j in 0..<transitionMatrix[i].count {
+                    transitionMatrix[i][j] /= rowSum
+                }
+            }
+        }
+    }
+
     // MARK: - Adaptive Learning
 
     /// Apply learned per-horse parameters to shift emission means toward observed values
