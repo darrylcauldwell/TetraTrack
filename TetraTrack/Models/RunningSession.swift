@@ -13,6 +13,7 @@ import CoreLocation
 
 @Model
 final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, ElevationSessionProtocol, HeartRateSessionProtocol, CadenceSessionProtocol, SessionWritable {
+    #Index<RunningSession>([\.startDate])
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?

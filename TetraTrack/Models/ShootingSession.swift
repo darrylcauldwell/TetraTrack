@@ -71,6 +71,7 @@ enum ShootingSessionContext: String, Codable, CaseIterable {
 
 @Model
 final class ShootingSession: TrainingSessionProtocol, SessionWritable {
+    #Index<ShootingSession>([\.startDate])
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?

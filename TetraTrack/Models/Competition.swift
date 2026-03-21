@@ -271,6 +271,7 @@ enum DressageTest: String, CaseIterable {
 
 @Model
 final class Competition {
+    #Index<Competition>([\.date])
     var id: UUID = UUID()
     var name: String = ""
     var date: Date = Date()

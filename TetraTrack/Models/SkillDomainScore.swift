@@ -10,6 +10,7 @@ import SwiftData
 
 @Model
 final class SkillDomainScore {
+    #Index<SkillDomainScore>([\.timestamp], [\.domainRaw])
     var id: UUID = UUID()
     var timestamp: Date = Date()
 

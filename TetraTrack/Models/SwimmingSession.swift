@@ -13,6 +13,7 @@ import CoreLocation
 
 @Model
 final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, SessionWritable {
+    #Index<SwimmingSession>([\.startDate])
     var id: UUID = UUID()
     var startDate: Date = Date()
     var endDate: Date?
