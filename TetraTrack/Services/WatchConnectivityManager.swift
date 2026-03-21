@@ -344,6 +344,21 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         Log.watch.error("TT: sendReliableCommand(\(command.rawValue, privacy: .public)) — queued via transferUserInfo")
     }
 
+    /// Send a raw dictionary reliably via both sendMessage and transferUserInfo.
+    func sendReliableMessage(_ dict: [String: Any]) {
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.error("TT: sendReliableMessage — session not activated, skipping")
+            return
+        }
+        if session.isReachable {
+            session.sendMessage(dict, replyHandler: nil) { error in
+                Log.watch.error("TT: sendReliableMessage sendMessage error: \(error)")
+            }
+        }
+        session.transferUserInfo(dict)
+    }
+
     /// Start motion tracking on Watch for a specific discipline
     func startMotionTracking(mode: WatchMotionModeShared) {
         let message = WatchMessage.startMotionTracking(mode: mode)

@@ -160,6 +160,14 @@ final class WorkoutLifecycleService: NSObject {
             try await healthStore.startWatchApp(toHandle: configuration)
             updateMirroringState(.commandSent)
             Log.health.error("TT: startWatchApp succeeded — mirroring pipeline → commandSent")
+
+            // Also send config via WCSession — handle() isn't called if Watch app is already running
+            let backupMsg = WatchMessage.startWatchWorkoutCommand(
+                activityTypeRawValue: configuration.activityType.rawValue,
+                locationTypeRawValue: configuration.locationType.rawValue
+            )
+            watchConnectivity.sendReliableMessage(backupMsg)
+            Log.health.error("TT: sent startWatchWorkout backup via WCSession")
         } catch {
             let errMsg = error.localizedDescription
             Log.health.error("TT: startWatchApp failed: \(errMsg, privacy: .public)")

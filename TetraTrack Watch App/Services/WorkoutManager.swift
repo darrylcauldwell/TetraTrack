@@ -134,6 +134,12 @@ final class WorkoutManager: NSObject {
     /// Aligned to Apple's MirroringWorkoutsSample (WWDC23) exact order:
     /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async throws {
+        guard workoutSession == nil else {
+            Log.tracking.error("TT: startWorkoutFromiPhone — already have active session, skipping")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: skipped (session exists)")
+            return
+        }
+
         let activityRaw = configuration.activityType.rawValue
         let locationRaw = configuration.locationType.rawValue
         Log.tracking.error("TT: startWorkoutFromiPhone() — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
