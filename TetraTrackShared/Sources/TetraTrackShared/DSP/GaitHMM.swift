@@ -67,6 +67,8 @@ public final class GaitHMM {
         case watchMovementIntensity = 9
         case watchRhythmScore = 10
         case watchPostureStability = 11
+        case strideLength = 12
+        case cadenceRegularity = 13
     }
 
     // MARK: - Initialization
@@ -127,17 +129,24 @@ public final class GaitHMM {
         let canterF0 = offsetAndWidenRange(priors.canterFrequencyRange, by: ageAdjustment, offset: freqOffset)
         let gallopF0 = offsetAndWidenRange(priors.gallopFrequencyRange, by: ageAdjustment, offset: freqOffset)
 
+        // Scale stride length by breed height ratio (default 15.2hh)
+        let heightRatio = priors.typicalHeight / 15.2
+        let walkSL = (1.0 * heightRatio)...(2.2 * heightRatio)
+        let trotSL = (1.6 * heightRatio)...(3.2 * heightRatio)
+        let canterSL = (2.5 * heightRatio)...(4.1 * heightRatio)
+        let gallopSL = (3.0 * heightRatio)...(5.0 * heightRatio)
+
         emissionParams = [
             // Stationary
-            Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100),
+            Self.createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100, sl: 0...0.5, cr: 0.2...0.8),
             // Walk
-            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95),
+            Self.createEmissions(f0: walkF0, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95, sl: walkSL, cr: 0.02...0.08),
             // Trot
-            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85),
+            Self.createEmissions(f0: trotF0, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85, sl: trotSL, cr: 0.02...0.08),
             // Canter
-            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80),
+            Self.createEmissions(f0: canterF0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80, sl: canterSL, cr: 0.04...0.16),
             // Gallop
-            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65)
+            Self.createEmissions(f0: gallopF0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65, sl: gallopSL, cr: 0.08...0.32)
         ]
 
         if sensorMount == .wrist {
@@ -300,6 +309,24 @@ public final class GaitHMM {
         let psScaled = GaussianEmission(mean: psParam.mean, variance: psParam.variance * watchVarianceScale)
         logProb += psScaled.logProbability(features.watchPostureStability)
 
+        // Stride length: uninformative when unavailable (strideLength == 0)
+        let slParam = params[FeatureIndex.strideLength.rawValue]
+        if features.strideLength > 0 {
+            logProb += slParam.logProbability(features.strideLength)
+        } else {
+            let uninformative = GaussianEmission(mean: slParam.mean, variance: 100.0)
+            logProb += uninformative.logProbability(0)
+        }
+
+        // Cadence regularity: uninformative when unavailable (cadenceRegularity == 0 and no data)
+        let crParam = params[FeatureIndex.cadenceRegularity.rawValue]
+        if features.cadenceRegularity > 0 || features.strideFrequency > 0.5 {
+            logProb += crParam.logProbability(features.cadenceRegularity)
+        } else {
+            let uninformative = GaussianEmission(mean: crParam.mean, variance: 1.0)
+            logProb += uninformative.logProbability(0)
+        }
+
         if state == .canter && canterMultiplier != 1.0 {
             logProb += log(canterMultiplier)
         }
@@ -402,33 +429,34 @@ public final class GaitHMM {
 
     private static func defaultEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
         return [
-            // Stationary
-            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100),
-            // Walk
-            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95),
-            // Trot
-            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85),
-            // Canter
-            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80),
-            // Gallop
-            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65)
+            // Stationary — strideLength uninformative, cadence regularity high (chaotic when still)
+            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0...0.3, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.05, yaw: 0...0.1, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100, sl: 0...0.5, cr: 0.2...0.8),
+            // Walk — stride ~1.6m, very regular cadence
+            createEmissions(f0: 1.0...2.2, h2: 0.3...0.7, h3: 0.2...0.5, entropy: 0.2...0.5, xyC: 0.2...0.5, zYawC: 0.2...0.4, rms: 0.03...0.12, yaw: 0.05...0.20, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95, sl: 1.0...2.2, cr: 0.02...0.08),
+            // Trot — stride ~2.4m, very regular cadence
+            createEmissions(f0: 2.0...3.8, h2: 1.2...2.5, h3: 0.3...0.8, entropy: 0.3...0.6, xyC: 0.7...1.0, zYawC: 0.1...0.4, rms: 0.12...0.28, yaw: 0.20...0.45, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85, sl: 1.6...3.2, cr: 0.02...0.08),
+            // Canter — stride ~3.3m, moderate regularity
+            createEmissions(f0: 1.8...3.0, h2: 0.4...1.0, h3: 1.0...2.0, entropy: 0.4...0.7, xyC: 0.2...0.5, zYawC: 0.6...0.9, rms: 0.28...0.50, yaw: 0.40...0.80, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80, sl: 2.5...4.1, cr: 0.04...0.16),
+            // Gallop — stride ~4.0m, less regular
+            createEmissions(f0: 3.0...6.0, h2: 0.2...0.8, h3: 0.3...0.9, entropy: 0.6...0.9, xyC: 0.1...0.4, zYawC: 0.7...1.0, rms: 0.40...0.70, yaw: 0.60...1.20, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65, sl: 3.0...5.0, cr: 0.08...0.32)
         ]
     }
 
     private static func wristEmissionParams(numFeatures: Int) -> [[GaussianEmission]] {
         // Wrist-tuned parameters: h2/h3 ~0.5x, RMS ~0.6x, entropy +0.1, coherence widened, noise floor raised
         // Watch VO/MI/RS/PS ranges same as trunk — these come from the Watch itself regardless of iPhone mount
+        // Stride length and cadence regularity are GPS-derived, same as trunk
         return [
             // Stationary — raised noise floor for wrist movement artifacts
-            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0.1...0.5, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.08, yaw: 0...0.15, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100),
+            createEmissions(f0: 0...0.5, h2: 0...0.3, h3: 0...0.3, entropy: 0.1...0.5, xyC: 0...0.3, zYawC: 0...0.3, rms: 0...0.08, yaw: 0...0.15, watchVO: 0...1.0, watchMI: 0...10.0, watchRS: 0...20, watchPS: 80...100, sl: 0...0.5, cr: 0.2...0.8),
             // Walk — attenuated harmonics, lower RMS
-            createEmissions(f0: 1.0...2.2, h2: 0.2...0.5, h3: 0.1...0.4, entropy: 0.3...0.6, xyC: 0.15...0.45, zYawC: 0.15...0.35, rms: 0.02...0.10, yaw: 0.04...0.18, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95),
+            createEmissions(f0: 1.0...2.2, h2: 0.2...0.5, h3: 0.1...0.4, entropy: 0.3...0.6, xyC: 0.15...0.45, zYawC: 0.15...0.35, rms: 0.02...0.10, yaw: 0.04...0.18, watchVO: 2.0...4.5, watchMI: 10.0...35.0, watchRS: 40...80, watchPS: 75...95, sl: 1.0...2.2, cr: 0.02...0.08),
             // Trot — harmonics heavily attenuated through arm chain
-            createEmissions(f0: 2.0...3.8, h2: 0.6...1.5, h3: 0.2...0.6, entropy: 0.4...0.7, xyC: 0.3...0.9, zYawC: 0.1...0.35, rms: 0.06...0.18, yaw: 0.15...0.38, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85),
+            createEmissions(f0: 2.0...3.8, h2: 0.6...1.5, h3: 0.2...0.6, entropy: 0.4...0.7, xyC: 0.3...0.9, zYawC: 0.1...0.35, rms: 0.06...0.18, yaw: 0.15...0.38, watchVO: 4.5...10.0, watchMI: 30.0...65.0, watchRS: 70...100, watchPS: 60...85, sl: 1.6...3.2, cr: 0.02...0.08),
             // Canter — asymmetric gait, yaw dominates at wrist
-            createEmissions(f0: 1.8...3.0, h2: 0.3...0.8, h3: 0.5...1.2, entropy: 0.5...0.8, xyC: 0.15...0.45, zYawC: 0.4...0.8, rms: 0.15...0.35, yaw: 0.30...0.65, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80),
+            createEmissions(f0: 1.8...3.0, h2: 0.3...0.8, h3: 0.5...1.2, entropy: 0.5...0.8, xyC: 0.15...0.45, zYawC: 0.4...0.8, rms: 0.15...0.35, yaw: 0.30...0.65, watchVO: 3.5...7.5, watchMI: 45.0...80.0, watchRS: 55...85, watchPS: 50...80, sl: 2.5...4.1, cr: 0.04...0.16),
             // Gallop — high entropy, strong yaw, attenuated bounce
-            createEmissions(f0: 3.0...6.0, h2: 0.15...0.6, h3: 0.2...0.7, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.5...0.9, rms: 0.20...0.45, yaw: 0.45...0.95, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65)
+            createEmissions(f0: 3.0...6.0, h2: 0.15...0.6, h3: 0.2...0.7, entropy: 0.7...0.95, xyC: 0.1...0.35, zYawC: 0.5...0.9, rms: 0.20...0.45, yaw: 0.45...0.95, watchVO: 5.0...12.0, watchMI: 65.0...100.0, watchRS: 25...65, watchPS: 30...65, sl: 3.0...5.0, cr: 0.08...0.32)
         ]
     }
 
@@ -474,7 +502,9 @@ public final class GaitHMM {
         watchVO: ClosedRange<Double> = 0...1.0,
         watchMI: ClosedRange<Double> = 0...10.0,
         watchRS: ClosedRange<Double> = 0...50,
-        watchPS: ClosedRange<Double> = 0...50
+        watchPS: ClosedRange<Double> = 0...50,
+        sl: ClosedRange<Double> = 0...1.0,
+        cr: ClosedRange<Double> = 0...1.0
     ) -> [GaussianEmission] {
         func toGaussian(_ range: ClosedRange<Double>) -> GaussianEmission {
             let mean = (range.lowerBound + range.upperBound) / 2
@@ -494,7 +524,9 @@ public final class GaitHMM {
             toGaussian(watchVO),
             toGaussian(watchMI),
             toGaussian(watchRS),
-            toGaussian(watchPS)
+            toGaussian(watchPS),
+            toGaussian(sl),
+            toGaussian(cr)
         ]
     }
 
@@ -542,7 +574,9 @@ public final class GaitHMM {
             "watchVerticalOscillation": voScaled.probability(features.watchVerticalOscillation),
             "watchMovementIntensity": miScaled.probability(features.watchMovementIntensity),
             "watchRhythmScore": rsScaled.probability(features.watchRhythmScore),
-            "watchPostureStability": psScaled.probability(features.watchPostureStability)
+            "watchPostureStability": psScaled.probability(features.watchPostureStability),
+            "strideLength": params[FeatureIndex.strideLength.rawValue].probability(features.strideLength),
+            "cadenceRegularity": params[FeatureIndex.cadenceRegularity.rawValue].probability(features.cadenceRegularity)
         ]
     }
 

@@ -108,6 +108,12 @@ final class GaitAnalyzer: Resettable {
         lastWatchUpdateTime = Date()
     }
 
+    // MARK: - Cadence Regularity Buffer
+
+    /// Circular buffer of recent stride frequencies for CV computation
+    private var recentStrideFrequencies: [Double] = []
+    private let cadenceBufferSize = 10
+
     // MARK: - GPS and Legacy Support
 
     private var speedSamples: [Double] = []
@@ -284,6 +290,7 @@ final class GaitAnalyzer: Resettable {
         verticalAccelSamples = []
         sampleTimestamps = []
         recentRotationRates = []
+        recentStrideFrequencies = []
         segmentDistance = 0
         lastFFTTime = .distantPast
         lastWatchVerticalOscillation = 0
@@ -476,6 +483,30 @@ final class GaitAnalyzer: Resettable {
 
         let watchDataAge = Date().timeIntervalSince(lastWatchUpdateTime)
 
+        // Stride length: GPS speed / stride frequency (when GPS is accurate and freq is plausible)
+        let computedStrideLength: Double
+        if lastGPSAccuracy < 20.0 && strideFrequency > 0.5 && lastGPSSpeed > 0.5 {
+            computedStrideLength = lastGPSSpeed / strideFrequency
+        } else {
+            computedStrideLength = 0  // Unavailable — HMM will use uninformative variance
+        }
+
+        // Cadence regularity: coefficient of variation of recent stride frequencies
+        if strideFrequency > 0.5 {
+            recentStrideFrequencies.append(strideFrequency)
+            if recentStrideFrequencies.count > cadenceBufferSize {
+                recentStrideFrequencies.removeFirst()
+            }
+        }
+        let computedCadenceRegularity: Double
+        if recentStrideFrequencies.count >= 3 {
+            let mean = recentStrideFrequencies.reduce(0, +) / Double(recentStrideFrequencies.count)
+            let variance = recentStrideFrequencies.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(recentStrideFrequencies.count)
+            computedCadenceRegularity = mean > 0 ? sqrt(variance) / mean : 0
+        } else {
+            computedCadenceRegularity = 0  // Insufficient data — HMM will use uninformative variance
+        }
+
         let features = GaitFeatureVector(
             strideFrequency: strideFrequency,
             h2Ratio: harmonicRatios.h2,
@@ -491,7 +522,9 @@ final class GaitAnalyzer: Resettable {
             watchMovementIntensity: lastWatchMovementIntensity,
             watchRhythmScore: lastWatchRhythmScore,
             watchPostureStability: lastWatchPostureStability,
-            watchDataAge: watchDataAge
+            watchDataAge: watchDataAge,
+            strideLength: computedStrideLength,
+            cadenceRegularity: computedCadenceRegularity
         )
 
         // Update HMM

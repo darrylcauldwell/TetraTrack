@@ -34,13 +34,16 @@ public struct GaitFeatureVector: Sendable {
     public let watchRhythmScore: Double          // Watch rhythm/sync score (0-100)
     public let watchPostureStability: Double      // Watch posture stability (0-100)
     public let watchDataAge: Double             // Seconds since last Watch update (999 = no Watch)
+    public let strideLength: Double              // Derived: gpsSpeed / strideFrequency (meters)
+    public let cadenceRegularity: Double         // CV of recent stride frequencies (0 = perfect, 1 = chaotic)
 
     public static let zero = GaitFeatureVector(
         strideFrequency: 0, h2Ratio: 0, h3Ratio: 0, spectralEntropy: 0,
         xyCoherence: 0, zYawCoherence: 0, normalizedVerticalRMS: 0,
         yawRateRMS: 0, gpsSpeed: 0, gpsAccuracy: 100,
         watchVerticalOscillation: 0, watchMovementIntensity: 0,
-        watchRhythmScore: 0, watchPostureStability: 0, watchDataAge: 999
+        watchRhythmScore: 0, watchPostureStability: 0, watchDataAge: 999,
+        strideLength: 0, cadenceRegularity: 0
     )
 
     public init(
@@ -58,7 +61,9 @@ public struct GaitFeatureVector: Sendable {
         watchMovementIntensity: Double = 0,
         watchRhythmScore: Double = 0,
         watchPostureStability: Double = 0,
-        watchDataAge: Double = 999
+        watchDataAge: Double = 999,
+        strideLength: Double = 0,
+        cadenceRegularity: Double = 0
     ) {
         self.strideFrequency = strideFrequency
         self.h2Ratio = h2Ratio
@@ -75,6 +80,8 @@ public struct GaitFeatureVector: Sendable {
         self.watchRhythmScore = watchRhythmScore
         self.watchPostureStability = watchPostureStability
         self.watchDataAge = watchDataAge
+        self.strideLength = strideLength
+        self.cadenceRegularity = cadenceRegularity
     }
 }
 
