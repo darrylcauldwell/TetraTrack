@@ -143,6 +143,12 @@ struct StatisticsView: View {
                 }
             }
             .padding(.horizontal, Spacing.lg)
+
+            // Fatigue Progression
+            FatigueProgressionChart(rides: rides)
+
+            // Weather Impact
+            WeatherImpactChart(rides: rides)
         }
     }
 
@@ -185,6 +191,12 @@ struct StatisticsView: View {
             if statistics.averageSymmetry > 0 || statistics.averageRhythm > 0 {
                 QualityTrendsView(weeklyTrends: weeklyTrends, statistics: statistics)
             }
+
+            // Fatigue Progression
+            FatigueProgressionChart(rides: rides)
+
+            // Weather Impact
+            WeatherImpactChart(rides: rides)
         }
     }
 

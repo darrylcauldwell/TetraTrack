@@ -864,3 +864,240 @@ struct QualityStatCard: View {
         .frame(maxWidth: .infinity)
     }
 }
+
+// MARK: - Fatigue Progression Chart (#16)
+
+struct FatigueProgressionChart: View {
+    let rides: [Ride]
+    private let movingAverageWindow = 7
+
+    private var fatiguePoints: [(date: Date, value: Double)] {
+        rides
+            .sorted { $0.startDate < $1.startDate }
+            .compactMap { ride in
+                let fatigue: Double
+                if ride.riderFatigueDegradation != 0 {
+                    // Normalize degradation: negative slope → higher fatigue (0-1 scale)
+                    fatigue = min(1.0, max(0, -ride.riderFatigueDegradation * 10))
+                } else if ride.endFatigueScore > 0 {
+                    fatigue = ride.endFatigueScore
+                } else {
+                    return nil
+                }
+                return (date: ride.startDate, value: fatigue)
+            }
+    }
+
+    private func movingAverage(_ points: [(date: Date, value: Double)]) -> [(date: Date, value: Double)] {
+        guard points.count >= movingAverageWindow else { return [] }
+        return (movingAverageWindow - 1..<points.count).map { i in
+            let window = points[(i - movingAverageWindow + 1)...i]
+            let avg = window.map(\.value).reduce(0, +) / Double(movingAverageWindow)
+            return (date: points[i].date, value: avg)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Fatigue Progression", systemImage: "waveform.path.ecg")
+                .font(.headline)
+
+            if fatiguePoints.count < 3 {
+                Text("Need at least 3 rides with fatigue data")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 150, alignment: .center)
+            } else {
+                Chart {
+                    ForEach(Array(fatiguePoints.enumerated()), id: \.offset) { _, point in
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("Fatigue", point.value)
+                        )
+                        .foregroundStyle(AppColors.warning.opacity(0.4))
+                        .symbolSize(20)
+                    }
+
+                    let avg = movingAverage(fatiguePoints)
+                    ForEach(Array(avg.enumerated()), id: \.offset) { _, point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("Trend", point.value)
+                        )
+                        .foregroundStyle(AppColors.warning)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                    }
+                }
+                .chartYScale(domain: 0...1)
+                .chartYAxisLabel("Fatigue")
+                .frame(height: 200)
+
+                // Summary
+                if let latest = fatiguePoints.last, let first = fatiguePoints.first {
+                    let delta = latest.value - first.value
+                    let trend = delta > 0.05 ? "Increasing" : delta < -0.05 ? "Decreasing" : "Stable"
+                    let color: Color = delta > 0.05 ? AppColors.error : delta < -0.05 ? AppColors.success : AppColors.secondary
+                    HStack {
+                        Text("Trend: \(trend)")
+                            .font(.caption)
+                            .foregroundStyle(color)
+                        Spacer()
+                        Text("\(fatiguePoints.count) sessions")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .glassCard()
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - Weather Impact Chart (#24)
+
+struct WeatherImpactChart: View {
+    let rides: [Ride]
+
+    private enum TempBand: String, CaseIterable {
+        case cold = "Cold"
+        case mild = "Mild"
+        case warm = "Warm"
+
+        static func from(_ celsius: Double) -> TempBand {
+            if celsius < 10 { return .cold }
+            if celsius < 20 { return .mild }
+            return .warm
+        }
+
+        var color: Color {
+            switch self {
+            case .cold: return .blue
+            case .mild: return .green
+            case .warm: return .orange
+            }
+        }
+    }
+
+    private enum WindBand: String, CaseIterable {
+        case calm = "Calm"
+        case moderate = "Moderate"
+        case strong = "Strong"
+
+        static func from(_ ms: Double) -> WindBand {
+            if ms < 3 { return .calm }
+            if ms < 7 { return .moderate }
+            return .strong
+        }
+    }
+
+    private struct WeatherGroup: Identifiable {
+        let id = UUID()
+        let temp: TempBand
+        let wind: WindBand
+        let avgSpeed: Double
+        let count: Int
+    }
+
+    private var groups: [WeatherGroup] {
+        var buckets: [String: (speedSum: Double, count: Int, temp: TempBand, wind: WindBand)] = [:]
+
+        for ride in rides {
+            guard let weather = ride.startWeather,
+                  ride.totalDistance > 0,
+                  ride.totalDuration > 0 else { continue }
+
+            let temp = TempBand.from(weather.temperature)
+            let wind = WindBand.from(weather.windSpeed)
+            let key = "\(temp.rawValue)-\(wind.rawValue)"
+            let speed = ride.averageSpeed * 3.6 // km/h
+
+            if var bucket = buckets[key] {
+                bucket.speedSum += speed
+                bucket.count += 1
+                buckets[key] = bucket
+            } else {
+                buckets[key] = (speedSum: speed, count: 1, temp: temp, wind: wind)
+            }
+        }
+
+        return buckets.values
+            .filter { $0.count >= 2 }
+            .map { WeatherGroup(temp: $0.temp, wind: $0.wind, avgSpeed: $0.speedSum / Double($0.count), count: $0.count) }
+            .sorted { $0.temp.rawValue < $1.temp.rawValue }
+    }
+
+    private var insight: String? {
+        let withWeather = rides.compactMap { ride -> (temp: Double, speed: Double)? in
+            guard let weather = ride.startWeather,
+                  ride.totalDistance > 0,
+                  ride.totalDuration > 0 else { return nil }
+            return (temp: weather.temperature, speed: ride.averageSpeed * 3.6)
+        }
+        guard withWeather.count >= 5 else { return nil }
+
+        let cold = withWeather.filter { $0.temp < 10 }
+        let warm = withWeather.filter { $0.temp >= 20 }
+
+        if cold.count >= 2 && warm.count >= 2 {
+            let coldAvg = cold.map(\.speed).reduce(0, +) / Double(cold.count)
+            let warmAvg = warm.map(\.speed).reduce(0, +) / Double(warm.count)
+            let diff = abs(coldAvg - warmAvg)
+            if diff > 0.5 {
+                let faster = coldAvg > warmAvg ? "cold" : "warm"
+                return String(format: "%.1f km/h faster in %@ conditions on average", diff, faster)
+            }
+        }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Weather Impact", systemImage: "cloud.sun")
+                .font(.headline)
+
+            if groups.isEmpty {
+                Text("Need more rides with weather data to show correlations")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 150, alignment: .center)
+            } else {
+                Chart(groups) { group in
+                    BarMark(
+                        x: .value("Conditions", "\(group.temp.rawValue)\n\(group.wind.rawValue)"),
+                        y: .value("Avg Speed", group.avgSpeed)
+                    )
+                    .foregroundStyle(group.temp.color)
+                    .annotation(position: .top) {
+                        Text(String(format: "%.1f", group.avgSpeed))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .chartYAxisLabel("Avg Speed (km/h)")
+                .frame(height: 200)
+
+                // Session counts
+                HStack {
+                    ForEach(TempBand.allCases, id: \.rawValue) { band in
+                        let count = groups.filter { $0.temp == band }.map(\.count).reduce(0, +)
+                        if count > 0 {
+                            Label("\(band.rawValue): \(count)", systemImage: "circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(band.color)
+                        }
+                    }
+                    Spacer()
+                }
+
+                if let insight {
+                    Text(insight)
+                        .font(.caption)
+                        .foregroundStyle(AppColors.primary)
+                }
+            }
+        }
+        .glassCard()
+        .padding(.horizontal)
+    }
+}
