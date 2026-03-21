@@ -263,6 +263,8 @@ struct RunningInsightsView: View {
 
             physiologyCard
             formDegradationCard
+            cadenceOptimalRangeCard
+            strideDegradationCard
         }
         .padding(24)
     }
@@ -284,6 +286,8 @@ struct RunningInsightsView: View {
             economyCard
             physiologyCard
             formDegradationCard
+            cadenceOptimalRangeCard
+            strideDegradationCard
         }
         .padding()
     }
@@ -481,6 +485,87 @@ struct RunningInsightsView: View {
             }(),
             subtitle: "Recovery & Effort"
         )
+    }
+
+    // MARK: - Cadence Optimal Range Card (#19)
+
+    @ViewBuilder
+    private var cadenceOptimalRangeCard: some View {
+        let samples = session.runningFormSamples
+        if samples.count >= 8 {
+            let cadenceValues = samples.map { Double($0.cadence) }.filter { $0 > 0 }
+            if !cadenceValues.isEmpty {
+                let targetCadence = session.targetCadence > 0 ? Double(session.targetCadence) : 175.0
+                let optimalRange = (targetCadence - 5)...(targetCadence + 5)
+                let inZoneCount = cadenceValues.filter { optimalRange.contains($0) }.count
+                let inZonePercent = Double(inZoneCount) / Double(cadenceValues.count) * 100
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "metronome.fill")
+                            .foregroundStyle(AppColors.primary)
+                        Text("Cadence Zone")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Text("\(Int(inZonePercent))% in zone")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(inZonePercent >= 70 ? AppColors.success : AppColors.warning)
+                    }
+
+                    FormTimelineChart(
+                        samples: samples,
+                        metric: .cadence,
+                        optimalRange: optimalRange
+                    )
+                    .frame(height: 120)
+
+                    HStack {
+                        Text("Target: \(Int(targetCadence)) ± 5 spm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Circle()
+                            .fill(.green.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                        Text("Optimal zone")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .glassCard()
+            }
+        }
+    }
+
+    // MARK: - Stride Degradation Card (#25)
+
+    @ViewBuilder
+    private var strideDegradationCard: some View {
+        let splits = session.sortedSplits
+        if splits.count >= 4 {
+            let strideLengths = splits.compactMap { split -> Double? in
+                guard split.cadence > 0, split.distance > 0, split.duration > 0 else { return nil }
+                let speed = split.distance / split.duration  // m/s
+                let stepsPerSecond = Double(split.cadence) / 60.0
+                return stepsPerSecond > 0 ? speed / stepsPerSecond : nil
+            }
+
+            if strideLengths.count >= 4 {
+                let midpoint = strideLengths.count / 2
+                let firstHalf = Array(strideLengths.prefix(midpoint))
+                let secondHalf = Array(strideLengths.suffix(midpoint))
+                let firstAvg = firstHalf.reduce(0, +) / Double(firstHalf.count)
+                let secondAvg = secondHalf.reduce(0, +) / Double(secondHalf.count)
+
+                if firstAvg > 0 {
+                    let shortenedPercent = ((firstAvg - secondAvg) / firstAvg) * 100
+                    StrideDegradationBadge(
+                        shortenedPercent: shortenedPercent,
+                        isWarning: shortenedPercent > 5
+                    )
+                }
+            }
+        }
     }
 
     // MARK: - Form Degradation Card
