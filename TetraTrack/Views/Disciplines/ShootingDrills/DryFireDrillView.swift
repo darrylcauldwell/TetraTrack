@@ -417,7 +417,8 @@ struct DryFireDrillView: View {
         stabilityReadings = []  // Reset readings for this shot
 
         let delay = TimeInterval.random(in: 1.5...4.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        Task {
+            try? await Task.sleep(for: .seconds(delay))
             if isRunning {
                 showFire = true
                 fireStartTime = Date()

@@ -390,7 +390,8 @@ struct BreathingRhythmDrillView: View {
             breathingScores.append(80 + Double.random(in: -5...15))
 
             // Reset
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.5))
                 breathSide = .none
                 strokesUntilBreath = pattern.strokesPerBreath
             }

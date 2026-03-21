@@ -381,8 +381,8 @@ struct ReactionDrillView: View {
         // Load command
         phase = .load
         voiceManager.speak("Load") {
-            // Random delay before ready
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 1.5...2.5)) {
+            Task {
+                try? await Task.sleep(for: .seconds(Double.random(in: 1.5...2.5)))
                 self.askReady()
             }
         }
@@ -391,8 +391,8 @@ struct ReactionDrillView: View {
     private func askReady() {
         phase = .ready
         voiceManager.speak("Are you ready?") {
-            // Random delay before watch and shoot
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 1.0...3.0)) {
+            Task {
+                try? await Task.sleep(for: .seconds(Double.random(in: 1.0...3.0)))
                 self.watchAndShoot()
             }
         }
@@ -401,8 +401,8 @@ struct ReactionDrillView: View {
     private func watchAndShoot() {
         phase = .watch
         voiceManager.speak("Watch and shoot") {
-            // Random delay before target appears
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.3...1.5)) {
+            Task {
+                try? await Task.sleep(for: .seconds(Double.random(in: 0.3...1.5)))
                 self.showTarget()
             }
         }
@@ -417,7 +417,8 @@ struct ReactionDrillView: View {
         }
 
         // Auto-miss after 2 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        Task {
+            try? await Task.sleep(for: .seconds(2.0))
             if self.targetVisible {
                 self.missTarget()
             }
@@ -440,7 +441,8 @@ struct ReactionDrillView: View {
         generator.notificationOccurred(.success)
 
         voiceManager.speak(String(format: "%.2f seconds", reactionTime)) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.5))
                 self.startNextRound()
             }
         }
@@ -460,7 +462,8 @@ struct ReactionDrillView: View {
         generator.notificationOccurred(.error)
 
         voiceManager.speak("Miss") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(0.5))
                 self.startNextRound()
             }
         }
@@ -489,7 +492,8 @@ final class RangeOfficerVoice {
         utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
 
         if let completion = completion {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(text.count) * 0.08 + 0.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(Double(text.count) * 0.08 + 0.5))
                 completion()
             }
         }

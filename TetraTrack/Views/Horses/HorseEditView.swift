@@ -608,7 +608,7 @@ struct HorsePhotoPicker: View {
                             contentMode: .aspectFill,
                             options: options
                         ) { image, _ in
-                            DispatchQueue.main.async {
+                            Task { @MainActor in
                                 if let image = image {
                                     photoThumbnail = image.jpegData(compressionQuality: 0.8)
                                     legacyPhotoData = nil  // Clear legacy data
@@ -791,7 +791,7 @@ struct HorseVideoPicker: View {
                             contentMode: .aspectFill,
                             options: options
                         ) { image, _ in
-                            DispatchQueue.main.async {
+                            Task { @MainActor in
                                 if let image = image, let thumbnailData = image.jpegData(compressionQuality: 0.7) {
                                     videoAssetIdentifiers.append(assetId)
                                     videoThumbnails.append(thumbnailData)
@@ -881,7 +881,7 @@ struct HorseVideoPlayer: View {
         options.deliveryMode = .automatic
 
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, info in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let urlAsset = avAsset as? AVURLAsset {
                     self.player = AVPlayer(url: urlAsset.url)
                     self.player?.play()

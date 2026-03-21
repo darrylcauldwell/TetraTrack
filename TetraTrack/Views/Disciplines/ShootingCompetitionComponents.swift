@@ -1013,7 +1013,8 @@ struct FreePracticeView: View {
                         imageHolder.croppedImage = croppedResult
                         showingCropView = false
                         // Delay presentation to allow dismiss animation to complete
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        Task {
+                            try? await Task.sleep(for: .seconds(0.5))
                             showingAnalysis = true
                         }
                     },

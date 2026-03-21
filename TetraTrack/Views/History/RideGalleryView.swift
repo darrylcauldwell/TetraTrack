@@ -680,7 +680,7 @@ struct VideoPlayerView: View {
         options.isNetworkAccessAllowed = true // Allow iCloud download
 
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, info in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let urlAsset = avAsset as? AVURLAsset {
                     let avPlayer = AVPlayer(url: urlAsset.url)
                     self.player = avPlayer

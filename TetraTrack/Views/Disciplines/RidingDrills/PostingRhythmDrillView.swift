@@ -472,7 +472,8 @@ struct PostingRhythmDrillView: View {
         timingAccuracy.append(accuracy)
 
         // Reset beat indicator after short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.15))
             self.isOnBeat = false
         }
     }

@@ -1619,7 +1619,7 @@ struct ManualCropView: View {
             let normalizedImage = Self.normalizeImageOrientation(capturedImage)
 
             guard let cgImage = normalizedImage.cgImage else {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     capturedOnCropped(capturedImage)
                 }
                 return
@@ -1690,7 +1690,7 @@ struct ManualCropView: View {
                 )
             }
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 capturedOnCropped(resultImage)
             }
         }
@@ -2388,7 +2388,7 @@ class CameraViewController: UIViewController {
             setupCaptureButton()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     if granted {
                         self?.setupCamera()
                         self?.setupCaptureButton()
@@ -2553,7 +2553,7 @@ class CameraViewController: UIViewController {
     }
 
     private func updateAlignment(_ quality: AlignmentQuality) {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.onAlignmentUpdate?(quality)
         }
     }
@@ -2586,7 +2586,7 @@ extension CameraViewController: AVCapturePhotoCaptureDelegate {
               let image = UIImage(data: data) else { return }
 
         // Pass raw image - manual crop view handles cropping now
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.onCapture?(image)
         }
     }

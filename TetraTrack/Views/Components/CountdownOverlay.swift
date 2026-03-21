@@ -84,7 +84,8 @@ struct CountdownOverlay: View {
                 timer.invalidate()
                 countdownTimer = nil
                 // Brief delay then complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task {
+                    try? await Task.sleep(for: .seconds(0.3))
                     onComplete()
                 }
             }

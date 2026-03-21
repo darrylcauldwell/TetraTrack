@@ -95,7 +95,8 @@ struct ShootingView: View {
                         showingFreePractice = false
                         historyPreSelectedFilter = filter
                         // Small delay to allow dismiss animation before showing history
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        Task {
+                            try? await Task.sleep(for: .seconds(0.3))
                             showingHistory = true
                         }
                     }

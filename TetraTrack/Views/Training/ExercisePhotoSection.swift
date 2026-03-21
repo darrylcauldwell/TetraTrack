@@ -131,7 +131,7 @@ struct ExercisePhotoSection: View {
                    let data = data,
                    let uiImage = UIImage(data: data),
                    let compressed = compressImage(uiImage) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         if photos.count < currentMax {
                             photos.append(compressed)
                         }
@@ -416,7 +416,7 @@ struct ExerciseMediaSection: View {
                    let data = data,
                    let uiImage = UIImage(data: data),
                    let compressed = compressImage(uiImage) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         if photos.count < maxPhotos {
                             photos.append(compressed)
                         }
@@ -452,7 +452,7 @@ struct ExerciseMediaSection: View {
 
         PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
             guard status == .authorized || status == .limited else {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     isLoadingVideos = false
                     selectedVideoItems = []
                     showingPhotoAccessAlert = true
@@ -485,7 +485,7 @@ struct ExerciseMediaSection: View {
 
                             if let image = image,
                                let thumbnailData = image.jpegData(compressionQuality: 0.7) {
-                                DispatchQueue.main.async {
+                                Task { @MainActor in
                                     if videoAssetIdentifiers.count < maxVideos {
                                         videoAssetIdentifiers.append(assetIdentifier)
                                         videoThumbnails.append(thumbnailData)
@@ -839,7 +839,7 @@ struct ExerciseVideoPlayer: View {
         options.isNetworkAccessAllowed = true
 
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let urlAsset = avAsset as? AVURLAsset {
                     let avPlayer = AVPlayer(url: urlAsset.url)
                     self.player = avPlayer

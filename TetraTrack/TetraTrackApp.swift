@@ -459,7 +459,8 @@ struct TetraTrackApp: App {
             audioCoach.isEnabled = true
             audioCoach.announce("Audio coaching disabled")
             // Disable after announcement plays
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            Task {
+                try? await Task.sleep(for: .seconds(2.0))
                 audioCoach.isEnabled = false
             }
         } else {

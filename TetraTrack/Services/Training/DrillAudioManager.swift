@@ -94,7 +94,8 @@ final class DrillAudioManager {
             speak("\(remaining)", priority: .normal)
             remaining -= 1
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            Task {
+                try? await Task.sleep(for: .seconds(1.0))
                 announceNext()
             }
         }

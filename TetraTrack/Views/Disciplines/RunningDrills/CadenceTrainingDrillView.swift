@@ -401,7 +401,8 @@ struct CadenceTrainingDrillView: View {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.1))
             self.isOnBeat = false
         }
     }

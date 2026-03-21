@@ -260,7 +260,7 @@ struct CompetitionMediaSection: View {
                    let data = data,
                    let uiImage = UIImage(data: data),
                    let compressed = compressImage(uiImage) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         if photos.count < maxPhotos {
                             photos.append(compressed)
                         }
@@ -297,7 +297,7 @@ struct CompetitionMediaSection: View {
         // Request photo library access for reading asset identifiers
         PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
             guard status == .authorized || status == .limited else {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     isLoadingVideos = false
                     selectedVideoItems = []
                     showingPhotoAccessAlert = true
@@ -333,7 +333,7 @@ struct CompetitionMediaSection: View {
 
                             if let image = image,
                                let thumbnailData = image.jpegData(compressionQuality: 0.7) {
-                                DispatchQueue.main.async {
+                                Task { @MainActor in
                                     if videoAssetIdentifiers.count < maxVideos {
                                         videoAssetIdentifiers.append(assetIdentifier)
                                         videoThumbnails.append(thumbnailData)
@@ -637,7 +637,7 @@ struct PhotosVideoPlayer: View {
         options.isNetworkAccessAllowed = true // Allow downloading from iCloud
 
         PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, info in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let urlAsset = avAsset as? AVURLAsset {
                     let avPlayer = AVPlayer(url: urlAsset.url)
                     self.player = avPlayer

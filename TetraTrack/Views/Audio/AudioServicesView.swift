@@ -213,7 +213,8 @@ struct PlaybackControlsView: View {
             player.play()
         }
         // Update state after a brief delay to allow player to respond
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.1))
             updatePlaybackState()
         }
     }

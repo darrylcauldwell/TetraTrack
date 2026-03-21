@@ -1511,7 +1511,8 @@ struct TreadmillDistanceInputView: View {
                 }
             }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    try? await Task.sleep(for: .seconds(0.5))
                     if inputMode == .distance {
                         isDistanceFocused = true
                     } else {
