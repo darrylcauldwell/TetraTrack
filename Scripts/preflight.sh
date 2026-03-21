@@ -48,7 +48,7 @@ echo ""
 # -----------------------------------------------
 # 1. SwiftLint
 # -----------------------------------------------
-echo "[1/5] SwiftLint..."
+echo "[1/6] SwiftLint..."
 
 if command -v swiftlint &> /dev/null; then
     LINT_OUTPUT=$(cd "$PROJECT_DIR" && swiftlint lint --quiet 2>&1) || true
@@ -71,7 +71,7 @@ fi
 # 2. SwiftData @Relationship optionality
 # -----------------------------------------------
 echo ""
-echo "[2/5] @Relationship optionality..."
+echo "[2/6] @Relationship optionality..."
 
 RELATIONSHIP_ISSUES=$(
     grep -A1 "@Relationship" "$PROJECT_DIR"/TetraTrack/Models/*.swift "$PROJECT_DIR"/TetraTrack/Models/**/*.swift 2>/dev/null \
@@ -91,7 +91,7 @@ fi
 # 3. MARKETING_VERSION consistency
 # -----------------------------------------------
 echo ""
-echo "[3/5] MARKETING_VERSION consistency..."
+echo "[3/6] MARKETING_VERSION consistency..."
 
 PBXPROJ="${PROJECT_DIR}/TetraTrack.xcodeproj/project.pbxproj"
 
@@ -113,7 +113,7 @@ fi
 # 4. App Store metadata character limits
 # -----------------------------------------------
 echo ""
-echo "[4/5] App Store metadata limits..."
+echo "[4/6] App Store metadata limits..."
 
 if [ -x "${SCRIPT_DIR}/validate_metadata.sh" ]; then
     METADATA_OUTPUT=$("${SCRIPT_DIR}/validate_metadata.sh" 2>&1) || true
@@ -128,13 +128,52 @@ else
 fi
 
 # -----------------------------------------------
-# 5. Unit Tests (skipped in --quick mode)
+# 5. Watch UI duration source (regression guard)
+# -----------------------------------------------
+echo ""
+echo "[5/6] Watch UI duration source..."
+
+# CRITICAL: WatchHomeView's active session views MUST use WorkoutManager.formattedElapsedTime,
+# NOT connectivityService.formattedDuration (WCSession-relayed, unreliable, causes drift).
+# This regression has occurred multiple times. See memory/watch-connectivity.md.
+# Check that connectivityService.formattedDuration is ONLY used inside a ternary
+# guarded by WorkoutManager.shared.isWorkoutActive (guard may be on the line above).
+# Forbidden: `Text(connectivityService.formattedDuration)` without a WorkoutManager guard.
+WATCH_HOME="$PROJECT_DIR/TetraTrack Watch App/Views/WatchHomeView.swift"
+WATCH_DURATION_ISSUES=""
+if [ -f "$WATCH_HOME" ]; then
+    while IFS= read -r line_info; do
+        LINENO_VAL=$(echo "$line_info" | cut -d: -f1)
+        PREV_LINE=$(sed -n "$((LINENO_VAL - 1))p" "$WATCH_HOME")
+        CURR_LINE=$(echo "$line_info" | cut -d: -f2-)
+        # Skip comments
+        case "$CURR_LINE" in *"//"*"connectivityService"*) ;; *)
+            # Check if current or previous line has WorkoutManager guard
+            if ! echo "$CURR_LINE" | grep -q "WorkoutManager" && \
+               ! echo "$PREV_LINE" | grep -q "WorkoutManager"; then
+                WATCH_DURATION_ISSUES="${WATCH_DURATION_ISSUES}${line_info}
+"
+            fi
+        ;; esac
+    done < <(grep -n 'connectivityService\.formattedDuration' "$WATCH_HOME" 2>/dev/null | grep -v "^[[:space:]]*\/\/" | grep -v "NEVER\|CRITICAL" || true)
+fi
+
+if [ -n "$WATCH_DURATION_ISSUES" ]; then
+    fail "WatchHomeView uses connectivityService duration without WorkoutManager guard:"
+    echo "$WATCH_DURATION_ISSUES" | while IFS= read -r line; do echo "    $line"; done
+    echo "    → Active session MUST use WorkoutManager.shared.formattedElapsedTime"
+else
+    pass "Watch active session uses WorkoutManager elapsed time"
+fi
+
+# -----------------------------------------------
+# 6. Unit Tests (skipped in --quick mode)
 # -----------------------------------------------
 echo ""
 if [ "$QUICK" = true ]; then
-    echo "[5/5] Unit tests... SKIPPED (--quick mode)"
+    echo "[6/6] Unit tests... SKIPPED (--quick mode)"
 else
-    echo "[5/5] Unit tests..."
+    echo "[6/6] Unit tests..."
 
     # Find an available iPhone simulator (tests need a concrete device, not generic)
     SIMULATOR=$(xcrun simctl list devices available -j \

@@ -850,9 +850,29 @@ final class SessionTracker {
                 guard let self else { return }
 
                 // Elapsed time: Watch-authoritative, GPS-based, or wall-clock based
-                if self.workoutLifecycle.isWatchPrimary && self.workoutLifecycle.watchElapsedTime > 0 {
-                    // Watch sends authoritative elapsed time at 1Hz via mirrored session
-                    self.elapsedTime = self.workoutLifecycle.watchElapsedTime
+                if self.workoutLifecycle.isWatchPrimary {
+                    // Correct startTime to Watch's actual start when mirrored session arrives.
+                    // iPhone's startTime was set before requestWatchWorkout() — Watch starts later.
+                    // Without this correction, iPhone timer runs ahead of Watch.
+                    if let watchStart = self.workoutLifecycle.mirroredSessionStartDate,
+                       self.startTime != watchStart {
+                        self.startTime = watchStart
+                        if self.activePlugin?.usesGPS == true {
+                            self.gpsTracker.setStartTime(watchStart)
+                        }
+                        Log.tracking.info("Corrected startTime to Watch's mirrored session startDate")
+                    }
+
+                    if self.workoutLifecycle.watchElapsedTime > 0 {
+                        // Watch sends authoritative elapsed time at 1Hz (handles pauses)
+                        self.elapsedTime = self.workoutLifecycle.watchElapsedTime
+                    } else if self.activePlugin?.usesGPS == true {
+                        // Before Watch data arrives, use GPS time (corrected startTime if available)
+                        self.elapsedTime = self.gpsTracker.elapsedTime
+                    } else {
+                        guard let start = self.startTime else { return }
+                        self.elapsedTime = Date().timeIntervalSince(start) - self.pausedAccumulated
+                    }
                 } else if self.activePlugin?.usesGPS == true {
                     self.elapsedTime = self.gpsTracker.elapsedTime
                 } else {

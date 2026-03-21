@@ -52,7 +52,13 @@ struct WatchHomeView: View {
             .padding(.horizontal, 4)
 
             // Main time display - BIG
-            Text(connectivityService.formattedDuration)
+            // CRITICAL: When Watch has an active workout, use its own wall-clock timer.
+            // NEVER use connectivityService.formattedDuration here — it's iPhone's elapsed
+            // time relayed via unreliable WCSession, causing drift and jitter.
+            // See memory/watch-connectivity.md "Watch UI Duration Source" rule.
+            Text(WorkoutManager.shared.isWorkoutActive
+                 ? WorkoutManager.shared.formattedElapsedTime
+                 : connectivityService.formattedDuration)
                 .scaledFont(size: 44, weight: .bold, design: .monospaced, relativeTo: .largeTitle)
                 .foregroundStyle(.primary)
                 .minimumScaleFactor(0.7)
@@ -373,7 +379,10 @@ struct WatchHomeView: View {
                         .font(.caption)
                         .fontWeight(.medium)
 
-                    Text(connectivityService.formattedDuration)
+                    // CRITICAL: Use Watch's own timer when workout active (see above)
+                    Text(WorkoutManager.shared.isWorkoutActive
+                         ? WorkoutManager.shared.formattedElapsedTime
+                         : connectivityService.formattedDuration)
                         .font(.system(.headline, design: .monospaced))
                         .fontWeight(.bold)
                 }
