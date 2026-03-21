@@ -158,8 +158,10 @@ final class WorkoutManager: NSObject {
         let collectedTypes = dataSource?.typesToCollect.map { $0.identifier }.joined(separator: ",") ?? "none"
         let hasHR = dataSource?.typesToCollect.contains(HKQuantityType(.heartRate)) ?? false
         Log.tracking.error("TT: startWorkoutFromiPhone — delegate=\(hasDelegate, privacy: .public) dataSource=\(hasDataSource, privacy: .public) typesToCollect=[\(collectedTypes, privacy: .public)] hasHR=\(hasHR, privacy: .public)")
-        session.prepare()
-        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared, about to mirror")
+        // Note: do NOT call session.prepare() here — it transitions to .prepared state
+        // which interferes with startMirroringToCompanionDevice(). WWDC23 sample and
+        // real-world implementations skip prepare() when mirroring immediately.
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
         try await session.startMirroringToCompanionDevice()
         Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
