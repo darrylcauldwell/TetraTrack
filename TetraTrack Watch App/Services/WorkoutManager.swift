@@ -135,6 +135,13 @@ final class WorkoutManager: NSObject {
         Log.tracking.error("TT: startWorkoutFromiPhone() — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: entry")
 
+        // HealthKit authorization — required for HKLiveWorkoutDataSource to collect HR
+        let authorized = await requestAuthorization()
+        guard authorized else {
+            Log.tracking.error("TT: startWorkoutFromiPhone — HealthKit authorization denied")
+            throw NSError(domain: "WorkoutManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "HealthKit authorization denied"])
+        }
+
         // --- Apple-reference-aligned core (EXACT order from MirroringWorkoutsSample) ---
         let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
         let builder = session.associatedWorkoutBuilder()
@@ -147,7 +154,10 @@ final class WorkoutManager: NSObject {
 
         let hasDelegate = builder.delegate != nil
         let hasDataSource = builder.dataSource != nil
-        Log.tracking.error("TT: startWorkoutFromiPhone — builder.delegate=\(hasDelegate, privacy: .public) builder.dataSource=\(hasDataSource, privacy: .public)")
+        let dataSource = builder.dataSource as? HKLiveWorkoutDataSource
+        let collectedTypes = dataSource?.typesToCollect.map { $0.identifier }.joined(separator: ",") ?? "none"
+        let hasHR = dataSource?.typesToCollect.contains(HKQuantityType(.heartRate)) ?? false
+        Log.tracking.error("TT: startWorkoutFromiPhone — delegate=\(hasDelegate, privacy: .public) dataSource=\(hasDataSource, privacy: .public) typesToCollect=[\(collectedTypes, privacy: .public)] hasHR=\(hasHR, privacy: .public)")
         session.prepare()
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared, about to mirror")
         try await session.startMirroringToCompanionDevice()
