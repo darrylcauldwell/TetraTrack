@@ -600,6 +600,9 @@ final class GaitAnalyzer: Resettable {
         // Update HMM
         hmm.update(with: features)
 
+        // Online emission adaptation (self-tuning within ride)
+        hmm.adaptEmissions(with: features)
+
         // Get new state
         let hmmState = hmm.currentState
         gaitConfidence = hmm.stateConfidence
@@ -734,6 +737,13 @@ final class GaitAnalyzer: Resettable {
         case .canter: return .canter
         case .gallop: return .gallop
         }
+    }
+
+    // MARK: - Adaptation Reset
+
+    /// Reset online emission adaptation (call on pause/resume to prevent drift across different conditions)
+    func resetAdaptation() {
+        hmm.resetAdaptation()
     }
 
     // MARK: - Segment Management

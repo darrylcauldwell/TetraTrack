@@ -237,6 +237,102 @@ public final class GaitHMM {
         }
     }
 
+    // MARK: - Online Emission Adaptation
+
+    /// Original emission means (snapshot before adaptation starts)
+    private var originalEmissionMeans: [[Double]]?
+
+    /// Number of consecutive high-confidence frames per state
+    private var highConfidenceFrames: [Int] = [0, 0, 0, 0, 0]
+
+    /// Minimum consecutive high-confidence frames before adapting (3s at 6Hz)
+    private let adaptationDwellFrames = 18
+
+    /// EMA alpha for adaptation (slow learning)
+    private let adaptationAlpha = 0.05
+
+    /// Maximum drift from original mean (±20%)
+    private let maxDriftFraction = 0.20
+
+    /// Adapt emission means based on current high-confidence observations
+    public func adaptEmissions(with features: GaitFeatureVector) {
+        let state = currentState
+        guard state != .stationary else { return }
+        guard stateConfidence > 0.95 else {
+            // Reset counter if confidence drops
+            highConfidenceFrames[state.rawValue] = 0
+            return
+        }
+
+        highConfidenceFrames[state.rawValue] += 1
+        guard highConfidenceFrames[state.rawValue] >= adaptationDwellFrames else { return }
+
+        // Snapshot original means on first adaptation
+        if originalEmissionMeans == nil {
+            originalEmissionMeans = emissionParams.map { stateParams in
+                stateParams.map(\.mean)
+            }
+        }
+
+        guard let originals = originalEmissionMeans else { return }
+        let stateIdx = state.rawValue
+
+        // Adapt core features (not Watch, not stride length/cadence regularity)
+        let adaptableFeatures: [FeatureIndex] = [
+            .strideFrequency, .h2Ratio, .h3Ratio, .spectralEntropy,
+            .normalizedVerticalRMS, .yawRateRMS
+        ]
+
+        for feature in adaptableFeatures {
+            let fi = feature.rawValue
+            let observed = featureValue(from: features, at: feature)
+            let current = emissionParams[stateIdx][fi].mean
+            let original = originals[stateIdx][fi]
+
+            // EMA update
+            var newMean = current + adaptationAlpha * (observed - current)
+
+            // Clamp to ±20% of original
+            let maxDrift = abs(original) * maxDriftFraction
+            newMean = max(original - maxDrift, min(original + maxDrift, newMean))
+
+            emissionParams[stateIdx][fi].mean = newMean
+        }
+    }
+
+    /// Extract feature value from vector by index
+    private func featureValue(from features: GaitFeatureVector, at index: FeatureIndex) -> Double {
+        switch index {
+        case .strideFrequency: return features.strideFrequency
+        case .h2Ratio: return features.h2Ratio
+        case .h3Ratio: return features.h3Ratio
+        case .spectralEntropy: return features.spectralEntropy
+        case .xyCoherence: return features.xyCoherence
+        case .zYawCoherence: return features.zYawCoherence
+        case .normalizedVerticalRMS: return features.normalizedVerticalRMS
+        case .yawRateRMS: return features.yawRateRMS
+        case .watchVerticalOscillation: return features.watchVerticalOscillation
+        case .watchMovementIntensity: return features.watchMovementIntensity
+        case .watchRhythmScore: return features.watchRhythmScore
+        case .watchPostureStability: return features.watchPostureStability
+        case .strideLength: return features.strideLength
+        case .cadenceRegularity: return features.cadenceRegularity
+        }
+    }
+
+    /// Reset adaptation to original emission means (call on pause/resume)
+    public func resetAdaptation() {
+        if let originals = originalEmissionMeans {
+            for stateIdx in 0..<emissionParams.count {
+                for featureIdx in 0..<emissionParams[stateIdx].count {
+                    emissionParams[stateIdx][featureIdx].mean = originals[stateIdx][featureIdx]
+                }
+            }
+        }
+        originalEmissionMeans = nil
+        highConfidenceFrames = [0, 0, 0, 0, 0]
+    }
+
     // MARK: - Adaptive Learning
 
     /// Apply learned per-horse parameters to shift emission means toward observed values

@@ -360,9 +360,11 @@ final class RidingPlugin: DisciplinePlugin {
 
     func onSessionPaused(tracker: SessionTracker) {
         motionManager.stopUpdates()
+        gaitAnalyzer.resetAdaptation()
     }
 
     func onSessionResumed(tracker: SessionTracker) {
+        gaitAnalyzer.resetAdaptation()
         motionManager.startUpdates()
     }
 
