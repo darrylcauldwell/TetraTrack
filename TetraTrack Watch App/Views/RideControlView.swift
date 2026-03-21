@@ -12,7 +12,6 @@ import TetraTrackShared
 struct RideControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
     @Environment(WorkoutManager.self) private var workoutManager
-    @State private var showingStopConfirmation = false
 
     var body: some View {
         Group {
@@ -69,117 +68,55 @@ struct RideControlView: View {
     // MARK: - Active Ride View
 
     private var activeRideView: some View {
-        VStack(spacing: 8) {
-            // Duration - big and prominent
-            Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 36, weight: .bold, design: .monospaced))
-                .foregroundStyle(WatchAppColors.riding)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 8) {
+                // Distance — hero metric
+                Text(workoutManager.formattedDistance)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(WatchAppColors.riding)
 
-            // Distance
-            Text(workoutManager.formattedDistance)
-                .font(.title3)
-                .fontWeight(.semibold)
+                // Current gait indicator
+                if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult, gaitResult.gaitState != "stationary" {
+                    Text(gaitResult.gaitState.capitalized)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(watchGaitColor(gaitResult.gaitState))
+                        .clipShape(Capsule())
+                }
 
-            Divider()
-                .padding(.vertical, 4)
+                Divider()
+                    .padding(.vertical, 4)
 
-            // Current gait indicator
-            if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult, gaitResult.gaitState != "stationary" {
-                Text(gaitResult.gaitState.capitalized)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .background(watchGaitColor(gaitResult.gaitState))
-                    .clipShape(Capsule())
+                // Metrics grid
+                HStack(spacing: 12) {
+                    // Speed
+                    WatchMetricCell(
+                        value: String(format: "%.1f", workoutManager.currentSpeed * 3.6),
+                        unit: "km/h"
+                    )
+
+                    // Heart Rate
+                    WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+
+                    // Elevation
+                    WatchMetricCell(
+                        value: String(format: "%.0f", workoutManager.elevationGain),
+                        unit: "m gain"
+                    )
+                }
+
+                Spacer()
             }
+            .padding()
+            .padding(.bottom, 62)
 
-            // Metrics grid
-            HStack(spacing: 12) {
-                // Speed
-                VStack(spacing: 2) {
-                    Text(String(format: "%.1f", workoutManager.currentSpeed * 3.6))
-                        .font(.headline)
-                    Text("km/h")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Heart Rate with zone badge
-                VStack(spacing: 2) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                        Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
-                            .font(.headline)
-                    }
-                    if workoutManager.currentHeartRate > 0 {
-                        let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
-                        Text(zone.name)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(watchZoneColor(zone))
-                            .clipShape(Capsule())
-                    } else {
-                        Text("bpm")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Elevation
-                VStack(spacing: 2) {
-                    Text(String(format: "%.0f", workoutManager.elevationGain))
-                        .font(.headline)
-                    Text("m gain")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            // Control buttons
-            HStack(spacing: 12) {
-                // Pause/Resume
-                Button {
-                    if workoutManager.isPaused {
-                        workoutManager.resumeWorkout()
-                    } else {
-                        workoutManager.pauseWorkout()
-                    }
-                } label: {
-                    Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-
-                // Stop
-                Button {
-                    showingStopConfirmation = true
-                } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            }
-        }
-        .padding()
-        .confirmationDialog("End Ride?", isPresented: $showingStopConfirmation) {
-            Button("Save Ride") {
-                Task {
-                    await workoutManager.stopWorkout()
-                }
-            }
-            Button("Discard", role: .destructive) {
-                Task { await workoutManager.discardWorkout() }
-            }
-            Button("Continue Riding", role: .cancel) {}
+            WatchFloatingControlPanel(
+                disciplineIcon: "figure.equestrian.sports",
+                disciplineColor: WatchAppColors.riding,
+                disciplineName: "Ride"
+            )
         }
     }
 

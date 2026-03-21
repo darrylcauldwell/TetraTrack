@@ -133,6 +133,8 @@ struct WatchHomeView: View {
                             .foregroundStyle(diff <= 0 ? WatchAppColors.active : WatchAppColors.warning)
                     }
                 }
+                .padding(8)
+                .watchGlassCard()
             }
 
             // Heart rate row
@@ -153,6 +155,8 @@ struct WatchHomeView: View {
                             .foregroundStyle(zoneColor(connectivityService.heartRateZone))
                     }
                 }
+                .padding(8)
+                .watchGlassCard()
             }
         }
     }
@@ -179,6 +183,8 @@ struct WatchHomeView: View {
                         .fontWeight(.medium)
                 }
             }
+            .padding(8)
+            .watchGlassCard()
 
             // Heart rate
             if connectivityService.heartRate > 0 {
@@ -198,6 +204,8 @@ struct WatchHomeView: View {
                             .foregroundStyle(zoneColor(connectivityService.heartRateZone))
                     }
                 }
+                .padding(8)
+                .watchGlassCard()
             }
         }
     }
@@ -213,6 +221,8 @@ struct WatchHomeView: View {
                     .font(.title2)
                     .fontWeight(.bold)
             }
+            .padding(8)
+            .watchGlassCard()
 
             // Heart rate
             if connectivityService.heartRate > 0 {
@@ -232,6 +242,8 @@ struct WatchHomeView: View {
                             .foregroundStyle(zoneColor(connectivityService.heartRateZone))
                     }
                 }
+                .padding(8)
+                .watchGlassCard()
             }
         }
     }
@@ -253,6 +265,8 @@ struct WatchHomeView: View {
                             .foregroundStyle(zoneColor(connectivityService.heartRateZone))
                     }
                 }
+                .padding(8)
+                .watchGlassCard()
             }
         }
     }

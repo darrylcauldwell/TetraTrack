@@ -14,10 +14,9 @@ import os
 struct ShootingControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
     @Environment(WorkoutManager.self) private var workoutManager
-    @State private var showingStopConfirmation = false
     @State private var shotDetector = ShootingShotDetector()
-    @State private var lastShotDelta: Double? // Improvement arrow value
-    @State private var recentSteadiness: [Double] = [] // For fatigue trend
+    @State private var lastShotDelta: Double?
+    @State private var recentSteadiness: [Double] = []
 
     var body: some View {
         Group {
@@ -79,130 +78,72 @@ struct ShootingControlView: View {
     // MARK: - Active Shooting View
 
     private var activeShootingView: some View {
-        ScrollView {
-            VStack(spacing: 6) {
-                // Duration
-                Text(workoutManager.formattedElapsedTime)
-                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: 6) {
+                    // Shot count — hero metric
+                    HStack(spacing: 4) {
+                        Image(systemName: "target")
+                            .font(.caption)
+                        Text("\(shotDetector.shotCount)")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text("shots")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                     .foregroundStyle(WatchAppColors.shooting)
 
-                // Shot count
-                HStack(spacing: 4) {
-                    Image(systemName: "target")
-                        .font(.caption)
-                    Text("\(shotDetector.shotCount)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("shots")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                    // Steadiness gauge
+                    steadinessGauge
 
-                // Steadiness gauge
-                steadinessGauge
+                    Divider()
+                        .padding(.vertical, 2)
 
-                Divider()
-                    .padding(.vertical, 2)
+                    // Heart rate, delta, fatigue
+                    HStack(spacing: 10) {
+                        WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
 
-                // Heart rate with zone, last shot delta, fatigue trend
-                HStack(spacing: 10) {
-                    // HR + zone
-                    VStack(spacing: 2) {
-                        HStack(spacing: 2) {
-                            Image(systemName: "heart.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                            Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
-                                .font(.callout)
-                                .fontWeight(.semibold)
-                        }
-                        if workoutManager.currentHeartRate > 0 {
-                            let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
-                            Text(zone.name)
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(watchZoneColor(zone))
-                                .clipShape(Capsule())
-                        } else {
-                            Text("bpm")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    // Last shot delta
-                    if let delta = lastShotDelta {
-                        VStack(spacing: 2) {
-                            HStack(spacing: 2) {
-                                Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
+                        // Last shot delta
+                        if let delta = lastShotDelta {
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
+                                        .font(.caption2)
+                                        .foregroundStyle(delta >= 0 ? .green : .orange)
+                                    Text(String(format: "%.0f", abs(delta)))
+                                        .font(.callout)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(delta >= 0 ? .green : .orange)
+                                }
+                                Text("steadiness")
                                     .font(.caption2)
-                                    .foregroundStyle(delta >= 0 ? .green : .orange)
-                                Text(String(format: "%.0f", abs(delta)))
-                                    .font(.callout)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(delta >= 0 ? .green : .orange)
+                                    .foregroundStyle(.secondary)
                             }
-                            Text("steadiness")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
                         }
-                    }
 
-                    // Fatigue trend (3+ shots)
-                    if shotDetector.shotCount >= 3 {
-                        VStack(spacing: 2) {
-                            Image(systemName: fatigueTrendIcon)
-                                .font(.callout)
-                                .foregroundStyle(fatigueTrendColor)
-                            Text("form")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        // Fatigue trend (3+ shots)
+                        if shotDetector.shotCount >= 3 {
+                            VStack(spacing: 2) {
+                                Image(systemName: fatigueTrendIcon)
+                                    .font(.callout)
+                                    .foregroundStyle(fatigueTrendColor)
+                                Text("form")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
-
-                Spacer(minLength: 8)
-
-                // Control buttons
-                HStack(spacing: 12) {
-                    Button {
-                        if workoutManager.isPaused {
-                            workoutManager.resumeWorkout()
-                        } else {
-                            workoutManager.pauseWorkout()
-                        }
-                    } label: {
-                        Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-
-                    Button {
-                        showingStopConfirmation = true
-                    } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .padding(.bottom, 62)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
-        .confirmationDialog("End Shooting?", isPresented: $showingStopConfirmation) {
-            Button("Save Session") {
-                Task {
-                    await workoutManager.stopWorkout()
-                }
-            }
-            Button("Discard", role: .destructive) {
-                Task { await workoutManager.discardWorkout() }
-            }
-            Button("Continue", role: .cancel) {}
+
+            WatchFloatingControlPanel(
+                disciplineIcon: "target",
+                disciplineColor: WatchAppColors.shooting,
+                disciplineName: "Session"
+            )
         }
     }
 
@@ -261,33 +202,25 @@ struct ShootingControlView: View {
     // MARK: - Shot Detection Setup
 
     private func setupShotDetection() {
-        // Wire motion samples to shot detector
         WatchMotionManager.shared.onMotionUpdate = { sample in
             shotDetector.processSample(sample)
         }
 
-        // Wire heart rate updates
         workoutManager.onHeartRateUpdate = { hr in
             shotDetector.updateHeartRate(hr)
         }
 
-        // Handle detected shots
         shotDetector.onShotDetected = { metrics in
-            // Haptic feedback
             WKInterfaceDevice.current().play(.click)
 
-            // Track steadiness history for fatigue trend
             recentSteadiness.append(metrics.holdSteadiness)
             if recentSteadiness.count > 10 { recentSteadiness.removeFirst() }
 
-            // Calculate improvement delta
             if let previous = shotDetector.lastShotMetrics,
                metrics.shotIndex > 1 {
-                // Compare against second-to-last since lastShotMetrics is already updated
                 lastShotDelta = metrics.holdSteadiness - previous.holdSteadiness
             }
 
-            // Send to iPhone
             let dict = metrics.toDictionary()
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(dict, replyHandler: nil) { error in

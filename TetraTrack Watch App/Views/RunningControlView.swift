@@ -12,7 +12,6 @@ import TetraTrackShared
 struct RunningControlView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
     @Environment(WorkoutManager.self) private var workoutManager
-    @State private var showingStopConfirmation = false
     @State private var showingAuthError = false
 
     var body: some View {
@@ -79,116 +78,51 @@ struct RunningControlView: View {
     // MARK: - Active Run View
 
     private var activeRunView: some View {
-        VStack(spacing: 8) {
-            // Duration - big and prominent
-            Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 36, weight: .bold, design: .monospaced))
-                .foregroundStyle(WatchAppColors.running)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 8) {
+                // Distance — hero metric
+                Text(workoutManager.formattedDistance)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(WatchAppColors.running)
 
-            // Distance
-            Text(workoutManager.formattedDistance)
-                .font(.title3)
-                .fontWeight(.semibold)
+                Divider()
+                    .padding(.vertical, 4)
 
-            Divider()
-                .padding(.vertical, 4)
+                // Metrics grid
+                HStack(spacing: 12) {
+                    // Pace
+                    WatchMetricCell(value: workoutManager.formattedPace, unit: "pace")
 
-            // Metrics grid
-            HStack(spacing: 12) {
-                // Pace
-                VStack(spacing: 2) {
-                    Text(workoutManager.formattedPace)
-                        .font(.headline)
-                    Text("pace")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    // Heart Rate
+                    WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+
+                    // Cadence
+                    WatchMetricCell(
+                        value: WatchMotionManager.shared.cadence > 0 ? "\(WatchMotionManager.shared.cadence)" : "\u{2013}",
+                        unit: "spm"
+                    )
                 }
 
-                // Heart Rate with zone badge
-                VStack(spacing: 2) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                        Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
-                            .font(.headline)
+                // Calories if available
+                if workoutManager.activeCalories > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .foregroundStyle(.orange)
+                        Text("\(Int(workoutManager.activeCalories)) kcal")
                     }
-                    if workoutManager.currentHeartRate > 0 {
-                        let zone = HeartRateZone.zone(for: workoutManager.currentHeartRate, maxHR: 180)
-                        Text(zone.name)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(watchZoneColor(zone))
-                            .clipShape(Capsule())
-                    } else {
-                        Text("bpm")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                    .font(.caption)
                 }
 
-                // Cadence
-                VStack(spacing: 2) {
-                    Text(WatchMotionManager.shared.cadence > 0 ? "\(WatchMotionManager.shared.cadence)" : "–")
-                        .font(.headline)
-                    Text("spm")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Spacer()
             }
+            .padding()
+            .padding(.bottom, 62)
 
-            // Calories if available
-            if workoutManager.activeCalories > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(.orange)
-                    Text("\(Int(workoutManager.activeCalories)) kcal")
-                }
-                .font(.caption)
-            }
-
-            Spacer()
-
-            // Control buttons
-            HStack(spacing: 12) {
-                // Pause/Resume
-                Button {
-                    if workoutManager.isPaused {
-                        workoutManager.resumeWorkout()
-                    } else {
-                        workoutManager.pauseWorkout()
-                    }
-                } label: {
-                    Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-
-                // Stop
-                Button {
-                    showingStopConfirmation = true
-                } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            }
-        }
-        .padding()
-        .confirmationDialog("End Run?", isPresented: $showingStopConfirmation) {
-            Button("Save Run") {
-                Task {
-                    await workoutManager.stopWorkout()
-                }
-            }
-            Button("Discard", role: .destructive) {
-                Task { await workoutManager.discardWorkout() }
-            }
-            Button("Continue Running", role: .cancel) {}
+            WatchFloatingControlPanel(
+                disciplineIcon: "figure.run",
+                disciplineColor: WatchAppColors.running,
+                disciplineName: "Run"
+            )
         }
     }
 }

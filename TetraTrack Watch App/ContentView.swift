@@ -61,160 +61,85 @@ struct ContentView: View {
     // MARK: - Active Workout View
 
     private var activeWorkoutView: some View {
-        VStack(spacing: 6) {
-            // Header with discipline
-            HStack {
-                Image(systemName: activityIcon)
-                    .font(.title3)
-                    .foregroundStyle(activityColor)
-
-                Text(activityName)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                // Live indicator
-                Circle()
-                    .fill(WatchAppColors.active)
-                    .frame(width: 8, height: 8)
-            }
-            .padding(.horizontal, 4)
-
-            // Duration - BIG
-            Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 44, weight: .bold, design: .monospaced))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
-
-            // Distance/Laps/Shots based on activity
-            if workoutManager.activityType == .swimming {
-                // Swimming: show distance and laps
-                HStack(spacing: 16) {
-                    Text(workoutManager.formattedSwimmingDistance)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 6) {
+                // Header with discipline
+                HStack {
+                    Image(systemName: activityIcon)
                         .font(.title3)
-                        .fontWeight(.semibold)
                         .foregroundStyle(activityColor)
-                    Text("\(workoutManager.lapCount) laps")
+
+                    Text(activityName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+
+                    // Live indicator
+                    Circle()
+                        .fill(WatchAppColors.active)
+                        .frame(width: 8, height: 8)
+                }
+                .padding(.horizontal, 4)
+
+                // Distance/Laps/Shots — hero metric
+                if workoutManager.activityType == .swimming {
+                    HStack(spacing: 16) {
+                        Text(workoutManager.formattedSwimmingDistance)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(activityColor)
+                        Text("\(workoutManager.lapCount) laps")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if workoutManager.activityType == .shooting {
+                    Text("Shooting Session")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                } else {
+                    Text(workoutManager.formattedDistance)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(activityColor)
                 }
-            } else if workoutManager.activityType == .shooting {
-                // Shooting: no distance - show discipline label
-                Text("Shooting Session")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(workoutManager.formattedDistance)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(activityColor)
+
+                Divider()
+                    .padding(.vertical, 2)
+
+                // Metrics
+                HStack(spacing: 16) {
+                    if workoutManager.activityType == .riding {
+                        WatchMetricCell(value: formattedSpeed, unit: "speed")
+                    } else if workoutManager.activityType == .running || workoutManager.activityType == .walking {
+                        WatchMetricCell(value: workoutManager.formattedPace, unit: "pace")
+                    } else if workoutManager.activityType == .swimming {
+                        WatchMetricCell(value: "\(workoutManager.strokeCount)", unit: "strokes")
+                        WatchMetricCell(value: workoutManager.swimPacePer100m, unit: "/100m")
+                    }
+
+                    WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+                }
+
+                // Diagnostic overlay
+                HStack(spacing: 8) {
+                    Text("T:\(workoutManager.motionSendTickCount)")
+                    Text("HR:\(workoutManager.currentHeartRate)")
+                    Text(workoutManager.isMirroringToiPhone ? "MIR" : "WC")
+                }
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.gray)
+
+                Spacer()
             }
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 62)
 
-            Divider()
-                .padding(.vertical, 2)
-
-            // Metrics
-            HStack(spacing: 16) {
-                // Speed/Pace (not for swimming)
-                if workoutManager.activityType == .riding {
-                    VStack(spacing: 2) {
-                        Text("Speed")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(formattedSpeed)
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                } else if workoutManager.activityType == .running || workoutManager.activityType == .walking {
-                    VStack(spacing: 2) {
-                        Text("Pace")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(workoutManager.formattedPace)
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                } else if workoutManager.activityType == .swimming {
-                    // Swimming metrics: strokes and pace
-                    VStack(spacing: 2) {
-                        Text("\(workoutManager.strokeCount)")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("strokes")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    VStack(spacing: 2) {
-                        Text(workoutManager.swimPacePer100m)
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("/100m")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Heart Rate
-                HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
-                    Text(workoutManager.currentHeartRate > 0 ? "\(workoutManager.currentHeartRate)" : "–")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                }
-            }
-
-            // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
-            HStack(spacing: 8) {
-                Text("T:\(workoutManager.motionSendTickCount)")
-                Text("HR:\(workoutManager.currentHeartRate)")
-                Text(workoutManager.isMirroringToiPhone ? "MIR" : "WC")
-            }
-            .font(.system(size: 10, design: .monospaced))
-            .foregroundStyle(.gray)
-
-            Spacer()
-
-            // Control buttons
-            HStack(spacing: 20) {
-                // Pause/Resume button
-                Button {
-                    if workoutManager.isPaused {
-                        workoutManager.resumeWorkout()
-                    } else {
-                        workoutManager.pauseWorkout()
-                    }
-                } label: {
-                    Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
-                        .background(WatchAppColors.primary)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                // Stop button
-                Button {
-                    Task {
-                        await workoutManager.stopWorkout()
-                    }
-                } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                        .frame(width: 50, height: 50)
-                        .background(WatchAppColors.error)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.bottom, 8)
+            WatchFloatingControlPanel(
+                disciplineIcon: activityIcon,
+                disciplineColor: activityColor,
+                disciplineName: activityName
+            )
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 8)
     }
 
     // MARK: - Activity Helpers
