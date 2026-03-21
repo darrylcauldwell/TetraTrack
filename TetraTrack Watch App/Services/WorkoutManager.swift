@@ -145,6 +145,9 @@ final class WorkoutManager: NSObject {
             workoutConfiguration: configuration
         )
 
+        let hasDelegate = builder.delegate != nil
+        let hasDataSource = builder.dataSource != nil
+        Log.tracking.error("TT: startWorkoutFromiPhone — builder.delegate=\(hasDelegate, privacy: .public) builder.dataSource=\(hasDataSource, privacy: .public)")
         session.prepare()
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared, about to mirror")
         try await session.startMirroringToCompanionDevice()
@@ -1059,11 +1062,17 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        let typeNames = collectedTypes.compactMap { ($0 as? HKQuantityType)?.identifier }.joined(separator: ",")
+        Log.tracking.error("TT: builderDelegate didCollectDataOf types=[\(typeNames, privacy: .public)]")
+
         for type in collectedTypes {
             guard let quantityType = type as? HKQuantityType else { continue }
 
             if quantityType == HKQuantityType(.heartRate) {
                 let statistics = workoutBuilder.statistics(for: quantityType)
+                let hasStats = statistics != nil
+                let hasMostRecent = statistics?.mostRecentQuantity() != nil
+                Log.tracking.error("TT: HR delegate fired — hasStats=\(hasStats, privacy: .public) hasMostRecent=\(hasMostRecent, privacy: .public)")
                 processHeartRateStatistics(statistics)
             }
 
@@ -1117,16 +1126,22 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     }
 
     nonisolated private func processHeartRateStatistics(_ statistics: HKStatistics?) {
-        guard let statistics = statistics else { return }
+        guard let statistics = statistics else {
+            Log.tracking.error("TT: processHR — statistics is nil")
+            return
+        }
 
         let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
 
         Task { @MainActor in
             if let mostRecent = statistics.mostRecentQuantity() {
                 let bpm = Int(mostRecent.doubleValue(for: heartRateUnit))
+                Log.tracking.error("TT: processHR — bpm=\(bpm, privacy: .public) (MainActor task executed)")
                 self.currentHeartRate = bpm
                 self.heartRateSamples.append(bpm)
                 self.onHeartRateUpdate?(bpm)
+            } else {
+                Log.tracking.error("TT: processHR — mostRecentQuantity is nil")
             }
 
             if let average = statistics.averageQuantity() {
