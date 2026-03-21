@@ -10,6 +10,7 @@ import HealthKit
 import Observation
 import os
 
+@MainActor
 @Observable
 final class RecoveryAnalyzer: Resettable {
     // MARK: - State
@@ -36,13 +37,6 @@ final class RecoveryAnalyzer: Resettable {
     // MARK: - Initialization
 
     init() {}
-
-    deinit {
-        monitoringTimer?.invalidate()
-        if let query = anchoredQuery {
-            healthStore.stop(query)
-        }
-    }
 
     // MARK: - Public Methods
 
@@ -116,14 +110,16 @@ final class RecoveryAnalyzer: Resettable {
 
     private func startTimer() {
         monitoringTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+            Task { @MainActor in
+                guard let self else { return }
 
-            if let rideEnd = self.rideEndTime {
-                self.secondsSinceRideEnd = Date().timeIntervalSince(rideEnd)
+                if let rideEnd = self.rideEndTime {
+                    self.secondsSinceRideEnd = Date().timeIntervalSince(rideEnd)
 
-                // Auto-stop after monitoring duration
-                if self.secondsSinceRideEnd >= self.monitoringDuration {
-                    self.stopAnalysis()
+                    // Auto-stop after monitoring duration
+                    if self.secondsSinceRideEnd >= self.monitoringDuration {
+                        self.stopAnalysis()
+                    }
                 }
             }
         }
@@ -148,11 +144,15 @@ final class RecoveryAnalyzer: Resettable {
             anchor: queryAnchor,
             limit: HKObjectQueryNoLimit
         ) { [weak self] _, samples, _, anchor, error in
-            self?.handleQueryResults(samples: samples, anchor: anchor, error: error)
+            Task { @MainActor in
+                self?.handleQueryResults(samples: samples, anchor: anchor, error: error)
+            }
         }
 
         anchoredQuery?.updateHandler = { [weak self] _, samples, _, anchor, error in
-            self?.handleQueryResults(samples: samples, anchor: anchor, error: error)
+            Task { @MainActor in
+                self?.handleQueryResults(samples: samples, anchor: anchor, error: error)
+            }
         }
 
         if let query = anchoredQuery {
@@ -198,14 +198,12 @@ final class RecoveryAnalyzer: Resettable {
         self.samples.sort { $0.timestamp < $1.timestamp }
 
         // Update current session
-        Task { @MainActor in
-            self.currentSession = RecoverySession(
-                rideEndTime: rideEnd,
-                samples: self.samples,
-                peakHeartRate: self.peakHeartRate,
-                restingHeartRate: self.restingHeartRate
-            )
-        }
+        self.currentSession = RecoverySession(
+            rideEndTime: rideEnd,
+            samples: self.samples,
+            peakHeartRate: self.peakHeartRate,
+            restingHeartRate: self.restingHeartRate
+        )
     }
 
     // MARK: - Computed Properties
