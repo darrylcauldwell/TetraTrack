@@ -124,6 +124,16 @@ struct RunningLiveView: View {
             )
             .ignoresSafeArea()
         )
+        .overlay(alignment: .bottom) {
+            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                FloatingControlPanel(
+                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.run",
+                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? AppColors.primary,
+                    onStop: { tracker?.stopSession() },
+                    onDiscard: { tracker?.discardSession() }
+                )
+            }
+        }
         .confirmationDialog("End Session", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save") {
                 tracker?.stopSession()
@@ -232,41 +242,14 @@ struct RunningLiveView: View {
     // MARK: - Full Stats View with integrated pause/stop
 
     private var runningStatsFullView: some View {
-        let isTracking = tracker?.sessionState == .tracking
-        return VStack(spacing: 0) {
-            // Tap hint at top
-            Text(!isTracking ? "Tap to Resume" : "Tap to Pause")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
-
+        VStack(spacing: 0) {
             // Stats - scrollable
             ScrollView(showsIndicators: false) {
                 statsContentView
                     .padding(.horizontal)
             }
 
-            Spacer(minLength: 20)
-
-            // Pause/Resume button with stop option
-            PauseResumeButton(
-                isPaused: !isTracking,
-                onTap: {
-                    if isTracking {
-                        tracker?.pauseSession()
-                    } else {
-                        tracker?.resumeSession()
-                    }
-                },
-                onStop: {
-                    tracker?.stopSession()
-                },
-                onDiscard: {
-                    tracker?.discardSession()
-                }
-            )
-            .padding(.bottom, 20)
+            Spacer(minLength: 120) // Reserve space for FloatingControlPanel
         }
     }
 
@@ -1099,25 +1082,7 @@ struct TreadmillLiveView: View {
                 treadmillMetrics
 
                 Spacer()
-
-                // Pause/Resume button with stop option
-                PauseResumeButton(
-                    isPaused: tracker?.sessionState != .tracking,
-                    onTap: {
-                        if tracker?.sessionState == .tracking {
-                            tracker?.pauseSession()
-                        } else {
-                            tracker?.resumeSession()
-                        }
-                    },
-                    onStop: {
-                        showingDistanceInput = true
-                    },
-                    onDiscard: {
-                        tracker?.discardSession()
-                    }
-                )
-                .padding(.bottom, 20)
+                    .frame(minHeight: 120) // Reserve space for FloatingControlPanel
             }
             .padding(.horizontal, 16)
             .padding(.top, geometry.safeAreaInsets.top + 8)
@@ -1135,6 +1100,16 @@ struct TreadmillLiveView: View {
             )
             .ignoresSafeArea()
         )
+        .overlay(alignment: .bottom) {
+            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                FloatingControlPanel(
+                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.run.treadmill",
+                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .mint,
+                    onStop: { showingDistanceInput = true },
+                    onDiscard: { tracker?.discardSession() }
+                )
+            }
+        }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
         }

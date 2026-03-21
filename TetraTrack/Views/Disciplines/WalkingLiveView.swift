@@ -41,6 +41,16 @@ struct WalkingLiveView: View {
         }
         .background(Color.black)
         .preferredColorScheme(.dark)
+        .overlay(alignment: .bottom) {
+            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                FloatingControlPanel(
+                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.walk",
+                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .teal,
+                    onStop: { tracker?.stopSession() },
+                    onDiscard: { tracker?.discardSession() }
+                )
+            }
+        }
         .confirmationDialog("End Walking Session?", isPresented: $showingCancelConfirmation, titleVisibility: .visible) {
             Button("Save Session") {
                 tracker?.stopSession()
@@ -167,10 +177,7 @@ struct WalkingLiveView: View {
             }
 
             Spacer()
-
-            // Pause/Stop controls
-            controlButtons
-                .padding(.bottom, 32)
+                .frame(minHeight: 120) // Reserve space for FloatingControlPanel
         }
         .padding(.horizontal, 20)
     }
@@ -245,46 +252,6 @@ struct WalkingLiveView: View {
             currentLocation: locationManager?.currentLocation,
             onBack: { selectedTab = .stats }
         )
-    }
-
-    // MARK: - Control Buttons
-
-    private var controlButtons: some View {
-        let isTracking = tracker?.sessionState == .tracking
-        return HStack(spacing: 40) {
-            // Pause/Resume
-            Button {
-                if isTracking {
-                    tracker?.pauseSession()
-                } else {
-                    tracker?.resumeSession()
-                }
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(isTracking ? Color.yellow : Color.teal)
-                        .frame(width: 70, height: 70)
-                    Image(systemName: isTracking ? "pause.fill" : "play.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.black)
-                }
-            }
-
-            // Stop
-            Button {
-                showingCancelConfirmation = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 70, height: 70)
-                    Image(systemName: "stop.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white)
-                }
-            }
-        }
     }
 
     // MARK: - Helpers

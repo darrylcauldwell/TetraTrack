@@ -613,6 +613,16 @@ struct SwimmingLiveView: View {
             VoiceNoteRecordingOverlay()
         }
         .overlay(alignment: .bottom) {
+            if hasStarted && !testComplete && !isArmedForSubmersion {
+                FloatingControlPanel(
+                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.pool.swim",
+                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .blue,
+                    onStop: { tracker?.stopSession() },
+                    onDiscard: { tracker?.discardSession() }
+                )
+            }
+        }
+        .overlay(alignment: .bottom) {
             if showStrokePicker {
                 SwimmingStrokeQuickPicker { stroke in
                     selectStrokeForLastLength(stroke)
@@ -1264,20 +1274,8 @@ struct SwimmingLiveView: View {
                         .background(.green)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-            } else if hasStarted {
-                // Stop button (for training or early end)
-                Button {
-                    showingCancelConfirmation = true
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(.red)
-                        .clipShape(Capsule())
-                }
             }
+            // Active tracking stop is handled by FloatingControlPanel overlay
         }
         .padding(.horizontal)
     }

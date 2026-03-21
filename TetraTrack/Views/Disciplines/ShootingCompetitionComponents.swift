@@ -149,6 +149,30 @@ struct ShootingCompetitionView: View {
             }
             .padding(.top, 8)
         }
+        .overlay(alignment: .bottom) {
+            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                FloatingControlPanel(
+                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "target",
+                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .orange,
+                    onStop: {
+                        if isStandalone {
+                            tracker?.discardSession()
+                            onEnd?(0)
+                        } else {
+                            tracker?.stopSession()
+                        }
+                    },
+                    onDiscard: {
+                        if isStandalone {
+                            tracker?.discardSession()
+                            onEnd?(0)
+                        } else {
+                            tracker?.discardSession()
+                        }
+                    }
+                )
+            }
+        }
         .task {
             // Standalone mode (competition day): start session here
             if let context = standaloneContext, tracker?.sessionState == .idle {
