@@ -623,8 +623,9 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             }
 
             if command == .mirroringFailed {
-                Log.watch.error("TT: received mirroringFailed from Watch")
-                WorkoutLifecycleService.shared.handleWatchMirroringFailed()
+                let detail = message["mirroringErrorDetail"] as? String ?? "no detail"
+                Log.watch.error("TT: received mirroringFailed from Watch: \(detail, privacy: .public)")
+                WorkoutLifecycleService.shared.handleWatchMirroringFailed(errorDetail: detail)
             }
 
             // Handle fall detection from Watch
@@ -735,6 +736,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
             for crumb in breadcrumbs {
                 Log.watch.error("TT: WATCH: \(crumb, privacy: .public)")
             }
+
+            // Store for UI display
+            UserDefaults.standard.set(breadcrumbs, forKey: "watchDiagnosticBreadcrumbs")
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "watchDiagnosticTimestamp")
         }
 
         // Strip diagnostic keys before forwarding — the payload may also contain

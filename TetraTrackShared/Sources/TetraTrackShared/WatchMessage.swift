@@ -350,6 +350,15 @@ public struct WatchMessage: Codable, Sendable {
         WatchMessage(command: .mirroringStarted, discipline: discipline)
     }
 
+    /// Watch reports mirroring failure with error detail (raw dictionary, not WatchMessage-encoded)
+    public static func mirroringFailedWithDetail(_ detail: String) -> [String: Any] {
+        return [
+            WatchMessageKey.command.rawValue: WatchCommand.mirroringFailed.rawValue,
+            "mirroringErrorDetail": detail,
+            WatchMessageKey.timestamp.rawValue: Date().timeIntervalSince1970
+        ]
+    }
+
     /// Create a status update from iPhone to Watch
     public static func statusUpdate(
         rideState: SharedRideState,

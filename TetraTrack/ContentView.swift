@@ -36,7 +36,11 @@ struct ContentView: View {
                )) {
             Button("OK") { sessionTracker?.sessionStartError = nil }
         } message: {
-            Text(sessionTracker?.sessionStartError ?? "")
+            if let diag = sessionTracker?.watchDiagnostics {
+                Text((sessionTracker?.sessionStartError ?? "") + "\n\nWatch log:\n" + diag)
+            } else {
+                Text(sessionTracker?.sessionStartError ?? "")
+            }
         }
     }
 }

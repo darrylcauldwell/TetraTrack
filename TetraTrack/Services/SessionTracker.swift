@@ -75,6 +75,16 @@ final class SessionTracker {
     /// Error message shown to the user when Watch workout fails to start
     var sessionStartError: String?
 
+    /// Recent Watch diagnostic breadcrumbs (stored by WatchConnectivityManager)
+    var watchDiagnostics: String? {
+        guard let breadcrumbs = UserDefaults.standard.stringArray(forKey: "watchDiagnosticBreadcrumbs"),
+              !breadcrumbs.isEmpty else { return nil }
+        // Only show diagnostics from the last 60 seconds
+        let timestamp = UserDefaults.standard.double(forKey: "watchDiagnosticTimestamp")
+        guard Date().timeIntervalSince1970 - timestamp < 60 else { return nil }
+        return breadcrumbs.suffix(5).joined(separator: "\n")
+    }
+
     // MARK: - Post-Session
 
     /// Info captured at session end for post-session insights navigation
@@ -197,7 +207,7 @@ final class SessionTracker {
             }
         }
 
-        workoutLifecycle.onMirroringTimedOut = { [weak self] in
+        workoutLifecycle.onMirroringTimedOut = { [weak self] errorDetail in
             guard let self else { return }
             guard self.sessionState == .tracking else { return }
             Log.tracking.error("TT: mirroring failed — falling back to iPhone-primary workout")
@@ -209,7 +219,8 @@ final class SessionTracker {
                     if plugin.disableAutoCalories {
                         self.workoutLifecycle.disableAutoCalories()
                     }
-                    self.sessionStartError = "Watch mirroring unavailable. Session continuing without Watch heart rate."
+                    let detailSuffix = errorDetail.map { "\n\nWatch error: \($0)" } ?? ""
+                    self.sessionStartError = "Watch mirroring unavailable. Session continuing without Watch heart rate." + detailSuffix
                 } catch {
                     Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
                     self.sessionStartError = "Could not start workout: \(error.localizedDescription)"

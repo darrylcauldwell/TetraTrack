@@ -166,27 +166,42 @@ final class WorkoutManager: NSObject {
         // which interferes with startMirroringToCompanionDevice(). WWDC23 sample and
         // real-world implementations skip prepare() when mirroring immediately.
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
+
+        // Give HealthKit a moment to initialise the session before mirroring
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+
         var mirroringSucceeded = false
-        for attempt in 1...2 {
+        var lastMirroringError: String?
+        for attempt in 1...3 {
             do {
+                let stateRaw = session.state.rawValue
+                Log.tracking.error("TT: mirroring attempt \(attempt, privacy: .public) — session.state=\(stateRaw, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("mirror attempt \(attempt): state=\(stateRaw)")
+
                 try await session.startMirroringToCompanionDevice()
                 mirroringSucceeded = true
                 break
             } catch {
-                let errMsg = error.localizedDescription
-                Log.tracking.error("TT: startMirroringToCompanionDevice attempt \(attempt, privacy: .public) FAILED: \(errMsg, privacy: .public)")
-                WatchConnectivityService.sendDiagnostic("mirroring attempt \(attempt) FAILED: \(errMsg)")
-                if attempt < 2 {
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                let nsErr = error as NSError
+                let errDetail = "domain=\(nsErr.domain) code=\(nsErr.code) desc=\(nsErr.localizedDescription)"
+                Log.tracking.error("TT: startMirroringToCompanionDevice attempt \(attempt, privacy: .public) FAILED: \(errDetail, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("mirror attempt \(attempt) FAIL: \(errDetail)")
+                lastMirroringError = errDetail
+                if attempt < 3 {
+                    let delay = UInt64(attempt) * 2_000_000_000  // 2s, 4s
+                    try? await Task.sleep(nanoseconds: delay)
                 }
             }
         }
         guard mirroringSucceeded else {
             session.end()
-            WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED after 2 attempts")
+            let lastErr = lastMirroringError ?? "unknown"
+            WatchConnectivityService.shared.sendReliableMessage(
+                WatchMessage.mirroringFailedWithDetail(lastErr)
+            )
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED after 3 attempts")
             throw NSError(domain: "WorkoutManager", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "Mirroring failed after 2 attempts"])
+                          userInfo: [NSLocalizedDescriptionKey: "Mirroring failed after 3 attempts"])
         }
         Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
         WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
@@ -1102,6 +1117,21 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
             self.activityType = nil
 
             self.onWorkoutStateChanged?(false)
+        }
+    }
+
+    nonisolated func workoutSession(
+        _ workoutSession: HKWorkoutSession,
+        didDisconnectFromRemoteDeviceWithError error: (any Error)?
+    ) {
+        Task { @MainActor in
+            if let error {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: Watch mirrored session disconnected: \(errMsg, privacy: .public)")
+                WatchConnectivityService.sendDiagnostic("mirrored session disconnected: \(errMsg)")
+            } else {
+                Log.tracking.error("TT: Watch mirrored session disconnected (clean)")
+            }
         }
     }
 
