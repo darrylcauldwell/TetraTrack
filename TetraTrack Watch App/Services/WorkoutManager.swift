@@ -168,13 +168,13 @@ final class WorkoutManager: NSObject {
         let collectedTypes = dataSource?.typesToCollect.map { $0.identifier }.joined(separator: ",") ?? "none"
         let hasHR = dataSource?.typesToCollect.contains(HKQuantityType(.heartRate)) ?? false
         Log.tracking.error("TT: startWorkoutFromiPhone — delegate=\(hasDelegate, privacy: .public) dataSource=\(hasDataSource, privacy: .public) typesToCollect=[\(collectedTypes, privacy: .public)] hasHR=\(hasHR, privacy: .public)")
-        // Note: do NOT call session.prepare() here — it transitions to .prepared state
-        // which interferes with startMirroringToCompanionDevice(). WWDC23 sample and
-        // real-world implementations skip prepare() when mirroring immediately.
-        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: about to mirror")
-
-        // Give HealthKit a moment to initialise the session before mirroring
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        // prepare() transitions to .prepared state, required before mirroring.
+        // The autonomous Watch path (line ~410) uses the same pattern and works.
+        // Ref: https://nonstrict.eu/blog/2024/hkworkoutsession-remote-delegate-not-setup-error/
+        session.prepare()
+        let stateAfterPrepare = session.state.rawValue
+        Log.tracking.error("TT: startWorkoutFromiPhone — session.prepare() done, state=\(stateAfterPrepare, privacy: .public)")
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared (state=\(stateAfterPrepare)), about to mirror")
 
         var mirroringSucceeded = false
         var lastMirroringError: String?
