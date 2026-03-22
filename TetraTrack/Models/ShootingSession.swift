@@ -287,6 +287,10 @@ final class ShootingSession: TrainingSessionProtocol, SessionWritable {
     var hasWeatherData: Bool {
         startWeather != nil
     }
+
+    var weatherStats: WeatherStats {
+        WeatherStats(startConditions: startWeather, endConditions: endWeather)
+    }
 }
 
 // MARK: - Shooting End

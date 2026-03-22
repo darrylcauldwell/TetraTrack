@@ -213,6 +213,11 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
         startWeather != nil
     }
 
+    /// Weather change stats for start/end comparison
+    var weatherStats: WeatherStats {
+        WeatherStats(startConditions: startWeather, endConditions: endWeather)
+    }
+
     /// Brief weather summary for list display
     var weatherSummary: String? {
         startWeather?.briefSummary

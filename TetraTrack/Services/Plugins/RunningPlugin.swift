@@ -542,6 +542,10 @@ final class RunningPlugin: DisciplinePlugin {
         audioCoach.processRunningFormReminder(elapsedTime: elapsedTime)
     }
 
+    func writeEndWeather(_ weather: WeatherConditions) {
+        session.endWeather = weather
+    }
+
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
         // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
         session.endDate = Date()

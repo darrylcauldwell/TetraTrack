@@ -90,9 +90,7 @@ struct SwimmingWatchStatusCard: View {
                 }
             }
         }
-        .padding(16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassCard(material: .thin, cornerRadius: 16, padding: 16)
     }
 
     private func swimmingMetricRow(icon: String, text: String, color: Color) -> some View {
@@ -767,8 +765,7 @@ struct SwimmingLiveView: View {
                     maxHeartRate: (tracker?.maxHeartRate ?? 0) > 0 ? tracker?.maxHeartRate : nil
                 )
                 .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .glassCard(material: .thin, cornerRadius: 12, padding: 0)
 
                 // Physiology panel (breathing, SpO2, fatigue from Watch)
                 if sensorAnalyzer.breathingRate > 0 || sensorAnalyzer.oxygenSaturation > 0 || sensorAnalyzer.fatigueScore > 0 {
@@ -785,8 +782,7 @@ struct SwimmingLiveView: View {
                     compact: true
                 )
                 .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .glassCard(material: .thin, cornerRadius: 12, padding: 0)
             }
 
             // Pace display
@@ -925,8 +921,7 @@ struct SwimmingLiveView: View {
                 .padding(.vertical, 12)
             }
         }
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
     }
 
     private var openWaterDistanceDisplay: some View {
@@ -940,8 +935,7 @@ struct SwimmingLiveView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
     }
 
     private var openWaterPreStartView: some View {
@@ -970,8 +964,7 @@ struct SwimmingLiveView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
     }
 
     private var armedWaitingView: some View {
@@ -1012,8 +1005,7 @@ struct SwimmingLiveView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
     }
 
     private var hapticExplanationView: some View {
@@ -1090,8 +1082,7 @@ struct SwimmingLiveView: View {
             }
         }
         .padding(.vertical, 12)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     // MARK: - Physiology Panel
@@ -1149,8 +1140,7 @@ struct SwimmingLiveView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private func fatigueColor(_ score: Double) -> Color {
@@ -1196,8 +1186,7 @@ struct SwimmingLiveView: View {
             }
         }
         .padding(.vertical, 12)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private func paceZoneColor(_ zone: SwimmingPaceZone) -> Color {
@@ -1484,6 +1473,26 @@ struct SwimmingSessionDetailView: View {
                         .padding(.horizontal)
                     }
 
+                    // Weather
+                    if session.hasWeatherData {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "cloud.sun")
+                                Text("Weather")
+                                    .font(.headline)
+                            }
+
+                            if let startWeather = session.startWeather {
+                                WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                            }
+
+                            if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                                WeatherChangeSummaryView(stats: session.weatherStats)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
                     // Split charts
                     if session.sortedLaps.count >= 2 {
                         VStack(spacing: 16) {
@@ -1626,8 +1635,7 @@ struct SwimMiniStat: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .glassCard(material: .thin, cornerRadius: 8, padding: 0)
     }
 }
 

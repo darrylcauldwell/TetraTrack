@@ -163,6 +163,10 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, 
         startWeather != nil
     }
 
+    var weatherStats: WeatherStats {
+        WeatherStats(startConditions: startWeather, endConditions: endWeather)
+    }
+
     var weatherSummary: String? {
         startWeather?.briefSummary
     }

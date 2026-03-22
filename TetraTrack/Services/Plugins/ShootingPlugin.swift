@@ -201,6 +201,10 @@ final class ShootingPlugin: DisciplinePlugin {
         Log.shooting.info("Shooting scores saved: \(session.totalScore)/\(session.maxPossibleScore)")
     }
 
+    func writeEndWeather(_ weather: WeatherConditions) {
+        currentSession?.endWeather = weather
+    }
+
     // MARK: - Session Stopping
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {

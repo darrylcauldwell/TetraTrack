@@ -370,6 +370,10 @@ final class RidingPlugin: DisciplinePlugin {
         motionManager.startUpdates()
     }
 
+    func writeEndWeather(_ weather: WeatherConditions) {
+        currentRide?.endWeather = weather
+    }
+
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
         // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
         if let ride = currentRide {
@@ -379,6 +383,9 @@ final class RidingPlugin: DisciplinePlugin {
             ride.averageHeartRate = tracker.averageHeartRate
             ride.maxHeartRate = tracker.maxHeartRate
             ride.minHeartRate = tracker.minHeartRate
+
+            // Fallback end weather from current conditions (async fetch may overwrite later)
+            tracker.currentWeather.map { ride.endWeather = $0 }
         }
 
         // Audio announcement

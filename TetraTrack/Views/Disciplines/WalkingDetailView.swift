@@ -153,6 +153,25 @@ struct WalkingDetailView: View {
                 // Key metrics
                 metricsGrid
 
+                // Weather
+                if session.hasWeatherData {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "cloud.sun")
+                            Text("Weather")
+                                .font(.headline)
+                        }
+
+                        if let startWeather = session.startWeather {
+                            WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                        }
+
+                        if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                            WeatherChangeSummaryView(stats: session.weatherStats)
+                        }
+                    }
+                }
+
                 // Splits
                 if !session.sortedSplits.isEmpty {
                     splitsSection

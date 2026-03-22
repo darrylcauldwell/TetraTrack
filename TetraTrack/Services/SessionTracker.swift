@@ -679,9 +679,8 @@ final class SessionTracker {
                 do {
                     let endWeather = try await self.weatherService.fetchWeather(for: location)
                     await MainActor.run {
-                        // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
+                        self.activePlugin?.writeEndWeather(endWeather)
                     }
-                    _ = endWeather  // Plugin handles saving to model in onSessionCompleted
                 } catch {
                     Log.services.error("Failed to fetch end weather: \(error)")
                 }

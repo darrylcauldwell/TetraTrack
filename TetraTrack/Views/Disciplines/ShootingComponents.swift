@@ -553,6 +553,26 @@ struct ShootingSessionDetailView: View {
                         .padding(.horizontal)
                     }
 
+                    // Weather
+                    if session.hasWeatherData {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "cloud.sun")
+                                Text("Weather")
+                                    .font(.headline)
+                            }
+
+                            if let startWeather = session.startWeather {
+                                WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                            }
+
+                            if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                                WeatherChangeSummaryView(stats: session.weatherStats)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
                     // Ends breakdown
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Ends")

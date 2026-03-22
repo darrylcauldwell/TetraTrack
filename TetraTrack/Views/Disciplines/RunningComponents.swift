@@ -1206,6 +1206,26 @@ struct RunningSessionDetailView: View {
                         .padding(.horizontal)
                     }
 
+                    // Weather
+                    if session.hasWeatherData {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "cloud.sun")
+                                Text("Weather")
+                                    .font(.headline)
+                            }
+
+                            if let startWeather = session.startWeather {
+                                WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                            }
+
+                            if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                                WeatherChangeSummaryView(stats: session.weatherStats)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
                     // Elevation
                     if session.totalAscent > 0 || session.totalDescent > 0 {
                         HStack(spacing: 20) {

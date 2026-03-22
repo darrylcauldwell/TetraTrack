@@ -124,6 +124,9 @@ protocol DisciplinePlugin: AnyObject {
     /// Called when session is stopping — return HealthKit enrichment data
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment
 
+    /// Write end weather to the discipline's session model after async fetch completes
+    func writeEndWeather(_ weather: WeatherConditions)
+
     /// Called after session stop is finalized (model saved, HealthKit ended)
     func onSessionCompleted(tracker: SessionTracker) async
 
@@ -177,6 +180,7 @@ extension DisciplinePlugin {
     func onSessionPaused(tracker: SessionTracker) {}
     func onSessionResumed(tracker: SessionTracker) {}
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment { HealthKitEnrichment() }
+    func writeEndWeather(_ weather: WeatherConditions) {}
     func onSessionCompleted(tracker: SessionTracker) async {}
     func onSessionDiscarded(tracker: SessionTracker) {}
 
