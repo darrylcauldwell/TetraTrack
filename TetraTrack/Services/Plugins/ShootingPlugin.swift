@@ -208,6 +208,14 @@ final class ShootingPlugin: DisciplinePlugin {
             return HealthKitEnrichment()
         }
 
+        // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
+        session.endDate = Date()
+        session.totalDistance = tracker.totalDistance
+        session.totalDuration = tracker.elapsedTime
+        session.averageHeartRate = tracker.averageHeartRate
+        session.maxHeartRate = tracker.maxHeartRate
+        session.minHeartRate = tracker.minHeartRate
+
         // Read shooting sensor summary
         let shootingSummary = sensorAnalyzer.getShootingSummary()
         session.postureStability = shootingSummary.postureStability

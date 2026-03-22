@@ -371,6 +371,16 @@ final class RidingPlugin: DisciplinePlugin {
     }
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
+        // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
+        if let ride = currentRide {
+            ride.endDate = Date()
+            ride.totalDistance = tracker.totalDistance
+            ride.totalDuration = tracker.elapsedTime
+            ride.averageHeartRate = tracker.averageHeartRate
+            ride.maxHeartRate = tracker.maxHeartRate
+            ride.minHeartRate = tracker.minHeartRate
+        }
+
         // Audio announcement
         let distanceKm = tracker.totalDistance / 1000.0
         let minutes = Int(tracker.elapsedTime) / 60

@@ -213,6 +213,14 @@ final class WalkingPlugin: DisciplinePlugin {
     }
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
+        // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
+        session.endDate = Date()
+        session.totalDistance = tracker.totalDistance
+        session.totalDuration = tracker.elapsedTime
+        session.averageHeartRate = tracker.averageHeartRate
+        session.maxHeartRate = tracker.maxHeartRate
+        session.minHeartRate = tracker.minHeartRate
+
         // Finalize cadence stats
         if !cadenceReadings.isEmpty {
             session.averageCadence = cadenceReadings.reduce(0, +) / cadenceReadings.count

@@ -543,6 +543,14 @@ final class RunningPlugin: DisciplinePlugin {
     }
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
+        // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
+        session.endDate = Date()
+        session.totalDistance = tracker.totalDistance
+        session.totalDuration = tracker.elapsedTime
+        session.averageHeartRate = tracker.averageHeartRate
+        session.maxHeartRate = tracker.maxHeartRate
+        session.minHeartRate = tracker.minHeartRate
+
         // Stop form reminders
         audioCoach.stopRunningFormReminders()
 

@@ -299,6 +299,12 @@ final class SwimmingPlugin: DisciplinePlugin {
     }
 
     func onSessionStopping(tracker: SessionTracker) -> HealthKitEnrichment {
+        // Write common fields via concrete type (belt-and-suspenders with SessionTracker existential write)
+        session.endDate = Date()
+        session.averageHeartRate = tracker.averageHeartRate
+        session.maxHeartRate = tracker.maxHeartRate
+        session.minHeartRate = tracker.minHeartRate
+
         // Stop sensor analysis and Watch motion tracking
         watchManager.stopMotionTracking()
         sensorAnalyzer.stopSession()

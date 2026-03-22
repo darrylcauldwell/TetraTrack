@@ -639,6 +639,13 @@ final class SessionTracker {
             model.maxHeartRate = hrStats.maxBPM
             model.minHeartRate = hrStats.minBPM
             model.heartRateSamplesData = try? JSONEncoder().encode(Array(hrStats.samples))
+
+            // Verify writes landed on SwiftData model
+            let verifyDur = Int(model.totalDuration)
+            let verifyDist = Int(model.totalDistance)
+            Log.tracking.info("TT: Model write verify — duration: \(verifyDur)s, distance: \(verifyDist)m, type: \(type(of: model))")
+        } else {
+            Log.tracking.error("TT: currentSessionModel is nil — common fields NOT written!")
         }
 
         // Get HealthKit enrichment from plugin (can override common fields)
@@ -707,11 +714,18 @@ final class SessionTracker {
         // Save model context — pre-async safety save (core session data)
         let elapsed = Int(self.elapsedTime)
         let dist = Int(self.totalDistance)
-        Log.tracking.info("TT: Pre-async save — duration: \(elapsed)s, distance: \(dist)m")
+        Log.tracking.info("TT: Pre-async save — tracker values — duration: \(elapsed)s, distance: \(dist)m")
+        if let model = currentSessionModel {
+            let modelDur = Int(model.totalDuration)
+            let modelDist = Int(model.totalDistance)
+            let hasCtx = model.modelContext != nil
+            Log.tracking.info("TT: Pre-async save — model values — duration: \(modelDur)s, distance: \(modelDist)m, hasContext: \(hasCtx)")
+        }
         do {
             try modelContext?.save()
+            Log.tracking.info("TT: Pre-async save succeeded")
         } catch {
-            Log.tracking.error("Failed to save session data: \(error)")
+            Log.tracking.error("TT: Pre-async save FAILED: \(error)")
         }
 
         // Notify plugin — async post-session work
