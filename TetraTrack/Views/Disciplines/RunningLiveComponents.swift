@@ -129,8 +129,7 @@ struct RunningLiveView: View {
                 FloatingControlPanel(
                     disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.run",
                     disciplineColor: tracker?.activePlugin?.disciplineColor ?? AppColors.primary,
-                    onStop: { tracker?.stopSession() },
-                    onDiscard: { tracker?.discardSession() }
+                    onStop: { tracker?.stopSession() }
                 )
             }
         }
@@ -1105,8 +1104,7 @@ struct TreadmillLiveView: View {
                 FloatingControlPanel(
                     disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.run.treadmill",
                     disciplineColor: tracker?.activePlugin?.disciplineColor ?? .mint,
-                    onStop: { showingDistanceInput = true },
-                    onDiscard: { tracker?.discardSession() }
+                    onStop: { showingDistanceInput = true }
                 )
             }
         }

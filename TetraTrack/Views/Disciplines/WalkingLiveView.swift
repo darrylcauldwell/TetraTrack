@@ -46,8 +46,7 @@ struct WalkingLiveView: View {
                 FloatingControlPanel(
                     disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.walk",
                     disciplineColor: tracker?.activePlugin?.disciplineColor ?? .teal,
-                    onStop: { tracker?.stopSession() },
-                    onDiscard: { tracker?.discardSession() }
+                    onStop: { tracker?.stopSession() }
                 )
             }
         }

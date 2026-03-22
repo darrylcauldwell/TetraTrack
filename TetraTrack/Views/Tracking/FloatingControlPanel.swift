@@ -3,7 +3,7 @@
 //  TetraTrack
 //
 //  Apple Fitness-style floating glass control panel for live sessions.
-//  Compact during tracking; expands when paused to reveal end/discard actions.
+//  Compact during tracking; shows End/Resume buttons when paused.
 //
 
 import SwiftUI
@@ -14,10 +14,7 @@ struct FloatingControlPanel: View {
     let disciplineIcon: String
     let disciplineColor: Color
     var onStop: () -> Void
-    var onDiscard: () -> Void
     var onVoiceNote: ((String) -> Void)?
-
-    @State private var isPanelExpanded = false
 
     private var isPaused: Bool {
         tracker?.sessionState == .paused
@@ -36,35 +33,9 @@ struct FloatingControlPanel: View {
             // Main control card
             mainPanel
                 .glassCard(material: .regular, cornerRadius: 28, shadowRadius: 16, padding: 0)
-
-            // Expanded action cards (paused only)
-            if isPanelExpanded {
-                VStack(spacing: 8) {
-                    ControlPanelActionCard(
-                        icon: "xmark.circle.fill",
-                        label: "End Session",
-                        isDestructive: true,
-                        action: onStop
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-
-                    ControlPanelActionCard(
-                        icon: "trash",
-                        label: "Discard",
-                        isDestructive: false,
-                        action: onDiscard
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
-        .onChange(of: isPaused) { _, paused in
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                isPanelExpanded = paused
-            }
-        }
         .sensoryFeedback(.impact(weight: .medium), trigger: isPaused)
     }
 
@@ -152,46 +123,68 @@ struct FloatingControlPanel: View {
     // MARK: - Paused Controls
 
     private var pausedControls: some View {
-        HStack(spacing: 20) {
-            // Voice note (when supported)
-            if supportsVoiceNotes, let voiceHandler = onVoiceNote {
-                VoiceNoteToolbarButton(onNoteSaved: voiceHandler)
-                    .frame(width: 44, height: 44)
-            } else {
-                CompactMusicButton()
-                    .frame(width: 44, height: 44)
-            }
+        VStack(spacing: 16) {
+            // Apple Fitness-style End / Resume buttons
+            HStack(spacing: 40) {
+                // End button
+                VStack(spacing: 6) {
+                    Button(action: onStop) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.error)
+                                .frame(width: 80, height: 80)
 
-            Spacer()
+                            Image(systemName: "xmark")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibleButton("End session", hint: "End and save the session")
 
-            // Resume button
-            Button {
-                tracker?.resumeSession()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(AppColors.startButton)
-                        .frame(width: 80, height: 80)
+                    Text("End")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
 
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(.white)
+                // Resume button
+                VStack(spacing: 6) {
+                    Button {
+                        tracker?.resumeSession()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.startButton)
+                                .frame(width: 80, height: 80)
+
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibleButton("Resume session", hint: "Resume the current session")
+
+                    Text("Resume")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .buttonStyle(.plain)
-            .accessibleButton("Resume session", hint: "Resume the current session")
 
-            Spacer()
+            // Secondary controls
+            HStack(spacing: 20) {
+                if supportsVoiceNotes, let voiceHandler = onVoiceNote {
+                    VoiceNoteToolbarButton(onNoteSaved: voiceHandler)
+                        .frame(width: 44, height: 44)
+                }
 
-            // Music
-            if supportsVoiceNotes, onVoiceNote != nil {
                 CompactMusicButton()
                     .frame(width: 44, height: 44)
-            } else if supportsAudioCoaching {
-                AudioCoachMuteButton()
-                    .frame(width: 44, height: 44)
-            } else {
-                Color.clear.frame(width: 44, height: 44)
+
+                if supportsAudioCoaching {
+                    AudioCoachMuteButton()
+                        .frame(width: 44, height: 44)
+                }
             }
         }
     }
@@ -234,54 +227,6 @@ struct HeartRateZoneMiniRing: View {
     }
 }
 
-// MARK: - Control Panel Action Card
-
-struct ControlPanelActionCard: View {
-    let icon: String
-    let label: String
-    let isDestructive: Bool
-    let action: () -> Void
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(isDestructive ? AppColors.error : .secondary)
-
-                Text(label)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(isDestructive ? AppColors.error : .primary)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isDestructive ? AppColors.error.opacity(0.08) : AppColors.cardBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(
-                        isDestructive ? AppColors.error.opacity(0.2) : Color.white.opacity(0.1),
-                        lineWidth: 0.5
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.97 : 1.0)
-        .animation(.spring(response: 0.2), value: isPressed)
-        .accessibleButton(label, hint: isDestructive ? "Ends and saves the session" : "Discards session data")
-    }
-}
-
 #Preview("Floating Control Panel - Tracking") {
     ZStack {
         Color.black.ignoresSafeArea()
@@ -292,7 +237,6 @@ struct ControlPanelActionCard: View {
                 disciplineIcon: "figure.equestrian.sports",
                 disciplineColor: AppColors.riding,
                 onStop: {},
-                onDiscard: {},
                 onVoiceNote: { _ in }
             )
         }

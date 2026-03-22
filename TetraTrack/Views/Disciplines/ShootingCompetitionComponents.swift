@@ -161,14 +161,6 @@ struct ShootingCompetitionView: View {
                         } else {
                             tracker?.stopSession()
                         }
-                    },
-                    onDiscard: {
-                        if isStandalone {
-                            tracker?.discardSession()
-                            onEnd?(0)
-                        } else {
-                            tracker?.discardSession()
-                        }
                     }
                 )
             }

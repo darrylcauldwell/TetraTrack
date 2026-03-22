@@ -617,8 +617,7 @@ struct SwimmingLiveView: View {
                 FloatingControlPanel(
                     disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "figure.pool.swim",
                     disciplineColor: tracker?.activePlugin?.disciplineColor ?? .blue,
-                    onStop: { tracker?.stopSession() },
-                    onDiscard: { tracker?.discardSession() }
+                    onStop: { tracker?.stopSession() }
                 )
             }
         }

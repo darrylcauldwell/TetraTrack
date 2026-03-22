@@ -144,7 +144,6 @@ struct TrackingView: View {
                     disciplineIcon: sessionTracker?.activePlugin?.disciplineIcon ?? "figure.run",
                     disciplineColor: sessionTracker?.activePlugin?.disciplineColor ?? AppColors.primary,
                     onStop: { sessionTracker?.stopSession() },
-                    onDiscard: { sessionTracker?.discardSession() },
                     onVoiceNote: ridingPlugin != nil ? { note in
                         ridingPlugin?.appendVoiceNote(note)
                     } : nil
