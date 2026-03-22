@@ -566,7 +566,7 @@ final class RidingPlugin: DisciplinePlugin {
             }
 
             // HealthKit workout UUID will be set by SessionTracker's endWorkoutTask
-            // save() removed — SessionTracker.stopSession() owns the final save
+            // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
 
             // Compute skill domain scores
             if let ctx = modelContext {
@@ -575,7 +575,7 @@ final class RidingPlugin: DisciplinePlugin {
                 for score in scores {
                     ctx.insert(score)
                 }
-                // save() removed — SessionTracker.stopSession() owns the final save
+                // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
             }
 
             // Learn gait characteristics for this horse
@@ -1124,7 +1124,7 @@ final class RidingPlugin: DisciplinePlugin {
         }
 
         ride.aiSummary = summary
-        // save() removed — SessionTracker.stopSession() owns the final save
+        // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
 
         summaryService.readSummaryAloud(summary, brief: false)
 

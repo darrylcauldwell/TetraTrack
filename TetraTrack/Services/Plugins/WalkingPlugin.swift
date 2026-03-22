@@ -309,7 +309,7 @@ final class WalkingPlugin: DisciplinePlugin {
                     self.session.walkingStabilityScore = steadiness
                 }
 
-                // save() removed — SessionTracker.stopSession() owns the final save
+                // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
             }
         }
 
@@ -386,7 +386,7 @@ final class WalkingPlugin: DisciplinePlugin {
             if session.healthKitAsymmetry != nil || session.healthKitDoubleSupportPercentage != nil {
                 let updatedScores = walkingService.computeScores(from: session)
                 walkingService.applyScores(updatedScores, to: session)
-                // save() removed — SessionTracker.stopSession() owns the final save
+                // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
             }
         }
 
@@ -434,7 +434,7 @@ final class WalkingPlugin: DisciplinePlugin {
                     let walkingService = WalkingAnalysisService()
                     let updatedScores = walkingService.computeScores(from: session)
                     walkingService.applyScores(updatedScores, to: session)
-                    // save() removed — SessionTracker.stopSession() owns the final save
+                    // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
                     Log.tracking.info("Walking HealthKit retry: updated metrics after 30s delay")
                 }
             }

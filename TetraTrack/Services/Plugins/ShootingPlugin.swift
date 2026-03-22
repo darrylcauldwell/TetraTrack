@@ -331,7 +331,7 @@ final class ShootingPlugin: DisciplinePlugin {
             for score in scores {
                 ctx.insert(score)
             }
-            // save() removed — SessionTracker.stopSession() owns the final save
+            // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
         }
 
         Log.tracking.info("Shooting plugin stopped")

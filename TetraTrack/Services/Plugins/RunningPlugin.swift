@@ -713,7 +713,7 @@ final class RunningPlugin: DisciplinePlugin {
                     self.session.walkingStabilityScore = steadiness
                 }
 
-                // save() removed — SessionTracker.stopSession() owns the final save
+                // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
             }
         }
 
@@ -809,7 +809,7 @@ final class RunningPlugin: DisciplinePlugin {
             if let hrRecovery {
                 await MainActor.run {
                     session.healthKitHRRecoveryOneMinute = hrRecovery
-                    try? modelContext?.save()
+                    // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
                 }
             }
         }

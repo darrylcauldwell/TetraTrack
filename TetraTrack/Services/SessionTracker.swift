@@ -644,6 +644,9 @@ final class SessionTracker {
         // Get HealthKit enrichment from plugin (can override common fields)
         let enrichment = plugin.onSessionStopping(tracker: self)
 
+        // Capture model reference before async work (currentSessionModel is nilled later)
+        let sessionModelForUUID = currentSessionModel
+
         // End workout lifecycle with enrichment data
         let endWorkoutTask = Task { [weak self] in
             guard let self else { return }
@@ -655,7 +658,7 @@ final class SessionTracker {
             }
             let workout = await self.workoutLifecycle.endAndSave(metadata: enrichment.metadata)
             if let workout {
-                self.currentSessionModel?.healthKitWorkoutUUID = workout.uuid.uuidString
+                sessionModelForUUID?.healthKitWorkoutUUID = workout.uuid.uuidString
                 Log.health.info("Session saved to Apple Health: \(workout.uuid.uuidString)")
             }
             self.workoutLifecycle.sendIdleStateToWatch()
@@ -669,7 +672,7 @@ final class SessionTracker {
                 do {
                     let endWeather = try await self.weatherService.fetchWeather(for: location)
                     await MainActor.run {
-                        // save() removed — stopSession() owns the final save
+                        // save() removed — awaitPostSessionTasks() owns the final save after all async work completes
                     }
                     _ = endWeather  // Plugin handles saving to model in onSessionCompleted
                 } catch {
@@ -701,7 +704,10 @@ final class SessionTracker {
             activeBackgroundTasks.append(stopSharingTask)
         }
 
-        // Save model context
+        // Save model context — pre-async safety save (core session data)
+        let elapsed = Int(self.elapsedTime)
+        let dist = Int(self.totalDistance)
+        Log.tracking.info("TT: Pre-async save — duration: \(elapsed)s, distance: \(dist)m")
         do {
             try modelContext?.save()
         } catch {
@@ -709,8 +715,11 @@ final class SessionTracker {
         }
 
         // Notify plugin — async post-session work
+        let pluginId = plugin.subscriberId
         let completionTask = Task {
+            Log.tracking.info("TT: onSessionCompleted starting — \(pluginId)")
             await plugin.onSessionCompleted(tracker: self)
+            Log.tracking.info("TT: onSessionCompleted finished — \(pluginId)")
         }
         activeBackgroundTasks.append(completionTask)
 
@@ -1269,6 +1278,14 @@ final class SessionTracker {
         if let summaryTask = postSessionSummaryTask {
             await summaryTask.value
             postSessionSummaryTask = nil
+        }
+
+        // Final save — catches all async writes (HealthKit, walking scores, workout UUID, 30s retry)
+        do {
+            try modelContext?.save()
+            Log.tracking.info("TT: Post-session final save completed")
+        } catch {
+            Log.tracking.error("TT: Post-session final save failed: \(error)")
         }
 
         if postSessionBackgroundTaskId != .invalid {
