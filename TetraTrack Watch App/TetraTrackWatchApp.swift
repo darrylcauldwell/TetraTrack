@@ -32,7 +32,6 @@ class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
                 let errMsg = error.localizedDescription
                 Log.tracking.error("TT: handle() — failed: \(errMsg, privacy: .public)")
                 WatchConnectivityService.sendDiagnostic("handle() — FAILED: \(errMsg)")
-                WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
             }
         }
     }

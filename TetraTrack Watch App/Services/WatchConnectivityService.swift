@@ -433,37 +433,6 @@ final class WatchConnectivityService: NSObject {
             }
         }
 
-        // Handle startWatchWorkout backup from iPhone (raw dictionary)
-        if let cmdStr = message[WatchMessageKey.command.rawValue] as? String,
-           cmdStr == WatchCommand.startWatchWorkout.rawValue {
-            let activityType = message["workoutActivityType"] as? UInt ?? 0
-            let locationType = message["workoutLocationType"] as? Int ?? 0
-            Log.watch.error("TT: received startWatchWorkout via WCSession — activity=\(activityType, privacy: .public)")
-            WatchConnectivityService.sendDiagnostic("WCSession startWatchWorkout: activity=\(activityType)")
-
-            guard !WorkoutManager.shared.isWorkoutActive else {
-                Log.watch.error("TT: ignoring startWatchWorkout — workout already active")
-                return
-            }
-
-            Task {
-                do {
-                    let config = HKWorkoutConfiguration()
-                    config.activityType = HKWorkoutActivityType(rawValue: activityType) ?? .other
-                    config.locationType = HKWorkoutSessionLocationType(rawValue: locationType) ?? .unknown
-                    await WorkoutManager.shared.resetWorkout()
-                    try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: config)
-                    WatchConnectivityService.sendDiagnostic("WCSession workout started OK")
-                } catch {
-                    let errMsg = error.localizedDescription
-                    Log.watch.error("TT: WCSession-triggered workout FAILED: \(errMsg, privacy: .public)")
-                    WatchConnectivityService.sendDiagnostic("WCSession workout FAILED: \(errMsg)")
-                    WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
-                }
-            }
-            return
-        }
-
         // Handle standard WatchMessage
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
             Log.watch.warning("Could not parse as WatchMessage")
@@ -633,12 +602,8 @@ final class WatchConnectivityService: NSObject {
                 HapticManager.shared.playRestIntervalEndHaptic()
                 Log.watch.info("Haptic: rest end")
 
-            // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
-            case .mirroringStarted, .mirroringFailed:
-                break
-
-            // WCSession backup command (handled as raw dictionary above, ignore here)
-            case .startWatchWorkout:
+            // Mirroring handshake command (Watch -> iPhone, ignore on Watch side)
+            case .mirroringStarted:
                 break
 
             // Commands sent from Watch to iPhone (ignore on Watch side)

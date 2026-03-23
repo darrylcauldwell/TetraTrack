@@ -236,7 +236,7 @@ locationManager.activityType = .fitness
 **Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
 
 ### Mirroring Pipeline
-iPhone sends `.startAutonomousWorkout` via WCSession → Watch starts HKWorkoutSession → mirrors back via `startMirroringToCompanionDevice()`. 45s adaptive fallback (15s ack + 30s mirroring) to iPhone-primary mode.
+iPhone checks Watch availability (`isPaired && isReachable && isWatchAppInstalled`) before session start. If available, calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates HKWorkoutSession → `startMirroringToCompanionDevice()` → iPhone receives mirrored session via HealthKit. If Watch not available, starts iPhone-primary workout immediately.
 
 ### Key Files
 

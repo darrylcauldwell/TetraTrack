@@ -104,9 +104,6 @@ public enum WatchCommand: String, Codable, Sendable {
     case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
     // Mirroring handshake (Watch -> iPhone: mirroring progress)
     case mirroringStarted = "mirroringStarted"
-    case mirroringFailed = "mirroringFailed"
-    // WCSession backup for Watch workout start (iPhone -> Watch)
-    case startWatchWorkout = "startWatchWorkout"
 }
 
 // MARK: - Fall Response
@@ -350,25 +347,6 @@ public struct WatchMessage: Codable, Sendable {
     /// Watch confirms mirroring has started successfully
     public static func mirroringStarted(discipline: String) -> WatchMessage {
         WatchMessage(command: .mirroringStarted, discipline: discipline)
-    }
-
-    /// Watch reports mirroring failure with error detail (raw dictionary, not WatchMessage-encoded)
-    public static func mirroringFailedWithDetail(_ detail: String) -> [String: Any] {
-        return [
-            WatchMessageKey.command.rawValue: WatchCommand.mirroringFailed.rawValue,
-            "mirroringErrorDetail": detail,
-            WatchMessageKey.timestamp.rawValue: Date().timeIntervalSince1970
-        ]
-    }
-
-    /// WCSession backup command for Watch workout start (raw dictionary, not WatchMessage-encoded)
-    public static func startWatchWorkoutCommand(activityTypeRawValue: UInt, locationTypeRawValue: Int) -> [String: Any] {
-        return [
-            WatchMessageKey.command.rawValue: WatchCommand.startWatchWorkout.rawValue,
-            "workoutActivityType": activityTypeRawValue,
-            "workoutLocationType": locationTypeRawValue,
-            WatchMessageKey.timestamp.rawValue: Date().timeIntervalSince1970
-        ]
     }
 
     /// Create a status update from iPhone to Watch

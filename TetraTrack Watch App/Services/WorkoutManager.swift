@@ -201,10 +201,6 @@ final class WorkoutManager: NSObject {
         }
         guard mirroringSucceeded else {
             session.end()
-            let lastErr = lastMirroringError ?? "unknown"
-            WatchConnectivityService.shared.sendReliableMessage(
-                WatchMessage.mirroringFailedWithDetail(lastErr)
-            )
             WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED after 3 attempts")
             throw NSError(domain: "WorkoutManager", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "Mirroring failed after 3 attempts"])
@@ -1100,9 +1096,6 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
             let errMsg = error.localizedDescription
             Log.tracking.error("TT: workout session didFailWithError: \(errMsg, privacy: .public)")
             WatchConnectivityService.sendDiagnostic("didFailWithError: \(errMsg)")
-
-            // Notify iPhone so it can surface the error
-            WatchConnectivityService.shared.sendSessionCommand(.mirroringFailed)
 
             // Stop all tracking
             self.locationManager.stopTracking()

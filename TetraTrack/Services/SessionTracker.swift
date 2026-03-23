@@ -206,28 +206,6 @@ final class SessionTracker {
                 await self.startSessionFromMirroredWorkout(activityType: activityType, startDate: watchStartDate)
             }
         }
-
-        workoutLifecycle.onMirroringTimedOut = { [weak self] errorDetail in
-            guard let self else { return }
-            guard self.sessionState == .tracking else { return }
-            Log.tracking.error("TT: mirroring failed — falling back to iPhone-primary workout")
-            // Fall back to iPhone-primary mode so the session continues
-            guard let plugin = self.activePlugin else { return }
-            Task {
-                do {
-                    try await self.workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
-                    if plugin.disableAutoCalories {
-                        self.workoutLifecycle.disableAutoCalories()
-                    }
-                    let detailSuffix = errorDetail.map { "\n\nWatch error: \($0)" } ?? ""
-                    self.sessionStartError = "Watch mirroring unavailable. Session continuing without Watch heart rate." + detailSuffix
-                } catch {
-                    Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
-                    self.sessionStartError = "Could not start workout: \(error.localizedDescription)"
-                    self.stopSession()
-                }
-            }
-        }
     }
 
     /// Create a default plugin for a Watch-initiated mirrored workout.
@@ -495,20 +473,39 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle — prefer Watch-primary, fall back to iPhone-primary
-        // with a visible warning when Watch mirroring is unavailable.
-        do {
-            try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
-        } catch {
-            Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
+        // Start workout lifecycle — use Watch-primary when Watch is paired, reachable,
+        // and has the app installed. Otherwise skip straight to iPhone-primary mode.
+        let watchAvailable = watchManager.isPaired && watchManager.isReachable && watchManager.isWatchAppInstalled
+        if watchAvailable {
+            do {
+                try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
+            } catch {
+                Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
+                do {
+                    try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
+                    if plugin.disableAutoCalories {
+                        workoutLifecycle.disableAutoCalories()
+                    }
+                    sessionStartError = "Watch unavailable. Session continuing without Watch heart rate."
+                } catch {
+                    Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
+                    sessionStartError = "Could not start workout: \(error.localizedDescription)"
+                    stopSession()
+                    return
+                }
+            }
+        } else {
+            let paired = watchManager.isPaired
+            let reachable = watchManager.isReachable
+            let installed = watchManager.isWatchAppInstalled
+            Log.tracking.info("TT: Watch not available (paired=\(paired) reachable=\(reachable) installed=\(installed)) — using iPhone-primary mode")
             do {
                 try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
                 if plugin.disableAutoCalories {
                     workoutLifecycle.disableAutoCalories()
                 }
-                sessionStartError = "Watch unavailable. Session continuing without Watch heart rate."
             } catch {
-                Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
+                Log.tracking.error("TT: iPhone-primary workout failed: \(error)")
                 sessionStartError = "Could not start workout: \(error.localizedDescription)"
                 stopSession()
                 return

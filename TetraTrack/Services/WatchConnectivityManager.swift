@@ -637,12 +637,6 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
                 WorkoutLifecycleService.shared.updateMirroringState(.mirroringInProgress)
             }
 
-            if command == .mirroringFailed {
-                let detail = message["mirroringErrorDetail"] as? String ?? "no detail"
-                Log.watch.error("TT: received mirroringFailed from Watch: \(detail, privacy: .public)")
-                WorkoutLifecycleService.shared.handleWatchMirroringFailed(errorDetail: detail)
-            }
-
             // Handle fall detection from Watch
             if command == .fallDetected {
                 let confidence = watchMessage.fallConfidence ?? 0.5
