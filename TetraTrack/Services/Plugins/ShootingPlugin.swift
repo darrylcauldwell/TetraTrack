@@ -360,8 +360,6 @@ final class ShootingPlugin: DisciplinePlugin {
             WidgetDataSyncService.shared.syncRecentSessions(context: ctx)
         }
 
-        // Convert to training artifact
-        await ArtifactConversionService.shared.convertAndSyncShootingSession(session)
 
         // Update personal best
         ShootingPersonalBests.shared.updatePersonalBest(rawScore: session.totalScore)

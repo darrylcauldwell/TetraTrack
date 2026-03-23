@@ -611,8 +611,6 @@ final class RidingPlugin: DisciplinePlugin {
         // Generate post-session AI summary
         await generatePostSessionSummary(for: ride)
 
-        // Convert to TrainingArtifact and sync for family sharing
-        await ArtifactConversionService.shared.convertAndSyncRide(ride)
     }
 
     // MARK: - Voice Notes

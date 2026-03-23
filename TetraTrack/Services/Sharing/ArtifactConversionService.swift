@@ -76,21 +76,6 @@ final class ArtifactConversionService {
         return artifact
     }
 
-    /// Convert and sync a ride, then notify family
-    func convertAndSyncRide(_ ride: Ride, athleteName: String = "Athlete") async {
-        let artifact = createArtifact(from: ride, athleteName: athleteName)
-
-        // Save to CloudKit
-        await syncService.saveArtifact(artifact)
-
-        // Send completion notification
-        notificationManager.sendSessionCompletedNotification(
-            discipline: .riding,
-            athleteName: athleteName,
-            summary: "\(ride.formattedDistance) in \(ride.formattedDuration)",
-            details: ride.horse?.name
-        )
-    }
 
     // MARK: - Running Session Conversion
 
@@ -136,19 +121,6 @@ final class ArtifactConversionService {
         return artifact
     }
 
-    /// Convert and sync a running session, then notify family
-    func convertAndSyncRunningSession(_ session: RunningSession, athleteName: String = "Athlete") async {
-        let artifact = createArtifact(from: session, athleteName: athleteName)
-
-        await syncService.saveArtifact(artifact)
-
-        notificationManager.sendRunningCompletedNotification(
-            athleteName: athleteName,
-            distance: session.formattedDistance,
-            duration: session.formattedDuration,
-            pace: session.formattedPace
-        )
-    }
 
     // MARK: - Swimming Session Conversion
 
@@ -181,19 +153,6 @@ final class ArtifactConversionService {
         return artifact
     }
 
-    /// Convert and sync a swimming session, then notify family
-    func convertAndSyncSwimmingSession(_ session: SwimmingSession, athleteName: String = "Athlete") async {
-        let artifact = createArtifact(from: session, athleteName: athleteName)
-
-        await syncService.saveArtifact(artifact)
-
-        notificationManager.sendSwimmingCompletedNotification(
-            athleteName: athleteName,
-            distance: session.formattedDistance,
-            duration: session.formattedDuration,
-            laps: session.lapCount
-        )
-    }
 
     // MARK: - Shooting Session Conversion
 
@@ -229,18 +188,45 @@ final class ArtifactConversionService {
         return artifact
     }
 
-    /// Convert and sync a shooting session, then notify family
-    func convertAndSyncShootingSession(_ session: ShootingSession, athleteName: String = "Athlete") async {
-        let artifact = createArtifact(from: session, athleteName: athleteName)
 
-        await syncService.saveArtifact(artifact)
+    // MARK: - Unified Artifact Creation
 
-        notificationManager.sendShootingCompletedNotification(
-            athleteName: athleteName,
-            score: session.totalScore,
-            maxScore: session.maxPossibleScore,
-            sessionType: session.targetType.rawValue
+    /// Create and sync a TrainingArtifact from a completed session model.
+    /// Routes to the correct discipline-specific createArtifact(from:) based on discipline type.
+    /// Deduplicates by sourceSessionID — skips if an artifact already exists for this session.
+    func createAndSyncArtifact(session: any PersistentModel, discipline: String, sessionID: String, context: ModelContext) async {
+        // Deduplication: check if artifact already exists for this session
+        let descriptor = FetchDescriptor<TrainingArtifact>(
+            predicate: #Predicate<TrainingArtifact> { $0.sourceSessionID == sessionID }
         )
+        if let existing = try? context.fetch(descriptor), !existing.isEmpty {
+            Log.family.info("Artifact already exists for session \(sessionID) — skipping")
+            return
+        }
+
+        // Create artifact via discipline-specific mapping
+        let artifact: TrainingArtifact?
+        switch discipline {
+        case "riding":
+            artifact = (session as? Ride).map { createArtifact(from: $0) }
+        case "running", "walking":
+            artifact = (session as? RunningSession).map { createArtifact(from: $0) }
+        case "swimming":
+            artifact = (session as? SwimmingSession).map { createArtifact(from: $0) }
+        case "shooting":
+            artifact = (session as? ShootingSession).map { createArtifact(from: $0) }
+        default:
+            Log.family.error("Unknown discipline for artifact: \(discipline)")
+            artifact = nil
+        }
+
+        guard let artifact else { return }
+
+        artifact.sourceSessionID = sessionID
+
+        // Sync to CloudKit
+        await syncService.saveArtifact(artifact)
+        Log.family.info("Auto-created and synced artifact for \(discipline) session \(sessionID)")
     }
 
     // MARK: - Competition Conversion

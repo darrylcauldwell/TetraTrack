@@ -452,7 +452,6 @@ final class WalkingPlugin: DisciplinePlugin {
             }
         }
 
-        await ArtifactConversionService.shared.convertAndSyncRunningSession(session)
     }
 
     func onHeartRateUpdate(bpm: Int, tracker: SessionTracker) {

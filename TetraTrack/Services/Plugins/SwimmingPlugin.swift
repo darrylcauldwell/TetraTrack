@@ -541,7 +541,6 @@ final class SwimmingPlugin: DisciplinePlugin {
     }
 
     func onSessionCompleted(tracker: SessionTracker) async {
-        await ArtifactConversionService.shared.convertAndSyncSwimmingSession(session)
     }
 
     func onHeartRateUpdate(bpm: Int, tracker: SessionTracker) {

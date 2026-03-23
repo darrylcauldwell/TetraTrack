@@ -37,6 +37,7 @@ enum PrivacyLevel: String, Codable {
 final class TrainingArtifact {
     // MARK: Identity
     var id: UUID = UUID()
+    var sourceSessionID: String = ""  // UUID string of source Ride/RunningSession/etc for deduplication
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
 

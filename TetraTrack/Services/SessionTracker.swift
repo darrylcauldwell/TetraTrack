@@ -1298,6 +1298,27 @@ final class SessionTracker {
             Log.tracking.error("TT: Post-session final save failed: \(error)")
         }
 
+        // Auto-generate TrainingArtifact from fully-enriched session data
+        if let info = completedSessionInfo, let ctx = modelContext {
+            let session = ctx.model(for: info.modelID)
+            // Extract UUID from the concrete session model for deduplication
+            let sessionID: String
+            if let ride = session as? Ride { sessionID = ride.id.uuidString }
+            else if let run = session as? RunningSession { sessionID = run.id.uuidString }
+            else if let swim = session as? SwimmingSession { sessionID = swim.id.uuidString }
+            else if let shoot = session as? ShootingSession { sessionID = shoot.id.uuidString }
+            else { sessionID = "" }
+
+            if !sessionID.isEmpty {
+                await ArtifactConversionService.shared.createAndSyncArtifact(
+                    session: session,
+                    discipline: info.disciplineType,
+                    sessionID: sessionID,
+                    context: ctx
+                )
+            }
+        }
+
         if postSessionBackgroundTaskId != .invalid {
             UIApplication.shared.endBackgroundTask(postSessionBackgroundTaskId)
             postSessionBackgroundTaskId = .invalid
