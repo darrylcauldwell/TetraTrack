@@ -21,9 +21,22 @@ class TetraTrackWatchDelegate: NSObject, WKApplicationDelegate {
         let activityRaw = workoutConfiguration.activityType.rawValue
         let locationRaw = workoutConfiguration.locationType.rawValue
         Log.tracking.error("TT: handle() called — activity=\(activityRaw, privacy: .public), location=\(locationRaw, privacy: .public)")
+
+        // Ensure WCSession is active (handle() can fire before onAppear on cold launch)
+        WatchConnectivityService.shared.activate()
         WatchConnectivityService.sendDiagnostic("handle() called — activity=\(activityRaw)")
+
         Task {
             do {
+                // Ensure HealthKit authorization before creating workout session.
+                // On cold launch, handle() fires before onAppear — auth may not have been requested yet.
+                let authorized = await WorkoutManager.shared.requestAuthorization()
+                guard authorized else {
+                    Log.tracking.error("TT: handle() — HealthKit authorization denied on Watch")
+                    WatchConnectivityService.sendDiagnostic("handle() — HealthKit auth DENIED")
+                    return
+                }
+
                 await WorkoutManager.shared.resetWorkout()
                 try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: workoutConfiguration)
                 Log.tracking.error("TT: handle() — workout started successfully")
