@@ -473,9 +473,9 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle — use Watch-primary when Watch is paired, reachable,
-        // and has the app installed. Otherwise skip straight to iPhone-primary mode.
-        let watchAvailable = watchManager.isPaired && watchManager.isReachable && watchManager.isWatchAppInstalled
+        // Start workout lifecycle — use Watch-primary when Watch is paired and has the
+        // app installed. startWatchApp(toHandle:) will wake the Watch even if not reachable.
+        let watchAvailable = watchManager.isPaired && watchManager.isWatchAppInstalled
         if watchAvailable {
             do {
                 try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
@@ -496,9 +496,8 @@ final class SessionTracker {
             }
         } else {
             let paired = watchManager.isPaired
-            let reachable = watchManager.isReachable
             let installed = watchManager.isWatchAppInstalled
-            Log.tracking.info("TT: Watch not available (paired=\(paired) reachable=\(reachable) installed=\(installed)) — using iPhone-primary mode")
+            Log.tracking.info("TT: Watch not available (paired=\(paired) installed=\(installed)) — using iPhone-primary mode")
             do {
                 try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
                 if plugin.disableAutoCalories {
