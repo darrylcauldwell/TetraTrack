@@ -210,9 +210,49 @@ final class SessionTracker {
         workoutLifecycle.onMirroringTimedOut = { [weak self] in
             guard let self else { return }
             guard self.sessionState == .tracking else { return }
-            Log.tracking.error("TT: Watch mirroring timed out — stopping session")
-            self.sessionStartError = "Watch workout failed to start. Please ensure the TetraTrack Watch app is installed and HealthKit permissions are granted."
-            self.stopSession()
+            Log.tracking.error("TT: Watch mirroring timed out — falling back to iPhone-primary")
+            self.fallbackToiPhonePrimary()
+        }
+
+        workoutLifecycle.onMirroringFailed = { [weak self] in
+            guard let self else { return }
+            guard self.sessionState == .tracking else { return }
+            Log.tracking.error("TT: Watch reported mirroring failed — falling back to iPhone-primary")
+            self.fallbackToiPhonePrimary()
+        }
+    }
+
+    /// Fall back to iPhone-primary HKWorkoutSession when Watch mirroring fails.
+    /// Watch keeps its session for HR collection and sends data via WCSession.
+    /// iPhone creates its own HKWorkoutSession to save the official workout record.
+    private func fallbackToiPhonePrimary() {
+        // Prevent double-call from both onMirroringFailed AND onMirroringTimedOut
+        guard workoutLifecycle.state != .active else {
+            Log.tracking.debug("fallbackToiPhonePrimary: already active, skipping")
+            return
+        }
+        guard let plugin = activePlugin else {
+            Log.tracking.error("fallbackToiPhonePrimary: no active plugin")
+            return
+        }
+
+        Task {
+            do {
+                // skipWatchCommands: Watch already has a session from handle()
+                try await workoutLifecycle.startWorkoutFallback(
+                    configuration: plugin.workoutConfiguration,
+                    skipWatchCommands: true
+                )
+                if plugin.disableAutoCalories {
+                    workoutLifecycle.disableAutoCalories()
+                }
+                Log.tracking.info("TT: iPhone-primary fallback active — Watch sending HR/motion via WCSession")
+            } catch {
+                let errMsg = error.localizedDescription
+                Log.tracking.error("TT: iPhone-primary fallback failed: \(errMsg)")
+                sessionStartError = "Could not start workout: \(errMsg)"
+                stopSession()
+            }
         }
     }
 

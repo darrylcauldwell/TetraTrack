@@ -236,7 +236,10 @@ locationManager.activityType = .fitness
 **Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
 
 ### Mirroring Pipeline
-iPhone checks Watch availability (`isPaired && isReachable && isWatchAppInstalled`) before session start. If available, calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates HKWorkoutSession → `startMirroringToCompanionDevice()` → iPhone receives mirrored session via HealthKit. If Watch not available, starts iPhone-primary workout immediately.
+
+**When Watch is available and mirroring succeeds, Watch-primary is the only path.** When mirroring fails (iOS 26 framework regression — Apple Forums thread 804276, FB20723311), iPhone-primary fallback with Watch as sensor provider is used. Watch keeps its HKWorkoutSession for HR collection but discards the workout at end. iPhone saves the official HealthKit record. Watch sends HR/motion to iPhone via WCSession.
+
+iPhone calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates HKWorkoutSession → attempts `startMirroringToCompanionDevice()`. If mirroring succeeds → Watch-primary mode (mirrored session on iPhone). If mirroring fails → Watch sends `.mirroringFailed` via WCSession → iPhone creates its own `HKWorkoutSession` (iOS 26 iPhone-primary API) → Watch continues as HR/motion sensor provider via WCSession. If Watch is not paired or app not installed, iPhone-primary mode is used directly.
 
 ### Key Files
 
@@ -244,7 +247,7 @@ iPhone checks Watch availability (`isPaired && isReachable && isWatchAppInstalle
 |------|------|------|
 | `WatchConnectivityManager.swift` | iPhone | Sends commands, receives Watch data |
 | `WorkoutLifecycleService.swift` | iPhone | Manages workout lifecycle |
-| `WorkoutManager.swift` | Watch | Manages workouts, wires mirroring/fallback |
+| `WorkoutManager.swift` | Watch | Manages workouts, handles mirroring |
 | `WatchConnectivityService.swift` | Watch | Receives commands, sends data |
 
 ## UI Guidelines

@@ -637,6 +637,15 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
                 WorkoutLifecycleService.shared.updateMirroringState(.mirroringInProgress)
             }
 
+            // Handle mirroring failure — Watch kept its session for HR but mirroring failed.
+            // Fall back to iPhone-primary HKWorkoutSession.
+            if command == .mirroringFailed {
+                Log.watch.error("TT: received mirroringFailed from Watch — triggering iPhone-primary fallback")
+                Task { @MainActor in
+                    WorkoutLifecycleService.shared.onMirroringFailed?()
+                }
+            }
+
             // Handle fall detection from Watch
             if command == .fallDetected {
                 let confidence = watchMessage.fallConfidence ?? 0.5

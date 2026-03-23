@@ -85,8 +85,12 @@ final class WorkoutLifecycleService: NSObject {
     private var mirroringTimeoutTask: Task<Void, Never>?
 
     /// Callback fired when mirroring times out — Watch didn't respond after startWatchApp succeeded.
-    /// SessionTracker wires this to stop the session with an error.
+    /// SessionTracker wires this to fall back to iPhone-primary.
     var onMirroringTimedOut: (() -> Void)?
+
+    /// Callback fired when Watch reports mirroring failure — fall back to iPhone-primary.
+    /// Watch keeps its session for HR collection but sends data via WCSession.
+    var onMirroringFailed: (() -> Void)?
 
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
@@ -161,12 +165,12 @@ final class WorkoutLifecycleService: NSObject {
             startDate: Date()
         )
 
-        // Timeout: if no mirrored session arrives within 20s, the Watch didn't respond.
-        // startWatchApp succeeds when watchOS receives the config, but handle() may not fire.
-        // Fires onMirroringTimedOut so SessionTracker can fail the session with an error.
+        // Timeout: if no mirrored session or mirroringFailed arrives within 10s, Watch didn't respond.
+        // The .mirroringFailed message typically arrives in ~7s; 10s is the safety net.
+        // Fires onMirroringTimedOut so SessionTracker can fall back to iPhone-primary.
         mirroringTimeoutTask?.cancel()
         mirroringTimeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 20_000_000_000)
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
             guard let self, !Task.isCancelled else { return }
 
             if self.workoutSession == nil {
@@ -265,7 +269,10 @@ final class WorkoutLifecycleService: NSObject {
     /// Creates HKWorkoutSession with prepare() + startActivity(), HKLiveWorkoutBuilder
     /// with HKLiveWorkoutDataSource for auto HR/calorie collection, and optionally
     /// an HKWorkoutRouteBuilder for outdoor sessions.
-    func startWorkoutFallback(configuration: HKWorkoutConfiguration) async throws {
+    /// Start an iPhone-primary workout session (no Watch mirroring).
+    /// - Parameter skipWatchCommands: When true, don't send .startRide/motionTracking to Watch
+    ///   (Watch already has a session from handle() when mirroring failed).
+    func startWorkoutFallback(configuration: HKWorkoutConfiguration, skipWatchCommands: Bool = false) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
             return
@@ -282,9 +289,11 @@ final class WorkoutLifecycleService: NSObject {
         self.currentActivityType = configuration.activityType
         isWatchPrimary = false
 
-        // Send session control commands to Watch (WCSession fallback path)
-        watchConnectivity.sendReliableCommand(.startRide)
-        watchConnectivity.startMotionTracking(mode: watchMotionMode)
+        // Send session control commands to Watch (only when Watch doesn't already have a session)
+        if !skipWatchCommands {
+            watchConnectivity.sendReliableCommand(.startRide)
+            watchConnectivity.startMotionTracking(mode: watchMotionMode)
+        }
 
         do {
             // Create workout session FIRST so it's available for Watch mirroring

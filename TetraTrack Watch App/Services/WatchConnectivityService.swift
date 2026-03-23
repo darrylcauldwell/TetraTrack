@@ -469,7 +469,9 @@ final class WatchConnectivityService: NSObject {
 
             case .stopRide:
                 Log.watch.error("TT: received .stopRide command")
-                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                // Only ignore WCSession commands when mirroring is active (both flags true).
+                // When mirroring failed (isMirroredFromiPhone but !isMirroringToiPhone), accept WCSession control.
+                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
                     Log.watch.debug("Ignoring .stopRide — Watch-primary session uses mirrored control")
                     break
                 }
@@ -492,7 +494,7 @@ final class WatchConnectivityService: NSObject {
 
             case .pauseRide:
                 Log.watch.error("TT: received .pauseRide command")
-                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
                     Log.watch.debug("Ignoring .pauseRide — Watch-primary session uses mirrored control")
                     break
                 }
@@ -502,7 +504,7 @@ final class WatchConnectivityService: NSObject {
 
             case .resumeRide:
                 Log.watch.error("TT: received .resumeRide command")
-                guard !WorkoutManager.shared.isMirroredFromiPhone else {
+                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
                     Log.watch.debug("Ignoring .resumeRide — Watch-primary session uses mirrored control")
                     break
                 }
@@ -602,8 +604,8 @@ final class WatchConnectivityService: NSObject {
                 HapticManager.shared.playRestIntervalEndHaptic()
                 Log.watch.info("Haptic: rest end")
 
-            // Mirroring handshake command (Watch -> iPhone, ignore on Watch side)
-            case .mirroringStarted:
+            // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
+            case .mirroringStarted, .mirroringFailed:
                 break
 
             // Commands sent from Watch to iPhone (ignore on Watch side)

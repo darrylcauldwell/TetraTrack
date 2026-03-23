@@ -104,6 +104,7 @@ public enum WatchCommand: String, Codable, Sendable {
     case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
     // Mirroring handshake (Watch -> iPhone: mirroring progress)
     case mirroringStarted = "mirroringStarted"
+    case mirroringFailed = "mirroringFailed"    // Watch -> iPhone: mirroring failed, use iPhone-primary
 }
 
 // MARK: - Fall Response

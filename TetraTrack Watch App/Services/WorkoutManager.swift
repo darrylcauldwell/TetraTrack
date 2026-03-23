@@ -199,24 +199,30 @@ final class WorkoutManager: NSObject {
                 }
             }
         }
-        guard mirroringSucceeded else {
-            session.end()
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED after 3 attempts")
-            throw NSError(domain: "WorkoutManager", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "Mirroring failed after 3 attempts"])
+        // When mirroring fails, keep session alive for HR collection via HKLiveWorkoutDataSource.
+        // Wire WCSession fallback so HR + motion still reach iPhone (same as autonomous path).
+        if !mirroringSucceeded {
+            let discipline = mapActivityType(configuration.activityType).rawValue
+            let msg = WatchMessage(command: .mirroringFailed, discipline: discipline)
+            WatchConnectivityService.shared.sendReliableMessage(msg.toDictionary())
+            Log.tracking.error("TT: mirroring failed — sent mirroringFailed to iPhone, WCSession fallback active")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED, WCSession fallback active")
+        } else {
+            Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
         }
-        Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
-        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
 
         let startDate = Date()
         session.startActivity(with: startDate)
         try await builder.beginCollection(at: startDate)
 
-        // Notify iPhone AFTER session is fully live (startActivity + beginCollection complete).
+        // Notify iPhone only when mirroring actually succeeded.
         // Uses transferUserInfo so status updates can't overwrite it via applicationContext.
-        let mirroringMsg = WatchMessage.mirroringStarted(discipline: mapActivityType(configuration.activityType).rawValue)
-        WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
-        Log.tracking.error("TT: sent mirroringStarted to iPhone (fromIPhone path, after beginCollection)")
+        if mirroringSucceeded {
+            let mirroringMsg = WatchMessage.mirroringStarted(discipline: mapActivityType(configuration.activityType).rawValue)
+            WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
+            Log.tracking.error("TT: sent mirroringStarted to iPhone (fromIPhone path, after beginCollection)")
+        }
 
         // --- TetraTrack-specific (AFTER core setup) ---
         workoutSession = session
@@ -225,10 +231,20 @@ final class WorkoutManager: NSObject {
         isWorkoutActive = true
         isCompanionMode = false
         isMirroredFromiPhone = true
-        isMirroringToiPhone = true
+        isMirroringToiPhone = mirroringSucceeded
         isPaused = false
         startTime = startDate
         resetMetrics()
+
+        // Wire WCSession callbacks when mirroring failed so HR + motion reach iPhone
+        if !mirroringSucceeded {
+            onHeartRateUpdate = { bpm in
+                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+            }
+            onMotionDataSend = {
+                WatchConnectivityService.shared.sendMotionUpdate()
+            }
+        }
 
         // Location tracking (outdoor activities)
         if let type = activityType, type != .swimming && type != .shooting {
@@ -508,6 +524,17 @@ final class WorkoutManager: NSObject {
         let endDate = Date()
         var healthKitSaveSucceeded = false
 
+        // When iPhone-triggered but mirroring failed, iPhone owns the official workout.
+        // Discard Watch's workout to avoid duplicate HealthKit entries.
+        let shouldDiscard = isMirroredFromiPhone && !isMirroringToiPhone
+
+        if shouldDiscard {
+            try? await workoutBuilder?.endCollection(at: endDate)
+            workoutBuilder?.discardWorkout()
+            Log.health.info("Watch discarded workout — iPhone-primary fallback owns HealthKit record")
+        }
+
+        if !shouldDiscard {
         do {
             try await workoutBuilder?.endCollection(at: endDate)
 
@@ -520,6 +547,7 @@ final class WorkoutManager: NSObject {
         } catch {
             Log.tracking.error("Failed to end workout: \(error.localizedDescription)")
         }
+        } // end if !shouldDiscard
 
         // End session AFTER builder operations complete (Apple docs requirement)
         if let session = workoutSession, session.state == .running || session.state == .paused {
