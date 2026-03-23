@@ -169,6 +169,14 @@ final class WorkoutLifecycleService: NSObject {
         healthStore.workoutSessionMirroringStartHandler = { [weak self] mirroredSession in
             guard let self else { return }
             Task { @MainActor in
+                // Discard stale mirrored sessions from previous Watch workouts
+                if let startDate = mirroredSession.startDate,
+                   Date().timeIntervalSince(startDate) > 60 {
+                    let age = Int(Date().timeIntervalSince(startDate))
+                    Log.health.error("TT: ignoring stale mirrored session (started \(age)s ago)")
+                    return
+                }
+
                 self.mirroringState = .mirroredSessionReceived
                 Log.health.error("TT: mirroring pipeline → mirroredSessionReceived")
 
