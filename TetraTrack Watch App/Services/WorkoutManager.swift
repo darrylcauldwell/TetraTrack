@@ -835,12 +835,18 @@ final class WorkoutManager: NSObject {
                 Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=MIRRORED HR=\(hr, privacy: .public)")
             }
         } else {
+            // WCSession fallback: send motion AND HR together so HR doesn't get
+            // clobbered by applicationContext overwrites from separate 1Hz motion sends.
             onMotionDataSend?()
+            if currentHeartRate > 0 {
+                onHeartRateUpdate?(currentHeartRate)
+            }
             // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
             if motionSendTickCount % 30 == 0 {
                 let hr = currentHeartRate
                 let hasCallback = onMotionDataSend != nil
-                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public) callbackWired=\(hasCallback, privacy: .public)")
+                let hasHRCallback = onHeartRateUpdate != nil
+                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public) motionCB=\(hasCallback, privacy: .public) hrCB=\(hasHRCallback, privacy: .public)")
             }
         }
     }
