@@ -214,8 +214,7 @@ struct ShootingCompetitionView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .glassCard(material: .thin, cornerRadius: 12, padding: 0)
 
                 // Per-shot feedback from Watch (when available)
                 if let lastShot = watchShotMetrics.last {
@@ -343,8 +342,7 @@ struct ShootingCompetitionView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private var resultsView: some View {
@@ -494,8 +492,7 @@ struct ShootingCompetitionView: View {
             phaseTimingBar(shot)
         }
         .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private func phaseTimingBar(_ shot: DetectedShotMetrics) -> some View {
@@ -621,8 +618,7 @@ struct ShootingCompetitionView: View {
             .frame(height: 40)
         }
         .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private func saveCompetitionSession() {

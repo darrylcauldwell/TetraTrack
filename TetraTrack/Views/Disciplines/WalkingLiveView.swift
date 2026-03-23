@@ -174,6 +174,7 @@ struct WalkingLiveView: View {
                     label: "Ascent"
                 )
             }
+            .glassCard(material: .thin, cornerRadius: 16, padding: 16)
 
             Spacer()
                 .frame(minHeight: 120) // Reserve space for FloatingControlPanel
@@ -228,6 +229,7 @@ struct WalkingLiveView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+        .glassCard(material: .thin, cornerRadius: 16, padding: 16)
     }
 
     private func cadenceColor(_ cadence: Int) -> Color {

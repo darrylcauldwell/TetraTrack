@@ -179,8 +179,7 @@ struct LiveStatsView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .glassCard(material: .thin, cornerRadius: 12, padding: 0)
             }
 
             // Live metrics row

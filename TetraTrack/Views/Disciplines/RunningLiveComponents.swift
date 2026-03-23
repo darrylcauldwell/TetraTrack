@@ -561,8 +561,7 @@ struct RunningLiveView: View {
             }
         }
         .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private var virtualPacerDisplay: some View {
@@ -600,8 +599,7 @@ struct RunningLiveView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     // MARK: - Tetrathlon Metrics
@@ -672,8 +670,7 @@ struct RunningLiveView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .glassCard(material: .thin, cornerRadius: 12, padding: 0)
             }
 
             // Pace comparison with PB
@@ -740,8 +737,7 @@ struct RunningLiveView: View {
                 }
             }
             .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .glassCard(material: .thin, cornerRadius: 12, padding: 0)
             .padding(.horizontal)
 
             // HR zone (compact — secondary for time trial)

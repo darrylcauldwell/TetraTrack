@@ -115,8 +115,7 @@ struct HeartRateZoneCard: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     // MARK: - Compact Layout (Badge alongside HR)
@@ -169,8 +168,7 @@ struct HeartRateZoneCard: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 }
 
@@ -249,8 +247,7 @@ struct CadenceCard: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 
     private func oscillationColor(_ value: Double) -> Color {
@@ -294,7 +291,6 @@ struct ElevationCard: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 16)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
     }
 }
