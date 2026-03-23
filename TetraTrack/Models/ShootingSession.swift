@@ -78,6 +78,7 @@ final class ShootingSession: TrainingSessionProtocol, SessionWritable {
     var name: String = ""
     var notes: String = ""
     var healthKitWorkoutUUID: String = ""
+    var competitionID: String = ""
 
     // Session context for pressure analysis
     var sessionContextRaw: String = "Free Practice"

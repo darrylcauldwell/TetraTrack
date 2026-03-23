@@ -20,6 +20,7 @@ final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, 
     var name: String = ""
     var notes: String = ""
     var healthKitWorkoutUUID: String = ""
+    var competitionID: String = ""
 
     // Pool configuration
     var poolModeRaw: String = "pool"

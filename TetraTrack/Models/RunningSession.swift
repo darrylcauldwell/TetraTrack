@@ -20,6 +20,7 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     var name: String = ""
     var notes: String = ""
     var healthKitWorkoutUUID: String = ""
+    var competitionID: String = ""
 
     // Session type
     var sessionTypeRaw: String = "easy"

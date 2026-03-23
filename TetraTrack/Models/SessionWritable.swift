@@ -18,4 +18,5 @@ protocol SessionWritable: PersistentModel {
     var minHeartRate: Int { get set }
     var heartRateSamplesData: Data? { get set }
     var healthKitWorkoutUUID: String { get set }
+    var competitionID: String { get set }
 }

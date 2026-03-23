@@ -364,6 +364,9 @@ final class Competition {
     @Relationship(deleteRule: .cascade, inverse: \CompetitionTask.competition)
     var tasks: [CompetitionTask]? = []
 
+    // Linked training sessions (JSON-encoded [LinkedSession])
+    var linkedSessionData: Data?
+
     // Todo list for follow-up tasks
     var todosData: Data?  // JSON encoded CompetitionTodo array
 
@@ -391,6 +394,40 @@ final class Competition {
 
     var pendingTodosCount: Int {
         todos.filter { !$0.isCompleted }.count
+    }
+
+    // MARK: Linked Sessions
+
+    struct LinkedSession: Codable {
+        let sessionID: UUID
+        let discipline: String
+    }
+
+    @Transient var linkedSessions: [LinkedSession] {
+        get {
+            guard let data = linkedSessionData else { return [] }
+            return (try? JSONDecoder().decode([LinkedSession].self, from: data)) ?? []
+        }
+        set {
+            linkedSessionData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    func linkSession(id: UUID, discipline: String) {
+        var sessions = linkedSessions
+        guard !sessions.contains(where: { $0.sessionID == id }) else { return }
+        sessions.append(LinkedSession(sessionID: id, discipline: discipline))
+        linkedSessions = sessions
+    }
+
+    func unlinkSession(id: UUID) {
+        var sessions = linkedSessions
+        sessions.removeAll { $0.sessionID == id }
+        linkedSessions = sessions
+    }
+
+    func linkedSession(for discipline: String) -> LinkedSession? {
+        linkedSessions.first { $0.discipline == discipline }
     }
 
     /// Decoded weather conditions at competition (cached to avoid repeated JSON decoding)

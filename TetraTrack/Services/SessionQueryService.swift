@@ -120,4 +120,74 @@ enum SessionQueryService {
         guard let startDate else { return all }
         return all.filter { $0.startDate >= startDate }
     }
+
+    // MARK: - Session Lookup by UUID
+
+    /// Find a session by UUID and discipline for Competition→Session navigation.
+    static func fetchSession(id: UUID, discipline: String, context: ModelContext) -> (any PersistentModel)? {
+        switch discipline {
+        case "riding":
+            let idString = id.uuidString
+            let descriptor = FetchDescriptor<Ride>(
+                predicate: #Predicate<Ride> { $0.id.uuidString == idString }
+            )
+            return try? context.fetch(descriptor).first
+        case "running", "walking":
+            let idString = id.uuidString
+            let descriptor = FetchDescriptor<RunningSession>(
+                predicate: #Predicate<RunningSession> { $0.id.uuidString == idString }
+            )
+            return try? context.fetch(descriptor).first
+        case "swimming":
+            let idString = id.uuidString
+            let descriptor = FetchDescriptor<SwimmingSession>(
+                predicate: #Predicate<SwimmingSession> { $0.id.uuidString == idString }
+            )
+            return try? context.fetch(descriptor).first
+        case "shooting":
+            let idString = id.uuidString
+            let descriptor = FetchDescriptor<ShootingSession>(
+                predicate: #Predicate<ShootingSession> { $0.id.uuidString == idString }
+            )
+            return try? context.fetch(descriptor).first
+        default:
+            return nil
+        }
+    }
+
+    /// Find sessions near a given date for auto-linking from Competition results.
+    static func findNearbySession(discipline: String, near date: Date, tolerance: TimeInterval = 1800, context: ModelContext) -> (id: UUID, model: any PersistentModel)? {
+        let windowStart = date.addingTimeInterval(-tolerance)
+        let windowEnd = date.addingTimeInterval(tolerance)
+
+        switch discipline {
+        case "riding":
+            let descriptor = FetchDescriptor<Ride>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
+            let rides = (try? context.fetch(descriptor)) ?? []
+            if let match = rides.first(where: { $0.startDate >= windowStart && $0.startDate <= windowEnd }) {
+                return (match.id, match)
+            }
+        case "running", "walking":
+            let descriptor = FetchDescriptor<RunningSession>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
+            let sessions = (try? context.fetch(descriptor)) ?? []
+            if let match = sessions.first(where: { $0.startDate >= windowStart && $0.startDate <= windowEnd }) {
+                return (match.id, match)
+            }
+        case "swimming":
+            let descriptor = FetchDescriptor<SwimmingSession>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
+            let sessions = (try? context.fetch(descriptor)) ?? []
+            if let match = sessions.first(where: { $0.startDate >= windowStart && $0.startDate <= windowEnd }) {
+                return (match.id, match)
+            }
+        case "shooting":
+            let descriptor = FetchDescriptor<ShootingSession>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
+            let sessions = (try? context.fetch(descriptor)) ?? []
+            if let match = sessions.first(where: { $0.startDate >= windowStart && $0.startDate <= windowEnd }) {
+                return (match.id, match)
+            }
+        default:
+            break
+        }
+        return nil
+    }
 }

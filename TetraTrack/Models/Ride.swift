@@ -25,6 +25,7 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     var name: String = ""
     var notes: String = ""
     var healthKitWorkoutUUID: String = ""
+    var competitionID: String = ""
     var elevationGain: Double = 0.0  // meters
     var elevationLoss: Double = 0.0  // meters
     var maxSpeed: Double = 0.0  // m/s
