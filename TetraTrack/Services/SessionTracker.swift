@@ -480,19 +480,10 @@ final class SessionTracker {
             do {
                 try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
             } catch {
-                Log.tracking.error("TT: Watch unavailable, falling back to iPhone-primary workout: \(error)")
-                do {
-                    try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
-                    if plugin.disableAutoCalories {
-                        workoutLifecycle.disableAutoCalories()
-                    }
-                    sessionStartError = "Watch unavailable. Session continuing without Watch heart rate."
-                } catch {
-                    Log.tracking.error("TT: iPhone-primary fallback also failed: \(error)")
-                    sessionStartError = "Could not start workout: \(error.localizedDescription)"
-                    stopSession()
-                    return
-                }
+                Log.tracking.error("TT: Watch mirroring failed — stopping session: \(error)")
+                sessionStartError = "Could not start Watch workout: \(error.localizedDescription)"
+                stopSession()
+                return
             }
         } else {
             let paired = watchManager.isPaired
