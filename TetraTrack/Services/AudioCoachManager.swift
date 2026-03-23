@@ -782,48 +782,6 @@ final class AudioCoachManager: AudioCoaching {
         announce(message)
     }
 
-    // MARK: - Workout Intervals
-
-    func announceWorkoutBlock(name: String, duration: TimeInterval, gait: GaitType?) {
-        guard isEnabled, announceWorkoutIntervals else { return }
-
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-
-        var message = name
-
-        if let gait = gait {
-            message += ". \(gait.rawValue.capitalized)"
-        }
-
-        if minutes > 0 && seconds > 0 {
-            message += " for \(minutes) minutes \(seconds) seconds"
-        } else if minutes > 0 {
-            message += " for \(minutes) minute\(minutes > 1 ? "s" : "")"
-        } else {
-            message += " for \(seconds) seconds"
-        }
-
-        announce(message)
-    }
-
-    func announceWorkoutComplete() {
-        guard isEnabled, announceWorkoutIntervals else { return }
-        announce("Workout complete. Great job!")
-    }
-
-    func announceCountdown(_ seconds: Int) {
-        guard isEnabled, announceWorkoutIntervals else { return }
-
-        if seconds <= 5 && seconds > 0 {
-            announce("\(seconds)")
-        } else if seconds == 10 {
-            announce("10 seconds")
-        } else if seconds == 30 {
-            announce("30 seconds remaining")
-        }
-    }
-
     // MARK: - Custom Announcements
 
     func announce(_ message: String) {

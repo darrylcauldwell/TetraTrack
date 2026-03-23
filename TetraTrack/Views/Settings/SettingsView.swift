@@ -507,25 +507,6 @@ struct SettingsView: View {
 
                 // Training Section
                 Section("Training") {
-                    NavigationLink(destination: WorkoutListView()) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "timer")
-                                .font(.title2)
-                                .foregroundStyle(AppColors.primary)
-                                .frame(width: 32)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Structured Workouts")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-
-                                Text("Build and run interval training sessions")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
                     NavigationLink(destination: FlatworkLibraryView()) {
                         HStack(spacing: 12) {
                             Image(systemName: "book.fill")
@@ -1002,19 +983,6 @@ struct SettingsView: View {
 
     private var trainingContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            NavigationLink(destination: WorkoutListView()) {
-                SettingsRowContent(
-                    icon: "timer",
-                    iconColor: AppColors.primary,
-                    title: "Structured Workouts",
-                    subtitle: "Build and run interval training sessions"
-                )
-            }
-            .buttonStyle(.plain)
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
             NavigationLink(destination: FlatworkLibraryView()) {
                 SettingsRowContent(
                     icon: "book.fill",
