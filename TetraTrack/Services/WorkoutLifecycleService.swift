@@ -82,6 +82,11 @@ final class WorkoutLifecycleService: NSObject {
 
     // Mirroring handshake state machine
     private(set) var mirroringState: MirroringPipelineState = .idle
+    private var mirroringTimeoutTask: Task<Void, Never>?
+
+    /// Callback fired when mirroring times out — Watch didn't respond after startWatchApp succeeded.
+    /// SessionTracker wires this to stop the session with an error.
+    var onMirroringTimedOut: (() -> Void)?
 
     // Whether the Watch owns the primary session (Watch-primary mode)
     private(set) var isWatchPrimary: Bool = false
@@ -155,6 +160,21 @@ final class WorkoutLifecycleService: NSObject {
             discipline: "\(configuration.activityType.rawValue)",
             startDate: Date()
         )
+
+        // Timeout: if no mirrored session arrives within 20s, the Watch didn't respond.
+        // startWatchApp succeeds when watchOS receives the config, but handle() may not fire.
+        // Fires onMirroringTimedOut so SessionTracker can fail the session with an error.
+        mirroringTimeoutTask?.cancel()
+        mirroringTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 20_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+
+            if self.workoutSession == nil {
+                let state = self.mirroringState.rawValue
+                Log.health.error("TT: mirroring timed out after 20s — no mirrored session (state=\(state, privacy: .public))")
+                self.onMirroringTimedOut?()
+            }
+        }
     }
 
     /// Register the mirroring handler at app launch so iPhone is always ready
@@ -176,6 +196,10 @@ final class WorkoutLifecycleService: NSObject {
                     Log.health.error("TT: ignoring stale mirrored session (started \(age)s ago)")
                     return
                 }
+
+                // Cancel timeout — mirrored session arrived
+                self.mirroringTimeoutTask?.cancel()
+                self.mirroringTimeoutTask = nil
 
                 self.mirroringState = .mirroredSessionReceived
                 Log.health.error("TT: mirroring pipeline → mirroredSessionReceived")
@@ -766,6 +790,8 @@ final class WorkoutLifecycleService: NSObject {
 
     private func cleanup() {
         clearSessionContext()
+        mirroringTimeoutTask?.cancel()
+        mirroringTimeoutTask = nil
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil

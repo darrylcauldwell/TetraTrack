@@ -206,6 +206,14 @@ final class SessionTracker {
                 await self.startSessionFromMirroredWorkout(activityType: activityType, startDate: watchStartDate)
             }
         }
+
+        workoutLifecycle.onMirroringTimedOut = { [weak self] in
+            guard let self else { return }
+            guard self.sessionState == .tracking else { return }
+            Log.tracking.error("TT: Watch mirroring timed out — stopping session")
+            self.sessionStartError = "Watch workout failed to start. Please ensure the TetraTrack Watch app is installed and HealthKit permissions are granted."
+            self.stopSession()
+        }
     }
 
     /// Create a default plugin for a Watch-initiated mirrored workout.
