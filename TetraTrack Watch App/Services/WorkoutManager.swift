@@ -94,6 +94,11 @@ final class WorkoutManager: NSObject {
     private let timerQueue = DispatchQueue(label: "dev.dreamfold.tetratrack.watchTimers", qos: .userInitiated)
     private(set) var motionSendTickCount: Int = 0
 
+    /// Anchored query for HR backup (workaround for iOS 26 didCollectDataOf regression)
+    private var anchoredHRQuery: HKAnchoredObjectQuery?
+    private var hrQueryAnchor: HKQueryAnchor?
+    private var builderDelegateHasDeliveredHR: Bool = false
+
     // Dependencies
     private let locationManager = WatchLocationManager.shared
     private let sessionStore = WatchSessionStore.shared
@@ -117,6 +122,7 @@ final class WorkoutManager: NSObject {
         if isWorkoutActive {
             await discardWorkout()
         }
+        stopAnchoredHRQuery()
         workoutSession = nil
         workoutBuilder = nil
         isWorkoutActive = false
@@ -215,6 +221,7 @@ final class WorkoutManager: NSObject {
         let startDate = Date()
         session.startActivity(with: startDate)
         try await builder.beginCollection(at: startDate)
+        startAnchoredHRQuery(from: startDate)
 
         // Notify iPhone only when mirroring actually succeeded.
         // Uses transferUserInfo so status updates can't overwrite it via applicationContext.
@@ -344,6 +351,8 @@ final class WorkoutManager: NSObject {
         swimmingDistance = 0
         currentStrokeType = .unknown
         isUserPaused = false
+        builderDelegateHasDeliveredHR = false
+        hrQueryAnchor = nil
     }
 
     // MARK: - Authorization
@@ -443,6 +452,7 @@ final class WorkoutManager: NSObject {
             let startDate = Date()
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
 
             if mirroringSucceeded {
                 let mirroringMsg = WatchMessage.mirroringStarted(discipline: type.rawValue)
@@ -517,6 +527,7 @@ final class WorkoutManager: NSObject {
         locationManager.stopTracking()
         stopElapsedTimer()
         stopMotionDataSending()
+        stopAnchoredHRQuery()
         onMotionDataSend = nil
         WatchMotionManager.shared.stopTracking()
 
@@ -597,6 +608,7 @@ final class WorkoutManager: NSObject {
         locationManager.stopTracking()
         stopElapsedTimer()
         stopMotionDataSending()
+        stopAnchoredHRQuery()
         onMotionDataSend = nil
         WatchMotionManager.shared.stopTracking()
 
@@ -700,6 +712,11 @@ final class WorkoutManager: NSObject {
                 WatchMotionManager.shared.startTracking(mode: motionMode)
             }
 
+            // Restart anchored HR query for crash recovery
+            if let recoveredStart = startTime {
+                startAnchoredHRQuery(from: recoveredStart)
+            }
+
             onWorkoutStateChanged?(true)
             Log.tracking.info("Recovered active workout: \(self.activityType?.rawValue ?? "unknown")")
 
@@ -747,6 +764,7 @@ final class WorkoutManager: NSObject {
             let startDate = Date()
             workoutSession?.startActivity(with: startDate)
             try await workoutBuilder?.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
 
             isWorkoutActive = true
             isCompanionMode = true
@@ -766,6 +784,7 @@ final class WorkoutManager: NSObject {
     func stopHeartRateMonitoring() async {
         guard isWorkoutActive, isCompanionMode else { return }
 
+        stopAnchoredHRQuery()
         try? await workoutBuilder?.endCollection(at: Date())
         workoutBuilder?.discardWorkout()
         if let session = workoutSession, session.state == .running || session.state == .paused {
@@ -1390,6 +1409,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             if let mostRecent = statistics.mostRecentQuantity() {
                 let bpm = Int(mostRecent.doubleValue(for: heartRateUnit))
                 Log.tracking.error("TT: processHR — bpm=\(bpm, privacy: .public) (MainActor task executed)")
+                self.builderDelegateHasDeliveredHR = true
                 self.currentHeartRate = bpm
                 self.heartRateSamples.append(bpm)
                 self.onHeartRateUpdate?(bpm)
@@ -1408,6 +1428,93 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             if let min = statistics.minimumQuantity() {
                 self.minHeartRate = Int(min.doubleValue(for: heartRateUnit))
             }
+        }
+    }
+}
+
+// MARK: - Anchored HR Query (iOS 26 didCollectDataOf regression workaround)
+
+extension WorkoutManager {
+
+    /// Start an HKAnchoredObjectQuery as backup HR source.
+    /// Works around iOS 26 regression where HKLiveWorkoutBuilder
+    /// delegate's didCollectDataOf may not fire for heart rate.
+    private func startAnchoredHRQuery(from startDate: Date) {
+        stopAnchoredHRQuery()
+
+        let heartRateType = HKQuantityType(.heartRate)
+        let predicate = HKQuery.predicateForSamples(
+            withStart: startDate,
+            end: nil,
+            options: .strictStartDate
+        )
+
+        let query = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: predicate,
+            anchor: hrQueryAnchor,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, samples, _, anchor, error in
+            Task { @MainActor in
+                self?.handleAnchoredHRResults(samples: samples, anchor: anchor, error: error)
+            }
+        }
+
+        query.updateHandler = { [weak self] _, samples, _, anchor, error in
+            Task { @MainActor in
+                self?.handleAnchoredHRResults(samples: samples, anchor: anchor, error: error)
+            }
+        }
+
+        anchoredHRQuery = query
+        healthStore.execute(query)
+        Log.tracking.error("TT: anchoredHRQuery started from \(startDate, privacy: .public)")
+    }
+
+    private func stopAnchoredHRQuery() {
+        if let query = anchoredHRQuery {
+            healthStore.stop(query)
+            anchoredHRQuery = nil
+            Log.tracking.info("anchoredHRQuery stopped")
+        }
+    }
+
+    @MainActor
+    private func handleAnchoredHRResults(
+        samples: [HKSample]?,
+        anchor: HKQueryAnchor?,
+        error: (any Error)?
+    ) {
+        if let error {
+            Log.health.error("TT: anchoredHR query error: \(error)")
+            return
+        }
+
+        hrQueryAnchor = anchor
+
+        guard let hrSamples = samples as? [HKQuantitySample], !hrSamples.isEmpty else {
+            return
+        }
+
+        let sorted = hrSamples.sorted { $0.startDate < $1.startDate }
+        guard let latest = sorted.last else { return }
+
+        let bpm = Int(latest.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
+        guard bpm > 0 else { return }
+
+        if !builderDelegateHasDeliveredHR {
+            Log.tracking.error("TT: anchoredHR delivered first HR (bpm=\(bpm, privacy: .public)) — builder delegate has NOT fired yet (iOS 26 regression)")
+            WatchConnectivityService.sendDiagnostic("anchoredHR first: bpm=\(bpm), builder delegate silent")
+        }
+
+        currentHeartRate = bpm
+        heartRateSamples.append(bpm)
+        onHeartRateUpdate?(bpm)
+
+        if maxHeartRate == 0 || bpm > maxHeartRate { maxHeartRate = bpm }
+        if minHeartRate == 0 || bpm < minHeartRate { minHeartRate = bpm }
+        if !heartRateSamples.isEmpty {
+            averageHeartRate = heartRateSamples.reduce(0, +) / heartRateSamples.count
         }
     }
 }
