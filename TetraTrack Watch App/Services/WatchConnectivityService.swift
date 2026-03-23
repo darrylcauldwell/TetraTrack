@@ -567,19 +567,19 @@ final class WatchConnectivityService: NSObject {
                     }
                     WatchMotionManager.shared.startTracking(mode: mode)
 
-                    // Start HR monitoring for active disciplines (fallback path).
-                    if sharedMode == .running || sharedMode == .swimming || sharedMode == .riding {
-                        let activityType: WatchActivityType = switch sharedMode {
-                        case .running: .running
-                        case .swimming: .swimming
-                        default: .riding
-                        }
-                        WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
-                            self?.sendHeartRateUpdate(bpm)
-                        }
-                        Task {
-                            await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
-                        }
+                    // Start HR monitoring for all disciplines (fallback path).
+                    let activityType: WatchActivityType = switch sharedMode {
+                    case .running: .running
+                    case .swimming: .swimming
+                    case .walking: .walking
+                    case .shooting: .shooting
+                    default: .riding
+                    }
+                    WorkoutManager.shared.onHeartRateUpdate = { [weak self] bpm in
+                        self?.sendHeartRateUpdate(bpm)
+                    }
+                    Task {
+                        await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
                     }
 
                     // Wire up motion data sending (1Hz) — WCSession fallback
