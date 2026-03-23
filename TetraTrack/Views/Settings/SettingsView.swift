@@ -380,6 +380,16 @@ struct SettingsView: View {
                             Text("Sync your weight and height for accurate calorie calculations. Workouts will be saved to Apple Health.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                            if healthKit.authorizationDenied {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text("Health access was denied. Open Settings > Privacy & Security > Health > TetraTrack to enable.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     } else {
                         Label("Apple Health not available", systemImage: "xmark.circle")
@@ -874,6 +884,19 @@ struct SettingsView: View {
                     Text("Sync your weight and height for accurate calorie calculations. Workouts will be saved to Apple Health.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    if healthKit.authorizationDenied {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text("Health access was denied. Open Settings > Privacy & Security > Health > TetraTrack to enable.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
             } else {
                 Label("Apple Health not available", systemImage: "xmark.circle")

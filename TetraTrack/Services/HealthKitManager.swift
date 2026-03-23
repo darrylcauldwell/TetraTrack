@@ -14,6 +14,7 @@ final class HealthKitManager {
     static let shared = HealthKitManager()
 
     var isAuthorized: Bool = false
+    var authorizationDenied: Bool = false
     var isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
 
     // Cached body measurements from HealthKit
@@ -112,13 +113,23 @@ final class HealthKitManager {
 
         do {
             try await healthStore.requestAuthorization(toShare: writeTypes, read: readTypes)
+
+            // Check actual write access — requestAuthorization succeeds even when user denies
+            let workoutStatus = healthStore.authorizationStatus(for: HKObjectType.workoutType())
+            let hasWriteAccess = (workoutStatus == .sharingAuthorized)
+
             await MainActor.run {
-                self.isAuthorized = true
-                self.hasConnectedToHealthKit = true
+                self.isAuthorized = hasWriteAccess
+                self.authorizationDenied = !hasWriteAccess
+                if hasWriteAccess {
+                    self.hasConnectedToHealthKit = true
+                }
             }
-            // Check if user has Apple Watch running data
-            await detectAppleWatchRunningData()
-            return true
+
+            if hasWriteAccess {
+                await detectAppleWatchRunningData()
+            }
+            return hasWriteAccess
         } catch {
             Log.health.error("HealthKit authorization failed: \(error)")
             return false
