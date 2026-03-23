@@ -786,6 +786,7 @@ final class WatchConnectivityService: NSObject {
         case riding
         case swimming
         case running
+        case walking
         case shooting
         case training
     }
@@ -799,6 +800,9 @@ final class WatchConnectivityService: NSObject {
 
         if gaitLower == "swimming" || type.contains("swim") || type.contains("3-min") {
             return .swimming
+        }
+        if gaitLower == "walking" || type.contains("walk") {
+            return .walking
         }
         if gaitLower == "running" || type.contains("run") || type.contains("interval") || type.contains("tempo") || type.contains("easy") || type.contains("time trial") {
             return .running

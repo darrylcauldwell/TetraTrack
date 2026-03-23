@@ -31,67 +31,74 @@ struct WatchHomeView: View {
     // MARK: - Full Screen Active Session
 
     private var activeSessionFullScreen: some View {
-        VStack(spacing: 6) {
-            // Discipline and type header
-            HStack {
-                Image(systemName: activeDisciplineIcon)
-                    .font(.title3)
-                    .foregroundStyle(activeDisciplineColor)
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: 6) {
+                    // Discipline and type header
+                    HStack {
+                        Image(systemName: activeDisciplineIcon)
+                            .font(.title3)
+                            .foregroundStyle(activeDisciplineColor)
 
-                Text(connectivityService.rideType ?? "Training")
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                        Text(connectivityService.rideType ?? "Training")
+                            .font(.caption)
+                            .fontWeight(.semibold)
 
-                Spacer()
+                        Spacer()
 
-                // Live indicator
-                Circle()
-                    .fill(WatchAppColors.active)
-                    .frame(width: 8, height: 8)
+                        // Live indicator
+                        Circle()
+                            .fill(WatchAppColors.active)
+                            .frame(width: 8, height: 8)
+                    }
+                    .padding(.horizontal, 4)
+
+                    // Main time display - BIG
+                    // CRITICAL: When Watch has an active workout, use its own wall-clock timer.
+                    // NEVER use connectivityService.formattedDuration here — it's iPhone's elapsed
+                    // time relayed via unreliable WCSession, causing drift and jitter.
+                    // See memory/watch-connectivity.md "Watch UI Duration Source" rule.
+                    VStack(spacing: 4) {
+                        Text(WorkoutManager.shared.isWorkoutActive
+                             ? WorkoutManager.shared.formattedElapsedTime
+                             : connectivityService.formattedDuration)
+                            .scaledFont(size: 44, weight: .bold, design: .monospaced, relativeTo: .largeTitle)
+                            .foregroundStyle(.primary)
+                            .minimumScaleFactor(0.7)
+
+                        // Distance
+                        Text(connectivityService.formattedDistance)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(activeDisciplineColor)
+                    }
+                    .watchGlassPanel()
+
+                    Divider()
+                        .padding(.vertical, 2)
+
+                    // Discipline-specific metrics
+                    fullScreenMetrics
+
+                    // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
+                    let wm = WorkoutManager.shared
+                    HStack(spacing: 6) {
+                        Text(wm.isWorkoutActive ? "WM:ON" : "WM:OFF")
+                        Text("T:\(wm.motionSendTickCount)")
+                        Text(wm.isMirroringToiPhone ? "MIR" : "WC")
+                    }
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.gray)
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 62) // Clearance for floating panel
             }
-            .padding(.horizontal, 4)
 
-            // Main time display - BIG
-            // CRITICAL: When Watch has an active workout, use its own wall-clock timer.
-            // NEVER use connectivityService.formattedDuration here — it's iPhone's elapsed
-            // time relayed via unreliable WCSession, causing drift and jitter.
-            // See memory/watch-connectivity.md "Watch UI Duration Source" rule.
-            VStack(spacing: 4) {
-                Text(WorkoutManager.shared.isWorkoutActive
-                     ? WorkoutManager.shared.formattedElapsedTime
-                     : connectivityService.formattedDuration)
-                    .scaledFont(size: 44, weight: .bold, design: .monospaced, relativeTo: .largeTitle)
-                    .foregroundStyle(.primary)
-                    .minimumScaleFactor(0.7)
-
-                // Distance
-                Text(connectivityService.formattedDistance)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(activeDisciplineColor)
-            }
-            .watchGlassPanel()
-
-            Divider()
-                .padding(.vertical, 2)
-
-            // Discipline-specific metrics
-            fullScreenMetrics
-
-            // Diagnostic overlay — visible on Watch since Console.app can't stream watchOS logs
-            let wm = WorkoutManager.shared
-            HStack(spacing: 6) {
-                Text(wm.isWorkoutActive ? "WM:ON" : "WM:OFF")
-                Text("T:\(wm.motionSendTickCount)")
-                Text(wm.isMirroringToiPhone ? "MIR" : "WC")
-            }
-            .font(.system(size: 10, design: .monospaced))
-            .foregroundStyle(.gray)
-
-            Spacer()
+            // Glass floating control panel — companion mode
+            WatchCompanionControlPanel()
+                .padding(.bottom, 4)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 8)
     }
 
     @ViewBuilder
@@ -102,7 +109,7 @@ struct WatchHomeView: View {
             crossCountryFullScreenMetrics
         } else if connectivityService.activeDiscipline == .riding {
             ridingFullScreenMetrics
-        } else if connectivityService.activeDiscipline == .running {
+        } else if connectivityService.activeDiscipline == .running || connectivityService.activeDiscipline == .walking {
             runningFullScreenMetrics
         } else {
             // Generic metrics
@@ -438,8 +445,8 @@ struct WatchHomeView: View {
         } else if connectivityService.activeDiscipline == .riding {
             // Regular riding: Show gait and speed
             ridingMetrics
-        } else if connectivityService.activeDiscipline == .running {
-            // Running: Show pace and heart rate
+        } else if connectivityService.activeDiscipline == .running || connectivityService.activeDiscipline == .walking {
+            // Running/Walking: Show pace and heart rate
             runningMetrics
         } else if connectivityService.activeDiscipline == .swimming {
             // Swimming: Show stroke count
@@ -663,6 +670,7 @@ struct WatchHomeView: View {
         switch connectivityService.activeDiscipline {
         case .riding: return "figure.equestrian.sports"
         case .running: return "figure.run"
+        case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
         case .training: return "figure.mixed.cardio"
@@ -674,6 +682,7 @@ struct WatchHomeView: View {
         switch connectivityService.activeDiscipline {
         case .riding: return WatchAppColors.riding
         case .running: return WatchAppColors.running
+        case .walking: return .teal
         case .swimming: return WatchAppColors.swimming
         case .shooting: return WatchAppColors.shooting
         case .training, .idle: return WatchAppColors.primary
