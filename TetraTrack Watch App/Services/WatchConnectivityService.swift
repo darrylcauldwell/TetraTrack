@@ -310,6 +310,35 @@ final class WatchConnectivityService: NSObject {
         sendMessage(message)
     }
 
+    /// Send builder stats via WCSession (fallback when mirroring unavailable).
+    /// Uses same payload format as mirrored session so iPhone receiver code is reused.
+    func sendBuilderStats(_ stats: [String: Any]) {
+        guard !stats.isEmpty else { return }
+        var payload = stats
+        payload["wcSessionBuilderStats"] = true  // Tag so iPhone routes to WorkoutLifecycleService
+        sendRawMessage(payload)
+    }
+
+    /// Send elapsed time via WCSession (fallback when mirroring unavailable).
+    func sendElapsedTime(elapsed: TimeInterval, isPaused: Bool) {
+        let payload: [String: Any] = [
+            "wcSessionElapsedTime": true,
+            "elapsed": elapsed,
+            "isPaused": isPaused
+        ]
+        sendRawMessage(payload)
+    }
+
+    /// Send gait classification result via WCSession (fallback when mirroring unavailable).
+    func sendGaitResult(_ resultJSON: String, discipline: String) {
+        let payload: [String: Any] = [
+            "wcSessionGaitResult": true,
+            "resultJSON": resultJSON,
+            "discipline": discipline
+        ]
+        sendRawMessage(payload)
+    }
+
     /// Send raw motion samples for detailed analysis (bulk transfer)
     func sendMotionSamples(_ samples: [WatchMotionSample]) {
         guard !samples.isEmpty else { return }

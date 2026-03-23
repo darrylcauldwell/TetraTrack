@@ -835,20 +835,74 @@ final class WorkoutManager: NSObject {
                 Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=MIRRORED HR=\(hr, privacy: .public)")
             }
         } else {
-            // WCSession fallback: send motion AND HR together so HR doesn't get
-            // clobbered by applicationContext overwrites from separate 1Hz motion sends.
+            // WCSession fallback: send all data channels that mirrored session normally carries.
+            // Motion (cadence, stance, altitude, compass, breathing, posture, tremor)
             onMotionDataSend?()
+            // HR
             if currentHeartRate > 0 {
                 onHeartRateUpdate?(currentHeartRate)
+            }
+            // Builder stats (calories, distance, step count, running metrics)
+            sendBuilderStatsViaWCSession()
+            // Elapsed time (Watch-authoritative)
+            if let start = startTime {
+                let elapsed = isUserPaused ? elapsedTime : Date().timeIntervalSince(start)
+                WatchConnectivityService.shared.sendElapsedTime(elapsed: elapsed, isPaused: isUserPaused)
+            }
+            // Gait classification (riding only)
+            if activityType == .riding,
+               let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult,
+               let resultJSON = try? JSONEncoder().encode(gaitResult),
+               let resultString = String(data: resultJSON, encoding: .utf8) {
+                WatchConnectivityService.shared.sendGaitResult(resultString, discipline: "riding")
             }
             // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
             if motionSendTickCount % 30 == 0 {
                 let hr = currentHeartRate
-                let hasCallback = onMotionDataSend != nil
-                let hasHRCallback = onHeartRateUpdate != nil
-                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public) motionCB=\(hasCallback, privacy: .public) hrCB=\(hasHRCallback, privacy: .public)")
+                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public)")
             }
         }
+    }
+
+    /// Send builder stats via WCSession (same data as mirrored session path, different transport).
+    private func sendBuilderStatsViaWCSession() {
+        guard let builder = workoutBuilder else { return }
+
+        var stats: [String: Any] = [:]
+
+        if let cal = builder.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity() {
+            stats["activeCalories"] = cal.doubleValue(for: .kilocalorie())
+        }
+        if let dist = builder.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity() {
+            stats["distance"] = dist.doubleValue(for: .meter())
+        }
+        if let swimDist = builder.statistics(for: HKQuantityType(.distanceSwimming))?.sumQuantity() {
+            stats["distance"] = swimDist.doubleValue(for: .meter())
+        }
+        if let steps = builder.statistics(for: HKQuantityType(.stepCount))?.sumQuantity() {
+            stats["stepCount"] = Int(steps.doubleValue(for: .count()))
+        }
+        if let strokes = builder.statistics(for: HKQuantityType(.swimmingStrokeCount))?.sumQuantity() {
+            stats["swimmingStrokeCount"] = Int(strokes.doubleValue(for: .count()))
+        }
+        if let speed = builder.statistics(for: HKQuantityType(.runningSpeed))?.averageQuantity() {
+            stats["runningSpeed"] = speed.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
+        }
+        if let power = builder.statistics(for: HKQuantityType(.runningPower))?.averageQuantity() {
+            stats["runningPower"] = power.doubleValue(for: .watt())
+        }
+        if let stride = builder.statistics(for: HKQuantityType(.runningStrideLength))?.averageQuantity() {
+            stats["runningStrideLength"] = stride.doubleValue(for: .meter())
+        }
+        if let gct = builder.statistics(for: HKQuantityType(.runningGroundContactTime))?.averageQuantity() {
+            stats["groundContactTime"] = gct.doubleValue(for: .secondUnit(with: .milli))
+        }
+        if let osc = builder.statistics(for: HKQuantityType(.runningVerticalOscillation))?.averageQuantity() {
+            stats["verticalOscillation"] = osc.doubleValue(for: HKUnit.meterUnit(with: .centi))
+        }
+
+        guard !stats.isEmpty else { return }
+        WatchConnectivityService.shared.sendBuilderStats(stats)
     }
 
     private func sendBuilderStatsViaMirroredSession() {

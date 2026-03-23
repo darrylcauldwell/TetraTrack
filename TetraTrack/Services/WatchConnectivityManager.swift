@@ -520,6 +520,46 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
+        // Handle WCSession fallback data channels (when mirroring unavailable).
+        // These use the same payload format as the mirrored session so WorkoutLifecycleService
+        // can process them identically.
+        if message["wcSessionBuilderStats"] != nil {
+            Task { @MainActor in
+                let service = WorkoutLifecycleService.shared
+                if let v = message["activeCalories"] as? Double { service.liveActiveCalories = v }
+                if let v = message["distance"] as? Double { service.liveDistance = v }
+                if let v = message["stepCount"] as? Int { service.liveStepCount = v }
+                if let v = message["swimmingStrokeCount"] as? Int { service.liveSwimmingStrokeCount = v }
+                if let v = message["runningSpeed"] as? Double { service.liveRunningSpeed = v }
+                if let v = message["runningPower"] as? Double { service.liveRunningPower = v }
+                if let v = message["runningStrideLength"] as? Double { service.liveRunningStrideLength = v }
+                if let v = message["groundContactTime"] as? Double { service.liveGroundContactTime = v }
+                if let v = message["verticalOscillation"] as? Double { service.liveVerticalOscillation = v }
+            }
+            return
+        }
+
+        if message["wcSessionElapsedTime"] != nil {
+            if let elapsed = message["elapsed"] as? TimeInterval {
+                let paused = message["isPaused"] as? Bool ?? false
+                Task { @MainActor in
+                    WorkoutLifecycleService.shared.updateWatchElapsedTime(elapsed, isPaused: paused)
+                }
+            }
+            return
+        }
+
+        if message["wcSessionGaitResult"] != nil {
+            if let resultString = message["resultJSON"] as? String,
+               let resultData = resultString.data(using: .utf8),
+               let result = try? JSONDecoder().decode(WatchGaitResult.self, from: resultData) {
+                Task { @MainActor in
+                    self.updateFromWatchGaitResult(result)
+                }
+            }
+            return
+        }
+
         // Check for shooting shot detection message
         if let type = message["type"] as? String, type == "shootingShotDetected" {
             if let metrics = DetectedShotMetrics.from(dictionary: message) {

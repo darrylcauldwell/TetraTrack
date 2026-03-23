@@ -420,6 +420,12 @@ final class WorkoutLifecycleService: NSObject {
 
     // MARK: - Disable Auto Calories
 
+    /// Update Watch elapsed time from WCSession fallback (when mirrored session unavailable).
+    func updateWatchElapsedTime(_ elapsed: TimeInterval, isPaused: Bool) {
+        watchElapsedTime = elapsed
+        watchIsPaused = isPaused
+    }
+
     /// Disable automatic calorie collection from the data source.
     /// Use when providing custom calorie samples (e.g., gait-adjusted calories for riding).
     func disableAutoCalories() {
