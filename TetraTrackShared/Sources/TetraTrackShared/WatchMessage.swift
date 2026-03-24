@@ -24,6 +24,9 @@ public enum WatchMessageKey: String {
     case rideType = "rideType"
     case timestamp = "timestamp"
     case voiceNoteText = "voiceNoteText"
+    // Workout configuration
+    case activityType = "activityType"
+    case locationType = "locationType"
     // Motion metrics
     case motionMode = "motionMode"
     case stanceStability = "stanceStability"
@@ -87,6 +90,8 @@ public enum WatchCommand: String, Codable, Sendable {
     case requestStatus = "requestStatus"
     case heartRateUpdate = "heartRateUpdate"
     case voiceNote = "voiceNote"
+    // Workout session command (iPhone → Watch: start full HKWorkoutSession for HR)
+    case startWorkout = "startWorkout"
     // Motion commands
     case startMotionTracking = "startMotionTracking"
     case stopMotionTracking = "stopMotionTracking"

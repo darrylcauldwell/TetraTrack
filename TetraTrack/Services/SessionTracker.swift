@@ -311,17 +311,36 @@ final class SessionTracker {
         UIApplication.shared.isIdleTimerDisabled = true
 
         // Start workout lifecycle — always iPhone-primary.
-        // Wake Watch for HR sensor collection when available.
+        // Send workout config to Watch via WCSession for HR sensor collection.
         let watchAvailable = watchManager.isPaired && watchManager.isWatchAppInstalled
         if watchAvailable {
-            // Wake Watch for HR sensor collection, then start iPhone-primary session
+            let config = plugin.workoutConfiguration
+
+            // Belt-and-suspenders: try startWatchApp (may launch Watch app even if handle() is broken)
             do {
-                try await workoutLifecycle.wakeWatch(configuration: plugin.workoutConfiguration)
+                try await workoutLifecycle.wakeWatch(configuration: config)
             } catch {
-                Log.tracking.info("TT: Watch wake failed (non-fatal): \(error.localizedDescription)")
+                Log.tracking.info("TT: startWatchApp failed (non-fatal): \(error.localizedDescription)")
             }
+
+            // Send workout config via WCSession — the reliable path (startWatchApp/handle is broken in iOS 26)
+            if watchManager.isReachable {
+                watchManager.startWatchWorkout(
+                    activityTypeRaw: config.activityType.rawValue,
+                    locationTypeRaw: config.locationType.rawValue
+                )
+                Log.tracking.error("TT: sent startWorkout to Watch via WCSession (reachable)")
+            } else {
+                // Watch app not running — prompt user
+                Log.tracking.error("TT: Watch paired but not reachable — user needs to open Watch app")
+                sessionStartError = "Open TetraTrack on your Apple Watch, then try again"
+                stopSession()
+                return
+            }
+
+            // Start iPhone-primary session (skipWatchCommands since we sent startWorkout directly)
             do {
-                try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration, skipWatchCommands: true)
+                try await workoutLifecycle.startWorkoutFallback(configuration: config, skipWatchCommands: true)
                 if plugin.disableAutoCalories {
                     workoutLifecycle.disableAutoCalories()
                 }

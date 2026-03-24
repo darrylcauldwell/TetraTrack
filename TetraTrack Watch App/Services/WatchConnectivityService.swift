@@ -476,9 +476,38 @@ final class WatchConnectivityService: NSObject {
             switch command {
             // Session control commands from iPhone via WCSession.
             // iPhone owns the HKWorkoutSession — these commands sync Watch UI state.
+            case .startWorkout:
+                // iPhone sends full workout config via WCSession (replaces broken startWatchApp/handle path).
+                // Start a full HKWorkoutSession on Watch for HR sensor + builder stats.
+                Log.watch.error("TT: received .startWorkout command via WCSession")
+                guard !WorkoutManager.shared.isWorkoutActive else {
+                    Log.watch.debug("Ignoring .startWorkout — workout already active")
+                    break
+                }
+                if let activityRaw = message[WatchMessageKey.activityType.rawValue] as? UInt,
+                   let locationRaw = message[WatchMessageKey.locationType.rawValue] as? Int,
+                   let activityType = HKWorkoutActivityType(rawValue: activityRaw) {
+                    let configuration = HKWorkoutConfiguration()
+                    configuration.activityType = activityType
+                    configuration.locationType = HKWorkoutSessionLocationType(rawValue: locationRaw) ?? .unknown
+                    Task {
+                        do {
+                            try await WorkoutManager.shared.startWorkoutFromiPhone(configuration: configuration)
+                            Log.watch.error("TT: .startWorkout — Watch workout started successfully")
+                            WatchConnectivityService.sendDiagnostic("startWorkout via WCSession: success")
+                        } catch {
+                            let errMsg = error.localizedDescription
+                            Log.watch.error("TT: .startWorkout — Watch workout FAILED: \(errMsg)")
+                            WatchConnectivityService.sendDiagnostic("startWorkout via WCSession: FAILED — \(errMsg)")
+                        }
+                    }
+                } else {
+                    Log.watch.error("TT: .startWorkout — missing activityType or locationType in message")
+                }
+
             case .startRide:
                 Log.watch.error("TT: received .startRide command")
-                // If Watch already has a session from startWatchApp(toHandle:), skip
+                // If Watch already has a session, skip
                 guard !WorkoutManager.shared.isMirroredFromiPhone else {
                     Log.watch.debug("Ignoring .startRide — iPhone-triggered session already active")
                     break

@@ -359,6 +359,20 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         session.transferUserInfo(dict)
     }
 
+    /// Start full HKWorkoutSession on Watch for HR sensor collection.
+    /// Sends workout configuration via reliable WCSession transport (belt-and-suspenders
+    /// with startWatchApp which is broken in iOS 26).
+    func startWatchWorkout(activityTypeRaw: UInt, locationTypeRaw: Int) {
+        let dict: [String: Any] = [
+            WatchMessageKey.command.rawValue: WatchCommand.startWorkout.rawValue,
+            WatchMessageKey.activityType.rawValue: activityTypeRaw,
+            WatchMessageKey.locationType.rawValue: locationTypeRaw,
+            WatchMessageKey.timestamp.rawValue: Date().timeIntervalSince1970
+        ]
+        sendReliableMessage(dict)
+        Log.watch.error("TT: sent startWorkout to Watch — activity=\(activityTypeRaw, privacy: .public) location=\(locationTypeRaw, privacy: .public)")
+    }
+
     /// Start motion tracking on Watch for a specific discipline
     func startMotionTracking(mode: WatchMotionModeShared) {
         let message = WatchMessage.startMotionTracking(mode: mode)
