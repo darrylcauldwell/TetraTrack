@@ -977,7 +977,9 @@ extension WorkoutLifecycleService: HKLiveWorkoutBuilderDelegate {
             if let hrType = collectedTypes.first(where: { $0 == HKQuantityType(.heartRate) }) as? HKQuantityType,
                let stats = workoutBuilder.statistics(for: hrType),
                let mostRecent = stats.mostRecentQuantity() {
-                self.liveHeartRate = Int(mostRecent.doubleValue(for: HKUnit.count().unitDivided(by: .minute())))
+                let bpm = Int(mostRecent.doubleValue(for: HKUnit.count().unitDivided(by: .minute())))
+                self.liveHeartRate = bpm
+                WatchConnectivityManager.shared.updateFromMirroredHeartRate(bpm)
             }
 
             // Active calories
