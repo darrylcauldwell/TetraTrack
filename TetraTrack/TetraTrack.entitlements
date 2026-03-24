@@ -22,5 +22,7 @@
 	<array>
 		<string>group.dev.dreamfold.TetraTrack</string>
 	</array>
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>
