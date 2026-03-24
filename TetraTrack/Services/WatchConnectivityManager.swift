@@ -360,8 +360,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     }
 
     /// Start full HKWorkoutSession on Watch for HR sensor collection.
-    /// Sends workout configuration via reliable WCSession transport (belt-and-suspenders
-    /// with startWatchApp which is broken in iOS 26).
+    /// Uses sendMessage only (not transferUserInfo) to avoid late delivery
+    /// causing a second workout start after the first has already stopped.
     func startWatchWorkout(activityTypeRaw: UInt, locationTypeRaw: Int) {
         let dict: [String: Any] = [
             WatchMessageKey.command.rawValue: WatchCommand.startWorkout.rawValue,
@@ -369,7 +369,14 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             WatchMessageKey.locationType.rawValue: locationTypeRaw,
             WatchMessageKey.timestamp.rawValue: Date().timeIntervalSince1970
         ]
-        sendReliableMessage(dict)
+
+        guard let session = session, session.activationState == .activated, session.isReachable else {
+            Log.watch.error("TT: startWatchWorkout — Watch not reachable, skipping")
+            return
+        }
+        session.sendMessage(dict, replyHandler: nil) { error in
+            Log.watch.error("TT: startWatchWorkout sendMessage error: \(error)")
+        }
         Log.watch.error("TT: sent startWorkout to Watch — activity=\(activityTypeRaw, privacy: .public) location=\(locationTypeRaw, privacy: .public)")
     }
 

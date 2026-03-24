@@ -140,7 +140,7 @@ final class WorkoutManager: NSObject {
     /// Watch creates its own session + builder for sensor activation, discards workout at end.
     /// Set synchronously at entry to prevent concurrent calls from both
     /// handle(_ workoutConfiguration:) and WCSession .startWorkout command.
-    private var isStartingWorkout = false
+    private(set) var isStartingWorkout = false
 
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async throws {
         guard workoutSession == nil, !isStartingWorkout else {

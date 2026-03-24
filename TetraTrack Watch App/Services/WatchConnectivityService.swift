@@ -480,10 +480,12 @@ final class WatchConnectivityService: NSObject {
                 // iPhone sends full workout config via WCSession (replaces broken startWatchApp/handle path).
                 // Start a full HKWorkoutSession on Watch for HR sensor + builder stats.
                 Log.watch.error("TT: received .startWorkout command via WCSession")
-                guard !WorkoutManager.shared.isWorkoutActive else {
-                    Log.watch.debug("Ignoring .startWorkout — workout already active")
+                guard !WorkoutManager.shared.isWorkoutActive, !WorkoutManager.shared.isStartingWorkout else {
+                    Log.watch.debug("Ignoring .startWorkout — workout already active or starting")
+                    WatchConnectivityService.sendDiagnostic("startWorkout via WCSession: skipped (active or starting)")
                     break
                 }
+                self.rideState = .tracking
                 if let activityRaw = message[WatchMessageKey.activityType.rawValue] as? UInt,
                    let locationRaw = message[WatchMessageKey.locationType.rawValue] as? Int,
                    let activityType = HKWorkoutActivityType(rawValue: activityRaw) {
