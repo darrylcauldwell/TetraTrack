@@ -459,7 +459,7 @@ struct SettingsView: View {
 
                     // Show guidance when not fully connected
                     if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled && !watchConnectivity.isReachable {
-                        Text("Watch will connect automatically when you start a session.")
+                        Text("Open TetraTrack on your Apple Watch before starting a session for heart rate tracking.")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }

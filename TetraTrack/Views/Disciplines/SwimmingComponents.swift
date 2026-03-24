@@ -73,7 +73,7 @@ struct SwimmingWatchStatusCard: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Watch will connect automatically when you start your session.")
+                    Text("Open TetraTrack on your Apple Watch before starting for heart rate and stroke detection.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

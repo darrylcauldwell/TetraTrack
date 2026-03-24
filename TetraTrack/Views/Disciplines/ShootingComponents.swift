@@ -73,7 +73,7 @@ struct ShootingWatchStatusCard: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Watch will connect automatically when you start your session.")
+                    Text("Open TetraTrack on your Apple Watch before starting for heart rate and shot detection.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

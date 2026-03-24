@@ -1236,7 +1236,7 @@ struct WatchStatusCard: View {
     @ViewBuilder
     private var notReachableContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Watch will connect automatically when you start your session.")
+            Text("Open TetraTrack on your Apple Watch before starting for heart rate tracking.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
