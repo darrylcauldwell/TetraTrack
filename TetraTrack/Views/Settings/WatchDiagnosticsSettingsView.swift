@@ -10,6 +10,7 @@ import WatchConnectivity
 
 struct WatchDiagnosticsSettingsView: View {
     private let watchManager = WatchConnectivityManager.shared
+    private let workoutService = WorkoutLifecycleService.shared
 
     private var appVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
@@ -48,6 +49,26 @@ struct WatchDiagnosticsSettingsView: View {
                 row("Heart Rate", "\(watchManager.lastReceivedHeartRate) bpm")
                 row("HR Sequence", "\(watchManager.heartRateSequence)")
                 row("Cadence", "\(watchManager.cadence) spm")
+            }
+
+            Section("Builder Stats (from Watch)") {
+                row("Calories", String(format: "%.0f kcal", workoutService.liveActiveCalories))
+                row("Distance", String(format: "%.0f m", workoutService.liveDistance))
+                row("Steps", "\(workoutService.liveStepCount)")
+                row("Stroke Count", "\(workoutService.liveSwimmingStrokeCount)")
+            }
+
+            Section("Running Metrics (from Watch)") {
+                row("Speed", String(format: "%.2f m/s", workoutService.liveRunningSpeed))
+                row("Power", String(format: "%.0f W", workoutService.liveRunningPower))
+                row("Stride Length", String(format: "%.2f m", workoutService.liveRunningStrideLength))
+                row("Ground Contact", String(format: "%.0f ms", workoutService.liveGroundContactTime))
+                row("Vert. Oscillation", String(format: "%.1f cm", workoutService.liveVerticalOscillation))
+            }
+
+            Section("Workout State") {
+                row("State", "\(workoutService.state)")
+                row("iPhone HR", "\(workoutService.liveHeartRate) bpm")
             }
 
             if !breadcrumbs.isEmpty {
