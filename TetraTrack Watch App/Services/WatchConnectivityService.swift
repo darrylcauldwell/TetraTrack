@@ -310,8 +310,7 @@ final class WatchConnectivityService: NSObject {
         sendMessage(message)
     }
 
-    /// Send builder stats via WCSession (fallback when mirroring unavailable).
-    /// Uses same payload format as mirrored session so iPhone receiver code is reused.
+    /// Send HKLiveWorkoutBuilder stats to iPhone via WCSession.
     func sendBuilderStats(_ stats: [String: Any]) {
         guard !stats.isEmpty else { return }
         var payload = stats
@@ -319,7 +318,7 @@ final class WatchConnectivityService: NSObject {
         sendRawMessage(payload)
     }
 
-    /// Send elapsed time via WCSession (fallback when mirroring unavailable).
+    /// Send Watch's authoritative elapsed time to iPhone via WCSession.
     func sendElapsedTime(elapsed: TimeInterval, isPaused: Bool) {
         let payload: [String: Any] = [
             "wcSessionElapsedTime": true,
@@ -329,7 +328,7 @@ final class WatchConnectivityService: NSObject {
         sendRawMessage(payload)
     }
 
-    /// Send gait classification result via WCSession (fallback when mirroring unavailable).
+    /// Send gait classification result to iPhone via WCSession.
     func sendGaitResult(_ resultJSON: String, discipline: String) {
         let payload: [String: Any] = [
             "wcSessionGaitResult": true,
@@ -424,7 +423,7 @@ final class WatchConnectivityService: NSObject {
     }
 
     /// Send a message via transferUserInfo (guaranteed queued delivery).
-    /// Use for handshake messages (ACK, mirroringStarted) that must not be
+    /// Use for lifecycle commands (ACK, session handshakes) that must not be
     /// overwritten by applicationContext status updates.
     func sendReliableMessage(_ message: [String: Any]) {
         guard let session = session,
@@ -475,17 +474,13 @@ final class WatchConnectivityService: NSObject {
         // Handle commands from iPhone
         if let command = watchMessage.command {
             switch command {
-            // Session control commands - update Watch state to match iPhone
-            // NOTE: These companion HR commands serve as fallback when HKWorkoutSession
-            // mirroring is unavailable. When mirroring is active (iOS 17+/watchOS 10+),
-            // the Watch receives the mirrored session via workoutSessionMirroringStartHandler
-            // and HR is auto-collected by HKLiveWorkoutDataSource — no WCSession needed.
+            // Session control commands from iPhone via WCSession.
+            // iPhone owns the HKWorkoutSession — these commands sync Watch UI state.
             case .startRide:
                 Log.watch.error("TT: received .startRide command")
-                // In Watch-primary mode, session lifecycle is managed via mirrored session.
-                // WCSession commands are only for iPhone-primary fallback mode.
+                // If Watch already has a session from startWatchApp(toHandle:), skip
                 guard !WorkoutManager.shared.isMirroredFromiPhone else {
-                    Log.watch.debug("Ignoring .startRide — Watch-primary session already active")
+                    Log.watch.debug("Ignoring .startRide — iPhone-triggered session already active")
                     break
                 }
                 guard self.rideState != .tracking else {
@@ -498,12 +493,6 @@ final class WatchConnectivityService: NSObject {
 
             case .stopRide:
                 Log.watch.error("TT: received .stopRide command")
-                // Only ignore WCSession commands when mirroring is active (both flags true).
-                // When mirroring failed (isMirroredFromiPhone but !isMirroringToiPhone), accept WCSession control.
-                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
-                    Log.watch.debug("Ignoring .stopRide — Watch-primary session uses mirrored control")
-                    break
-                }
                 guard self.rideState != .idle else {
                     Log.watch.debug("Ignoring duplicate stopRide — already idle")
                     break
@@ -523,20 +512,12 @@ final class WatchConnectivityService: NSObject {
 
             case .pauseRide:
                 Log.watch.error("TT: received .pauseRide command")
-                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
-                    Log.watch.debug("Ignoring .pauseRide — Watch-primary session uses mirrored control")
-                    break
-                }
                 self.rideState = .paused
                 WorkoutManager.shared.pauseWorkout()
                 Log.watch.info("Session paused from iPhone")
 
             case .resumeRide:
                 Log.watch.error("TT: received .resumeRide command")
-                guard !WorkoutManager.shared.isMirroredFromiPhone || !WorkoutManager.shared.isMirroringToiPhone else {
-                    Log.watch.debug("Ignoring .resumeRide — Watch-primary session uses mirrored control")
-                    break
-                }
                 self.rideState = .tracking
                 WorkoutManager.shared.resumeWorkout()
                 Log.watch.info("Session resumed from iPhone")
@@ -554,10 +535,10 @@ final class WatchConnectivityService: NSObject {
                     case .idle: .idle
                     }
 
-                    // In Watch-primary mode, startWorkoutFromiPhone() handles all
-                    // sensor setup. This handler is a fallback for iPhone-only mode.
+                    // If Watch already has a session from startWatchApp(toHandle:),
+                    // sensors are already active — skip duplicate setup.
                     guard !WorkoutManager.shared.isMirroredFromiPhone else {
-                        Log.watch.debug("Ignoring startMotionTracking — Watch-primary session already active")
+                        Log.watch.debug("Ignoring startMotionTracking — iPhone-triggered session already active")
                         break
                     }
 
@@ -567,7 +548,7 @@ final class WatchConnectivityService: NSObject {
                     }
                     WatchMotionManager.shared.startTracking(mode: mode)
 
-                    // Start HR monitoring for all disciplines (fallback path).
+                    // Start HR monitoring for all disciplines.
                     let activityType: WatchActivityType = switch sharedMode {
                     case .running: .running
                     case .swimming: .swimming
@@ -582,13 +563,13 @@ final class WatchConnectivityService: NSObject {
                         await WorkoutManager.shared.startHeartRateMonitoring(type: activityType)
                     }
 
-                    // Wire up motion data sending (1Hz) — WCSession fallback
+                    // Wire up motion data sending (1Hz) via WCSession
                     WorkoutManager.shared.onMotionDataSend = { [weak self] in
                         self?.sendMotionUpdate()
                     }
                     WorkoutManager.shared.startMotionDataSending()
 
-                    Log.location.info("Motion tracking started (WCSession fallback) - \(mode.rawValue)")
+                    Log.location.info("Motion tracking started via WCSession - \(mode.rawValue)")
                 }
 
             case .stopMotionTracking:

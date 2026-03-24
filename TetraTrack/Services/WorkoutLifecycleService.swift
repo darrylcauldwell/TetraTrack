@@ -75,7 +75,7 @@ final class WorkoutLifecycleService: NSObject {
     // MARK: - Wake Watch
 
     /// Wake the Watch app to start HR sensor collection.
-    /// Fire-and-forget — no mirroring, no timeout. Watch starts its own
+    /// Fire-and-forget. Watch starts its own
     /// HKWorkoutSession for HR and sends data via WCSession.
     func wakeWatch(configuration: HKWorkoutConfiguration) async throws {
         try await healthStore.startWatchApp(toHandle: configuration)
@@ -88,9 +88,9 @@ final class WorkoutLifecycleService: NSObject {
     /// Creates HKWorkoutSession with prepare() + startActivity(), HKLiveWorkoutBuilder
     /// with HKLiveWorkoutDataSource for auto HR/calorie collection, and optionally
     /// an HKWorkoutRouteBuilder for outdoor sessions.
-    /// Start an iPhone-primary workout session (no Watch mirroring).
+    /// Start an iPhone-primary workout session.
     /// - Parameter skipWatchCommands: When true, don't send .startRide/motionTracking to Watch
-    ///   (Watch already has a session from handle() when mirroring failed).
+    ///   (Watch already has a session from startWatchApp(toHandle:)).
     func startWorkoutFallback(configuration: HKWorkoutConfiguration, skipWatchCommands: Bool = false) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             Log.health.warning("HealthKit not available")
@@ -164,7 +164,7 @@ final class WorkoutLifecycleService: NSObject {
                 startDate: startDate
             )
 
-            Log.health.info("WorkoutLifecycleService: started \(configuration.activityType.rawValue) workout (iPhone-only fallback)")
+            Log.health.info("WorkoutLifecycleService: started \(configuration.activityType.rawValue) workout (iPhone-primary)")
 
         } catch {
             state = .idle
@@ -273,9 +273,9 @@ final class WorkoutLifecycleService: NSObject {
         return await endIPhonePrimaryWorkout(metadata: metadata)
     }
 
-    /// End workout when iPhone owns the primary session (fallback mode).
+    /// End workout — iPhone owns the HKWorkoutSession.
     private func endIPhonePrimaryWorkout(metadata: [String: Any]?) async -> HKWorkout? {
-        // Stop watch session via WCSession (fallback path)
+        // Stop Watch sensor collection via WCSession
         watchConnectivity.stopMotionTracking()
         watchConnectivity.sendReliableCommand(.stopRide)
 

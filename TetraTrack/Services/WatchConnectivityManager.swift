@@ -403,8 +403,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         movementIntensity = 0.0
     }
 
-    /// Update heart rate from any source (mirrored session, WCSession fallback, etc.).
-    /// Increments `heartRateSequence` so SessionTracker observation handles all sources identically.
+    /// Update heart rate from Watch via WCSession or iPhone builder.
+    /// Increments `heartRateSequence` so SessionTracker observation fires.
     func updateHeartRate(_ bpm: Int) {
         lastReceivedHeartRate = bpm
         heartRateSequence += 1
@@ -412,8 +412,8 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         Log.watch.info("updateHeartRate: \(bpm) bpm, seq=\(seq)")
     }
 
-    /// Update motion metrics from a dictionary received via HKWorkoutSession mirrored channel.
-    /// The dictionary is a JSON-decoded `WatchMotionMetrics` from the Watch.
+    /// Update motion metrics from a dictionary received from Watch via WCSession.
+    /// The dictionary is a JSON-decoded `WatchMotionMetrics`.
     func updateFromMirroredMotionDict(_ dict: [String: Any]) {
         let previousStrokeCount = strokeCount
 
@@ -462,7 +462,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         enhancedSensorSequence += 1
     }
 
-    /// Update from Watch gait classification result received via mirrored session
+    /// Update from Watch gait classification result received via WCSession
     func updateFromWatchGaitResult(_ result: WatchGaitResult) {
         watchGaitState = result.gaitState
         watchGaitConfidence = result.confidence
@@ -519,9 +519,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
-        // Handle WCSession fallback data channels (when mirroring unavailable).
-        // These use the same payload format as the mirrored session so WorkoutLifecycleService
-        // can process them identically.
+        // Handle WCSession data channels from Watch (builder stats, elapsed time, gait results).
         if message["wcSessionBuilderStats"] != nil {
             Task { @MainActor in
                 let service = WorkoutLifecycleService.shared

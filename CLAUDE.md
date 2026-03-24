@@ -231,24 +231,24 @@ locationManager.activityType = .fitness
 | Lifecycle (start/stop/pause/resume) | `sendReliableCommand()` — dual sendMessage + transferUserInfo | Must survive disconnect; applicationContext clobbered by 1Hz timer |
 | Status updates (1Hz) | `sendMessage()` / `applicationContext` | Last-value-wins is acceptable |
 | Haptic commands | `sendMessage()` | Non-critical; don't flood transferUserInfo queue |
-| Handshake (ack, mirroringStarted) | `sendReliableMessage()` — dual sendMessage + transferUserInfo | Must not be clobbered |
+| HR/motion data (1Hz) | `sendMessage()` / `applicationContext` | Watch → iPhone sensor data |
 
 **Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
 
-### Mirroring Pipeline
+### iPhone-Primary Workout Architecture
 
-**When Watch is available and mirroring succeeds, Watch-primary is the only path.** When mirroring fails (iOS 26 framework regression — Apple Forums thread 804276, FB20723311), iPhone-primary fallback with Watch as sensor provider is used. Watch keeps its HKWorkoutSession for HR collection but discards the workout at end. iPhone saves the official HealthKit record. Watch sends HR/motion to iPhone via WCSession.
+iPhone always owns the `HKWorkoutSession` (iOS 26 WWDC 2025 session 322 pattern). Watch provides HR and motion data via WCSession. No mirroring is used.
 
-iPhone calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates HKWorkoutSession → attempts `startMirroringToCompanionDevice()`. If mirroring succeeds → Watch-primary mode (mirrored session on iPhone). If mirroring fails → Watch sends `.mirroringFailed` via WCSession → iPhone creates its own `HKWorkoutSession` (iOS 26 iPhone-primary API) → Watch continues as HR/motion sensor provider via WCSession. If Watch is not paired or app not installed, iPhone-primary mode is used directly.
+iPhone calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates local HKWorkoutSession for HR sensor activation → sends HR/motion at 1Hz via WCSession → iPhone's `HKLiveWorkoutBuilder` collects calories/distance/steps → iPhone saves workout to HealthKit → Watch discards its workout.
 
 ### Key Files
 
 | File | Side | Role |
 |------|------|------|
 | `WatchConnectivityManager.swift` | iPhone | Sends commands, receives Watch data |
-| `WorkoutLifecycleService.swift` | iPhone | Manages workout lifecycle |
-| `WorkoutManager.swift` | Watch | Manages workouts, handles mirroring |
-| `WatchConnectivityService.swift` | Watch | Receives commands, sends data |
+| `WorkoutLifecycleService.swift` | iPhone | Manages iPhone-primary HKWorkoutSession lifecycle |
+| `WorkoutManager.swift` | Watch | Manages Watch HKWorkoutSession for HR sensor |
+| `WatchConnectivityService.swift` | Watch | Receives commands, sends HR/motion/gait data |
 
 ## UI Guidelines
 

@@ -79,7 +79,7 @@ final class WorkoutManager: NSObject {
     var onHeartRateUpdate: ((Int) -> Void)?
     var onWorkoutStateChanged: ((Bool) -> Void)?
 
-    /// Called when motion data should be sent via WatchConnectivity fallback (non-mirrored sessions)
+    /// Called when motion data should be sent to iPhone via WCSession
     var onMotionDataSend: (() -> Void)?
 
     // MARK: - Private
@@ -103,10 +103,10 @@ final class WorkoutManager: NSObject {
     private let locationManager = WatchLocationManager.shared
     private let sessionStore = WatchSessionStore.shared
 
-    /// Whether this workout was started via iPhone's startWatchApp or mirroring
+    /// Whether this workout was started via iPhone's startWatchApp(toHandle:)
     private(set) var isMirroredFromiPhone: Bool = false
 
-    /// Legacy flag kept for external file compatibility — always false (mirroring removed)
+    /// Always false — mirroring removed in iOS 26 refactor. Kept for WatchConnectivityService guard checks.
     private(set) var isMirroringToiPhone: Bool = false
 
     // MARK: - Initialization
@@ -293,8 +293,7 @@ final class WorkoutManager: NSObject {
     // MARK: - Workout Control
 
     /// Start an autonomous workout session from Watch UI.
-    /// Aligned to Apple's MirroringWorkoutsSample exact order:
-    /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
+    /// session → builder → delegates → dataSource → prepare → startActivity → beginCollection
     func startWorkout(type: WatchActivityType) async {
         guard !isWorkoutActive else {
             Log.tracking.error("TT: startWorkout skipped — workout already active")
@@ -743,7 +742,7 @@ final class WorkoutManager: NSObject {
         }
     }
 
-    /// Send builder stats via WCSession (same data as mirrored session path, different transport).
+    /// Send HKLiveWorkoutBuilder stats to iPhone via WCSession.
     private func sendBuilderStatsViaWCSession() {
         guard let builder = workoutBuilder else { return }
 
@@ -933,7 +932,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
             case .ended:
                 self.isWorkoutActive = false
                 self.isMirroringToiPhone = false
-                // Clean up mirrored session state
+                // Clean up iPhone-triggered session state
                 if self.isMirroredFromiPhone {
                     self.isMirroredFromiPhone = false
                     self.stopMotionDataSending()
