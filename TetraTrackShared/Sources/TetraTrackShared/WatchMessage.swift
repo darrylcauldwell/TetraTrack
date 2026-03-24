@@ -102,9 +102,6 @@ public enum WatchCommand: String, Codable, Sendable {
     case hapticUrgent = "hapticUrgent"        // Final countdown (last 10s)
     case hapticRestStart = "hapticRestStart"  // Interval rest begins
     case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
-    // Mirroring handshake (Watch -> iPhone: mirroring progress)
-    case mirroringStarted = "mirroringStarted"
-    case mirroringFailed = "mirroringFailed"    // Watch -> iPhone: mirroring failed, use iPhone-primary
 }
 
 // MARK: - Fall Response
@@ -343,11 +340,6 @@ public struct WatchMessage: Codable, Sendable {
     /// Create a voice note message from Watch to iPhone
     public static func voiceNote(_ text: String) -> WatchMessage {
         WatchMessage(command: .voiceNote, voiceNoteText: text)
-    }
-
-    /// Watch confirms mirroring has started successfully
-    public static func mirroringStarted(discipline: String) -> WatchMessage {
-        WatchMessage(command: .mirroringStarted, discipline: discipline)
     }
 
     /// Create a status update from iPhone to Watch

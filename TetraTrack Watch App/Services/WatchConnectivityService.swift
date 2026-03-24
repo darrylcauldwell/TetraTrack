@@ -633,10 +633,6 @@ final class WatchConnectivityService: NSObject {
                 HapticManager.shared.playRestIntervalEndHaptic()
                 Log.watch.info("Haptic: rest end")
 
-            // Mirroring handshake commands (Watch -> iPhone, ignore on Watch side)
-            case .mirroringStarted, .mirroringFailed:
-                break
-
             // Commands sent from Watch to iPhone (ignore on Watch side)
             case .requestStatus, .heartRateUpdate, .voiceNote,
                  .motionUpdate, .fallDetected, .fallConfirmedOK, .fallEmergency:

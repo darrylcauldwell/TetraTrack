@@ -78,7 +78,7 @@ struct WatchConnectivityTests {
         let manager = WatchConnectivityManager.shared
         let previousSeq = manager.heartRateSequence
 
-        manager.updateFromMirroredHeartRate(155)
+        manager.updateHeartRate(155)
 
         #expect(manager.lastReceivedHeartRate == 155)
         #expect(manager.heartRateSequence == previousSeq + 1)
@@ -200,7 +200,7 @@ struct WatchConnectivityTests {
         let previousSeq = manager.heartRateSequence
 
         // Walking HR range (typically 90-140 bpm)
-        manager.updateFromMirroredHeartRate(118)
+        manager.updateHeartRate(118)
 
         #expect(manager.lastReceivedHeartRate == 118)
         #expect(manager.heartRateSequence == previousSeq + 1)

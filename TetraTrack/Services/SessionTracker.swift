@@ -182,7 +182,6 @@ final class SessionTracker {
         startWatchObservation()
         setupHealthCoordinator()
         setupFallDetection()
-        setupMirroredSessionCallback()
     }
 
     func configure(with modelContext: ModelContext) {
@@ -194,216 +193,6 @@ final class SessionTracker {
         if let profile = riderProfile {
             healthCoordinator.configure(maxHeartRate: profile.maxHeartRate, restingHeartRate: profile.restingHeartRate)
         }
-    }
-
-    // MARK: - Mirrored Session Support
-
-    /// Wire the callback so autonomous Watch workouts create a plugin on iPhone.
-    private func setupMirroredSessionCallback() {
-        workoutLifecycle.onAutonomousMirroredSession = { [weak self] activityType, watchStartDate in
-            guard let self else { return }
-            Task { @MainActor in
-                await self.startSessionFromMirroredWorkout(activityType: activityType, startDate: watchStartDate)
-            }
-        }
-
-        workoutLifecycle.onMirroringTimedOut = { [weak self] in
-            guard let self else { return }
-            guard self.sessionState == .tracking else { return }
-            Log.tracking.error("TT: Watch mirroring timed out — falling back to iPhone-primary")
-            self.fallbackToiPhonePrimary()
-        }
-
-        workoutLifecycle.onMirroringFailed = { [weak self] in
-            guard let self else { return }
-            guard self.sessionState == .tracking else { return }
-            Log.tracking.error("TT: Watch reported mirroring failed — falling back to iPhone-primary")
-            self.fallbackToiPhonePrimary()
-        }
-    }
-
-    /// Fall back to iPhone-primary HKWorkoutSession when Watch mirroring fails.
-    /// Watch keeps its session for HR collection and sends data via WCSession.
-    /// iPhone creates its own HKWorkoutSession to save the official workout record.
-    private func fallbackToiPhonePrimary() {
-        // Prevent double-call from both onMirroringFailed AND onMirroringTimedOut
-        guard workoutLifecycle.state != .active else {
-            Log.tracking.debug("fallbackToiPhonePrimary: already active, skipping")
-            return
-        }
-        guard let plugin = activePlugin else {
-            Log.tracking.error("fallbackToiPhonePrimary: no active plugin")
-            return
-        }
-
-        Task {
-            do {
-                // skipWatchCommands: Watch already has a session from handle()
-                try await workoutLifecycle.startWorkoutFallback(
-                    configuration: plugin.workoutConfiguration,
-                    skipWatchCommands: true
-                )
-                if plugin.disableAutoCalories {
-                    workoutLifecycle.disableAutoCalories()
-                }
-                Log.tracking.info("TT: iPhone-primary fallback active — Watch sending HR/motion via WCSession")
-            } catch {
-                let errMsg = error.localizedDescription
-                Log.tracking.error("TT: iPhone-primary fallback failed: \(errMsg)")
-                sessionStartError = "Could not start workout: \(errMsg)"
-                stopSession()
-            }
-        }
-    }
-
-    /// Create a default plugin for a Watch-initiated mirrored workout.
-    private func createDefaultPlugin(for activityType: HKWorkoutActivityType) -> (any DisciplinePlugin)? {
-        switch activityType {
-        case .equestrianSports: RidingPlugin()
-        case .running: RunningPlugin(session: RunningSession())
-        case .walking: WalkingPlugin(session: RunningSession(), selectedRoute: nil, targetCadence: 0)
-        case .swimming: SwimmingPlugin(session: SwimmingSession())
-        case .archery: ShootingPlugin(sessionContext: .freePractice)
-        default: nil
-        }
-    }
-
-    /// Start a full session in response to an autonomous mirrored workout from Watch.
-    /// Reuses startSession() logic but skips requestWatchWorkout() since Watch already
-    /// owns the workout session.
-    /// - Parameter startDate: The Watch's workout start time for elapsed time sync.
-    func startSessionFromMirroredWorkout(activityType: HKWorkoutActivityType, startDate: Date) async {
-        guard sessionState == .idle else {
-            Log.tracking.warning("startSessionFromMirroredWorkout: not idle, ignoring")
-            return
-        }
-
-        guard let plugin = createDefaultPlugin(for: activityType) else {
-            Log.tracking.error("startSessionFromMirroredWorkout: no plugin for activityType \(activityType.rawValue)")
-            return
-        }
-
-        Log.tracking.info("startSessionFromMirroredWorkout: starting with \(plugin.subscriberId)")
-
-        // Cancel any lingering tasks
-        cancelActiveTasks()
-
-        // Request location permission for GPS disciplines
-        if plugin.usesGPS {
-            if locationManager.needsPermission {
-                locationManager.requestPermission()
-                try? await Task.sleep(nanoseconds: 500_000_000)
-            }
-            guard locationManager.hasPermission else {
-                Log.tracking.warning("startSessionFromMirroredWorkout: no location permission")
-                return
-            }
-        }
-
-        // Set active plugin
-        activePlugin = plugin
-
-        // Create session model
-        guard let ctx = modelContext else {
-            Log.tracking.error("startSessionFromMirroredWorkout: no modelContext")
-            activePlugin = nil
-            return
-        }
-        let sessionModel = plugin.createSessionModel(in: ctx)
-        currentSessionModel = sessionModel
-        ctx.insert(sessionModel)
-
-        do {
-            try ctx.save()
-        } catch {
-            Log.tracking.error("startSessionFromMirroredWorkout: failed to save initial session: \(error)")
-        }
-
-        // Reset tracking state
-        totalDistance = 0
-        elapsedTime = 0
-        currentSpeed = 0
-        currentElevation = 0
-        elevationGain = 0
-        elevationLoss = 0
-        currentHeartRate = 0
-        averageHeartRate = 0
-        maxHeartRate = 0
-        minHeartRate = 0
-        currentHeartRateZone = .zone1
-        heartRateSamples = []
-        gpsSignalQuality = .none
-        gpsHorizontalAccuracy = -1
-        currentWeather = nil
-        weatherError = nil
-        startTime = startDate
-        timerTickCount = 0
-        pausedAccumulated = 0
-        lastPauseDate = nil
-        sessionState = .tracking
-
-        // Start GPS if discipline uses it
-        if plugin.usesGPS {
-            locationManager.clearTrackedPoints()
-            let gpsConfig = GPSSessionConfig(
-                subscriberId: plugin.subscriberId,
-                activityType: plugin.activityType,
-                checkpointInterval: 30,
-                modelContext: ctx,
-                workoutLifecycle: workoutLifecycle
-            )
-            await gpsTracker.start(config: gpsConfig, delegate: self)
-            gpsTracker.setStartTime(startDate)
-        }
-
-        // Family sharing
-        if plugin.supportsFamilySharing && !isSharingWithFamily {
-            if let contacts = try? sharingCoordinator.fetchRelationships(),
-               contacts.contains(where: { $0.canViewLiveTracking && $0.inviteStatus == .accepted }) {
-                isSharingWithFamily = true
-            }
-        }
-        if isSharingWithFamily && plugin.supportsFamilySharing {
-            await sharingCoordinator.startSharingLocation(activityType: plugin.sharingActivityType)
-        }
-
-        // Start timer, prevent screen lock
-        startTimer()
-        UIApplication.shared.isIdleTimerDisabled = true
-
-        // NOTE: Skip requestWatchWorkout() — Watch already owns the workout session.
-        // WorkoutLifecycleService state is already configured by setupMirroringHandler().
-
-        // Watch status updates (1Hz)
-        watchUpdateTimer?.invalidate()
-        watchUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.sendStatusToWatch()
-        }
-
-        // Fall detection
-        if plugin.usesFallDetection {
-            fallDetectionManager.startMonitoring()
-        }
-
-        // Activity classification
-        activityClassifier.startMonitoring()
-
-        // Watch session
-        watchManager.startSession(discipline: plugin.watchDiscipline)
-
-        // Weather
-        if plugin.usesGPS {
-            await fetchWeatherForSession()
-        }
-
-        // Audio coaching
-        audioCoach.startSession()
-        audioCoach.resetSafetyStatus()
-
-        // Notify plugin
-        await plugin.onSessionStarted(tracker: self)
-
-        Log.tracking.info("startSessionFromMirroredWorkout: session started — \(plugin.subscriberId)")
     }
 
     // MARK: - Plugin Access
@@ -521,29 +310,38 @@ final class SessionTracker {
         // Prevent screen from auto-locking
         UIApplication.shared.isIdleTimerDisabled = true
 
-        // Start workout lifecycle — use Watch-primary when Watch is paired and has the
-        // app installed. startWatchApp(toHandle:) will wake the Watch even if not reachable.
+        // Start workout lifecycle — always iPhone-primary.
+        // Wake Watch for HR sensor collection when available.
         let watchAvailable = watchManager.isPaired && watchManager.isWatchAppInstalled
         if watchAvailable {
+            // Wake Watch for HR sensor collection, then start iPhone-primary session
             do {
-                try await workoutLifecycle.requestWatchWorkout(configuration: plugin.workoutConfiguration)
+                try await workoutLifecycle.wakeWatch(configuration: plugin.workoutConfiguration)
             } catch {
-                Log.tracking.error("TT: Watch mirroring failed — stopping session: \(error)")
-                sessionStartError = "Could not start Watch workout: \(error.localizedDescription)"
+                Log.tracking.info("TT: Watch wake failed (non-fatal): \(error.localizedDescription)")
+            }
+            do {
+                try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration, skipWatchCommands: true)
+                if plugin.disableAutoCalories {
+                    workoutLifecycle.disableAutoCalories()
+                }
+            } catch {
+                Log.tracking.error("TT: iPhone-primary workout failed: \(error)")
+                sessionStartError = "Could not start workout: \(error.localizedDescription)"
                 stopSession()
                 return
             }
         } else {
             let paired = watchManager.isPaired
             let installed = watchManager.isWatchAppInstalled
-            Log.tracking.info("TT: Watch not available (paired=\(paired) installed=\(installed)) — using iPhone-primary mode")
+            Log.tracking.info("TT: Watch not available (paired=\(paired) installed=\(installed)) — using iPhone-only mode")
             do {
                 try await workoutLifecycle.startWorkoutFallback(configuration: plugin.workoutConfiguration)
                 if plugin.disableAutoCalories {
                     workoutLifecycle.disableAutoCalories()
                 }
             } catch {
-                Log.tracking.error("TT: iPhone-primary workout failed: \(error)")
+                Log.tracking.error("TT: iPhone-only workout failed: \(error)")
                 sessionStartError = "Could not start workout: \(error.localizedDescription)"
                 stopSession()
                 return
@@ -944,31 +742,8 @@ final class SessionTracker {
             DispatchQueue.main.async {
                 guard let self else { return }
 
-                // Elapsed time: Watch-authoritative, GPS-based, or wall-clock based
-                if self.workoutLifecycle.isWatchPrimary {
-                    // Correct startTime to Watch's actual start when mirrored session arrives.
-                    // iPhone's startTime was set before requestWatchWorkout() — Watch starts later.
-                    // Without this correction, iPhone timer runs ahead of Watch.
-                    if let watchStart = self.workoutLifecycle.mirroredSessionStartDate,
-                       self.startTime != watchStart {
-                        self.startTime = watchStart
-                        if self.activePlugin?.usesGPS == true {
-                            self.gpsTracker.setStartTime(watchStart)
-                        }
-                        Log.tracking.info("Corrected startTime to Watch's mirrored session startDate")
-                    }
-
-                    if self.workoutLifecycle.watchElapsedTime > 0 {
-                        // Watch sends authoritative elapsed time at 1Hz (handles pauses)
-                        self.elapsedTime = self.workoutLifecycle.watchElapsedTime
-                    } else if self.activePlugin?.usesGPS == true {
-                        // Before Watch data arrives, use GPS time (corrected startTime if available)
-                        self.elapsedTime = self.gpsTracker.elapsedTime
-                    } else {
-                        guard let start = self.startTime else { return }
-                        self.elapsedTime = Date().timeIntervalSince(start) - self.pausedAccumulated
-                    }
-                } else if self.activePlugin?.usesGPS == true {
+                // Elapsed time: GPS-based or wall-clock based
+                if self.activePlugin?.usesGPS == true {
                     self.elapsedTime = self.gpsTracker.elapsedTime
                 } else {
                     guard let start = self.startTime else { return }
@@ -1016,18 +791,13 @@ final class SessionTracker {
                     }
                 }
 
-                // Heart rate arrives via Watch relay:
-                // Watch-primary: mirrored session → updateFromMirroredHeartRate() → heartRateSequence
-                // Fallback: WCSession → heartRateUpdate → heartRateSequence
-                // Both paths increment heartRateSequence → startWatchHeartRateObservation()
-                //   fires → handleHeartRateUpdate()
-                // The builder's liveHeartRate is also checked as a fallback for iPhone-only mode
+                // Heart rate: Watch sends via WCSession → heartRateSequence →
+                //   startWatchHeartRateObservation() → handleHeartRateUpdate()
+                // The builder's liveHeartRate is also checked as a fallback
                 // (e.g., BLE chest strap without Watch)
-                if !self.workoutLifecycle.isWatchPrimary {
-                    let builderHR = self.workoutLifecycle.liveHeartRate
-                    if builderHR > 0 {
-                        self.handleHeartRateUpdate(builderHR)
-                    }
+                let builderHR = self.workoutLifecycle.liveHeartRate
+                if builderHR > 0 {
+                    self.handleHeartRateUpdate(builderHR)
                 }
 
                 // Notify plugin

@@ -403,14 +403,13 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         movementIntensity = 0.0
     }
 
-    /// Update heart rate from data received via HKWorkoutSession mirrored channel.
-    /// Converges with the WCSession `.heartRateUpdate` handler — both increment
-    /// `heartRateSequence` so SessionTracker observation handles them identically.
-    func updateFromMirroredHeartRate(_ bpm: Int) {
+    /// Update heart rate from any source (mirrored session, WCSession fallback, etc.).
+    /// Increments `heartRateSequence` so SessionTracker observation handles all sources identically.
+    func updateHeartRate(_ bpm: Int) {
         lastReceivedHeartRate = bpm
         heartRateSequence += 1
         let seq = heartRateSequence
-        Log.watch.info("updateFromMirroredHeartRate: \(bpm) bpm, seq=\(seq)")
+        Log.watch.info("updateHeartRate: \(bpm) bpm, seq=\(seq)")
     }
 
     /// Update motion metrics from a dictionary received via HKWorkoutSession mirrored channel.
@@ -539,13 +538,9 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
+        // Watch elapsed time via WCSession — iPhone-primary mode uses its own timer,
+        // so Watch elapsed time is informational only (logged but not consumed).
         if message["wcSessionElapsedTime"] != nil {
-            if let elapsed = message["elapsed"] as? TimeInterval {
-                let paused = message["isPaused"] as? Bool ?? false
-                Task { @MainActor in
-                    WorkoutLifecycleService.shared.updateWatchElapsedTime(elapsed, isPaused: paused)
-                }
-            }
             return
         }
 
@@ -669,21 +664,6 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
                 motionUpdateSequence += 1
                 enhancedSensorSequence += 1
-            }
-
-            // Handle mirroring handshake from Watch
-            if command == .mirroringStarted {
-                Log.watch.error("TT: received mirroringStarted from Watch")
-                WorkoutLifecycleService.shared.updateMirroringState(.mirroringInProgress)
-            }
-
-            // Handle mirroring failure — Watch kept its session for HR but mirroring failed.
-            // Fall back to iPhone-primary HKWorkoutSession.
-            if command == .mirroringFailed {
-                Log.watch.error("TT: received mirroringFailed from Watch — triggering iPhone-primary fallback")
-                Task { @MainActor in
-                    WorkoutLifecycleService.shared.onMirroringFailed?()
-                }
             }
 
             // Handle fall detection from Watch

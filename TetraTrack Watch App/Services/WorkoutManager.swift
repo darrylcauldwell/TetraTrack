@@ -106,7 +106,7 @@ final class WorkoutManager: NSObject {
     /// Whether this workout was started via iPhone's startWatchApp or mirroring
     private(set) var isMirroredFromiPhone: Bool = false
 
-    /// Whether data is being mirrored to iPhone (true for both iPhone-triggered and autonomous workouts)
+    /// Legacy flag kept for external file compatibility — always false (mirroring removed)
     private(set) var isMirroringToiPhone: Bool = false
 
     // MARK: - Initialization
@@ -174,62 +174,16 @@ final class WorkoutManager: NSObject {
         let collectedTypes = dataSource?.typesToCollect.map { $0.identifier }.joined(separator: ",") ?? "none"
         let hasHR = dataSource?.typesToCollect.contains(HKQuantityType(.heartRate)) ?? false
         Log.tracking.error("TT: startWorkoutFromiPhone — delegate=\(hasDelegate, privacy: .public) dataSource=\(hasDataSource, privacy: .public) typesToCollect=[\(collectedTypes, privacy: .public)] hasHR=\(hasHR, privacy: .public)")
-        // prepare() transitions to .prepared state, required before mirroring.
-        // The autonomous Watch path (line ~410) uses the same pattern and works.
-        // Ref: https://nonstrict.eu/blog/2024/hkworkoutsession-remote-delegate-not-setup-error/
+        // prepare() transitions to .prepared state, required before startActivity.
         session.prepare()
         let stateAfterPrepare = session.state.rawValue
         Log.tracking.error("TT: startWorkoutFromiPhone — session.prepare() done, state=\(stateAfterPrepare, privacy: .public)")
-        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared (state=\(stateAfterPrepare)), about to mirror")
-
-        var mirroringSucceeded = false
-        var lastMirroringError: String?
-        for attempt in 1...3 {
-            do {
-                let stateRaw = session.state.rawValue
-                Log.tracking.error("TT: mirroring attempt \(attempt, privacy: .public) — session.state=\(stateRaw, privacy: .public)")
-                WatchConnectivityService.sendDiagnostic("mirror attempt \(attempt): state=\(stateRaw)")
-
-                try await session.startMirroringToCompanionDevice()
-                mirroringSucceeded = true
-                break
-            } catch {
-                let nsErr = error as NSError
-                let errDetail = "domain=\(nsErr.domain) code=\(nsErr.code) desc=\(nsErr.localizedDescription)"
-                Log.tracking.error("TT: startMirroringToCompanionDevice attempt \(attempt, privacy: .public) FAILED: \(errDetail, privacy: .public)")
-                WatchConnectivityService.sendDiagnostic("mirror attempt \(attempt) FAIL: \(errDetail)")
-                lastMirroringError = errDetail
-                if attempt < 3 {
-                    let delay = UInt64(attempt) * 2_000_000_000  // 2s, 4s
-                    try? await Task.sleep(nanoseconds: delay)
-                }
-            }
-        }
-        // When mirroring fails, keep session alive for HR collection via HKLiveWorkoutDataSource.
-        // Wire WCSession fallback so HR + motion still reach iPhone (same as autonomous path).
-        if !mirroringSucceeded {
-            let discipline = mapActivityType(configuration.activityType).rawValue
-            let msg = WatchMessage(command: .mirroringFailed, discipline: discipline)
-            WatchConnectivityService.shared.sendReliableMessage(msg.toDictionary())
-            Log.tracking.error("TT: mirroring failed — sent mirroringFailed to iPhone, WCSession fallback active")
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring FAILED, WCSession fallback active")
-        } else {
-            Log.tracking.error("TT: startWorkoutFromiPhone — mirroring SUCCEEDED")
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: mirroring SUCCEEDED")
-        }
+        WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: session prepared (state=\(stateAfterPrepare)), iPhone-primary mode (no mirroring)")
 
         let startDate = Date()
         session.startActivity(with: startDate)
         try await builder.beginCollection(at: startDate)
         startAnchoredHRQuery(from: startDate)
-
-        // Notify iPhone only when mirroring actually succeeded.
-        // Uses transferUserInfo so status updates can't overwrite it via applicationContext.
-        if mirroringSucceeded {
-            let mirroringMsg = WatchMessage.mirroringStarted(discipline: mapActivityType(configuration.activityType).rawValue)
-            WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
-            Log.tracking.error("TT: sent mirroringStarted to iPhone (fromIPhone path, after beginCollection)")
-        }
 
         // --- TetraTrack-specific (AFTER core setup) ---
         workoutSession = session
@@ -238,19 +192,17 @@ final class WorkoutManager: NSObject {
         isWorkoutActive = true
         isCompanionMode = false
         isMirroredFromiPhone = true
-        isMirroringToiPhone = mirroringSucceeded
+        isMirroringToiPhone = false
         isPaused = false
         startTime = startDate
         resetMetrics()
 
-        // Wire WCSession callbacks when mirroring failed so HR + motion reach iPhone
-        if !mirroringSucceeded {
-            onHeartRateUpdate = { bpm in
-                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
-            }
-            onMotionDataSend = {
-                WatchConnectivityService.shared.sendMotionUpdate()
-            }
+        // Always wire WCSession callbacks — iPhone-primary mode, no mirroring
+        onHeartRateUpdate = { bpm in
+            WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+        }
+        onMotionDataSend = {
+            WatchConnectivityService.shared.sendMotionUpdate()
         }
 
         // Location tracking (outdoor activities)
@@ -277,51 +229,6 @@ final class WorkoutManager: NSObject {
 
         let typeName = activityType?.rawValue ?? "unknown"
         Log.tracking.error("TT: iPhone-triggered primary workout started: \(typeName, privacy: .public)")
-    }
-
-    /// Send authoritative elapsed time to iPhone via mirrored workout session.
-    /// Called at 1Hz from sendMirroredDataTick(). iPhone uses this instead of its own timer.
-    func sendElapsedTimeViaMirroredSession() {
-        guard let session = workoutSession else { return }
-
-        let elapsed = elapsedTime
-        let paused = isUserPaused
-        let envelope: [String: Any] = [
-            "type": "elapsedTime",
-            "elapsed": elapsed,
-            "isPaused": paused
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
-
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send elapsed time via mirrored session: \(error)")
-            }
-        }
-    }
-
-    /// Send heart rate to iPhone via mirrored workout session channel.
-    func sendHeartRateViaMirroredSession(_ bpm: Int) {
-        guard let session = workoutSession else { return }
-
-        let envelope: [String: Any] = [
-            "type": "heartRate",
-            "bpm": bpm,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
-
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send HR via mirrored session: \(error)")
-            }
-        }
     }
 
     // MARK: - Activity Type Mapping
@@ -454,11 +361,6 @@ final class WorkoutManager: NSObject {
             try await builder.beginCollection(at: startDate)
             startAnchoredHRQuery(from: startDate)
 
-            if mirroringSucceeded {
-                let mirroringMsg = WatchMessage.mirroringStarted(discipline: type.rawValue)
-                WatchConnectivityService.shared.sendReliableMessage(mirroringMsg.toDictionary())
-            }
-
             workoutSession = session
             workoutBuilder = builder
             activityType = type
@@ -535,30 +437,25 @@ final class WorkoutManager: NSObject {
         let endDate = Date()
         var healthKitSaveSucceeded = false
 
-        // When iPhone-triggered but mirroring failed, iPhone owns the official workout.
-        // Discard Watch's workout to avoid duplicate HealthKit entries.
-        let shouldDiscard = isMirroredFromiPhone && !isMirroringToiPhone
-
-        if shouldDiscard {
+        if isMirroredFromiPhone {
+            // iPhone owns the HealthKit record — always discard Watch's workout
             try? await workoutBuilder?.endCollection(at: endDate)
             workoutBuilder?.discardWorkout()
-            Log.health.info("Watch discarded workout — iPhone-primary fallback owns HealthKit record")
-        }
+            Log.health.info("Watch discarded workout — iPhone-primary owns HealthKit record")
+        } else {
+            do {
+                try await workoutBuilder?.endCollection(at: endDate)
 
-        if !shouldDiscard {
-        do {
-            try await workoutBuilder?.endCollection(at: endDate)
-
-            // Save workout to HealthKit
-            if let builder = workoutBuilder {
-                try await builder.finishWorkout()
-                healthKitSaveSucceeded = true
-                Log.health.info("Workout saved to HealthKit")
+                // Save workout to HealthKit
+                if let builder = workoutBuilder {
+                    try await builder.finishWorkout()
+                    healthKitSaveSucceeded = true
+                    Log.health.info("Workout saved to HealthKit")
+                }
+            } catch {
+                Log.tracking.error("Failed to end workout: \(error.localizedDescription)")
             }
-        } catch {
-            Log.tracking.error("Failed to end workout: \(error.localizedDescription)")
         }
-        } // end if !shouldDiscard
 
         // End session AFTER builder operations complete (Apple docs requirement)
         if let session = workoutSession, session.state == .running || session.state == .paused {
@@ -690,7 +587,7 @@ final class WorkoutManager: NSObject {
             isMirroredFromiPhone = UserDefaults.standard.bool(forKey: "activeWorkoutFromiPhone")
             isWorkoutActive = true
             isPaused = session.state == .paused
-            isMirroringToiPhone = true
+            isMirroringToiPhone = false
 
             // Restart elapsed timer
             if !isPaused {
@@ -813,7 +710,7 @@ final class WorkoutManager: NSObject {
                 guard let self else { return }
                 self.motionSendTickCount += 1
                 if self.motionSendTickCount == 1 || self.motionSendTickCount % 10 == 0 {
-                    Log.tracking.info("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), mirroring=\(self.isMirroringToiPhone)")
+                    Log.tracking.info("motionSend tick \(self.motionSendTickCount), HR=\(self.currentHeartRate), path=WCSession")
                 }
                 self.sendMirroredDataTick()
             }
@@ -831,55 +728,31 @@ final class WorkoutManager: NSObject {
     }
 
     private func sendMirroredDataTick() {
-        let metrics = WatchMotionManager.shared.currentMetrics()
-
-        if isMirroringToiPhone {
-            sendElapsedTimeViaMirroredSession()
-            sendMotionViaMirroredSession(metrics)
-            sendBuilderStatsViaMirroredSession()
-            // Send gait classification result if available (riding only — avoids heavy DSP init on Watch for other disciplines)
-            if activityType == .riding,
-               let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult {
-                sendGaitResultViaMirroredSession(gaitResult)
-            }
-            // Also send HR via mirrored session
-            if currentHeartRate > 0 {
-                sendHeartRateViaMirroredSession(currentHeartRate)
-            } else if motionSendTickCount % 30 == 0 {
-                Log.tracking.info("motionSend: HR is 0 at tick \(self.motionSendTickCount) — no HR sample from HKLiveWorkoutBuilder yet")
-            }
-            // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
-            if motionSendTickCount % 30 == 0 {
-                let hr = currentHeartRate
-                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=MIRRORED HR=\(hr, privacy: .public)")
-            }
-        } else {
-            // WCSession fallback: send all data channels that mirrored session normally carries.
-            // Motion (cadence, stance, altitude, compass, breathing, posture, tremor)
-            onMotionDataSend?()
-            // HR
-            if currentHeartRate > 0 {
-                onHeartRateUpdate?(currentHeartRate)
-            }
-            // Builder stats (calories, distance, step count, running metrics)
-            sendBuilderStatsViaWCSession()
-            // Elapsed time (Watch-authoritative)
-            if let start = startTime {
-                let elapsed = isUserPaused ? elapsedTime : Date().timeIntervalSince(start)
-                WatchConnectivityService.shared.sendElapsedTime(elapsed: elapsed, isPaused: isUserPaused)
-            }
-            // Gait classification (riding only)
-            if activityType == .riding,
-               let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult,
-               let resultJSON = try? JSONEncoder().encode(gaitResult),
-               let resultString = String(data: resultJSON, encoding: .utf8) {
-                WatchConnectivityService.shared.sendGaitResult(resultString, discipline: "riding")
-            }
-            // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
-            if motionSendTickCount % 30 == 0 {
-                let hr = currentHeartRate
-                Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION_FALLBACK HR=\(hr, privacy: .public)")
-            }
+        // Always send via WCSession — no mirroring path
+        // Motion (cadence, stance, altitude, compass, breathing, posture, tremor)
+        onMotionDataSend?()
+        // HR
+        if currentHeartRate > 0 {
+            onHeartRateUpdate?(currentHeartRate)
+        }
+        // Builder stats (calories, distance, step count, running metrics)
+        sendBuilderStatsViaWCSession()
+        // Elapsed time (Watch-authoritative)
+        if let start = startTime {
+            let elapsed = isUserPaused ? elapsedTime : Date().timeIntervalSince(start)
+            WatchConnectivityService.shared.sendElapsedTime(elapsed: elapsed, isPaused: isUserPaused)
+        }
+        // Gait classification (riding only)
+        if activityType == .riding,
+           let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult,
+           let resultJSON = try? JSONEncoder().encode(gaitResult),
+           let resultString = String(data: resultJSON, encoding: .utf8) {
+            WatchConnectivityService.shared.sendGaitResult(resultString, discipline: "riding")
+        }
+        // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
+        if motionSendTickCount % 30 == 0 {
+            let hr = currentHeartRate
+            Log.tracking.error("TT: dataTick \(self.motionSendTickCount, privacy: .public) path=WCSESSION HR=\(hr, privacy: .public)")
         }
     }
 
@@ -922,112 +795,6 @@ final class WorkoutManager: NSObject {
 
         guard !stats.isEmpty else { return }
         WatchConnectivityService.shared.sendBuilderStats(stats)
-    }
-
-    private func sendBuilderStatsViaMirroredSession() {
-        guard let session = workoutSession, let builder = workoutBuilder else { return }
-
-        var stats: [String: Any] = ["type": "builderStats"]
-        var hasStats = false
-
-        // Cumulative types — use sumQuantity()
-        if let cal = builder.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity() {
-            stats["activeCalories"] = cal.doubleValue(for: .kilocalorie())
-            hasStats = true
-        }
-        if let dist = builder.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity() {
-            stats["distance"] = dist.doubleValue(for: .meter())
-            hasStats = true
-        }
-        if let swimDist = builder.statistics(for: HKQuantityType(.distanceSwimming))?.sumQuantity() {
-            stats["distance"] = swimDist.doubleValue(for: .meter())
-            hasStats = true
-        }
-        if let steps = builder.statistics(for: HKQuantityType(.stepCount))?.sumQuantity() {
-            stats["stepCount"] = Int(steps.doubleValue(for: .count()))
-            hasStats = true
-        }
-        if let strokes = builder.statistics(for: HKQuantityType(.swimmingStrokeCount))?.sumQuantity() {
-            stats["swimmingStrokeCount"] = Int(strokes.doubleValue(for: .count()))
-            hasStats = true
-        }
-
-        // Instantaneous types — use mostRecentQuantity() or averageQuantity()
-        if let speed = builder.statistics(for: HKQuantityType(.runningSpeed))?.averageQuantity() {
-            stats["runningSpeed"] = speed.doubleValue(for: HKUnit.meter().unitDivided(by: .second()))
-            hasStats = true
-        }
-        if let power = builder.statistics(for: HKQuantityType(.runningPower))?.averageQuantity() {
-            stats["runningPower"] = power.doubleValue(for: .watt())
-            hasStats = true
-        }
-        if let stride = builder.statistics(for: HKQuantityType(.runningStrideLength))?.averageQuantity() {
-            stats["runningStrideLength"] = stride.doubleValue(for: .meter())
-            hasStats = true
-        }
-        if let gct = builder.statistics(for: HKQuantityType(.runningGroundContactTime))?.averageQuantity() {
-            stats["groundContactTime"] = gct.doubleValue(for: .secondUnit(with: .milli))
-            hasStats = true
-        }
-        if let osc = builder.statistics(for: HKQuantityType(.runningVerticalOscillation))?.averageQuantity() {
-            stats["verticalOscillation"] = osc.doubleValue(for: HKUnit.meterUnit(with: .centi))
-            hasStats = true
-        }
-
-        guard hasStats else { return }
-
-        guard let data = try? JSONSerialization.data(withJSONObject: stats) else { return }
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send builder stats via mirrored session: \(error)")
-            }
-        }
-    }
-
-    private func sendGaitResultViaMirroredSession(_ result: WatchGaitResult) {
-        guard let session = workoutSession else { return }
-
-        guard let resultJSON = try? JSONEncoder().encode(result),
-              let resultString = String(data: resultJSON, encoding: .utf8) else { return }
-
-        let envelope: [String: Any] = [
-            "type": "gaitResult",
-            "resultJSON": resultString
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
-
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send gait result via mirrored session: \(error)")
-            }
-        }
-    }
-
-    private func sendMotionViaMirroredSession(_ metrics: WatchMotionMetrics) {
-        guard let session = workoutSession else { return }
-
-        guard let metricsJSON = try? JSONEncoder().encode(metrics),
-              let metricsString = String(data: metricsJSON, encoding: .utf8) else { return }
-
-        let envelope: [String: Any] = [
-            "type": "motionData",
-            "metricsJSON": metricsString
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
-
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send motion via mirrored session: \(error)")
-            }
-        }
     }
 
     // MARK: - Elapsed Timer
@@ -1364,12 +1131,10 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             case .motionPaused:
                 Task { @MainActor in
                     Log.tracking.info("HealthKit motionPaused event — timer continues (isUserPaused=\(self.isUserPaused))")
-                    self.sendAutoPauseEventViaMirroredSession(paused: true)
                 }
             case .motionResumed:
                 Task { @MainActor in
                     Log.tracking.info("HealthKit motionResumed event — timer continues (isUserPaused=\(self.isUserPaused))")
-                    self.sendAutoPauseEventViaMirroredSession(paused: false)
                 }
             default:
                 break
@@ -1377,25 +1142,6 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         }
     }
 
-    /// Forward auto-pause events to iPhone via mirrored session for logging/UI.
-    private func sendAutoPauseEventViaMirroredSession(paused: Bool) {
-        guard let session = workoutSession, isMirroringToiPhone else { return }
-
-        let envelope: [String: Any] = [
-            "type": "autoPauseEvent",
-            "paused": paused,
-            "timestamp": Date().timeIntervalSince1970
-        ]
-
-        guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return }
-        Task {
-            do {
-                try await session.sendToRemoteWorkoutSession(data: data)
-            } catch {
-                Log.tracking.error("Failed to send auto-pause event via mirrored session: \(error)")
-            }
-        }
-    }
 
     nonisolated private func processHeartRateStatistics(_ statistics: HKStatistics?) {
         guard let statistics = statistics else {
