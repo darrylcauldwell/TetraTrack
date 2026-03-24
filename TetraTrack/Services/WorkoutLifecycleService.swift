@@ -529,21 +529,21 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
         Task { @MainActor in
             switch toState {
             case .prepared:
-                Log.health.error("TT: WorkoutLifecycleService session → prepared")
+                Log.health.info("TT: WorkoutLifecycleService session → prepared")
             case .running:
-                Log.health.error("TT: WorkoutLifecycleService session → running")
+                Log.health.info("TT: WorkoutLifecycleService session → running")
                 self.state = .active
             case .paused:
-                Log.health.error("TT: WorkoutLifecycleService session → paused")
+                Log.health.info("TT: WorkoutLifecycleService session → paused")
                 self.state = .paused
             case .stopped:
-                Log.health.error("TT: WorkoutLifecycleService session → stopped")
+                Log.health.info("TT: WorkoutLifecycleService session → stopped")
                 self.state = .ending
                 // Resume any code waiting for .stopped transition (WWDC 2025 end sequence)
                 self.stoppedContinuation?.resume()
                 self.stoppedContinuation = nil
             case .ended:
-                Log.health.error("TT: WorkoutLifecycleService session → ended")
+                Log.health.info("TT: WorkoutLifecycleService session → ended")
             default:
                 break
             }

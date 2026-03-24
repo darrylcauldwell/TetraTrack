@@ -135,10 +135,9 @@ final class WorkoutManager: NSObject {
 
     // MARK: - iPhone-Triggered Primary Workout
 
-    /// Start a primary workout on Watch, triggered by iPhone via startWatchApp.
-    /// Watch creates the session, builder, and data source, then mirrors to iPhone.
-    /// Aligned to Apple's MirroringWorkoutsSample (WWDC23) exact order:
-    /// session → builder → delegates → dataSource → mirror → startActivity → beginCollection
+    /// Start a workout on Watch for HR sensor collection, triggered by iPhone via startWatchApp.
+    /// iPhone owns the HKWorkoutSession — Watch provides HR/motion data via WCSession.
+    /// Watch creates its own session + builder for sensor activation, discards workout at end.
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async throws {
         guard workoutSession == nil else {
             Log.tracking.error("TT: startWorkoutFromiPhone — already have active session, skipping")
@@ -337,23 +336,12 @@ final class WorkoutManager: NSObject {
 
             session.prepare()
 
-            var mirroringSucceeded = false
-            do {
-                try await session.startMirroringToCompanionDevice()
-                mirroringSucceeded = true
-            } catch {
-                let errMsg = error.localizedDescription
-                Log.tracking.error("TT: startMirroringToCompanionDevice FAILED: \(errMsg, privacy: .public) — wiring WCSession fallback")
+            // Wire WCSession callbacks so HR + motion reach iPhone
+            onHeartRateUpdate = { bpm in
+                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
             }
-
-            // When mirroring fails, wire WCSession callbacks so HR + motion still reach iPhone.
-            if !mirroringSucceeded {
-                WorkoutManager.shared.onHeartRateUpdate = { bpm in
-                    WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
-                }
-                WorkoutManager.shared.onMotionDataSend = {
-                    WatchConnectivityService.shared.sendMotionUpdate()
-                }
+            onMotionDataSend = {
+                WatchConnectivityService.shared.sendMotionUpdate()
             }
 
             let startDate = Date()
@@ -366,7 +354,7 @@ final class WorkoutManager: NSObject {
             activityType = type
             isWorkoutActive = true
             isCompanionMode = false
-            isMirroringToiPhone = mirroringSucceeded
+            isMirroringToiPhone = false
             isPaused = false
             startTime = startDate
             resetMetrics()
@@ -390,7 +378,7 @@ final class WorkoutManager: NSObject {
 
             persistRecoveryContext()
             onWorkoutStateChanged?(true)
-            Log.tracking.info("Started \(type.rawValue) workout (mirroring to iPhone)")
+            Log.tracking.info("Started \(type.rawValue) workout (autonomous, WCSession to iPhone)")
 
         } catch {
             let errMsg = error.localizedDescription
@@ -624,9 +612,8 @@ final class WorkoutManager: NSObject {
     }
 
     // MARK: - Heart Rate Monitoring (Companion Mode)
-    // NOTE: This companion mode serves as fallback when HKWorkoutSession mirroring
-    // is unavailable. When mirroring is active, the Watch receives the mirrored session
-    // via setupMirroringHandler() and HR is auto-collected — this mode is not needed.
+    // Lightweight HR-only session for when Watch needs to provide HR
+    // without full workout tracking (e.g., iPhone-primary mode via WCSession).
 
     /// Start heart rate monitoring as a companion to iPhone session.
     /// Creates an HKWorkoutSession for live HR delivery without Watch-side
@@ -698,7 +685,7 @@ final class WorkoutManager: NSObject {
 
     // MARK: - Motion Data Sending
 
-    /// Start sending motion + HR data at 1Hz via mirrored session or WC fallback.
+    /// Start sending motion + HR data at 1Hz via WCSession to iPhone.
     func startMotionDataSending() {
         stopMotionDataSending()
         motionSendTickCount = 0
@@ -997,67 +984,12 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         _ workoutSession: HKWorkoutSession,
         didDisconnectFromRemoteDeviceWithError error: (any Error)?
     ) {
-        Task { @MainActor in
-            if let error {
-                let errMsg = error.localizedDescription
-                Log.tracking.error("TT: Watch mirrored session disconnected: \(errMsg, privacy: .public)")
-                WatchConnectivityService.sendDiagnostic("mirrored session disconnected: \(errMsg)")
-            } else {
-                Log.tracking.error("TT: Watch mirrored session disconnected (clean)")
-            }
+        // No-op — mirroring not used. Required by HKWorkoutSessionDelegate protocol.
+        if let error {
+            Log.tracking.info("Watch session remote disconnect: \(error.localizedDescription)")
         }
     }
 
-    nonisolated func workoutSession(
-        _ workoutSession: HKWorkoutSession,
-        didReceiveDataFromRemoteWorkoutSession data: [Data]
-    ) {
-        // Handle data sent from iPhone via sendToRemoteWorkoutSession
-        for item in data {
-            guard let payload = try? JSONSerialization.jsonObject(with: item) as? [String: Any],
-                  let type = payload["type"] as? String else { continue }
-
-            Task { @MainActor in
-                switch type {
-                case "statusUpdate":
-                    // iPhone sent live stats update
-                    if let duration = payload["duration"] as? TimeInterval {
-                        self.elapsedTime = duration
-                    }
-                case "haptic":
-                    if let hapticType = payload["hapticType"] as? String {
-                        switch hapticType {
-                        case "milestone": HapticManager.shared.playMilestoneHaptic()
-                        case "gaitChange": HapticManager.shared.playGaitChangeHaptic()
-                        case "zoneChange": HapticManager.shared.playZoneChangeHaptic(zone: 0)
-                        case "lap": HapticManager.shared.playLapCompleteHaptic()
-                        case "notification": HapticManager.shared.playNotificationHaptic()
-                        default: HapticManager.shared.playClickHaptic()
-                        }
-                    }
-                case "control":
-                    // iPhone sent control command via mirrored session
-                    if let action = payload["action"] as? String {
-                        switch action {
-                        case "pause":
-                            self.pauseWorkout()
-                            Log.tracking.info("Pause command from iPhone via mirrored session")
-                        case "resume":
-                            self.resumeWorkout()
-                            Log.tracking.info("Resume command from iPhone via mirrored session")
-                        case "stop":
-                            await self.stopWorkout()
-                            Log.tracking.info("Stop command from iPhone via mirrored session")
-                        default:
-                            break
-                        }
-                    }
-                default:
-                    break
-                }
-            }
-        }
-    }
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate
