@@ -329,6 +329,16 @@ struct TetraTrackApp: App {
             return
         }
 
+        // Recover interrupted workout session (iOS 26 crash recovery)
+        if let tracker = sessionTracker {
+            Task {
+                if let recovered = await WorkoutLifecycleService.shared.recoverInterruptedWorkout() {
+                    Log.app.info("Recovered interrupted \(recovered.discipline) workout from \(recovered.startDate)")
+                    // TODO: Restore SessionTracker to tracking state with recovered discipline
+                }
+            }
+        }
+
         // Activate Watch connectivity
         WatchConnectivityManager.shared.activate()
 

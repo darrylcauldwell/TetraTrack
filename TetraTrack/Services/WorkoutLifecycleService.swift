@@ -64,6 +64,9 @@ final class WorkoutLifecycleService: NSObject {
     // Tracked workout save task for ordered post-session pipeline
     private var workoutSaveTask: Task<HKWorkout?, Never>?
 
+    // Continuation for waiting on session .stopped state (WWDC 2025 lifecycle requirement)
+    private var stoppedContinuation: CheckedContinuation<Void, Never>?
+
     private override init() {
         super.init()
     }
@@ -75,7 +78,7 @@ final class WorkoutLifecycleService: NSObject {
     /// HKWorkoutSession for HR and sends data via WCSession.
     func wakeWatch(configuration: HKWorkoutConfiguration) async throws {
         try await healthStore.startWatchApp(toHandle: configuration)
-        Log.health.error("TT: startWatchApp succeeded — Watch will provide HR/motion via WCSession")
+        Log.health.info("TT: startWatchApp succeeded — Watch will provide HR/motion via WCSession")
     }
 
     // MARK: - Start Workout (iPhone-Primary)
@@ -114,7 +117,7 @@ final class WorkoutLifecycleService: NSObject {
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             session.delegate = self
 
-            // Prepare session
+            // Prepare session — allows sensors and external HR monitors to connect
             session.prepare()
 
             // Create live workout builder with auto data collection
@@ -124,6 +127,9 @@ final class WorkoutLifecycleService: NSObject {
                 healthStore: healthStore,
                 workoutConfiguration: configuration
             )
+
+            // 3-second countdown for sensor connection (WWDC 2025 recommendation)
+            try await Task.sleep(nanoseconds: 3_000_000_000)
 
             // Start the activity
             let startDate = Date()
@@ -287,17 +293,24 @@ final class WorkoutLifecycleService: NSObject {
                 try await builder.addMetadata(metadata)
             }
 
-            // End data collection
-            try await builder.endCollection(at: Date())
+            // Stop activity — initiates async transition to .stopped (WWDC 2025 requirement)
+            session.stopActivity(with: Date())
+
+            // Wait for session delegate to report .stopped before ending collection
+            if state != .ending {
+                await withCheckedContinuation { continuation in
+                    self.stoppedContinuation = continuation
+                }
+            }
+
+            // End data collection after session has fully stopped
+            let endDate = Date()
+            try await builder.endCollection(at: endDate)
 
             // Finalize and save the workout
             let workout = try await builder.finishWorkout()
 
-            // End session AFTER builder operations complete (Apple docs requirement)
-            session.end()
-            sessionEnded = true
-
-            // Attach route if we have one
+            // Attach route BEFORE ending session (route needs active session context)
             if let routeBuilder = routeBuilder, hasInsertedRouteData, let workout = workout {
                 do {
                     try await routeBuilder.finishRoute(with: workout, metadata: nil)
@@ -306,6 +319,10 @@ final class WorkoutLifecycleService: NSObject {
                     Log.health.error("WorkoutLifecycleService: failed to attach route: \(error)")
                 }
             }
+
+            // End session AFTER all builder and route operations complete
+            session.end()
+            sessionEnded = true
 
             cleanup()
             Log.health.info("WorkoutLifecycleService: saved workout \(workout?.uuid.uuidString ?? "unknown")")
@@ -354,6 +371,15 @@ final class WorkoutLifecycleService: NSObject {
         guard let session = workoutSession else {
             cleanup()
             return
+        }
+
+        session.stopActivity(with: Date())
+
+        // Wait for .stopped state before ending collection
+        if state != .ending {
+            await withCheckedContinuation { continuation in
+                self.stoppedContinuation = continuation
+            }
         }
 
         if let builder = workoutBuilder {
@@ -465,6 +491,9 @@ final class WorkoutLifecycleService: NSObject {
 
     private func cleanup() {
         clearSessionContext()
+        // Resume any pending stopped continuation to prevent leaks
+        stoppedContinuation?.resume()
+        stoppedContinuation = nil
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
@@ -499,12 +528,20 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
     ) {
         Task { @MainActor in
             switch toState {
+            case .prepared:
+                Log.health.error("TT: WorkoutLifecycleService session → prepared")
             case .running:
                 Log.health.error("TT: WorkoutLifecycleService session → running")
                 self.state = .active
             case .paused:
                 Log.health.error("TT: WorkoutLifecycleService session → paused")
                 self.state = .paused
+            case .stopped:
+                Log.health.error("TT: WorkoutLifecycleService session → stopped")
+                self.state = .ending
+                // Resume any code waiting for .stopped transition (WWDC 2025 end sequence)
+                self.stoppedContinuation?.resume()
+                self.stoppedContinuation = nil
             case .ended:
                 Log.health.error("TT: WorkoutLifecycleService session → ended")
             default:
