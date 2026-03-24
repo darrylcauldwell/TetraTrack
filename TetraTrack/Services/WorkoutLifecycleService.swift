@@ -64,8 +64,9 @@ final class WorkoutLifecycleService: NSObject {
     // Tracked workout save task for ordered post-session pipeline
     private var workoutSaveTask: Task<HKWorkout?, Never>?
 
-    // Continuation for waiting on session .stopped state (WWDC 2025 lifecycle requirement)
+    // Waiting for session .stopped state (WWDC 2025 lifecycle requirement)
     private var stoppedContinuation: CheckedContinuation<Void, Never>?
+    private var sessionDidStop: Bool = false
 
     private override init() {
         super.init()
@@ -285,6 +286,7 @@ final class WorkoutLifecycleService: NSObject {
         }
 
         state = .ending
+        sessionDidStop = false
         var sessionEnded = false
 
         do {
@@ -296,10 +298,17 @@ final class WorkoutLifecycleService: NSObject {
             // Stop activity — initiates async transition to .stopped (WWDC 2025 requirement)
             session.stopActivity(with: Date())
 
-            // Wait for session delegate to report .stopped before ending collection
-            if state != .ending {
+            // Wait for session delegate to confirm .stopped before ending collection.
+            // The delegate may fire before or after we reach this point (race),
+            // so check the flag first — only await if delegate hasn't fired yet.
+            if !sessionDidStop {
                 await withCheckedContinuation { continuation in
-                    self.stoppedContinuation = continuation
+                    if self.sessionDidStop {
+                        // Delegate fired between the check and continuation setup
+                        continuation.resume()
+                    } else {
+                        self.stoppedContinuation = continuation
+                    }
                 }
             }
 
@@ -373,12 +382,17 @@ final class WorkoutLifecycleService: NSObject {
             return
         }
 
+        sessionDidStop = false
         session.stopActivity(with: Date())
 
         // Wait for .stopped state before ending collection
-        if state != .ending {
+        if !sessionDidStop {
             await withCheckedContinuation { continuation in
-                self.stoppedContinuation = continuation
+                if self.sessionDidStop {
+                    continuation.resume()
+                } else {
+                    self.stoppedContinuation = continuation
+                }
             }
         }
 
@@ -494,6 +508,7 @@ final class WorkoutLifecycleService: NSObject {
         // Resume any pending stopped continuation to prevent leaks
         stoppedContinuation?.resume()
         stoppedContinuation = nil
+        sessionDidStop = false
         workoutSession = nil
         workoutBuilder = nil
         routeBuilder = nil
@@ -539,6 +554,7 @@ extension WorkoutLifecycleService: HKWorkoutSessionDelegate {
             case .stopped:
                 Log.health.info("TT: WorkoutLifecycleService session → stopped")
                 self.state = .ending
+                self.sessionDidStop = true
                 // Resume any code waiting for .stopped transition (WWDC 2025 end sequence)
                 self.stoppedContinuation?.resume()
                 self.stoppedContinuation = nil
