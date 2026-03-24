@@ -618,6 +618,27 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Diagnostics") {
+                    NavigationLink(destination: WatchDiagnosticsSettingsView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "ant")
+                                .font(.title2)
+                                .foregroundStyle(.orange)
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Watch Diagnostics")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+
+                                Text("Connectivity, HR flow, build info")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
                 // Data Management Section
                 Section {
                     // Clear Session History

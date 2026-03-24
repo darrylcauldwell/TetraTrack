@@ -54,6 +54,10 @@ struct ContentView: View {
                     // Page 4: Workload
                     WatchWorkloadView()
                         .tag(4)
+
+                    // Page 5: Diagnostics
+                    WatchDiagnosticsView()
+                        .tag(5)
                 }
                 .tabViewStyle(.verticalPage)
             }
