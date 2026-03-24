@@ -138,12 +138,18 @@ final class WorkoutManager: NSObject {
     /// Start a workout on Watch for HR sensor collection, triggered by iPhone via startWatchApp.
     /// iPhone owns the HKWorkoutSession — Watch provides HR/motion data via WCSession.
     /// Watch creates its own session + builder for sensor activation, discards workout at end.
+    /// Set synchronously at entry to prevent concurrent calls from both
+    /// handle(_ workoutConfiguration:) and WCSession .startWorkout command.
+    private var isStartingWorkout = false
+
     func startWorkoutFromiPhone(configuration: HKWorkoutConfiguration) async throws {
-        guard workoutSession == nil else {
-            Log.tracking.error("TT: startWorkoutFromiPhone — already have active session, skipping")
-            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: skipped (session exists)")
+        guard workoutSession == nil, !isStartingWorkout else {
+            Log.tracking.error("TT: startWorkoutFromiPhone — already have active session or starting, skipping")
+            WatchConnectivityService.sendDiagnostic("startWorkoutFromiPhone: skipped (session exists or starting)")
             return
         }
+        isStartingWorkout = true
+        defer { isStartingWorkout = false }
 
         let activityRaw = configuration.activityType.rawValue
         let locationRaw = configuration.locationType.rawValue
