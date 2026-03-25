@@ -195,7 +195,7 @@ final class WorkoutManager: NSObject {
         workoutBuilder = builder
         activityType = mapActivityType(configuration.activityType)
         isWorkoutActive = true
-        isCompanionMode = false
+        isCompanionMode = true
         isMirroredFromiPhone = true
         isMirroringToiPhone = false
         isPaused = false
