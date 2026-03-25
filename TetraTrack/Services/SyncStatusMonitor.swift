@@ -95,6 +95,9 @@ final class SyncStatusMonitor {
     /// Detailed error message (if any)
     private(set) var detailedError: String?
 
+    /// Whether the ModelContainer initialized with CloudKit or fell back to local-only
+    private(set) var isLocalOnlyMode: Bool = false
+
     // MARK: Private State
 
     private var monitoringTask: Task<Void, Never>?
@@ -313,6 +316,7 @@ final class SyncStatusMonitor {
 
     /// Force a status update (called when ModelContainer falls back to local-only)
     func setLocalOnlyMode(reason: String) {
+        isLocalOnlyMode = true
         status = CloudSyncStatus.error("Local Storage Only")
         detailedError = reason
         Log.family.warning("SyncStatusMonitor: Local-only mode - \(reason)")

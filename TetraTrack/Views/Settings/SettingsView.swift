@@ -619,6 +619,25 @@ struct SettingsView: View {
                 }
 
                 Section("Diagnostics") {
+                    NavigationLink(destination: CloudKitDiagnosticsView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "icloud")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("CloudKit Sync")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+
+                                Text("iCloud status, record zones, sync health")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
                     NavigationLink(destination: WatchDiagnosticsSettingsView()) {
                         HStack(spacing: 12) {
                             Image(systemName: "ant")
