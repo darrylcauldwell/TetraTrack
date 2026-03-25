@@ -18,6 +18,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case maps = "Offline Maps"
     case shooting = "Shooting Development"
     case data = "Data Management"
+    case diagnostics = "Diagnostics"
     case demo = "Demonstration Data"
 
     var id: String { rawValue }
@@ -33,6 +34,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .maps: return "map.fill"
         case .shooting: return "brain"
         case .data: return "externaldrive.fill"
+        case .diagnostics: return "stethoscope"
         case .demo: return "sparkles.rectangle.stack"
         }
     }
@@ -48,6 +50,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .maps: return AppColors.primary
         case .shooting: return .purple
         case .data: return .red
+        case .diagnostics: return .orange
         case .demo: return .orange
         }
     }
@@ -218,6 +221,13 @@ struct SettingsView: View {
                         .tag(section)
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                Text("TetraTrack \(appVersionString)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            }
             .listStyle(.sidebar)
             .navigationTitle("Settings")
         } detail: {
@@ -256,6 +266,8 @@ struct SettingsView: View {
                     shootingContent
                 case .data:
                     dataManagementContent
+                case .diagnostics:
+                    diagnosticsContent
                 case .demo:
                     demoContent
                 }
@@ -819,6 +831,18 @@ struct SettingsView: View {
                         Text("Toggle on to see example training history, horses, and competitions. Toggle off to remove all demonstration data.")
                     }
                 }
+
+                // Version info
+                Section {
+                    HStack {
+                        Spacer()
+                        Text("TetraTrack \(appVersionString)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
             }
         }
 
@@ -1215,6 +1239,54 @@ struct SettingsView: View {
                     .foregroundStyle(.orange)
             }
         }
+    }
+
+    private var diagnosticsContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: CloudKitDiagnosticsView()) {
+                SettingsRowContent(
+                    icon: "icloud",
+                    iconColor: .blue,
+                    title: "CloudKit Sync",
+                    subtitle: "iCloud status, record zones, sync health"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            NavigationLink(destination: WatchDiagnosticsSettingsView()) {
+                SettingsRowContent(
+                    icon: "ant",
+                    iconColor: .orange,
+                    title: "Watch Diagnostics",
+                    subtitle: "Connectivity, HR flow, build info"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            // Build info
+            HStack {
+                Text("Version")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(appVersionString)
+                    .font(.subheadline.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
+            .padding()
+        }
+    }
+
+    private var appVersionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
     }
 
     private var demoContent: some View {
