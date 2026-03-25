@@ -73,8 +73,6 @@ struct WalkingView: View {
         if let route = route {
             session.matchedRouteId = route.id
         }
-        modelContext.insert(session)
-
         tracker?.isSharingWithFamily = shareWithFamily
         let plugin = WalkingPlugin(
             session: session,

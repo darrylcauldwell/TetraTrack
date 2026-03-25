@@ -118,8 +118,6 @@ struct SwimmingView: View {
             poolMode: poolMode,
             poolLength: poolLength
         )
-        modelContext.insert(session)
-
         let plugin = SwimmingPlugin(
             session: session,
             intervalSettings: type == .intervals ? intervalSettings : nil,

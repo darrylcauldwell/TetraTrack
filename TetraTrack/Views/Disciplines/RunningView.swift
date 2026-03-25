@@ -192,7 +192,6 @@ struct RunningView: View {
             runMode: .outdoor
         )
         session.programSessionId = programSession.id
-        modelContext.insert(session)
 
         tracker?.isSharingWithFamily = shareWithFamily
         let plugin = RunningPlugin(
@@ -217,7 +216,6 @@ struct RunningView: View {
             )
             session.targetCadence = config.targetCadence
             session.trackLength = config.trackLength
-            modelContext.insert(session)
 
             tracker?.isSharingWithFamily = shareWithFamily
             let plugin = RunningPlugin(
@@ -238,7 +236,6 @@ struct RunningView: View {
                 runMode: config.runMode
             )
             session.targetCadence = config.targetCadence
-            modelContext.insert(session)
 
             tracker?.isSharingWithFamily = shareWithFamily
             let plugin = RunningPlugin(
@@ -259,7 +256,6 @@ struct RunningView: View {
                 runMode: config.runMode
             )
             session.targetCadence = config.targetCadence
-            modelContext.insert(session)
             if settings.useTargetTime && settings.targetDistance > 0 {
                 VirtualPacer.shared.start(targetTime: settings.targetTime, forDistance: settings.targetDistance)
             } else {
