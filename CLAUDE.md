@@ -5,7 +5,7 @@ Shared Swift/iOS conventions (tech stack, code style, testing, error handling) a
 
 ## Project Overview
 
-TetraTrack is a multi-discipline training app for iOS 26+ and watchOS 26+ targeting tetrathlon and eventing athletes. It tracks four disciplines: riding (equestrian with GPS, gait detection, balance analysis), running (1500m time trials, virtual pacer, treadmill mode), swimming (pool and open-water with stroke detection), and shooting (competition card scanning, stance tracking).
+TetraTrack is a tetrathlon training app for iOS 26+ and watchOS 26+. It captures two disciplines in-app: **riding** (equestrian with GPS, gait detection, balance analysis) and **shooting** (competition card scanning, stance tracking). For running, swimming, walking, and all other workout types, the app enriches native Apple Watch workouts from HealthKit with detailed metrics, actionable insights, cross-discipline analytics, and AI-powered training analysis mapped to 5 biomechanical pillars (Stability, Rhythm, Symmetry, Economy, Physiology).
 
 ## Build Commands
 
@@ -46,12 +46,13 @@ TetraTrack/
 │   ├── Services/                    # Business logic and managers
 │   │   ├── SessionTracker.swift     # Unified session tracker (all disciplines)
 │   │   ├── DisciplinePlugin.swift   # Protocol for discipline-specific logic
-│   │   ├── Plugins/                 # DisciplinePlugin implementations
-│   │   │   └── RidingPlugin.swift   # Riding-specific session logic
+│   │   ├── Plugins/                 # DisciplinePlugin implementations (Riding + Shooting only)
+│   │   │   ├── RidingPlugin.swift   # Riding-specific session logic
+│   │   │   └── ShootingPlugin.swift # Shooting-specific session logic
 │   │   ├── Intelligence/            # Apple Intelligence integration
 │   │   └── [service files]
 │   ├── Views/                       # SwiftUI views by feature area
-│   │   ├── Disciplines/             # Riding, Running, Swimming, Shooting
+│   │   ├── Disciplines/             # Riding, Shooting (capture) + drills for all disciplines
 │   │   ├── Tracking/                # Active session UI
 │   │   └── [subdirectories]
 │   ├── Utilities/                   # Helpers (formatters, colors, calculators)
@@ -103,6 +104,17 @@ let ridingPlugin = tracker?.plugin(as: RidingPlugin.self)
 ```
 
 **`SessionState`** (`idle`, `tracking`, `paused`) replaces the old `RideState`. A `typealias RideState = SessionState` exists for backward compatibility until all disciplines are migrated.
+
+### HealthKit Workout Enrichment
+
+Running, swimming, walking, and all other workout types are captured via native Apple Watch. TetraTrack enriches these from HealthKit:
+
+- `WorkoutEnrichmentService` — fetches HR timeseries, per-km splits, walking/running/swimming/cycling metrics, elevation, route
+- `WorkoutInsightsGenerator` — generates actionable insights by comparing against recent history (pace trends, PBs, form feedback, consistency)
+- `EnrichedWorkoutDetailView` — rich detail view with HR chart + zones, splits, activity-specific metrics, photos, insights
+- `ExternalWorkoutService` — queries HealthKit for workouts, shown by default in Training History
+
+Legacy `RunningSession` and `SwimmingSession` models remain in the CloudKit schema but no new instances are created. Historical sessions route through `EnrichedWorkoutDetailView` via `asExternalWorkout` conversion.
 
 ### Dependency Injection
 
@@ -295,13 +307,4 @@ Issues are grouped into milestones that represent themed releases:
 
 ## CI Pipeline
 
-- **Every push to main**: full validation (SwiftLint, @Relationship lint, version consistency, metadata limits, build all targets) + TestFlight deploy
-- Unit tests are **not** run in CI — simulator boot on macos-26 runners is unreliable. Run locally via `Scripts/preflight.sh` before pushing.
-
-## TestFlight Upload Commands
-
-```bash
-rm -rf ~/Library/Developer/Xcode/DerivedData/TetraTrack-*
-xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrack -configuration Release -archivePath /tmp/TetraTrack.xcarchive clean archive
-xcodebuild -exportArchive -archivePath /tmp/TetraTrack.xcarchive -exportPath /tmp/TetraTrackExport -exportOptionsPlist TetraTrack/ExportOptions.plist
-```
+CI/CD follows the standard iOS playbook in `~/.claude/ios-cicd-playbook.md`. TestFlight deploys via GitHub Actions on every push to main.

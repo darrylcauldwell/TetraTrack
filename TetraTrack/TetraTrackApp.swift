@@ -75,8 +75,8 @@ struct TetraTrackApp: App {
             RunningLocationPoint.self, // SCHEMA-ONLY: CloudKit backward compat
             SwimmingLocationPoint.self, // SCHEMA-ONLY: CloudKit backward compat
             UnifiedDrillSession.self,
-            RunningSession.self,
-            SwimmingSession.self,
+            RunningSession.self,       // SCHEMA-ONLY: CloudKit backward compat (capture removed, uses HealthKit)
+            SwimmingSession.self,      // SCHEMA-ONLY: CloudKit backward compat (capture removed, uses HealthKit)
             ShootingSession.self,
             // Route planning models
             PlannedRoute.self,
