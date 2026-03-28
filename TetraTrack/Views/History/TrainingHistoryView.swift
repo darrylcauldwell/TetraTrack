@@ -324,7 +324,7 @@ struct SessionHistoryView: View {
     @ViewBuilder
     private func detailView(for item: SessionHistoryItem) -> some View {
         if let ext = item.externalWorkout {
-            ExternalWorkoutDetailView(workout: ext)
+            EnrichedWorkoutDetailView(workout: ext)
         } else {
             switch item.discipline {
             case .riding:
@@ -439,7 +439,7 @@ struct SessionHistoryView: View {
     @ViewBuilder
     private func destinationView(for item: SessionHistoryItem) -> some View {
         if let ext = item.externalWorkout {
-            ExternalWorkoutDetailView(workout: ext)
+            EnrichedWorkoutDetailView(workout: ext)
         } else {
             switch item.discipline {
             case .riding:
