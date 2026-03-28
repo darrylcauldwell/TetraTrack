@@ -925,43 +925,93 @@ private extension IntelligenceService {
 
         1. **Stability** (balance, core, body control):
            - Yoga → balance poses, flexibility, proprioception
+           - Pilates → deep core activation, spinal alignment, controlled movement
+           - Core Training → direct core and postural muscle strengthening
            - Cycling → core engagement on the bike, seated stability
            - Walking → gait steadiness, double support percentage
+           - Hiking → balance on uneven terrain, ankle stability, load-bearing posture
            - Running → vertical oscillation, posture control
            - Swimming → streamline body position, kick stability
            - Strength → foundational core and postural strength
            - HIIT → core stability under fatigue
+           - Rowing → trunk stability through drive phase, postural control
+           - Elliptical → upright posture maintenance, low-impact stability
+           - Dance → dynamic balance, spatial awareness, proprioception
+           - Cross Training → varied stability demands across movements
+           - Cooldown → postural awareness during recovery stretches
+           - Mixed Cardio → general stability across varied movements
 
         2. **Rhythm** (cadence, timing, tempo):
            - Running → stride cadence (target ~180 spm), ground contact time
            - Cycling → pedal cadence (target ~90 rpm)
            - Walking → step cadence, gait regularity
+           - Hiking → pace management over varied terrain and elevation
            - Swimming → stroke rate consistency
+           - Rowing → drive-recovery ratio, stroke rate consistency
            - Yoga → breath rhythm, flow transitions
-           - HIIT → work/rest interval timing
+           - Pilates → controlled movement tempo, breath-movement coordination
+           - HIIT → work/rest interval timing, pace discipline
+           - Dance → musical timing, movement synchronisation
+           - Elliptical → stride rate consistency, arm-leg coordination
+           - Core Training → rep tempo, isometric hold timing
+           - Strength → rep tempo, time under tension
+           - Cross Training → tempo variation across exercises
+           - Cooldown → breathing rhythm, gradual pace reduction
+           - Mixed Cardio → maintaining rhythm across modalities
 
         3. **Symmetry** (bilateral balance, even loading):
            - Walking → gait asymmetry percentage
+           - Hiking → bilateral loading on ascent/descent
            - Running → stride length symmetry, L/R ground contact
            - Cycling → L/R power balance
            - Yoga → bilateral flexibility balance
-           - Swimming → bilateral stroke balance
+           - Pilates → unilateral exercises, L/R muscle balance
+           - Swimming → bilateral stroke balance, breathing side
+           - Rowing → catch-drive symmetry, L/R pull balance
            - Strength → unilateral exercises, L/R strength balance
+           - Dance → bilateral movement patterns, turning balance
+           - Elliptical → L/R stride symmetry
+           - Core Training → anti-rotation, bilateral plank balance
+           - HIIT → balanced exercise selection across sides
+           - Cross Training → varied bilateral demands
+           - Cooldown → bilateral stretching balance
+           - Mixed Cardio → movement variety helps address imbalances
 
         4. **Economy** (efficiency, doing more with less):
-           - Running → running economy (pace vs HR), SWOLF-like efficiency
+           - Running → running economy (pace vs HR)
            - Swimming → SWOLF score (strokes + time per lap)
            - Cycling → power-to-speed ratio, watts/kg
            - Walking → walking efficiency (speed vs effort)
+           - Hiking → elevation efficiency (ascent rate vs HR)
+           - Rowing → meters per stroke, power curve efficiency
            - Yoga → movement efficiency, breath economy
+           - Pilates → precise controlled movement, minimal wasted energy
+           - Elliptical → stride efficiency, pace vs effort
+           - Dance → movement fluidity, energy conservation between phrases
+           - Strength → progressive overload efficiency, form quality
+           - Core Training → hold duration improvement, efficient activation
+           - HIIT → power output per interval, recovery efficiency
+           - Cross Training → general movement economy
+           - Cooldown → efficient transition from effort to rest
+           - Mixed Cardio → aerobic efficiency across modalities
 
         5. **Physiology** (cardiovascular fitness, recovery):
            - All workouts → HR zones, average HR, max HR
-           - Running/Cycling → aerobic base building
-           - Yoga → parasympathetic recovery, HRV improvement
-           - HIIT → anaerobic capacity, HR recovery speed
-           - Walking → active recovery, low-stress aerobic work
-           - Strength → muscle adaptation, metabolic conditioning
+           - Running/Cycling → aerobic base building, VO2 max development
+           - Hiking → sustained low-intensity aerobic work, altitude adaptation
+           - Swimming → breath control, SpO2, aquatic HR response
+           - Rowing → full-body cardiovascular demand, lactate threshold
+           - Yoga → parasympathetic recovery, HRV improvement, flexibility
+           - Pilates → breathing efficiency, mind-body recovery
+           - HIIT → anaerobic capacity, HR recovery speed, lactate tolerance
+           - Walking → active recovery, low-stress aerobic base
+           - Elliptical → low-impact aerobic conditioning, joint-friendly cardio
+           - Dance → aerobic endurance, coordination under cardiovascular load
+           - Strength → muscle adaptation, metabolic conditioning, bone density
+           - Core Training → postural endurance, respiratory muscle conditioning
+           - Cross Training → broad cardiovascular adaptation
+           - Cooldown → parasympathetic activation, HR recovery rate
+           - Mixed Cardio → varied cardiovascular stimulus
 
         For each pillar, provide a specific insight about how this athlete's training
         contributes to it. Be specific with numbers where available.
