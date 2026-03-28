@@ -912,7 +912,7 @@ private extension IntelligenceService {
         }.count
 
         return """
-        Analyze this athlete's Apple Watch workout history for a tetrathlon athlete:
+        Analyze this athlete's Apple Watch workout history for a tetrathlon athlete.
 
         WORKOUT SUMMARY (\(totalWorkouts) total, \(weeklyCount) this week):
         \(breakdown)
@@ -920,14 +920,54 @@ private extension IntelligenceService {
         This data comes from Apple Watch workouts (HealthKit). The athlete also does
         riding and shooting via TetraTrack.
 
-        Analyze:
-        1. Training consistency and frequency
-        2. How this cross-training supports tetrathlon performance
-        3. Discipline balance and any gaps
-        4. Fitness trend based on volume and heart rate data
-        5. Specific recommendations for improvement
+        TetraTrack uses 5 BIOMECHANICAL PILLARS to assess training. Every workout type
+        contributes to these pillars differently. Map each workout type to the pillars:
 
-        Be encouraging but honest. Focus on actionable advice for tetrathlon competition readiness.
+        1. **Stability** (balance, core, body control):
+           - Yoga → balance poses, flexibility, proprioception
+           - Cycling → core engagement on the bike, seated stability
+           - Walking → gait steadiness, double support percentage
+           - Running → vertical oscillation, posture control
+           - Swimming → streamline body position, kick stability
+           - Strength → foundational core and postural strength
+           - HIIT → core stability under fatigue
+
+        2. **Rhythm** (cadence, timing, tempo):
+           - Running → stride cadence (target ~180 spm), ground contact time
+           - Cycling → pedal cadence (target ~90 rpm)
+           - Walking → step cadence, gait regularity
+           - Swimming → stroke rate consistency
+           - Yoga → breath rhythm, flow transitions
+           - HIIT → work/rest interval timing
+
+        3. **Symmetry** (bilateral balance, even loading):
+           - Walking → gait asymmetry percentage
+           - Running → stride length symmetry, L/R ground contact
+           - Cycling → L/R power balance
+           - Yoga → bilateral flexibility balance
+           - Swimming → bilateral stroke balance
+           - Strength → unilateral exercises, L/R strength balance
+
+        4. **Economy** (efficiency, doing more with less):
+           - Running → running economy (pace vs HR), SWOLF-like efficiency
+           - Swimming → SWOLF score (strokes + time per lap)
+           - Cycling → power-to-speed ratio, watts/kg
+           - Walking → walking efficiency (speed vs effort)
+           - Yoga → movement efficiency, breath economy
+
+        5. **Physiology** (cardiovascular fitness, recovery):
+           - All workouts → HR zones, average HR, max HR
+           - Running/Cycling → aerobic base building
+           - Yoga → parasympathetic recovery, HRV improvement
+           - HIIT → anaerobic capacity, HR recovery speed
+           - Walking → active recovery, low-stress aerobic work
+           - Strength → muscle adaptation, metabolic conditioning
+
+        For each pillar, provide a specific insight about how this athlete's training
+        contributes to it. Be specific with numbers where available.
+
+        Also provide actionable recommendations for tetrathlon competition readiness.
+        Be encouraging but honest.
         """
     }
 
@@ -1375,16 +1415,22 @@ struct ExternalWorkoutInsights: Codable, Sendable {
     /// Brief summary of the athlete's external training
     let summary: String
 
-    /// Training consistency assessment
-    let consistencyAssessment: String
+    /// How this workout contributes to the Stability pillar
+    let stabilityInsight: String
 
-    /// Discipline balance based on workout types
-    let disciplineBalance: String
+    /// How this workout contributes to the Rhythm pillar
+    let rhythmInsight: String
 
-    /// Fitness trend observation
-    let fitnessTrend: String
+    /// How this workout contributes to the Symmetry pillar
+    let symmetryInsight: String
 
-    /// Actionable recommendations
+    /// How this workout contributes to the Economy pillar
+    let economyInsight: String
+
+    /// How this workout contributes to the Physiology pillar
+    let physiologyInsight: String
+
+    /// Actionable recommendations for tetrathlon performance
     let recommendations: [String]
 
     /// Encouraging message
