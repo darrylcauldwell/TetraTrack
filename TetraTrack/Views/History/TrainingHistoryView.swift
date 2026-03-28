@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import HealthKit
 import WidgetKit
 import Charts
 
@@ -210,7 +211,8 @@ struct SessionHistoryView: View {
                         rides: rides,
                         runningSessions: runningSessions,
                         swimmingSessions: swimmingSessions,
-                        shootingSessions: shootingSessions
+                        shootingSessions: shootingSessions,
+                        externalWorkouts: externalWorkoutService.workouts
                     )
                 }
             }
@@ -571,6 +573,7 @@ struct SessionInsightsView: View {
     let runningSessions: [RunningSession]
     let swimmingSessions: [SwimmingSession]
     let shootingSessions: [ShootingSession]
+    var externalWorkouts: [ExternalWorkout] = []
 
     @State private var selectedLens: DisciplineLens = .unified
 
@@ -604,10 +607,36 @@ struct SessionInsightsView: View {
         }
     }
 
+    // MARK: - External Workout Helpers
+
+    private var externalRuns: [ExternalWorkout] {
+        externalWorkouts.filter { $0.activityType == .running || $0.activityType == .hiking }
+    }
+
+    private var externalWalks: [ExternalWorkout] {
+        externalWorkouts.filter { $0.activityType == .walking }
+    }
+
+    private var externalSwims: [ExternalWorkout] {
+        externalWorkouts.filter { $0.activityType == .swimming }
+    }
+
+    private var externalCycles: [ExternalWorkout] {
+        externalWorkouts.filter { $0.activityType == .cycling }
+    }
+
+    private var externalOther: [ExternalWorkout] {
+        externalWorkouts.filter {
+            $0.activityType != .running && $0.activityType != .hiking &&
+            $0.activityType != .walking && $0.activityType != .swimming &&
+            $0.activityType != .cycling && $0.activityType != .equestrianSports
+        }
+    }
+
     // MARK: - Computed Properties
 
     private var totalSessions: Int {
-        rides.count + runningSessions.count + swimmingSessions.count + shootingSessions.count
+        rides.count + runningSessions.count + swimmingSessions.count + shootingSessions.count + externalWorkouts.count
     }
 
     private var hasData: Bool {
@@ -616,25 +645,51 @@ struct SessionInsightsView: View {
 
     private var recentWindowDays: Int { 14 }
 
+    private var recentCutoff: Date {
+        Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: Date()) ?? Date()
+    }
+
     private var recentRides: [Ride] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: Date()) ?? Date()
-        return rides.filter { $0.startDate >= cutoff }
+        rides.filter { $0.startDate >= recentCutoff }
     }
 
     private var recentRuns: [RunningSession] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: Date()) ?? Date()
-        return runningSessions.filter { $0.startDate >= cutoff }
+        runningSessions.filter { $0.startDate >= recentCutoff }
     }
 
     private var recentSwims: [SwimmingSession] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: Date()) ?? Date()
-        return swimmingSessions.filter { $0.startDate >= cutoff }
+        swimmingSessions.filter { $0.startDate >= recentCutoff }
     }
 
     private var recentShoots: [ShootingSession] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -recentWindowDays, to: Date()) ?? Date()
-        return shootingSessions.filter { $0.startDate >= cutoff }
+        shootingSessions.filter { $0.startDate >= recentCutoff }
     }
+
+    private var recentExternalRuns: [ExternalWorkout] {
+        externalRuns.filter { $0.startDate >= recentCutoff }
+    }
+
+    private var recentExternalWalks: [ExternalWorkout] {
+        externalWalks.filter { $0.startDate >= recentCutoff }
+    }
+
+    private var recentExternalSwims: [ExternalWorkout] {
+        externalSwims.filter { $0.startDate >= recentCutoff }
+    }
+
+    private var recentExternalCycles: [ExternalWorkout] {
+        externalCycles.filter { $0.startDate >= recentCutoff }
+    }
+
+    private var recentExternalOther: [ExternalWorkout] {
+        externalOther.filter { $0.startDate >= recentCutoff }
+    }
+
+    /// Combined run count (TetraTrack + HealthKit)
+    private var totalRunCount: Int { runningSessions.count + externalRuns.count }
+    private var totalSwimCount: Int { swimmingSessions.count + externalSwims.count }
+    private var recentRunCount: Int { recentRuns.count + recentExternalRuns.count }
+    private var recentSwimCount: Int { recentSwims.count + recentExternalSwims.count }
 
     var body: some View {
         ScrollView {
@@ -720,11 +775,27 @@ struct SessionInsightsView: View {
     }
 
     private var sessionDistributionRow: some View {
-        HStack(spacing: 12) {
-            sessionCountPill("Ride", count: rides.count, recent: recentRides.count, color: .green, icon: "figure.equestrian.sports")
-            sessionCountPill("Run", count: runningSessions.count, recent: recentRuns.count, color: .orange, icon: "figure.run")
-            sessionCountPill("Swim", count: swimmingSessions.count, recent: recentSwims.count, color: .blue, icon: "figure.pool.swim")
-            sessionCountPill("Shoot", count: shootingSessions.count, recent: recentShoots.count, color: .red, icon: "target")
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                sessionCountPill("Ride", count: rides.count, recent: recentRides.count, color: .green, icon: "figure.equestrian.sports")
+                sessionCountPill("Run", count: totalRunCount, recent: recentRunCount, color: .orange, icon: "figure.run")
+                sessionCountPill("Swim", count: totalSwimCount, recent: recentSwimCount, color: .blue, icon: "figure.pool.swim")
+                sessionCountPill("Shoot", count: shootingSessions.count, recent: recentShoots.count, color: .red, icon: "target")
+            }
+
+            if !externalWalks.isEmpty || !externalCycles.isEmpty || !externalOther.isEmpty {
+                HStack(spacing: 12) {
+                    if !externalWalks.isEmpty {
+                        sessionCountPill("Walk", count: externalWalks.count, recent: recentExternalWalks.count, color: .mint, icon: "figure.walk")
+                    }
+                    if !externalCycles.isEmpty {
+                        sessionCountPill("Cycle", count: externalCycles.count, recent: recentExternalCycles.count, color: .cyan, icon: "figure.outdoor.cycle")
+                    }
+                    if !externalOther.isEmpty {
+                        sessionCountPill("Other", count: externalOther.count, recent: recentExternalOther.count, color: .purple, icon: "figure.mixed.cardio")
+                    }
+                }
+            }
         }
     }
 
@@ -748,7 +819,8 @@ struct SessionInsightsView: View {
     }
 
     private var trainingFrequencyInsight: some View {
-        let recentTotal = recentRides.count + recentRuns.count + recentSwims.count + recentShoots.count
+        let recentExternalCount = externalWorkouts.filter { $0.startDate >= recentCutoff }.count
+        let recentTotal = recentRides.count + recentRuns.count + recentSwims.count + recentShoots.count + recentExternalCount
         let avgPerWeek = Double(recentTotal) / 2.0
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -768,8 +840,13 @@ struct SessionInsightsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                // Discipline balance assessment
-                let disciplineCount = [recentRides.count > 0, recentRuns.count > 0, recentSwims.count > 0, recentShoots.count > 0].filter { $0 }.count
+                // Discipline balance assessment — includes external workouts
+                let disciplineCount = [
+                    recentRides.count > 0,
+                    recentRunCount > 0,
+                    recentSwimCount > 0,
+                    recentShoots.count > 0
+                ].filter { $0 }.count
 
                 if disciplineCount == 4 {
                     InsightBadge(text: "All four disciplines active", style: .positive)
