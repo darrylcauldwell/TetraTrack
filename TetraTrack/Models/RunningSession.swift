@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HealthKit
 import SwiftData
 import CoreLocation
 
@@ -236,7 +237,7 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
         }
     }
 
-    // MARK: - Segment PBs
+    // MARK: - Segment PBs (legacy — SegmentPBAnalyzer removed, struct kept for decoding)
 
     var segmentPBResults: [SegmentPBResult] {
         get {
@@ -994,4 +995,153 @@ struct FifteenHundredTimeTrial {
         let result = TimeTrialResult(distance: 1500, time: time, date: date)
         return RacePredictor(recentTimeTrial: result)
     }
+}
+
+// MARK: - ExternalWorkout Conversion
+
+extension RunningSession {
+    /// Convert a legacy RunningSession to ExternalWorkout for display in the enriched detail view.
+    /// The enriched view will re-fetch metrics from HealthKit using the workout UUID.
+    var asExternalWorkout: ExternalWorkout {
+        ExternalWorkout(
+            id: UUID(uuidString: healthKitWorkoutUUID) ?? id,
+            activityType: sessionType == .walking ? .walking : .running,
+            sourceName: "TetraTrack",
+            sourceBundleIdentifier: "dev.dreamfold.TetraTrack",
+            startDate: startDate,
+            endDate: endDate ?? startDate.addingTimeInterval(totalDuration),
+            duration: totalDuration,
+            totalDistance: totalDistance > 0 ? totalDistance : nil,
+            totalEnergyBurned: nil,
+            averageHeartRate: averageHeartRate > 0 ? Double(averageHeartRate) : nil,
+            hasRoute: hasRouteData
+        )
+    }
+}
+
+// MARK: - Legacy Types (kept for decoding historical data)
+
+/// Result from segment PB analysis on a completed run.
+/// SegmentPBAnalyzer has been removed — this struct remains for decoding legacy segmentPBData.
+struct SegmentPBResult: Codable, Identifiable, Sendable {
+    var id: UUID = UUID()
+    let segmentName: String
+    let distance: Double          // meters
+    let time: TimeInterval
+    let previousBestTime: TimeInterval?
+    let improvement: TimeInterval? // seconds faster (positive = improvement)
+
+    var isNewPB: Bool { improvement != nil && (improvement ?? 0) > 0 }
+
+    var distanceLabel: String {
+        if distance >= 1000 {
+            return String(format: "%.1f km", distance / 1000)
+        }
+        return String(format: "%.0f m", distance)
+    }
+}
+
+/// Pace preset for virtual pacer (legacy — VirtualPacer removed, kept for RunningComponents display)
+/// Running personal bests stored in iCloud KV store.
+/// Kept for Settings display — no longer updated by running capture.
+struct RunningPersonalBests {
+    static var shared = RunningPersonalBests()
+
+    private let store = NSUbiquitousKeyValueStore.default
+
+    var pb400m: TimeInterval { store.double(forKey: "pb_400m") }
+    var pb1000m: TimeInterval { store.double(forKey: "pb_1000m") }
+    var pb1500m: TimeInterval { store.double(forKey: "pb_1500m") }
+    var pb2000m: TimeInterval { store.double(forKey: "pb_2000m") }
+    var pb3000m: TimeInterval { store.double(forKey: "pb_3000m") }
+
+    var competitionPB1000m: TimeInterval { store.double(forKey: "competition_pb_1000m") }
+    var competitionPB1500m: TimeInterval { store.double(forKey: "competition_pb_1500m") }
+    var competitionPB2000m: TimeInterval { store.double(forKey: "competition_pb_2000m") }
+    var competitionPB3000m: TimeInterval { store.double(forKey: "competition_pb_3000m") }
+
+    func personalBest(for distance: Double) -> TimeInterval {
+        switch distance {
+        case 400: pb400m
+        case 1000: pb1000m
+        case 1500: pb1500m
+        case 2000: pb2000m
+        case 3000: pb3000m
+        default: 0
+        }
+    }
+
+    func formattedPB(for distance: Double) -> String {
+        let pb = personalBest(for: distance)
+        guard pb > 0 else { return "--:--" }
+        let mins = Int(pb) / 60
+        let secs = Int(pb) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
+    func competitionPersonalBest(for distance: Double) -> TimeInterval {
+        switch distance {
+        case 1000: competitionPB1000m
+        case 1500: competitionPB1500m
+        case 2000: competitionPB2000m
+        case 3000: competitionPB3000m
+        default: 0
+        }
+    }
+
+    func formattedCompetitionPB(for distance: Double) -> String {
+        let pb = competitionPersonalBest(for: distance)
+        guard pb > 0 else { return "--:--" }
+        let mins = Int(pb) / 60
+        let secs = Int(pb) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
+    mutating func updatePersonalBest(for distance: Double, time: TimeInterval) {
+        let key: String
+        switch distance {
+        case 400: key = "pb_400m"
+        case 1000: key = "pb_1000m"
+        case 1500: key = "pb_1500m"
+        case 2000: key = "pb_2000m"
+        case 3000: key = "pb_3000m"
+        default: return
+        }
+        let current = store.double(forKey: key)
+        if current == 0 || time < current {
+            store.set(time, forKey: key)
+            store.synchronize()
+        }
+    }
+
+    mutating func updateCompetitionPersonalBest(for distance: Double, time: TimeInterval) {
+        let key: String
+        switch distance {
+        case 1000: key = "competition_pb_1000m"
+        case 1500: key = "competition_pb_1500m"
+        case 2000: key = "competition_pb_2000m"
+        case 3000: key = "competition_pb_3000m"
+        default: return
+        }
+        let current = store.double(forKey: key)
+        if current == 0 || time < current {
+            store.set(time, forKey: key)
+            store.synchronize()
+        }
+    }
+}
+
+struct PacePreset: Identifiable, Sendable {
+    let id = UUID()
+    let name: String
+    let pacePerKm: TimeInterval // seconds per km
+
+    static let presets: [PacePreset] = [
+        PacePreset(name: "Easy (7:00/km)", pacePerKm: 420),
+        PacePreset(name: "Moderate (6:00/km)", pacePerKm: 360),
+        PacePreset(name: "Tempo (5:30/km)", pacePerKm: 330),
+        PacePreset(name: "Fast (5:00/km)", pacePerKm: 300),
+        PacePreset(name: "Race (4:30/km)", pacePerKm: 270),
+        PacePreset(name: "Sprint (4:00/km)", pacePerKm: 240),
+    ]
 }

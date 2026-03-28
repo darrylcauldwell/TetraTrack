@@ -363,7 +363,6 @@ struct TetraTrackApp: App {
         }
 
         // Migrate personal bests from UserDefaults to iCloud Key-Value Store
-        RunningPersonalBests.migrateFromUserDefaults()
         SwimmingPersonalBests.migrateFromUserDefaults()
         ShootingPersonalBests.migrateFromUserDefaults()
 

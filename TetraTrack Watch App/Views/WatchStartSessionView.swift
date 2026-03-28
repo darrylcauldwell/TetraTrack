@@ -9,7 +9,6 @@ import SwiftUI
 
 struct WatchStartSessionView: View {
     @State private var showRideControl = false
-    @State private var showRunControl = false
     @State private var showSwimControl = false
     @State private var showShootingControl = false
 
@@ -18,9 +17,6 @@ struct WatchStartSessionView: View {
             disciplineSelectorView
             .navigationDestination(isPresented: $showRideControl) {
                 RideControlView()
-            }
-            .navigationDestination(isPresented: $showRunControl) {
-                RunningControlView()
             }
             .navigationDestination(isPresented: $showSwimControl) {
                 SwimControlView()
@@ -54,29 +50,6 @@ struct WatchStartSessionView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(WatchAppColors.riding.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            .buttonStyle(.plain)
-
-            // Running button
-            Button {
-                showRunControl = true
-            } label: {
-                HStack {
-                    Image(systemName: "figure.run")
-                        .font(.title3)
-                        .foregroundStyle(WatchAppColors.running)
-                    Text("GPS + Heart Rate")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(WatchAppColors.running.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)

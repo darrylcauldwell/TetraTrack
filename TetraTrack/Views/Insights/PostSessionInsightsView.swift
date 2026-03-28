@@ -41,14 +41,14 @@ struct PostSessionInsightsView: View {
 
         case "running":
             if let session: RunningSession = fetchModel() {
-                RunningInsightsView(session: session)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
             } else {
                 fallbackView
             }
 
         case "walking":
             if let session: RunningSession = fetchModel() {
-                WalkingDetailView(session: session)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
             } else {
                 fallbackView
             }

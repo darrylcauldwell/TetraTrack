@@ -21,7 +21,7 @@ struct ContentView: View {
                 case .riding:
                     RideControlView()
                 case .running, .walking:
-                    RunningControlView()
+                    EmptyView() // Running/walking use native Apple Watch workouts
                 case .swimming:
                     SwimControlView()
                 case .shooting:

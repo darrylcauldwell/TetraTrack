@@ -242,3 +242,15 @@ struct HeartRateZoneMiniRing: View {
         }
     }
 }
+
+// MARK: - Heart Rate Zone Color (moved from deleted RunningMetricCards)
+
+func heartRateZoneColor(_ zone: HeartRateZone) -> Color {
+    switch zone {
+    case .zone1: .gray
+    case .zone2: .blue
+    case .zone3: .green
+    case .zone4: .orange
+    case .zone5: .red
+    }
+}

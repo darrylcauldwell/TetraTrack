@@ -338,11 +338,11 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    RunningSessionDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .walking:
                 if let session = item.runningSession {
-                    WalkingDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .swimming:
                 if let session = item.swimmingSession {
@@ -453,11 +453,11 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    RunningSessionDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .walking:
                 if let session = item.runningSession {
-                    WalkingDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .swimming:
                 if let session = item.swimmingSession {

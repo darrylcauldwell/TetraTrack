@@ -15,12 +15,6 @@ struct ActiveSessionView: View {
         if let tracker {
             if let _ = tracker.plugin(as: RidingPlugin.self) {
                 TrackingView()
-            } else if let plugin = tracker.plugin(as: RunningPlugin.self) {
-                if plugin.session.sessionType == .treadmill {
-                    TreadmillLiveView()
-                } else {
-                    RunningLiveView()
-                }
             } else if let _ = tracker.plugin(as: SwimmingPlugin.self) {
                 SwimmingLiveView()
             } else if let _ = tracker.plugin(as: ShootingPlugin.self) {

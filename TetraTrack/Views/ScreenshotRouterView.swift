@@ -32,9 +32,7 @@ struct ScreenshotRouterView: View {
             }
 
         case .running:
-            NavigationStack {
-                RunningView()
-            }
+            EmptyView() // Running uses native Apple Watch workouts
 
         case .swimming:
             NavigationStack {
