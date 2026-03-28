@@ -16,6 +16,7 @@ struct EnrichedWorkoutDetailView: View {
     let workout: ExternalWorkout
 
     @State private var enrichment: WorkoutEnrichment?
+    @State private var insights: [WorkoutInsight] = []
     @State private var photos: [PHAsset] = []
     @State private var isLoading = true
 
@@ -26,6 +27,10 @@ struct EnrichedWorkoutDetailView: View {
             VStack(spacing: 20) {
                 headerSection
                 summaryStats
+
+                if !insights.isEmpty {
+                    insightsSection
+                }
 
                 if isLoading {
                     ProgressView("Loading workout data...")
@@ -457,6 +462,45 @@ struct EnrichedWorkoutDetailView: View {
         }
     }
 
+    // MARK: - Insights
+
+    private var insightsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Insights")
+                .font(.headline)
+
+            ForEach(insights) { insight in
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: insight.icon)
+                        .font(.title3)
+                        .foregroundStyle(insightColor(insight.sentiment))
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(insight.title)
+                            .font(.subheadline.bold())
+
+                        Text(insight.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(insightColor(insight.sentiment).opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    private func insightColor(_ sentiment: WorkoutInsight.Sentiment) -> Color {
+        switch sentiment {
+        case .positive: .green
+        case .neutral: .blue
+        case .attention: .orange
+        }
+    }
+
     // MARK: - Source
 
     private var sourceSection: some View {
@@ -560,6 +604,14 @@ struct EnrichedWorkoutDetailView: View {
 
         enrichment = await enrichTask
         photos = await photosTask
+
+        // Generate insights after enrichment is loaded
+        if let enrichment {
+            insights = await WorkoutInsightsGenerator.shared.generateInsights(
+                for: workout,
+                enrichment: enrichment
+            )
+        }
     }
 
     private func loadPhotos() async -> [PHAsset] {
