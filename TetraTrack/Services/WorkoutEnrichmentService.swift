@@ -15,6 +15,10 @@ struct WorkoutEnrichment: Sendable {
     var heartRateSamples: [HeartRateSamplePoint] = []
     var splits: [PaceSplit] = []
     var walkingMetrics: WalkingMetrics?
+    var runningMetrics: RunningMetrics?
+    var swimmingMetrics: SwimmingMetrics?
+    var cyclingMetrics: CyclingMetrics?
+    var generalMetrics: GeneralMetrics?
     var routeLocations: [CLLocation] = []
     var elevationGain: Double?
     var elevationLoss: Double?
@@ -39,6 +43,36 @@ struct WorkoutEnrichment: Sendable {
         var doubleSupportPercent: Double?  // percentage
         var steadiness: Double?            // 0-100
     }
+
+    struct RunningMetrics: Sendable {
+        var averageCadence: Double?            // steps per minute
+        var averageStrideLength: Double?       // meters
+        var averageGroundContactTime: Double?  // milliseconds
+        var averageVerticalOscillation: Double? // centimeters
+        var averagePower: Double?              // watts
+        var averageSpeed: Double?              // m/s
+    }
+
+    struct SwimmingMetrics: Sendable {
+        var totalStrokeCount: Double?    // total strokes
+        var averageSWOLF: Double?        // SWOLF score
+        var lapCount: Int?               // number of laps
+        var poolLength: Double?          // meters (from workout metadata)
+    }
+
+    struct CyclingMetrics: Sendable {
+        var averageCadence: Double?  // rpm
+        var averagePower: Double?    // watts
+        var averageSpeed: Double?    // m/s
+    }
+
+    struct GeneralMetrics: Sendable {
+        var averageHeartRate: Double?   // bpm
+        var maxHeartRate: Double?       // bpm
+        var minHeartRate: Double?       // bpm
+        var activeCalories: Double?     // kcal
+        var heartRateRecovery: Double?  // bpm drop in 1 min post-workout
+    }
 }
 
 @MainActor
@@ -49,18 +83,16 @@ final class WorkoutEnrichmentService {
 
     private init() {}
 
-    /// Fetch all enrichment data for a workout
-    func enrich(workoutId: UUID, startDate: Date, endDate: Date) async -> WorkoutEnrichment {
+    /// Fetch all enrichment data for a workout, with activity-specific metrics
+    func enrich(workoutId: UUID, startDate: Date, endDate: Date, activityType: HKWorkoutActivityType = .walking) async -> WorkoutEnrichment {
         var enrichment = WorkoutEnrichment()
 
-        // Run fetches concurrently
+        // Common data — always fetch HR, route
         async let hrTask = fetchHeartRateSamples(from: startDate, to: endDate)
         async let routeTask = fetchRouteLocations(workoutId: workoutId)
-        async let walkingTask = fetchWalkingMetrics(from: startDate, to: endDate)
 
         enrichment.heartRateSamples = await hrTask
         enrichment.routeLocations = await routeTask
-        enrichment.walkingMetrics = await walkingTask
 
         // Derive splits and elevation from route
         if !enrichment.routeLocations.isEmpty {
@@ -68,6 +100,24 @@ final class WorkoutEnrichmentService {
             let (gain, loss) = deriveElevation(from: enrichment.routeLocations)
             enrichment.elevationGain = gain
             enrichment.elevationLoss = loss
+        }
+
+        // General metrics (HR stats) — useful for all workout types
+        enrichment.generalMetrics = deriveGeneralMetrics(from: enrichment.heartRateSamples)
+
+        // Activity-specific metrics
+        switch activityType {
+        case .walking, .hiking:
+            enrichment.walkingMetrics = await fetchWalkingMetrics(from: startDate, to: endDate)
+        case .running:
+            enrichment.runningMetrics = await fetchRunningMetrics(from: startDate, to: endDate)
+        case .swimming:
+            enrichment.swimmingMetrics = await fetchSwimmingMetrics(workoutId: workoutId, from: startDate, to: endDate)
+        case .cycling:
+            enrichment.cyclingMetrics = await fetchCyclingMetrics(from: startDate, to: endDate)
+        default:
+            // For other types (yoga, HIIT, strength, etc.), HR + route is sufficient
+            break
         }
 
         return enrichment
@@ -214,6 +264,143 @@ final class WorkoutEnrichmentService {
         }
     }
 
+    // MARK: - Running Metrics
+
+    private func fetchRunningMetrics(from start: Date, to end: Date) async -> WorkoutEnrichment.RunningMetrics? {
+        var metrics = WorkoutEnrichment.RunningMetrics()
+        var hasAnyData = false
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let duration = end.timeIntervalSince(start)
+
+        if let cadence = await fetchAverageQuantity(.stepCount, predicate: predicate, unit: .count(), convertToCadence: true, duration: duration) {
+            metrics.averageCadence = cadence
+            hasAnyData = true
+        }
+
+        if let stride = await fetchAverageQuantity(.runningStrideLength, predicate: predicate, unit: .meter()) {
+            metrics.averageStrideLength = stride
+            hasAnyData = true
+        }
+
+        if let gct = await fetchAverageQuantity(.runningGroundContactTime, predicate: predicate, unit: .secondUnit(with: .milli)) {
+            metrics.averageGroundContactTime = gct
+            hasAnyData = true
+        }
+
+        if let vo = await fetchAverageQuantity(.runningVerticalOscillation, predicate: predicate, unit: .meterUnit(with: .centi)) {
+            metrics.averageVerticalOscillation = vo
+            hasAnyData = true
+        }
+
+        if let power = await fetchAverageQuantity(.runningPower, predicate: predicate, unit: .watt()) {
+            metrics.averagePower = power
+            hasAnyData = true
+        }
+
+        if let speed = await fetchAverageQuantity(.runningSpeed, predicate: predicate, unit: HKUnit.meter().unitDivided(by: .second())) {
+            metrics.averageSpeed = speed
+            hasAnyData = true
+        }
+
+        return hasAnyData ? metrics : nil
+    }
+
+    // MARK: - Swimming Metrics
+
+    private func fetchSwimmingMetrics(workoutId: UUID, from start: Date, to end: Date) async -> WorkoutEnrichment.SwimmingMetrics? {
+        var metrics = WorkoutEnrichment.SwimmingMetrics()
+        var hasAnyData = false
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        // Stroke count
+        if let strokes = await fetchSumQuantity(.swimmingStrokeCount, predicate: predicate, unit: .count()) {
+            metrics.totalStrokeCount = strokes
+            hasAnyData = true
+        }
+
+        // Get lap count and pool length from the HKWorkout metadata
+        let workoutPredicate = HKQuery.predicateForObject(with: workoutId)
+        let workoutDescriptor = HKSampleQueryDescriptor<HKWorkout>(
+            predicates: [.workout(workoutPredicate)],
+            sortDescriptors: [],
+            limit: 1
+        )
+
+        if let workout = try? await workoutDescriptor.result(for: healthStore).first {
+            // Pool length from metadata
+            if let poolLength = workout.metadata?[HKMetadataKeyLapLength] as? HKQuantity {
+                metrics.poolLength = poolLength.doubleValue(for: .meter())
+                hasAnyData = true
+            }
+
+            // Count lap events
+            let lapEvents = workout.workoutEvents?.filter { $0.type == .lap } ?? []
+            if !lapEvents.isEmpty {
+                metrics.lapCount = lapEvents.count
+                hasAnyData = true
+
+                // Calculate SWOLF: average (seconds per lap + strokes per lap)
+                if let totalStrokes = metrics.totalStrokeCount, metrics.lapCount ?? 0 > 0 {
+                    let lapCount = Double(metrics.lapCount!)
+                    let avgTimePerLap = workout.duration / lapCount
+                    let avgStrokesPerLap = totalStrokes / lapCount
+                    metrics.averageSWOLF = avgTimePerLap + avgStrokesPerLap
+                    hasAnyData = true
+                }
+            }
+        }
+
+        return hasAnyData ? metrics : nil
+    }
+
+    // MARK: - Cycling Metrics
+
+    private func fetchCyclingMetrics(from start: Date, to end: Date) async -> WorkoutEnrichment.CyclingMetrics? {
+        var metrics = WorkoutEnrichment.CyclingMetrics()
+        var hasAnyData = false
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        if let cadence = await fetchAverageQuantity(.cyclingCadence, predicate: predicate, unit: HKUnit.count().unitDivided(by: .minute())) {
+            metrics.averageCadence = cadence
+            hasAnyData = true
+        }
+
+        if let power = await fetchAverageQuantity(.cyclingPower, predicate: predicate, unit: .watt()) {
+            metrics.averagePower = power
+            hasAnyData = true
+        }
+
+        if let speed = await fetchAverageQuantity(.cyclingSpeed, predicate: predicate, unit: HKUnit.meter().unitDivided(by: .second())) {
+            metrics.averageSpeed = speed
+            hasAnyData = true
+        }
+
+        return hasAnyData ? metrics : nil
+    }
+
+    // MARK: - Sum Quantity Helper
+
+    private func fetchSumQuantity(
+        _ typeIdentifier: HKQuantityTypeIdentifier,
+        predicate: NSPredicate,
+        unit: HKUnit
+    ) async -> Double? {
+        let quantityType = HKQuantityType(typeIdentifier)
+
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: quantityType, predicate: predicate)],
+            sortDescriptors: []
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            guard !samples.isEmpty else { return nil }
+            return samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: unit) }
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Derived Data
 
     private func deriveSplits(from locations: [CLLocation]) -> [WorkoutEnrichment.PaceSplit] {
@@ -278,5 +465,18 @@ final class WorkoutEnrichmentService {
         }
 
         return (gain, loss)
+    }
+
+    private func deriveGeneralMetrics(from samples: [WorkoutEnrichment.HeartRateSamplePoint]) -> WorkoutEnrichment.GeneralMetrics? {
+        guard !samples.isEmpty else { return nil }
+
+        let bpms = samples.map(\.bpm)
+        return WorkoutEnrichment.GeneralMetrics(
+            averageHeartRate: bpms.reduce(0, +) / Double(bpms.count),
+            maxHeartRate: bpms.max(),
+            minHeartRate: bpms.min(),
+            activeCalories: nil,
+            heartRateRecovery: nil
+        )
     }
 }

@@ -48,6 +48,27 @@ struct EnrichedWorkoutDetailView: View {
                             walkingMetricsSection(metrics)
                         }
 
+                        if let metrics = enrichment.runningMetrics {
+                            runningMetricsSection(metrics)
+                        }
+
+                        if let metrics = enrichment.swimmingMetrics {
+                            swimmingMetricsSection(metrics)
+                        }
+
+                        if let metrics = enrichment.cyclingMetrics {
+                            cyclingMetricsSection(metrics)
+                        }
+
+                        // Show HR zone summary for types without specific metrics
+                        if enrichment.walkingMetrics == nil &&
+                           enrichment.runningMetrics == nil &&
+                           enrichment.swimmingMetrics == nil &&
+                           enrichment.cyclingMetrics == nil,
+                           let general = enrichment.generalMetrics {
+                            heartRateZoneSummary(general)
+                        }
+
                         if let gain = enrichment.elevationGain, gain > 0 {
                             elevationSection(gain: gain, loss: enrichment.elevationLoss ?? 0)
                         }
@@ -269,6 +290,117 @@ struct EnrichedWorkoutDetailView: View {
         }
     }
 
+    // MARK: - Running Metrics
+
+    private func runningMetricsSection(_ metrics: WorkoutEnrichment.RunningMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Running Metrics")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let cadence = metrics.averageCadence {
+                    metricCard(title: "Cadence", value: String(format: "%.0f spm", cadence), icon: "metronome")
+                }
+
+                if let stride = metrics.averageStrideLength {
+                    let cm = stride * 100
+                    metricCard(title: "Stride Length", value: String(format: "%.0f cm", cm), icon: "ruler")
+                }
+
+                if let gct = metrics.averageGroundContactTime {
+                    metricCard(title: "Ground Contact", value: String(format: "%.0f ms", gct), icon: "arrow.down.to.line")
+                }
+
+                if let vo = metrics.averageVerticalOscillation {
+                    metricCard(title: "Vert. Oscillation", value: String(format: "%.1f cm", vo), icon: "arrow.up.arrow.down")
+                }
+
+                if let power = metrics.averagePower {
+                    metricCard(title: "Power", value: String(format: "%.0f W", power), icon: "bolt.fill")
+                }
+
+                if let speed = metrics.averageSpeed {
+                    let pacePerKm = 1000 / speed
+                    metricCard(title: "Avg Pace", value: formatPace(pacePerKm), icon: "speedometer")
+                }
+            }
+        }
+    }
+
+    // MARK: - Swimming Metrics
+
+    private func swimmingMetricsSection(_ metrics: WorkoutEnrichment.SwimmingMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Swimming Metrics")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let laps = metrics.lapCount {
+                    metricCard(title: "Laps", value: "\(laps)", icon: "arrow.triangle.2.circlepath")
+                }
+
+                if let poolLength = metrics.poolLength {
+                    metricCard(title: "Pool Length", value: String(format: "%.0f m", poolLength), icon: "water.waves")
+                }
+
+                if let strokes = metrics.totalStrokeCount {
+                    metricCard(title: "Total Strokes", value: String(format: "%.0f", strokes), icon: "figure.pool.swim")
+                }
+
+                if let swolf = metrics.averageSWOLF {
+                    metricCard(title: "SWOLF", value: String(format: "%.0f", swolf), icon: "gauge.with.needle")
+                }
+            }
+        }
+    }
+
+    // MARK: - Cycling Metrics
+
+    private func cyclingMetricsSection(_ metrics: WorkoutEnrichment.CyclingMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Cycling Metrics")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let cadence = metrics.averageCadence {
+                    metricCard(title: "Cadence", value: String(format: "%.0f rpm", cadence), icon: "metronome")
+                }
+
+                if let power = metrics.averagePower {
+                    metricCard(title: "Power", value: String(format: "%.0f W", power), icon: "bolt.fill")
+                }
+
+                if let speed = metrics.averageSpeed {
+                    let kmh = speed * 3.6
+                    metricCard(title: "Avg Speed", value: String(format: "%.1f km/h", kmh), icon: "speedometer")
+                }
+            }
+        }
+    }
+
+    // MARK: - Heart Rate Zone Summary (for generic workouts)
+
+    private func heartRateZoneSummary(_ metrics: WorkoutEnrichment.GeneralMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Heart Rate Summary")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let min = metrics.minHeartRate {
+                    metricCard(title: "Min", value: "\(Int(min)) bpm", icon: "heart")
+                }
+
+                if let avg = metrics.averageHeartRate {
+                    metricCard(title: "Average", value: "\(Int(avg)) bpm", icon: "heart.fill")
+                }
+
+                if let max = metrics.maxHeartRate {
+                    metricCard(title: "Max", value: "\(Int(max)) bpm", icon: "heart.bolt.fill")
+                }
+            }
+        }
+    }
+
     // MARK: - Elevation
 
     private func elevationSection(gain: Double, loss: Double) -> some View {
@@ -420,7 +552,8 @@ struct EnrichedWorkoutDetailView: View {
         async let enrichTask = WorkoutEnrichmentService.shared.enrich(
             workoutId: workout.id,
             startDate: workout.startDate,
-            endDate: workout.endDate
+            endDate: workout.endDate,
+            activityType: workout.activityType
         )
 
         async let photosTask = loadPhotos()
