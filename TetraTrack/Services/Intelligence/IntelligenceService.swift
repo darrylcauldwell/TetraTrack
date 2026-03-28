@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import HealthKit
 import os
 #if canImport(FoundationModels)
 import FoundationModels
@@ -253,7 +254,8 @@ extension IntelligenceService {
         runningSessions: [RunningSession],
         swimmingSessions: [SwimmingSession],
         shootingSessions: [ShootingSession],
-        drillSessions: [UnifiedDrillSession]
+        drillSessions: [UnifiedDrillSession],
+        externalWorkouts: [ExternalWorkout] = []
     ) async throws -> MultiDisciplineInsights {
         #if canImport(FoundationModels)
         guard let session = session else {
@@ -265,9 +267,25 @@ extension IntelligenceService {
             running: runningSessions,
             swimming: swimmingSessions,
             shooting: shootingSessions,
-            drills: drillSessions
+            drills: drillSessions,
+            externalWorkouts: externalWorkouts
         )
         let response = try await session.respond(to: prompt, generating: MultiDisciplineInsights.self)
+        return response.content
+        #else
+        throw IntelligenceError.notAvailable
+        #endif
+    }
+
+    /// Analyze external HealthKit workouts (Apple Watch workouts)
+    func analyzeExternalWorkouts(_ workouts: [ExternalWorkout]) async throws -> ExternalWorkoutInsights {
+        #if canImport(FoundationModels)
+        guard let session = session else {
+            throw IntelligenceError.notAvailable
+        }
+
+        let prompt = buildExternalWorkoutPrompt(workouts)
+        let response = try await session.respond(to: prompt, generating: ExternalWorkoutInsights.self)
         return response.content
         #else
         throw IntelligenceError.notAvailable
@@ -778,17 +796,12 @@ private extension IntelligenceService {
         running: [RunningSession],
         swimming: [SwimmingSession],
         shooting: [ShootingSession],
-        drills: [UnifiedDrillSession]
+        drills: [UnifiedDrillSession],
+        externalWorkouts: [ExternalWorkout] = []
     ) -> String {
-        // Calculate discipline-specific stats
+        // Calculate discipline-specific stats from TetraTrack sessions
         let rideStats = rides.isEmpty ? "No data" :
             "\(rides.count) rides, \(String(format: "%.1f", rides.reduce(0) { $0 + $1.totalDistance } / 1000)) km total"
-
-        let runStats = running.isEmpty ? "No data" :
-            "\(running.count) runs, avg pace \((running.reduce(0) { $0 + $1.averagePace } / Double(running.count)).formattedPace) /km"
-
-        let swimStats = swimming.isEmpty ? "No data" :
-            "\(swimming.count) swims, avg SWOLF \(String(format: "%.1f", swimming.reduce(0) { $0 + $1.averageSwolf } / Double(swimming.count)))"
 
         let shootStats = shooting.isEmpty ? "No data" :
             "\(shooting.count) sessions, avg \(String(format: "%.1f", shooting.reduce(0) { $0 + $1.scorePercentage } / Double(shooting.count)))%"
@@ -796,11 +809,58 @@ private extension IntelligenceService {
         let drillStats = drills.isEmpty ? "No data" :
             "\(drills.count) drills, avg score \(String(format: "%.0f", drills.reduce(0) { $0 + $1.score } / Double(drills.count)))%"
 
+        // Combine TetraTrack + HealthKit running data
+        let externalRuns = externalWorkouts.filter { $0.activityType == .running || $0.activityType == .hiking }
+        let totalRunCount = running.count + externalRuns.count
+        var runStats = "No data"
+        if totalRunCount > 0 {
+            let ttDistance = running.reduce(0) { $0 + $1.totalDistance }
+            let extDistance = externalRuns.compactMap(\.totalDistance).reduce(0, +)
+            let totalKm = (ttDistance + extDistance) / 1000
+            runStats = "\(totalRunCount) runs (\(externalRuns.count) from Apple Watch), \(String(format: "%.1f", totalKm)) km total"
+        }
+
+        // Combine TetraTrack + HealthKit swimming data
+        let externalSwims = externalWorkouts.filter { $0.activityType == .swimming }
+        let totalSwimCount = swimming.count + externalSwims.count
+        var swimStats = "No data"
+        if totalSwimCount > 0 {
+            let ttDistance = swimming.reduce(0) { $0 + $1.totalDistance }
+            let extDistance = externalSwims.compactMap(\.totalDistance).reduce(0, +)
+            let totalKm = (ttDistance + extDistance) / 1000
+            swimStats = "\(totalSwimCount) swims (\(externalSwims.count) from Apple Watch), \(String(format: "%.1f", totalKm)) km total"
+        }
+
+        // Additional HealthKit workouts (walking, cycling, yoga, etc.)
+        let externalWalks = externalWorkouts.filter { $0.activityType == .walking }
+        let externalCycles = externalWorkouts.filter { $0.activityType == .cycling }
+        let externalOther = externalWorkouts.filter {
+            $0.activityType != .running && $0.activityType != .hiking &&
+            $0.activityType != .swimming && $0.activityType != .walking &&
+            $0.activityType != .cycling && $0.activityType != .equestrianSports
+        }
+
+        var additionalTraining = ""
+        if !externalWalks.isEmpty {
+            let walkKm = externalWalks.compactMap(\.totalDistance).reduce(0, +) / 1000
+            additionalTraining += "\n- Walking: \(externalWalks.count) walks, \(String(format: "%.1f", walkKm)) km total (Apple Watch)"
+        }
+        if !externalCycles.isEmpty {
+            let cycleKm = externalCycles.compactMap(\.totalDistance).reduce(0, +) / 1000
+            additionalTraining += "\n- Cycling: \(externalCycles.count) rides, \(String(format: "%.1f", cycleKm)) km total (Apple Watch)"
+        }
+        if !externalOther.isEmpty {
+            let grouped = Dictionary(grouping: externalOther, by: { $0.activityName })
+            for (name, workouts) in grouped {
+                additionalTraining += "\n- \(name): \(workouts.count) sessions (Apple Watch)"
+            }
+        }
+
         // Identify training balance
-        let totalSessions = rides.count + running.count + swimming.count + shooting.count
+        let totalSessions = rides.count + totalRunCount + totalSwimCount + shooting.count + externalWalks.count + externalCycles.count + externalOther.count
         let ridePercent = totalSessions > 0 ? Double(rides.count) / Double(totalSessions) * 100 : 0
-        let runPercent = totalSessions > 0 ? Double(running.count) / Double(totalSessions) * 100 : 0
-        let swimPercent = totalSessions > 0 ? Double(swimming.count) / Double(totalSessions) * 100 : 0
+        let runPercent = totalSessions > 0 ? Double(totalRunCount) / Double(totalSessions) * 100 : 0
+        let swimPercent = totalSessions > 0 ? Double(totalSwimCount) / Double(totalSessions) * 100 : 0
         let shootPercent = totalSessions > 0 ? Double(shooting.count) / Double(totalSessions) * 100 : 0
 
         return """
@@ -811,19 +871,63 @@ private extension IntelligenceService {
         - Running: \(runStats) (\(String(format: "%.0f", runPercent))% of training)
         - Swimming: \(swimStats) (\(String(format: "%.0f", swimPercent))% of training)
         - Shooting: \(shootStats) (\(String(format: "%.0f", shootPercent))% of training)
+        \(additionalTraining.isEmpty ? "" : "\nADDITIONAL CROSS-TRAINING:" + additionalTraining)
 
         SKILL DRILLS: \(drillStats)
 
         Total training sessions: \(totalSessions)
+        Note: Running and swimming data includes both TetraTrack-captured sessions and Apple Watch workouts from HealthKit.
 
         Analyze:
         1. Overall training balance across disciplines
         2. Strongest and weakest disciplines based on data
-        3. Cross-training opportunities (how skills transfer between disciplines)
+        3. Cross-training opportunities (how skills transfer between disciplines, including walking/cycling for aerobic base)
         4. Specific recommendations for tetrathlon competition readiness
         5. One key insight about the athlete's training pattern
 
         Be encouraging but honest. Focus on actionable advice.
+        """
+    }
+
+    func buildExternalWorkoutPrompt(_ workouts: [ExternalWorkout]) -> String {
+        let grouped = Dictionary(grouping: workouts, by: { $0.activityName })
+
+        var breakdown = ""
+        for (name, group) in grouped.sorted(by: { $0.value.count > $1.value.count }) {
+            let totalDuration = group.reduce(0) { $0 + $1.duration }
+            let totalDistance = group.compactMap(\.totalDistance).reduce(0, +)
+            let avgHR = group.compactMap(\.averageHeartRate)
+            let avgHRStr = avgHR.isEmpty ? "N/A" : String(format: "%.0f bpm", avgHR.reduce(0, +) / Double(avgHR.count))
+
+            breakdown += "- \(name): \(group.count) sessions"
+            if totalDistance > 0 {
+                breakdown += ", \(String(format: "%.1f", totalDistance / 1000)) km"
+            }
+            breakdown += ", \(totalDuration.formattedDuration) total, avg HR \(avgHRStr)\n"
+        }
+
+        let totalWorkouts = workouts.count
+        let weeklyCount = workouts.filter {
+            $0.startDate >= Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        }.count
+
+        return """
+        Analyze this athlete's Apple Watch workout history for a tetrathlon athlete:
+
+        WORKOUT SUMMARY (\(totalWorkouts) total, \(weeklyCount) this week):
+        \(breakdown)
+
+        This data comes from Apple Watch workouts (HealthKit). The athlete also does
+        riding and shooting via TetraTrack.
+
+        Analyze:
+        1. Training consistency and frequency
+        2. How this cross-training supports tetrathlon performance
+        3. Discipline balance and any gaps
+        4. Fitness trend based on volume and heart rate data
+        5. Specific recommendations for improvement
+
+        Be encouraging but honest. Focus on actionable advice for tetrathlon competition readiness.
         """
     }
 
@@ -1260,6 +1364,28 @@ struct MultiDisciplineInsights: Codable, Sendable {
 
     /// Key insight about training pattern
     let keyInsight: String
+
+    /// Encouraging message
+    let encouragement: String
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct ExternalWorkoutInsights: Codable, Sendable {
+    /// Brief summary of the athlete's external training
+    let summary: String
+
+    /// Training consistency assessment
+    let consistencyAssessment: String
+
+    /// Discipline balance based on workout types
+    let disciplineBalance: String
+
+    /// Fitness trend observation
+    let fitnessTrend: String
+
+    /// Actionable recommendations
+    let recommendations: [String]
 
     /// Encouraging message
     let encouragement: String
