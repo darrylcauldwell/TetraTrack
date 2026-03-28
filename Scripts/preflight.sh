@@ -188,6 +188,7 @@ else
         -scheme TetraTrack \
         -destination "platform=iOS Simulator,name=$SIMULATOR" \
         -configuration Debug \
+        -only-testing:TetraTrackTests \
         CODE_SIGNING_ALLOWED=NO \
         -quiet 2>&1; then
         pass "All unit tests passed"
