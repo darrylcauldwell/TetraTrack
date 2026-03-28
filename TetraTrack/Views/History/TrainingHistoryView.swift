@@ -64,7 +64,6 @@ struct SessionHistoryView: View {
         case all = "All"
         case riding = "Riding"
         case running = "Running"
-        case walking = "Walking"
         case swimming = "Swimming"
         case shooting = "Shooting"
 
@@ -73,7 +72,6 @@ struct SessionHistoryView: View {
             case .all: return "square.grid.2x2"
             case .riding: return "figure.equestrian.sports"
             case .running: return "figure.run"
-            case .walking: return "figure.walk"
             case .swimming: return "figure.pool.swim"
             case .shooting: return "target"
             }
@@ -84,7 +82,6 @@ struct SessionHistoryView: View {
             case .all: return .purple
             case .riding: return TrainingDiscipline.riding.color
             case .running: return TrainingDiscipline.running.color
-            case .walking: return TrainingDiscipline.walking.color
             case .swimming: return TrainingDiscipline.swimming.color
             case .shooting: return TrainingDiscipline.shooting.color
             }
@@ -95,7 +92,6 @@ struct SessionHistoryView: View {
             case .all: return nil
             case .riding: return .riding
             case .running: return .running
-            case .walking: return .walking
             case .swimming: return .swimming
             case .shooting: return .shooting
             }

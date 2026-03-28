@@ -2,44 +2,248 @@
 //  DisciplinesView.swift
 //  TetraTrack
 //
-//  Hub view for all Tetrathlon disciplines
+//  Hub view — Riding + Shooting capture, Competitions, recent workouts feed
 //
 
 import SwiftUI
+import HealthKit
 
 struct DisciplinesView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.viewContext) private var viewContext
+    private let externalWorkoutService = ExternalWorkoutService.shared
 
-    /// Grid columns based on device size
-    private var gridColumns: [GridItem] {
-        if horizontalSizeClass == .regular {
-            // iPad: 3 columns for better use of space
-            return [
-                GridItem(.flexible(), spacing: Spacing.md),
-                GridItem(.flexible(), spacing: Spacing.md),
-                GridItem(.flexible(), spacing: Spacing.md)
-            ]
-        } else {
-            // iPhone: 1 column
-            return [GridItem(.flexible())]
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: Spacing.lg) {
+                    // iPad welcome banner
+                    if horizontalSizeClass == .regular {
+                        iPadWelcomeBanner
+                    }
+
+                    // MARK: - Capture Disciplines
+                    if !viewContext.isReadOnly {
+                        captureSection
+                    }
+
+                    // MARK: - Competitions
+                    competitionsSection
+
+                    // MARK: - Recent Workouts Feed
+                    recentWorkoutsSection
+
+                    // MARK: - More
+                    moreSection
+                }
+                .adaptivePadding(horizontalSizeClass)
+                .padding(.top, Spacing.md)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gearshape")
+                            .foregroundStyle(.primary)
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .task {
+                await loadRecentWorkouts()
+            }
         }
     }
 
-    /// Welcome banner shown on iPad for better use of horizontal space
+    // MARK: - Capture Section
+
+    private var captureSection: some View {
+        let columns = horizontalSizeClass == .regular
+            ? [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)]
+            : [GridItem(.flexible())]
+
+        return LazyVGrid(columns: columns, spacing: Spacing.md) {
+            NavigationLink(destination: RidingView()) {
+                DisciplineCard(
+                    title: "Riding",
+                    subtitle: "Record a riding session",
+                    icon: "figure.equestrian.sports",
+                    color: AppColors.riding
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(destination: ShootingView()) {
+                DisciplineCard(
+                    title: "Shooting",
+                    subtitle: "Record a shooting session",
+                    icon: "target",
+                    color: AppColors.shooting
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Competitions Section
+
+    private var competitionsSection: some View {
+        NavigationLink(destination: CompetitionHubView()) {
+            DisciplineCard(
+                title: "Competitions",
+                subtitle: "Calendar, competition day & tasks",
+                icon: "calendar",
+                color: AppColors.purple
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Recent Workouts Feed
+
+    private var recentWorkoutsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                Text("Recent Activity")
+                    .font(.headline)
+                Spacer()
+                NavigationLink(destination: SessionHistoryView()) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColors.primary)
+                }
+            }
+
+            if externalWorkoutService.workouts.isEmpty && externalWorkoutService.isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding(.vertical, Spacing.lg)
+            } else if externalWorkoutService.workouts.isEmpty {
+                VStack(spacing: Spacing.sm) {
+                    Image(systemName: "figure.mixed.cardio")
+                        .font(.title)
+                        .foregroundStyle(.tertiary)
+                    Text("No recent workouts")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Complete a workout on Apple Watch or start a session above")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.lg)
+            } else {
+                ForEach(externalWorkoutService.workouts.prefix(5)) { workout in
+                    NavigationLink(destination: EnrichedWorkoutDetailView(workout: workout)) {
+                        recentWorkoutRow(workout)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(Spacing.lg)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg, style: .continuous))
+    }
+
+    private func recentWorkoutRow(_ workout: ExternalWorkout) -> some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: workout.activityIcon)
+                .font(.title3)
+                .foregroundStyle(.blue)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(workout.activityName)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.primary)
+
+                HStack(spacing: 8) {
+                    Text(workout.formattedDuration)
+                    if let distance = workout.formattedDistance {
+                        Text("·")
+                        Text(distance)
+                    }
+                    if let hr = workout.averageHeartRate {
+                        Text("·")
+                        Text("\(Int(hr)) bpm")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(workout.startDate, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - More Section
+
+    private var moreSection: some View {
+        let columns = horizontalSizeClass == .regular
+            ? [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)]
+            : [GridItem(.flexible())]
+
+        return LazyVGrid(columns: columns, spacing: Spacing.md) {
+            NavigationLink(destination: TrainingLoadDashboardView()) {
+                DisciplineCard(
+                    title: "Training Load",
+                    subtitle: "Monitor fitness, fatigue, and form",
+                    icon: "chart.line.uptrend.xyaxis",
+                    color: AppColors.cardOrange
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(destination: UnifiedTrainingView()) {
+                DisciplineCard(
+                    title: "Drills",
+                    subtitle: "Off-discipline training drills",
+                    icon: "figure.run.circle",
+                    color: AppColors.mint
+                )
+            }
+            .buttonStyle(.plain)
+            .hideInReadOnlyMode()
+
+            NavigationLink(destination: FamilyView()) {
+                DisciplineCard(
+                    title: "Live Sharing",
+                    subtitle: "Family & emergency contacts",
+                    icon: "location.fill.viewfinder",
+                    color: AppColors.cyan
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - iPad Banner
+
     private var iPadWelcomeBanner: some View {
         HStack(spacing: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("TetraTrack")
                     .font(.largeTitle.bold())
-                Text(viewContext.isReadOnly ? "Review your training sessions" : "Track your tetrathlon training")
+                Text(viewContext.isReadOnly ? "Review your training" : "Track your tetrathlon training")
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            // Quick action buttons on iPad
             if !viewContext.isReadOnly {
                 HStack(spacing: Spacing.md) {
                     NavigationLink(destination: RidingView()) {
@@ -47,6 +251,9 @@ struct DisciplinesView: View {
                     }
                     NavigationLink(destination: ShootingView()) {
                         quickActionButton(icon: "target", label: "Shoot", color: AppColors.shooting)
+                    }
+                    NavigationLink(destination: CompetitionHubView()) {
+                        quickActionButton(icon: "calendar", label: "Compete", color: AppColors.purple)
                     }
                 }
             }
@@ -72,127 +279,11 @@ struct DisciplinesView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: Spacing.lg) {
-                    // iPad welcome banner
-                    if horizontalSizeClass == .regular {
-                        iPadWelcomeBanner
-                    }
+    // MARK: - Data Loading
 
-                    LazyVGrid(columns: gridColumns, spacing: Spacing.md) {
-                    // MARK: - Capture Disciplines (Hidden on iPad)
-                    // These navigation links are hidden in read-only mode (iPad)
-                    // as they provide session capture capabilities
-
-                    NavigationLink(destination: RidingView()) {
-                        DisciplineCard(
-                            title: "Riding",
-                            subtitle: "Record a riding session",
-                            icon: "figure.equestrian.sports",
-                            color: AppColors.riding
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Riding")
-                    .accessibilityHint("Record an equestrian riding session with gait detection")
-                    .hideInReadOnlyMode()
-
-                    NavigationLink(destination: ShootingView()) {
-                        DisciplineCard(
-                            title: "Shooting",
-                            subtitle: "Record a shooting session",
-                            icon: "target",
-                            color: AppColors.shooting
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Shooting")
-                    .accessibilityHint("Record a shooting session and scan score cards")
-                    .hideInReadOnlyMode()
-
-                    // MARK: - Review Accessible Items
-                    // These navigation links are available on all devices including iPad
-                    // as they provide review/browse capabilities without session capture
-
-                    NavigationLink(destination: SessionHistoryView()) {
-                        DisciplineCard(
-                            title: "Training History",
-                            subtitle: "Review all sessions and insights",
-                            icon: "clock.arrow.circlepath",
-                            color: AppColors.neutralGray
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Training History")
-                    .accessibilityHint("Review past sessions and training insights across all disciplines")
-
-                    NavigationLink(destination: TrainingLoadDashboardView()) {
-                        DisciplineCard(
-                            title: "Training Load",
-                            subtitle: "Monitor fitness, fatigue, and form",
-                            icon: "chart.line.uptrend.xyaxis",
-                            color: AppColors.cardOrange
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Training Load")
-                    .accessibilityHint("View performance management chart and training load across disciplines")
-
-                    // Skills training involves capture, hidden on iPad
-                    NavigationLink(destination: UnifiedTrainingView()) {
-                        DisciplineCard(
-                            title: "Drills",
-                            subtitle: "Off-discipline training drills",
-                            icon: "figure.run.circle",
-                            color: AppColors.mint
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Drills Training")
-                    .accessibilityHint("Access training drills for all disciplines")
-                    .hideInReadOnlyMode()
-
-                    NavigationLink(destination: CompetitionHubView()) {
-                        DisciplineCard(
-                            title: "Competitions",
-                            subtitle: "Calendar, competition day & tasks",
-                            icon: "calendar",
-                            color: AppColors.purple
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Competitions")
-                    .accessibilityHint("View competition calendar, competition day tools, and tasks")
-
-                    NavigationLink(destination: FamilyView()) {
-                        DisciplineCard(
-                            title: "Live Sharing",
-                            subtitle: "Family & emergency contacts",
-                            icon: "location.fill.viewfinder",
-                            color: AppColors.cyan
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Live Sharing")
-                    .accessibilityHint("Share location with family and emergency contacts")
-                    }
-                }
-                .adaptivePadding(horizontalSizeClass)
-                .padding(.top, Spacing.md)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape")
-                            .foregroundStyle(.primary)
-                    }
-                    .accessibilityLabel("Settings")
-                    .accessibilityHint("Open app settings and preferences")
-                }
-            }
-        }
+    private func loadRecentWorkouts() async {
+        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        await externalWorkoutService.fetchWorkouts(from: twoWeeksAgo, to: Date())
     }
 }
 
