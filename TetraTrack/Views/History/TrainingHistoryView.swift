@@ -30,7 +30,7 @@ struct SessionHistoryView: View {
     @State private var selectedTab: HistoryTab = .sessions
     @State private var selectedItem: SessionHistoryItem?
     @State private var hasAppliedInitialValues = false
-    @State private var showExternalWorkouts = false
+    @State private var showExternalWorkouts = true
 
     // Shooting history state
     @State private var showingShootingHistory = false
@@ -178,6 +178,9 @@ struct SessionHistoryView: View {
                     selectedTab = tab
                 }
                 hasAppliedInitialValues = true
+            }
+            if showExternalWorkouts {
+                fetchExternalWorkouts()
             }
         }
         .sheet(isPresented: $showingShootingHistory) {
