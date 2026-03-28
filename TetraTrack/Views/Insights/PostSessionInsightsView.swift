@@ -55,7 +55,7 @@ struct PostSessionInsightsView: View {
 
         case "swimming":
             if let session: SwimmingSession = fetchModel() {
-                SwimmingInsightsView(session: session)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
             } else {
                 fallbackView
             }

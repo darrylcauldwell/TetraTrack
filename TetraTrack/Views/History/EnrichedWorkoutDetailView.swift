@@ -59,6 +59,14 @@ struct EnrichedWorkoutDetailView: View {
 
                         if let metrics = enrichment.swimmingMetrics {
                             swimmingMetricsSection(metrics)
+
+                            if !metrics.laps.isEmpty {
+                                swimmingLapBreakdown(metrics.laps)
+                            }
+
+                            if metrics.averageSpO2 != nil || metrics.averageBreathingRate != nil {
+                                swimmingPhysiologySection(metrics)
+                            }
                         }
 
                         if let metrics = enrichment.cyclingMetrics {
@@ -420,6 +428,86 @@ struct EnrichedWorkoutDetailView: View {
 
                 if let swolf = metrics.averageSWOLF {
                     metricCard(title: "SWOLF", value: String(format: "%.0f", swolf), icon: "gauge.with.needle")
+                }
+            }
+        }
+    }
+
+    // MARK: - Swimming Lap Breakdown
+
+    private func swimmingLapBreakdown(_ laps: [WorkoutEnrichment.SwimLap]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Lap Breakdown")
+                .font(.headline)
+
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Lap")
+                        .font(.caption.bold())
+                        .frame(width: 32, alignment: .leading)
+                    Text("Time")
+                        .font(.caption.bold())
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    Text("Strokes")
+                        .font(.caption.bold())
+                        .frame(width: 55, alignment: .center)
+                    Text("SWOLF")
+                        .font(.caption.bold())
+                        .frame(width: 50, alignment: .trailing)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+
+                Divider()
+
+                ForEach(laps) { lap in
+                    HStack {
+                        Text("\(lap.id)")
+                            .font(.subheadline.monospacedDigit())
+                            .frame(width: 32, alignment: .leading)
+
+                        Text(formatSplitDuration(lap.duration))
+                            .font(.subheadline.bold().monospacedDigit())
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        Text(lap.strokeCount.map { "\($0)" } ?? "-")
+                            .font(.subheadline.monospacedDigit())
+                            .frame(width: 55, alignment: .center)
+
+                        Text(lap.swolf.map { String(format: "%.0f", $0) } ?? "-")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50, alignment: .trailing)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+
+                    if lap.id != laps.last?.id {
+                        Divider().padding(.horizontal)
+                    }
+                }
+            }
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Swimming Physiology
+
+    private func swimmingPhysiologySection(_ metrics: WorkoutEnrichment.SwimmingMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Physiology")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let spo2 = metrics.averageSpO2 {
+                    metricCard(title: "SpO2", value: String(format: "%.0f%%", spo2), icon: "lungs.fill")
+                }
+
+                if let breathing = metrics.averageBreathingRate {
+                    metricCard(title: "Breathing", value: String(format: "%.0f bpm", breathing), icon: "wind")
                 }
             }
         }

@@ -346,7 +346,7 @@ struct SessionHistoryView: View {
                 }
             case .swimming:
                 if let session = item.swimmingSession {
-                    SwimmingSessionDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .shooting:
                 if let session = item.shootingSession {
@@ -461,7 +461,7 @@ struct SessionHistoryView: View {
                 }
             case .swimming:
                 if let session = item.swimmingSession {
-                    SwimmingSessionDetailView(session: session)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
                 }
             case .shooting:
                 if let session = item.shootingSession {

@@ -58,6 +58,17 @@ struct WorkoutEnrichment: Sendable {
         var averageSWOLF: Double?        // SWOLF score
         var lapCount: Int?               // number of laps
         var poolLength: Double?          // meters (from workout metadata)
+        var laps: [SwimLap] = []         // per-lap breakdown
+        var averageSpO2: Double?         // blood oxygen percentage
+        var averageBreathingRate: Double? // breaths per minute
+    }
+
+    struct SwimLap: Identifiable, Sendable {
+        let id: Int               // lap number (1-based)
+        let duration: TimeInterval
+        let strokeCount: Int?
+        let swolf: Double?        // duration + strokes
+        let strokeType: String?   // freestyle, backstroke, etc.
     }
 
     struct CyclingMetrics: Sendable {
@@ -318,7 +329,19 @@ final class WorkoutEnrichmentService {
             hasAnyData = true
         }
 
-        // Get lap count and pool length from the HKWorkout metadata
+        // SpO2
+        if let spo2 = await fetchAverageQuantity(.oxygenSaturation, predicate: predicate, unit: .percent()) {
+            metrics.averageSpO2 = spo2 * 100
+            hasAnyData = true
+        }
+
+        // Breathing rate
+        if let breathing = await fetchAverageQuantity(.respiratoryRate, predicate: predicate, unit: HKUnit.count().unitDivided(by: .minute())) {
+            metrics.averageBreathingRate = breathing
+            hasAnyData = true
+        }
+
+        // Get lap data, pool length from the HKWorkout
         let workoutPredicate = HKQuery.predicateForObject(with: workoutId)
         let workoutDescriptor = HKSampleQueryDescriptor<HKWorkout>(
             predicates: [.workout(workoutPredicate)],
@@ -333,24 +356,67 @@ final class WorkoutEnrichmentService {
                 hasAnyData = true
             }
 
-            // Count lap events
+            // Build per-lap breakdown from lap events
             let lapEvents = workout.workoutEvents?.filter { $0.type == .lap } ?? []
             if !lapEvents.isEmpty {
                 metrics.lapCount = lapEvents.count
                 hasAnyData = true
 
-                // Calculate SWOLF: average (seconds per lap + strokes per lap)
-                if let totalStrokes = metrics.totalStrokeCount, metrics.lapCount ?? 0 > 0 {
-                    let lapCount = Double(metrics.lapCount!)
-                    let avgTimePerLap = workout.duration / lapCount
-                    let avgStrokesPerLap = totalStrokes / lapCount
-                    metrics.averageSWOLF = avgTimePerLap + avgStrokesPerLap
-                    hasAnyData = true
+                // Fetch per-lap stroke samples for stroke count per lap
+                let strokeSamples = await fetchStrokeSamples(from: start, to: end)
+
+                var laps: [WorkoutEnrichment.SwimLap] = []
+                var previousTime = workout.startDate
+
+                for (index, event) in lapEvents.enumerated() {
+                    let lapDuration = event.dateInterval.start.timeIntervalSince(previousTime)
+
+                    // Count strokes in this lap's time window
+                    let lapStrokes = strokeSamples.filter {
+                        $0.startDate >= previousTime && $0.startDate < event.dateInterval.start
+                    }
+                    let strokeCount = lapStrokes.isEmpty ? nil : Int(lapStrokes.reduce(0.0) { $0 + $1.quantity.doubleValue(for: .count()) })
+
+                    // Stroke type from metadata
+                    let strokeType = event.metadata?[HKMetadataKeySwimmingStrokeStyle] as? String
+
+                    // SWOLF for this lap
+                    let swolf: Double? = strokeCount.map { Double(lapDuration) + Double($0) }
+
+                    laps.append(WorkoutEnrichment.SwimLap(
+                        id: index + 1,
+                        duration: lapDuration,
+                        strokeCount: strokeCount,
+                        swolf: swolf,
+                        strokeType: strokeType
+                    ))
+
+                    previousTime = event.dateInterval.start
+                }
+
+                metrics.laps = laps
+
+                // Average SWOLF from per-lap data
+                let swolfValues = laps.compactMap(\.swolf)
+                if !swolfValues.isEmpty {
+                    metrics.averageSWOLF = swolfValues.reduce(0, +) / Double(swolfValues.count)
                 }
             }
         }
 
         return hasAnyData ? metrics : nil
+    }
+
+    private func fetchStrokeSamples(from start: Date, to end: Date) async -> [HKQuantitySample] {
+        let strokeType = HKQuantityType(.swimmingStrokeCount)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: strokeType, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate)]
+        )
+
+        return (try? await descriptor.result(for: healthStore)) ?? []
     }
 
     // MARK: - Cycling Metrics

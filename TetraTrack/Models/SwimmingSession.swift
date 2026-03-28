@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HealthKit
 import SwiftData
 import CoreLocation
 
@@ -470,5 +471,99 @@ struct ThreeMinuteSwimTest {
         case 120..<150: return "Beginner"
         default: return "Novice"
         }
+    }
+}
+
+// MARK: - Swimming Personal Bests (legacy — kept for Settings display)
+
+struct SwimmingPersonalBests {
+    static var shared = SwimmingPersonalBests()
+
+    private let store = NSUbiquitousKeyValueStore.default
+
+    var pb3MinDistance: Double {
+        get { store.double(forKey: "swim_pb_3min_distance") }
+        set { store.set(newValue, forKey: "swim_pb_3min_distance"); store.synchronize() }
+    }
+
+    var pb3MinTime: TimeInterval {
+        get { store.double(forKey: "swim_pb_3min_time") }
+        set { store.set(newValue, forKey: "swim_pb_3min_time"); store.synchronize() }
+    }
+
+    var thresholdPace: TimeInterval {
+        get { store.double(forKey: "swim_threshold_pace") }
+        set { store.set(newValue, forKey: "swim_threshold_pace"); store.synchronize() }
+    }
+
+    var thresholdPaceDate: Date? {
+        get { store.object(forKey: "swim_threshold_pace_date") as? Date }
+        set { store.set(newValue, forKey: "swim_threshold_pace_date"); store.synchronize() }
+    }
+
+    mutating func updatePersonalBest(distance: Double, time: TimeInterval) {
+        if distance > pb3MinDistance {
+            pb3MinDistance = distance
+            pb3MinTime = time
+        }
+    }
+
+    mutating func updatePersonalBest(rawScore: Int) {
+        // For compatibility with Settings PB editor
+    }
+
+    func formattedPBDistance() -> String {
+        guard pb3MinDistance > 0 else { return "--" }
+        return String(format: "%.0fm", pb3MinDistance)
+    }
+
+    func formattedPBPace() -> String {
+        guard pb3MinDistance > 0, pb3MinTime > 0 else { return "--:--" }
+        let pace = pb3MinTime / (pb3MinDistance / 100)
+        let mins = Int(pace) / 60
+        let secs = Int(pace) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
+    func formattedThresholdPace() -> String {
+        guard thresholdPace > 0 else { return "--:--" }
+        let mins = Int(thresholdPace) / 60
+        let secs = Int(thresholdPace) % 60
+        return String(format: "%d:%02d /100m", mins, secs)
+    }
+
+    static func migrateFromUserDefaults() {
+        let defaults = UserDefaults.standard
+        let store = NSUbiquitousKeyValueStore.default
+        guard !defaults.bool(forKey: "swimming_pb_migrated_to_icloud") else { return }
+        let keys = ["swim_pb_3min_distance", "swim_pb_3min_time", "swim_threshold_pace"]
+        for key in keys {
+            let value = defaults.double(forKey: key)
+            if value > 0 && store.double(forKey: key) == 0 {
+                store.set(value, forKey: key)
+            }
+        }
+        store.synchronize()
+        defaults.set(true, forKey: "swimming_pb_migrated_to_icloud")
+    }
+}
+
+// MARK: - ExternalWorkout Conversion
+
+extension SwimmingSession {
+    var asExternalWorkout: ExternalWorkout {
+        ExternalWorkout(
+            id: UUID(uuidString: healthKitWorkoutUUID) ?? id,
+            activityType: .swimming,
+            sourceName: "TetraTrack",
+            sourceBundleIdentifier: "dev.dreamfold.TetraTrack",
+            startDate: startDate,
+            endDate: endDate ?? startDate.addingTimeInterval(totalDuration),
+            duration: totalDuration,
+            totalDistance: totalDistance > 0 ? totalDistance : nil,
+            totalEnergyBurned: nil,
+            averageHeartRate: averageHeartRate > 0 ? Double(averageHeartRate) : nil,
+            hasRoute: hasRouteData
+        )
     }
 }

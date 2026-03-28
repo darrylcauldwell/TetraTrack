@@ -9,7 +9,6 @@ import SwiftUI
 
 struct WatchStartSessionView: View {
     @State private var showRideControl = false
-    @State private var showSwimControl = false
     @State private var showShootingControl = false
 
     var body: some View {
@@ -17,9 +16,6 @@ struct WatchStartSessionView: View {
             disciplineSelectorView
             .navigationDestination(isPresented: $showRideControl) {
                 RideControlView()
-            }
-            .navigationDestination(isPresented: $showSwimControl) {
-                SwimControlView()
             }
             .navigationDestination(isPresented: $showShootingControl) {
                 ShootingControlView()
@@ -50,29 +46,6 @@ struct WatchStartSessionView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(WatchAppColors.riding.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            .buttonStyle(.plain)
-
-            // Swimming button
-            Button {
-                showSwimControl = true
-            } label: {
-                HStack {
-                    Image(systemName: "figure.pool.swim")
-                        .font(.title3)
-                        .foregroundStyle(WatchAppColors.swimming)
-                    Text("Strokes + HR")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(WatchAppColors.swimming.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
