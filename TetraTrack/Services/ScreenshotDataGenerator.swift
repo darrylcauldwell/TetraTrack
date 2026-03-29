@@ -734,7 +734,16 @@ struct ScreenshotDataGenerator {
         )
         trial.endWeather = trial.startWeather
         trial.notes = "6:18 for 1500m - new PB! The last 200m was powered entirely by spite and the knowledge that ice cream awaited. Legs have filed a formal complaint."
+        trial.averageBreathingRate = 28
+        trial.averageSpO2 = 96
+        trial.postureStability = 72
+        trial.endFatigueScore = 35
+        trial.trainingLoadScore = 65
+        trial.recoveryQuality = 70
         context.insert(trial)
+        generateRunningHeartRateSamples(for: trial, warmupHR: 142, peakHR: 185, sampleCount: 25)
+        generateRunningRoute(for: trial, startLat: 51.5419, startLon: -2.2872, in: context)
+        generateRunningSplits(for: trial, in: context)
 
         // Easy Run
         let easy = RunningSession(name: "Recovery Jog (Walking Disguised)", sessionType: .easy, runMode: .outdoor)
@@ -762,7 +771,16 @@ struct ScreenshotDataGenerator {
         )
         easy.endWeather = easy.startWeather
         easy.notes = "Easy 5k that was supposed to be 'gentle'. Still got overtaken by someone's grandmother. The dog that joined me for 2km was a highlight."
+        easy.averageBreathingRate = 22
+        easy.averageSpO2 = 97
+        easy.postureStability = 82
+        easy.endFatigueScore = 15
+        easy.trainingLoadScore = 35
+        easy.recoveryQuality = 85
         context.insert(easy)
+        generateRunningHeartRateSamples(for: easy, warmupHR: 118, peakHR: 158, sampleCount: 25)
+        generateRunningRoute(for: easy, startLat: 52.6214, startLon: -0.4133, in: context)
+        generateRunningSplits(for: easy, in: context)
 
         // Interval Session
         let intervals = RunningSession(name: "Speed Intervals (Voluntary Torture)", sessionType: .intervals, runMode: .outdoor)
@@ -790,7 +808,16 @@ struct ScreenshotDataGenerator {
         )
         intervals.endWeather = intervals.startWeather
         intervals.notes = "8x400m intervals. Each one felt progressively more like a life choice I needed to reconsider. The voice coach telling me to 'pick it up' was NOT appreciated on rep 7."
+        intervals.averageBreathingRate = 26
+        intervals.averageSpO2 = 96
+        intervals.postureStability = 75
+        intervals.endFatigueScore = 30
+        intervals.trainingLoadScore = 60
+        intervals.recoveryQuality = 72
         context.insert(intervals)
+        generateRunningHeartRateSamples(for: intervals, warmupHR: 128, peakHR: 188, sampleCount: 30)
+        generateRunningRoute(for: intervals, startLat: 53.2271, startLon: -1.6115, in: context)
+        generateRunningSplits(for: intervals, in: context)
 
         // Treadmill
         let treadmill = RunningSession(name: "Treadmill (Hamster Wheel Experience)", sessionType: .easy, runMode: .treadmill)
@@ -810,7 +837,15 @@ struct ScreenshotDataGenerator {
         treadmill.healthKitPower = 260
         treadmill.healthKitSpeed = 2.80
         treadmill.notes = "It was raining. I have no regrets. Watched an entire episode of something while running. This is peak efficiency. Or laziness. Possibly both."
+        treadmill.averageBreathingRate = 24
+        treadmill.averageSpO2 = 97
+        treadmill.postureStability = 78
+        treadmill.endFatigueScore = 18
+        treadmill.trainingLoadScore = 40
+        treadmill.recoveryQuality = 80
         context.insert(treadmill)
+        generateRunningHeartRateSamples(for: treadmill, warmupHR: 125, peakHR: 162, sampleCount: 20)
+        // No GPS route for treadmill
 
         // Long Run
         let longRun = RunningSession(name: "Sunday Long Run (Pain & Suffering)", sessionType: .longRun, runMode: .outdoor)
@@ -838,7 +873,16 @@ struct ScreenshotDataGenerator {
         )
         longRun.endWeather = longRun.startWeather
         longRun.notes = "10.5km Sunday long run. The first 5km felt amazing. The last 5km felt like a negotiation with my legs. Discovered three new blisters and one new appreciation for sofas. The pub at the end was motivational."
+        longRun.averageBreathingRate = 24
+        longRun.averageSpO2 = 97
+        longRun.postureStability = 76
+        longRun.endFatigueScore = 28
+        longRun.trainingLoadScore = 55
+        longRun.recoveryQuality = 68
         context.insert(longRun)
+        generateRunningHeartRateSamples(for: longRun, warmupHR: 120, peakHR: 165, sampleCount: 30)
+        generateRunningRoute(for: longRun, startLat: 51.8413, startLon: -1.3618, in: context)
+        generateRunningSplits(for: longRun, in: context)
 
         // Tempo Run
         let tempo = RunningSession(name: "Tempo Run (Comfortably Uncomfortable)", sessionType: .tempo, runMode: .outdoor)
@@ -866,7 +910,16 @@ struct ScreenshotDataGenerator {
         )
         tempo.endWeather = tempo.startWeather
         tempo.notes = "Tempo pace practice - 'comfortably hard' they said. 'Uncomfortable and questioning life choices' is more accurate. Maintained pace for 4km though, which is a win. The voice coach was encouraging. Too encouraging."
+        tempo.averageBreathingRate = 26
+        tempo.averageSpO2 = 96
+        tempo.postureStability = 74
+        tempo.endFatigueScore = 25
+        tempo.trainingLoadScore = 55
+        tempo.recoveryQuality = 72
         context.insert(tempo)
+        generateRunningHeartRateSamples(for: tempo, warmupHR: 135, peakHR: 175, sampleCount: 25)
+        generateRunningRoute(for: tempo, startLat: 54.1193, startLon: -0.9095, in: context)
+        generateRunningSplits(for: tempo, in: context)
 
         // Virtual Pacer Session
         let pacer = RunningSession(name: "Chase the Ghost (Virtual Pacer)", sessionType: .timeTrial, runMode: .outdoor)
@@ -894,7 +947,16 @@ struct ScreenshotDataGenerator {
         )
         pacer.endWeather = pacer.startWeather
         pacer.notes = "Chasing my PB ghost on the 1500m. The ghost won by 42 seconds. The ghost is a show-off. Next time I'm setting a more achievable ghost. One that maybe takes a coffee break mid-run."
+        pacer.averageBreathingRate = 27
+        pacer.averageSpO2 = 96
+        pacer.postureStability = 70
+        pacer.endFatigueScore = 32
+        pacer.trainingLoadScore = 58
+        pacer.recoveryQuality = 68
         context.insert(pacer)
+        generateRunningHeartRateSamples(for: pacer, warmupHR: 138, peakHR: 180, sampleCount: 20)
+        generateRunningRoute(for: pacer, startLat: 52.2821, startLon: -1.0012, in: context)
+        generateRunningSplits(for: pacer, in: context)
 
         // Hill Repeats
         let hills = RunningSession(name: "Hill Repeats (Stairway to Suffering)", sessionType: .intervals, runMode: .outdoor)
@@ -922,7 +984,16 @@ struct ScreenshotDataGenerator {
         )
         hills.endWeather = hills.startWeather
         hills.notes = "6x hill repeats. By rep 4, the hill had become my nemesis. By rep 6, we had reached an uneasy truce. My quads are filing a formal complaint with HR. The views from the top were lovely, when I could see through the tears."
+        hills.averageBreathingRate = 28
+        hills.averageSpO2 = 95
+        hills.postureStability = 68
+        hills.endFatigueScore = 38
+        hills.trainingLoadScore = 68
+        hills.recoveryQuality = 62
         context.insert(hills)
+        generateRunningHeartRateSamples(for: hills, warmupHR: 130, peakHR: 182, sampleCount: 25)
+        generateRunningRoute(for: hills, startLat: 50.8559, startLon: -0.5528, in: context)
+        generateRunningSplits(for: hills, in: context)
 
         // Recovery Run
         let recovery = RunningSession(name: "Recovery Shuffle (Barely Moving)", sessionType: .recovery, runMode: .outdoor)
@@ -950,7 +1021,16 @@ struct ScreenshotDataGenerator {
         )
         recovery.endWeather = recovery.startWeather
         recovery.notes = "Post-XC-schooling recovery jog. My legs had a team meeting and decided anything faster than a shuffle was unacceptable. Three pensioners overtook me. One offered encouragement. It was humbling."
+        recovery.averageBreathingRate = 20
+        recovery.averageSpO2 = 98
+        recovery.postureStability = 85
+        recovery.endFatigueScore = 10
+        recovery.trainingLoadScore = 20
+        recovery.recoveryQuality = 90
         context.insert(recovery)
+        generateRunningHeartRateSamples(for: recovery, warmupHR: 95, peakHR: 132, sampleCount: 20)
+        generateRunningRoute(for: recovery, startLat: 50.9683, startLon: -0.2247, in: context)
+        generateRunningSplits(for: recovery, in: context)
 
         // Race - Parkrun
         let race = RunningSession(name: "Saturday Parkrun (Competitive Walking)", sessionType: .race, runMode: .outdoor)
@@ -978,7 +1058,16 @@ struct ScreenshotDataGenerator {
         )
         race.endWeather = race.startWeather
         race.notes = "Parkrun PB attempt! Went out too fast, died at 3km, somehow resurrected for the sprint finish. Overtook someone in the funnel - peak athletic achievement. Free banana made it all worthwhile. Official time: 27:00."
+        race.averageBreathingRate = 30
+        race.averageSpO2 = 95
+        race.postureStability = 68
+        race.endFatigueScore = 40
+        race.trainingLoadScore = 70
+        race.recoveryQuality = 65
         context.insert(race)
+        generateRunningHeartRateSamples(for: race, warmupHR: 145, peakHR: 192, sampleCount: 30)
+        generateRunningRoute(for: race, startLat: 51.7580, startLon: -1.5803, in: context)
+        generateRunningSplits(for: race, in: context)
 
         // Fartlek
         let fartlek = RunningSession(name: "Fartlek Fun (Organised Chaos)", sessionType: .fartlek, runMode: .outdoor)
@@ -1006,7 +1095,16 @@ struct ScreenshotDataGenerator {
         )
         fartlek.endWeather = fartlek.startWeather
         fartlek.notes = "Fartlek = Swedish for 'speed play'. My version = sprint to the next lamppost, wheeze dramatically, jog to recover, repeat. The dog walker who kept appearing thought I was having a medical emergency. Best unstructured session yet!"
+        fartlek.averageBreathingRate = 25
+        fartlek.averageSpO2 = 96
+        fartlek.postureStability = 74
+        fartlek.endFatigueScore = 22
+        fartlek.trainingLoadScore = 50
+        fartlek.recoveryQuality = 75
         context.insert(fartlek)
+        generateRunningHeartRateSamples(for: fartlek, warmupHR: 125, peakHR: 184, sampleCount: 28)
+        generateRunningRoute(for: fartlek, startLat: 52.2856, startLon: -1.5349, in: context)
+        generateRunningSplits(for: fartlek, in: context)
     }
 
     // MARK: - Walking Sessions
@@ -1112,6 +1210,8 @@ struct ScreenshotDataGenerator {
         )
         walk1.notes = "Beautiful evening loop through the village. Stone walls, thatched cottages, and one very judgmental sheep. Pace improving each time — the legs are getting used to the hill by the pub. Biomechanics looking good!"
         context.insert(walk1)
+        generateRunningHeartRateSamples(for: walk1, warmupHR: 88, peakHR: 125, sampleCount: 20)
+        generateWalkingRoute(for: walk1, startLat: 51.7580, startLon: -1.5803, in: context)
         villageAttempt3.runningSessionId = walk1.id
 
         // MARK: Walking Route 2 — Grand Union Canal Towpath
@@ -1199,6 +1299,8 @@ struct ScreenshotDataGenerator {
         )
         walk2.notes = "Flat towpath walk along the canal. Narrowboat traffic was excellent entertainment. Lost count of the locks but gained a new appreciation for canal engineering. The resident heron gave me the side-eye. Again."
         context.insert(walk2)
+        generateRunningHeartRateSamples(for: walk2, warmupHR: 92, peakHR: 130, sampleCount: 20)
+        generateWalkingRoute(for: walk2, startLat: 52.2856, startLon: -1.5349, in: context)
         canalAttempt2.runningSessionId = walk2.id
 
         // MARK: Walking Session 3 — Standalone (no saved route)
@@ -1232,6 +1334,8 @@ struct ScreenshotDataGenerator {
         walk3.endWeather = walk3.startWeather
         walk3.notes = "Just walked. No plan, no route, no pressure. Ended up at a farm shop and bought cheese. The walk home was slightly faster — possibly cheese-motivated. Sometimes the best training is no training."
         context.insert(walk3)
+        generateRunningHeartRateSamples(for: walk3, warmupHR: 85, peakHR: 118, sampleCount: 18)
+        generateWalkingRoute(for: walk3, startLat: 51.8413, startLon: -1.3618, in: context)
     }
 
     // MARK: - Swimming Sessions
@@ -1244,8 +1348,14 @@ struct ScreenshotDataGenerator {
         test.totalDistance = 225 // 9 lengths
         test.totalDuration = 180
         test.totalStrokes = 162
+        test.averageHeartRate = 165
+        test.maxHeartRate = 182
+        test.minHeartRate = 140
+        test.averageBreathingRate = 28
+        test.averageSpO2 = 96
         test.notes = "9 lengths in 3 minutes - PB! The tumble turns are getting less 'tumble' and more 'controlled chaos'. Only swallowed a small amount of chlorine this time. Progress!"
         context.insert(test)
+        generateSwimmingHeartRateSamples(for: test, warmupHR: 140, peakHR: 182, sampleCount: 15)
 
         // Add laps
         for i in 0..<9 {
@@ -1265,8 +1375,17 @@ struct ScreenshotDataGenerator {
         training.totalDistance = 1000
         training.totalDuration = 1200
         training.totalStrokes = 720
+        training.averageHeartRate = 155
+        training.maxHeartRate = 175
+        training.minHeartRate = 125
+        training.averageBreathingRate = 26
+        training.averageSpO2 = 97
+        training.endFatigueScore = 22
+        training.trainingLoadScore = 48
+        training.recoveryQuality = 75
         training.notes = "1km of speed sets! SWOLF improving - apparently I'm more efficient when there's cake promised at the end. The lane rope and I had a minor disagreement on length 32. We've reconciled."
         context.insert(training)
+        generateSwimmingHeartRateSamples(for: training, warmupHR: 125, peakHR: 175, sampleCount: 25)
 
         // Add laps for training
         for i in 0..<40 {
@@ -1286,8 +1405,25 @@ struct ScreenshotDataGenerator {
         openWater.totalDistance = 400
         openWater.totalDuration = 720
         openWater.totalStrokes = 320
+        openWater.averageHeartRate = 148
+        openWater.maxHeartRate = 168
+        openWater.minHeartRate = 118
+        openWater.averageBreathingRate = 24
+        openWater.averageSpO2 = 96
+        openWater.endFatigueScore = 18
+        openWater.trainingLoadScore = 35
+        openWater.recoveryQuality = 78
+        openWater.isIndoor = false
+        openWater.startWeather = WeatherConditions(
+            timestamp: openWater.startDate, temperature: 16, feelsLike: 15,
+            humidity: 0.65, windSpeed: 2.5, windDirection: 180, windGust: nil,
+            condition: "Partly Cloudy", conditionSymbol: "cloud.sun.fill",
+            uvIndex: 5, visibility: 14000, pressure: 1020, precipitationChance: 0.10, isDaylight: true
+        )
+        openWater.endWeather = openWater.startWeather
         openWater.notes = "First open water swim of the season! Water temperature: 'refreshing' (read: cold enough to reconsider life). Sighting practice went well - only swam into one buoy. The ducks were unimpressed by my technique."
         context.insert(openWater)
+        generateSwimmingHeartRateSamples(for: openWater, warmupHR: 118, peakHR: 168, sampleCount: 20)
 
         // 50m Pool Session
         let fiftyPool = SwimmingSession(name: "Olympic Pool Practice", poolMode: .pool, poolLength: 50)
@@ -1296,8 +1432,17 @@ struct ScreenshotDataGenerator {
         fiftyPool.totalDistance = 1500
         fiftyPool.totalDuration = 1800
         fiftyPool.totalStrokes = 1080
+        fiftyPool.averageHeartRate = 152
+        fiftyPool.maxHeartRate = 172
+        fiftyPool.minHeartRate = 120
+        fiftyPool.averageBreathingRate = 25
+        fiftyPool.averageSpO2 = 97
+        fiftyPool.endFatigueScore = 25
+        fiftyPool.trainingLoadScore = 52
+        fiftyPool.recoveryQuality = 72
         fiftyPool.notes = "50m pool - half the turns means twice the suffering per length. The extra distance between walls is psychological warfare. Flip turns are getting tidier though - only 60% of them involve mild panic now."
         context.insert(fiftyPool)
+        generateSwimmingHeartRateSamples(for: fiftyPool, warmupHR: 120, peakHR: 172, sampleCount: 25)
 
         // Add laps for 50m pool (30 laps)
         for i in 0..<30 {
@@ -1317,8 +1462,17 @@ struct ScreenshotDataGenerator {
         technique.totalDistance = 750
         technique.totalDuration = 1200
         technique.totalStrokes = 480
+        technique.averageHeartRate = 138
+        technique.maxHeartRate = 155
+        technique.minHeartRate = 112
+        technique.averageBreathingRate = 22
+        technique.averageSpO2 = 98
+        technique.endFatigueScore = 12
+        technique.trainingLoadScore = 30
+        technique.recoveryQuality = 85
         technique.notes = "Technique drills - catch-up drill, fingertip drag, fist swimming. Discovered I've been 'swimming' with more splash than propulsion. Coach said my catch was 'improving' with a very diplomatic expression."
         context.insert(technique)
+        generateSwimmingHeartRateSamples(for: technique, warmupHR: 112, peakHR: 155, sampleCount: 20)
 
         // Add laps for technique (30 laps)
         for i in 0..<30 {
@@ -1338,8 +1492,17 @@ struct ScreenshotDataGenerator {
         endurance.totalDistance = 2000
         endurance.totalDuration = 2400
         endurance.totalStrokes = 1440
+        endurance.averageHeartRate = 148
+        endurance.maxHeartRate = 168
+        endurance.minHeartRate = 118
+        endurance.averageBreathingRate = 24
+        endurance.averageSpO2 = 96
+        endurance.endFatigueScore = 30
+        endurance.trainingLoadScore = 58
+        endurance.recoveryQuality = 65
         endurance.notes = "2km continuous swim! The first 500m were pleasant. The second 500m were okay. The third 500m involved counting tiles. The final 500m was powered by stubbornness and the promise of hot chocolate. Channel swim status: not yet."
         context.insert(endurance)
+        generateSwimmingHeartRateSamples(for: endurance, warmupHR: 118, peakHR: 168, sampleCount: 30)
 
         // Add laps for endurance (80 laps)
         for i in 0..<80 {
@@ -1366,8 +1529,32 @@ struct ScreenshotDataGenerator {
         )
         comp.startDate = Calendar.current.date(byAdding: .day, value: -3, to: Date()) ?? Date()
         comp.endDate = comp.startDate.addingTimeInterval(900)
+        comp.sessionContext = .competitionTraining
+        comp.averageHeartRate = 92
+        comp.maxHeartRate = 108
+        comp.minHeartRate = 78
+        comp.averageStanceStability = 78
+        comp.averageTremorLevel = 18
+        comp.averageHoldSteadiness = 76
+        comp.averageHoldDuration = 3.8
+        comp.shotTimingConsistencyCV = 12.5
+        comp.firstHalfSteadiness = 80
+        comp.secondHalfSteadiness = 72
+        comp.steadinessDegradation = 10.0
+        comp.stabilityScore = 78
+        comp.rhythmScore = 82
+        comp.symmetryScore = 75
+        comp.economyScore = 80
+        comp.composureScore = 72
+        comp.overallBiomechanicalScore = 79
+        comp.averageBreathingRate = 16
+        comp.averageSpO2 = 98
+        comp.postureStability = 78
+        comp.endFatigueScore = 12
+        comp.trainingLoadScore = 28
         comp.notes = "86 points across 2 cards! My stance is getting steadier - the Watch only judged me 'slightly wobbly' this time. Shot 5 on card 1 was... ambitious. We don't talk about shot 5."
         context.insert(comp)
+        generateShootingHeartRateSamples(for: comp, restingHR: 78, peakHR: 108, sampleCount: 18)
 
         // Add ends with shots for realistic scores
         let end1 = ShootingEnd(orderIndex: 0)
@@ -1390,8 +1577,32 @@ struct ScreenshotDataGenerator {
         )
         training.startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         training.endDate = training.startDate.addingTimeInterval(1800)
+        training.sessionContext = .freePractice
+        training.averageHeartRate = 88
+        training.maxHeartRate = 102
+        training.minHeartRate = 75
+        training.averageStanceStability = 72
+        training.averageTremorLevel = 22
+        training.averageHoldSteadiness = 70
+        training.averageHoldDuration = 3.5
+        training.shotTimingConsistencyCV = 15.2
+        training.firstHalfSteadiness = 75
+        training.secondHalfSteadiness = 65
+        training.steadinessDegradation = 13.3
+        training.stabilityScore = 72
+        training.rhythmScore = 76
+        training.symmetryScore = 70
+        training.economyScore = 74
+        training.composureScore = 68
+        training.overallBiomechanicalScore = 73
+        training.averageBreathingRate = 15
+        training.averageSpO2 = 98
+        training.postureStability = 72
+        training.endFatigueScore = 15
+        training.trainingLoadScore = 32
         training.notes = "Focus on breathing today. Turns out holding your breath for 30 seconds is NOT the technique. Who knew? Dry fire stability improved - I can now remain motionless for almost 4 seconds."
         context.insert(training)
+        generateShootingHeartRateSamples(for: training, restingHR: 75, peakHR: 102, sampleCount: 20)
 
         let scores = [[8,8,6,10,8], [10,8,8,6,8], [8,10,10,8,8], [10,8,8,10,6]]
         for (i, scoreSet) in scores.enumerated() {
@@ -1411,8 +1622,32 @@ struct ScreenshotDataGenerator {
         )
         dryFire.startDate = Calendar.current.date(byAdding: .day, value: -10, to: Date()) ?? Date()
         dryFire.endDate = dryFire.startDate.addingTimeInterval(1200)
+        dryFire.sessionContext = .freePractice
+        dryFire.averageHeartRate = 82
+        dryFire.maxHeartRate = 95
+        dryFire.minHeartRate = 72
+        dryFire.averageStanceStability = 82
+        dryFire.averageTremorLevel = 14
+        dryFire.averageHoldSteadiness = 84
+        dryFire.averageHoldDuration = 4.2
+        dryFire.shotTimingConsistencyCV = 8.5
+        dryFire.firstHalfSteadiness = 85
+        dryFire.secondHalfSteadiness = 80
+        dryFire.steadinessDegradation = 5.9
+        dryFire.stabilityScore = 84
+        dryFire.rhythmScore = 88
+        dryFire.symmetryScore = 82
+        dryFire.economyScore = 86
+        dryFire.composureScore = 90
+        dryFire.overallBiomechanicalScore = 85
+        dryFire.averageBreathingRate = 14
+        dryFire.averageSpO2 = 99
+        dryFire.postureStability = 84
+        dryFire.endFatigueScore = 8
+        dryFire.trainingLoadScore = 18
         dryFire.notes = "Dry fire stability practice. Hold time improving - managed 4.2 seconds without wobble! The Watch says my stance is 'stable'. In my imagination, all shots were 10s. Reality may differ when we add actual ammunition."
         context.insert(dryFire)
+        generateShootingHeartRateSamples(for: dryFire, restingHR: 72, peakHR: 95, sampleCount: 15)
 
         // Add ends with phantom scores for dry fire (all 10s in imagination!)
         for i in 0..<3 {
@@ -1432,8 +1667,32 @@ struct ScreenshotDataGenerator {
         )
         match.startDate = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
         match.endDate = match.startDate.addingTimeInterval(1500)
+        match.sessionContext = .competitionTraining
+        match.averageHeartRate = 96
+        match.maxHeartRate = 115
+        match.minHeartRate = 80
+        match.averageStanceStability = 74
+        match.averageTremorLevel = 20
+        match.averageHoldSteadiness = 72
+        match.averageHoldDuration = 3.6
+        match.shotTimingConsistencyCV = 14.0
+        match.firstHalfSteadiness = 76
+        match.secondHalfSteadiness = 68
+        match.steadinessDegradation = 10.5
+        match.stabilityScore = 74
+        match.rhythmScore = 78
+        match.symmetryScore = 72
+        match.economyScore = 76
+        match.composureScore = 65
+        match.overallBiomechanicalScore = 75
+        match.averageBreathingRate = 17
+        match.averageSpO2 = 98
+        match.postureStability = 74
+        match.endFatigueScore = 18
+        match.trainingLoadScore = 38
         match.notes = "Full competition simulation with time pressure! End 1 was shaky (nerves). End 2 was better (settled). End 3 was peak performance. End 4 was... character building. Total: 168 points. Improvement noted!"
         context.insert(match)
+        generateShootingHeartRateSamples(for: match, restingHR: 80, peakHR: 115, sampleCount: 20)
 
         let matchScores = [[6,8,8,10,8], [10,10,8,8,10], [10,10,10,8,10], [8,6,8,10,8]]
         for (i, scoreSet) in matchScores.enumerated() {
@@ -1453,8 +1712,32 @@ struct ScreenshotDataGenerator {
         )
         precision.startDate = Calendar.current.date(byAdding: .day, value: -20, to: Date()) ?? Date()
         precision.endDate = precision.startDate.addingTimeInterval(1100)
+        precision.sessionContext = .freePractice
+        precision.averageHeartRate = 85
+        precision.maxHeartRate = 98
+        precision.minHeartRate = 74
+        precision.averageStanceStability = 80
+        precision.averageTremorLevel = 15
+        precision.averageHoldSteadiness = 82
+        precision.averageHoldDuration = 4.0
+        precision.shotTimingConsistencyCV = 10.2
+        precision.firstHalfSteadiness = 84
+        precision.secondHalfSteadiness = 78
+        precision.steadinessDegradation = 7.1
+        precision.stabilityScore = 82
+        precision.rhythmScore = 85
+        precision.symmetryScore = 80
+        precision.economyScore = 84
+        precision.composureScore = 82
+        precision.overallBiomechanicalScore = 83
+        precision.averageBreathingRate = 14
+        precision.averageSpO2 = 99
+        precision.postureStability = 82
+        precision.endFatigueScore = 10
+        precision.trainingLoadScore = 22
         precision.notes = "Focus on the inner rings only. Aiming for the 10 exclusively. Results: mixed. Turns out 'aim better' isn't quite enough instruction. Sight picture was good though. Release needs work. Always needs work."
         context.insert(precision)
+        generateShootingHeartRateSamples(for: precision, restingHR: 74, peakHR: 98, sampleCount: 18)
 
         let precisionScores = [[8,10,10,10,8], [10,8,10,10,10], [10,10,8,10,10]]
         for (i, scoreSet) in precisionScores.enumerated() {
@@ -1474,8 +1757,32 @@ struct ScreenshotDataGenerator {
         )
         pressure.startDate = Calendar.current.date(byAdding: .day, value: -25, to: Date()) ?? Date()
         pressure.endDate = pressure.startDate.addingTimeInterval(600)
+        pressure.sessionContext = .competitionTraining
+        pressure.averageHeartRate = 100
+        pressure.maxHeartRate = 120
+        pressure.minHeartRate = 82
+        pressure.averageStanceStability = 68
+        pressure.averageTremorLevel = 25
+        pressure.averageHoldSteadiness = 65
+        pressure.averageHoldDuration = 3.2
+        pressure.shotTimingConsistencyCV = 18.5
+        pressure.firstHalfSteadiness = 70
+        pressure.secondHalfSteadiness = 60
+        pressure.steadinessDegradation = 14.3
+        pressure.stabilityScore = 68
+        pressure.rhythmScore = 72
+        pressure.symmetryScore = 66
+        pressure.economyScore = 70
+        pressure.composureScore = 58
+        pressure.overallBiomechanicalScore = 69
+        pressure.averageBreathingRate = 18
+        pressure.averageSpO2 = 97
+        pressure.postureStability = 68
+        pressure.endFatigueScore = 20
+        pressure.trainingLoadScore = 35
         pressure.notes = "Shot with dad watching. Discovered that being observed adds approximately 47% more wobble. Shot 3 of end 1 shall not be discussed. Managed to recover. Mental game: work in progress."
         context.insert(pressure)
+        generateShootingHeartRateSamples(for: pressure, restingHR: 82, peakHR: 120, sampleCount: 15)
 
         let pressureScores = [[10,8,4,8,10], [8,10,10,10,8]]  // Note the 4 - "shall not be discussed"
         for (i, scoreSet) in pressureScores.enumerated() {
@@ -1489,6 +1796,23 @@ struct ScreenshotDataGenerator {
     private static func addShots(to end: ShootingEnd, scores: [Int], in context: ModelContext) {
         for (i, score) in scores.enumerated() {
             let shot = Shot(orderIndex: i, score: score, isX: score == 10)
+            // Per-shot sensor data
+            let baseStability = Double(score) * 8.0 + Double.random(in: -5...5)
+            shot.holdSteadiness = min(100, max(20, baseStability))
+            shot.holdDuration = 3.0 + Double.random(in: 0...2.0)
+            shot.raiseSmoothness = 60 + Double.random(in: 0...30)
+            shot.settleDuration = 1.5 + Double.random(in: 0...1.5)
+            shot.tremorIntensity = max(5, 50 - baseStability * 0.4 + Double.random(in: -5...5))
+            shot.driftMagnitude = max(5, 40 - Double(score) * 3.0 + Double.random(in: -3...3))
+            shot.totalCycleTime = 6.0 + Double.random(in: 0...4.0)
+            shot.heartRateAtShot = 80 + Int.random(in: 0...25)
+            shot.holdPitchVariance = Double.random(in: 0.01...0.08)
+            shot.holdYawVariance = Double.random(in: 0.01...0.08)
+            // Position on target (normalized from center)
+            let distFromCenter = max(0, 1.0 - Double(score) / 10.0)
+            let angle = Double.random(in: 0...(2 * .pi))
+            shot.positionX = distFromCenter * cos(angle) * 0.5
+            shot.positionY = distFromCenter * sin(angle) * 0.5
             shot.end = end
             context.insert(shot)
         }
@@ -2272,6 +2596,167 @@ struct ScreenshotDataGenerator {
         case "Partly Cloudy": return "cloud.sun.fill"
         case "Cloudy": return "cloud.fill"
         default: return "cloud.fill"
+        }
+    }
+
+    // MARK: - Running/Walking Route Generation
+
+    private static func generateRunningRoute(
+        for session: RunningSession,
+        startLat: Double,
+        startLon: Double,
+        in context: ModelContext
+    ) {
+        let pointCount = 80
+        let duration = session.totalDuration
+        var lat = startLat
+        var lon = startLon
+
+        for i in 0..<pointCount {
+            let progress = Double(i) / Double(pointCount)
+            let timestamp = session.startDate.addingTimeInterval(duration * progress)
+
+            // Out-and-back pattern
+            if progress < 0.5 {
+                lat += Double.random(in: 0.0001...0.0003)
+                lon += Double.random(in: -0.0001...0.0002)
+            } else {
+                lat -= Double.random(in: 0.0001...0.0003)
+                lon -= Double.random(in: -0.0001...0.0002)
+            }
+
+            let speed = session.totalDistance / session.totalDuration
+            let point = GPSPoint(
+                latitude: lat, longitude: lon,
+                altitude: 50 + Double.random(in: -5...5),
+                timestamp: timestamp,
+                horizontalAccuracy: Double.random(in: 3...8),
+                speed: speed + Double.random(in: -0.5...0.5)
+            )
+            point.runningSession = session
+            context.insert(point)
+        }
+    }
+
+    private static func generateWalkingRoute(
+        for session: RunningSession,
+        startLat: Double,
+        startLon: Double,
+        in context: ModelContext
+    ) {
+        let pointCount = 50
+        let duration = session.totalDuration
+        var lat = startLat
+        var lon = startLon
+
+        for i in 0..<pointCount {
+            let progress = Double(i) / Double(pointCount)
+            let timestamp = session.startDate.addingTimeInterval(duration * progress)
+
+            // Gentle loop pattern
+            let angle = progress * 2 * .pi
+            lat += 0.00015 * cos(angle) + Double.random(in: -0.00005...0.00005)
+            lon += 0.00015 * sin(angle) + Double.random(in: -0.00005...0.00005)
+
+            let speed = session.totalDistance / session.totalDuration
+            let point = GPSPoint(
+                latitude: lat, longitude: lon,
+                altitude: 45 + Double.random(in: -3...3),
+                timestamp: timestamp,
+                horizontalAccuracy: Double.random(in: 3...8),
+                speed: speed + Double.random(in: -0.3...0.3)
+            )
+            point.runningSession = session
+            context.insert(point)
+        }
+    }
+
+    // MARK: - Heart Rate Sample Helpers
+
+    private static func generateRunningHeartRateSamples(
+        for session: RunningSession,
+        warmupHR: Double,
+        peakHR: Double,
+        sampleCount: Int = 25
+    ) {
+        let maxHR = Int(peakHR)
+        let samples: [HeartRateSample] = (0..<sampleCount).map { i in
+            let progress = Double(i) / Double(sampleCount)
+            let timestamp = session.startDate.addingTimeInterval(session.totalDuration * progress)
+            let hr = Int(warmupHR + (peakHR - warmupHR) * sin(progress * .pi))
+            return HeartRateSample(timestamp: timestamp, bpm: hr, maxHeartRate: maxHR)
+        }
+        session.heartRateSamplesData = try? JSONEncoder().encode(samples)
+    }
+
+    private static func generateSwimmingHeartRateSamples(
+        for session: SwimmingSession,
+        warmupHR: Double,
+        peakHR: Double,
+        sampleCount: Int = 20
+    ) {
+        let maxHR = Int(peakHR)
+        let samples: [HeartRateSample] = (0..<sampleCount).map { i in
+            let progress = Double(i) / Double(sampleCount)
+            let timestamp = session.startDate.addingTimeInterval(session.totalDuration * progress)
+            let hr = Int(warmupHR + (peakHR - warmupHR) * sin(progress * .pi))
+            return HeartRateSample(timestamp: timestamp, bpm: hr, maxHeartRate: maxHR)
+        }
+        session.heartRateSamplesData = try? JSONEncoder().encode(samples)
+    }
+
+    private static func generateShootingHeartRateSamples(
+        for session: ShootingSession,
+        restingHR: Double,
+        peakHR: Double,
+        sampleCount: Int = 20
+    ) {
+        let duration = session.endDate?.timeIntervalSince(session.startDate) ?? 900
+        let maxHR = Int(peakHR)
+        let samples: [HeartRateSample] = (0..<sampleCount).map { i in
+            let progress = Double(i) / Double(sampleCount)
+            let timestamp = session.startDate.addingTimeInterval(duration * progress)
+            // Shooting HR is mostly steady with slight rises during ends
+            let hr = Int(restingHR + (peakHR - restingHR) * 0.3 * (1.0 + sin(progress * .pi * 4)))
+            return HeartRateSample(timestamp: timestamp, bpm: min(hr, maxHR), maxHeartRate: maxHR)
+        }
+        session.heartRateSamplesData = try? JSONEncoder().encode(samples)
+    }
+
+    // MARK: - Running Splits Helper
+
+    private static func generateRunningSplits(
+        for session: RunningSession,
+        in context: ModelContext
+    ) {
+        let distanceKm = session.totalDistance / 1000.0
+        let fullSplits = Int(distanceKm)
+        let avgPace = session.totalDuration / distanceKm // seconds per km
+
+        for i in 0..<fullSplits {
+            let split = RunningSplit(orderIndex: i, distance: 1000)
+            // Vary pace realistically: start slower, middle faster, end slower
+            let progress = Double(i) / Double(max(fullSplits - 1, 1))
+            let variation = sin(progress * .pi) * 0.05 // up to 5% faster in middle
+            let splitPace = avgPace * (1.0 - variation) + Double.random(in: -5...5)
+            split.duration = splitPace
+            split.cadence = session.averageCadence + Int.random(in: -5...5)
+            split.heartRate = session.averageHeartRate + Int.random(in: -8...8)
+            split.elevation = Double.random(in: -5...10)
+            split.session = session
+            context.insert(split)
+        }
+
+        // Partial last split if there's remaining distance
+        let remainingMeters = session.totalDistance - Double(fullSplits) * 1000.0
+        if remainingMeters > 50 {
+            let split = RunningSplit(orderIndex: fullSplits, distance: remainingMeters)
+            split.duration = avgPace * (remainingMeters / 1000.0)
+            split.cadence = session.averageCadence + Int.random(in: -3...3)
+            split.heartRate = session.averageHeartRate + Int.random(in: -5...5)
+            split.elevation = Double.random(in: -3...5)
+            split.session = session
+            context.insert(split)
         }
     }
 
