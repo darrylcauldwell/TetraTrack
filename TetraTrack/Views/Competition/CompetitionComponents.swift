@@ -455,25 +455,31 @@ struct CompetitionDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
+                    // Header — compact
+                    HStack(spacing: 12) {
                         Image(systemName: competition.competitionType.icon)
-                            .font(.largeTitle)
+                            .font(.title2)
                             .foregroundStyle(AppColors.primary)
+                            .frame(width: 40)
 
-                        Text(competition.name)
-                            .font(.title.bold())
-                            .multilineTextAlignment(.center)
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !competition.name.isEmpty {
+                                Text(competition.name)
+                                    .font(.title3.bold())
+                            }
 
-                        HStack {
-                            Text(competition.competitionType.rawValue)
-                            Text("•")
-                            Text(competition.level.rawValue)
+                            HStack(spacing: 4) {
+                                Text(competition.competitionType.rawValue)
+                                Text("·")
+                                Text(competition.level.rawValue)
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                         }
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+
+                        Spacer()
                     }
-                    .padding()
+                    .padding(.horizontal)
 
                     // Countdown or status
                     if competition.isUpcoming {
