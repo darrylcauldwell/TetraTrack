@@ -17,13 +17,33 @@ struct RideDetailView: View {
     @State private var showingTrimView = false
     @State private var showingMediaEditor = false
     @State private var selectedVideo: PHAsset?
+    @State private var selectedTab: RideDetailTab = .session
+
+    enum RideDetailTab: String, CaseIterable {
+        case session = "Session"
+        case insights = "Insights"
+    }
 
     var body: some View {
-        ScrollView {
-            if horizontalSizeClass == .regular {
-                iPadLayout
-            } else {
-                iPhoneLayout
+        VStack(spacing: 0) {
+            Picker("", selection: $selectedTab) {
+                ForEach(RideDetailTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            ScrollView {
+                if selectedTab == .session {
+                    if horizontalSizeClass == .regular {
+                        iPadLayout
+                    } else {
+                        iPhoneLayout
+                    }
+                } else {
+                    RideInsightsView(ride: ride)
+                }
             }
         }
         .navigationTitle(ride.name.isEmpty ? "Ride Details" : ride.name)
@@ -80,7 +100,6 @@ struct RideDetailView: View {
                     }
 
                     badgesSection
-                    insightsLinkSection
 
                     if !ride.gaitBreakdown.isEmpty {
                         GaitBreakdownView(ride: ride)
@@ -140,7 +159,6 @@ struct RideDetailView: View {
             }
 
             badgesSection
-            insightsLinkSection
 
             // Gait breakdown
             if !ride.gaitBreakdown.isEmpty {
