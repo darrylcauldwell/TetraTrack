@@ -864,8 +864,45 @@ struct ShootingSessionDetailView: View {
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
+
+            ShareLink(item: shootingSummaryText) {
+                Label("Share Summary", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal)
         }
         .padding(.vertical)
+    }
+
+    // MARK: - Share Summary
+
+    private var shootingSummaryText: String {
+        var lines: [String] = []
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .long
+        dateFormatter.timeStyle = .short
+        let dateStr = dateFormatter.string(from: session.startDate)
+
+        let sessionName = session.name.isEmpty ? "Shooting Session" : session.name
+        lines.append("\(sessionName) — \(dateStr)")
+        lines.append("Score: \(session.totalScore) / \(session.maxPossibleScore) (\(String(format: "%.1f%%", session.scorePercentage)))")
+        lines.append("X's: \(session.xCount) | 10's: \(session.tensCount) | Avg/Arrow: \(String(format: "%.1f", session.averageScorePerArrow))")
+        lines.append("Target: \(session.targetType.rawValue) at \(session.formattedDistance)")
+        lines.append("Ends: \(session.numberOfEnds) x \(session.arrowsPerEnd) arrows")
+        lines.append("Duration: \(session.formattedDuration)")
+
+        if session.averageHeartRate > 0 {
+            lines.append("Avg HR: \(session.averageHeartRate) bpm")
+        }
+
+        if session.averageStanceStability > 0 {
+            lines.append("Stance Stability: \(String(format: "%.0f%%", session.averageStanceStability))")
+        }
+
+        lines.append("")
+        lines.append("Shared from TetraTrack")
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Insights Tab

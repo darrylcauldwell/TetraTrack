@@ -1107,7 +1107,8 @@ extension RunningSession {
             totalDistance: totalDistance > 0 ? totalDistance : nil,
             totalEnergyBurned: nil,
             averageHeartRate: averageHeartRate > 0 ? Double(averageHeartRate) : nil,
-            hasRoute: hasRouteData
+            hasRoute: hasRouteData,
+            notes: notes.isEmpty ? nil : notes
         )
     }
 }

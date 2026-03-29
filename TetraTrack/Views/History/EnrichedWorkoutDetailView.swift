@@ -125,6 +125,11 @@ struct EnrichedWorkoutDetailView: View {
                             heartRateZoneSummaryStats(general)
                         }
 
+                        // Recovery card
+                        if let recovery = enrichment.generalMetrics?.heartRateRecovery, recovery > 0 {
+                            recoverySection(recovery: recovery)
+                        }
+
                         if let gain = enrichment.elevationGain, gain > 0 {
                             elevationSection(gain: gain, loss: enrichment.elevationLoss ?? 0)
                         }
@@ -141,7 +146,23 @@ struct EnrichedWorkoutDetailView: View {
                         photosSection
                     }
 
+                    if let notes = workout.notes, !notes.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Notes")
+                                .font(.headline)
+                            Text(notes)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     sourceSection
+
+                    ShareLink(item: workoutSummaryText) {
+                        Label("Share Summary", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -695,7 +716,7 @@ struct EnrichedWorkoutDetailView: View {
             }
 
             // Fitness Indicators (if any available)
-            let hasFitnessData = metrics.vo2Max != nil || metrics.hrvSDNN != nil || metrics.activeCalories != nil || metrics.flightsClimbed != nil || metrics.averageBreathingRate != nil || metrics.averageSpO2 != nil
+            let hasFitnessData = metrics.vo2Max != nil || metrics.hrvSDNN != nil || metrics.activeCalories != nil || metrics.flightsClimbed != nil || metrics.averageBreathingRate != nil || metrics.averageSpO2 != nil || metrics.endFatigueScore != nil || metrics.postureStability != nil
 
             if hasFitnessData {
                 Text("Physiology")
@@ -725,6 +746,14 @@ struct EnrichedWorkoutDetailView: View {
 
                     if let flights = metrics.flightsClimbed, flights > 0 {
                         metricCard(title: "Flights", value: String(format: "%.0f", flights), icon: "figure.stairs")
+                    }
+
+                    if let fatigue = metrics.endFatigueScore, fatigue > 0 {
+                        metricCard(title: "Fatigue", value: String(format: "%.0f", fatigue), icon: "battery.25percent")
+                    }
+
+                    if let posture = metrics.postureStability, posture > 0 {
+                        metricCard(title: "Posture", value: String(format: "%.0f", posture), icon: "figure.stand")
                     }
                 }
             }
@@ -1653,6 +1682,73 @@ struct EnrichedWorkoutDetailView: View {
         case .neutral: .blue
         case .attention: .orange
         }
+    }
+
+    // MARK: - Recovery
+
+    private func recoverySection(recovery: Double) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(.teal)
+                Text("Recovery")
+                    .font(.headline)
+            }
+
+            HStack(spacing: 16) {
+                metricCard(title: "HR Recovery", value: String(format: "%.0f bpm drop", recovery), icon: "heart.circle")
+            }
+
+            Text(recovery > 20 ? "Excellent recovery — strong cardiovascular fitness"
+                 : recovery > 12 ? "Good recovery — continue building aerobic base"
+                 : "Slow recovery — prioritise rest and easy sessions")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Share Summary
+
+    private var workoutSummaryText: String {
+        var lines: [String] = []
+        lines.append("\(workout.activityName) — \(formattedDate)")
+        lines.append("Duration: \(workout.formattedDuration)")
+
+        if let distance = workout.formattedDistance {
+            lines.append("Distance: \(distance)")
+        }
+
+        if let pace = averagePace {
+            lines.append("Avg Pace: \(pace)")
+        }
+
+        if let hr = workout.averageHeartRate {
+            lines.append("Avg HR: \(Int(hr)) bpm")
+        }
+
+        if let calories = workout.formattedCalories {
+            lines.append("Calories: \(calories)")
+        }
+
+        if let enrichment {
+            if let general = enrichment.generalMetrics {
+                if let maxHR = general.maxHeartRate {
+                    lines.append("Max HR: \(Int(maxHR)) bpm")
+                }
+                if let recovery = general.heartRateRecovery, recovery > 0 {
+                    lines.append("HR Recovery: \(String(format: "%.0f", recovery)) bpm drop in 1 min")
+                }
+            }
+
+            if let gain = enrichment.elevationGain, gain > 0 {
+                lines.append("Elevation Gain: \(String(format: "%.0f", gain)) m")
+            }
+        }
+
+        lines.append("")
+        lines.append("Recorded via \(workout.sourceName)")
+        lines.append("Shared from TetraTrack")
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Source
