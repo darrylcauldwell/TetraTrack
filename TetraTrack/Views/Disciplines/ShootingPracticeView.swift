@@ -77,6 +77,23 @@ struct ShootingPracticeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Top bar with close
+            HStack {
+                Spacer()
+                Button {
+                    if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                        tracker?.discardSession()
+                    }
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 4)
+
             // Phase picker
                 Picker("Phase", selection: $selectedPhase) {
                     ForEach(ShootingPhase.allCases, id: \.self) { phase in
