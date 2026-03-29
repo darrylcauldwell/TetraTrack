@@ -6,12 +6,10 @@
 //
 
 import SwiftUI
-import HealthKit
 
 struct DisciplinesView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.viewContext) private var viewContext
-    private let externalWorkoutService = ExternalWorkoutService.shared
 
     var body: some View {
         NavigationStack {
@@ -30,8 +28,8 @@ struct DisciplinesView: View {
                     // MARK: - Competitions
                     competitionsSection
 
-                    // MARK: - Recent Workouts Feed
-                    recentWorkoutsSection
+                    // MARK: - Training History
+                    trainingHistorySection
 
                     // MARK: - More
                     moreSection
@@ -47,9 +45,6 @@ struct DisciplinesView: View {
                     }
                     .accessibilityLabel("Settings")
                 }
-            }
-            .task {
-                await loadRecentWorkouts()
             }
         }
     }
@@ -98,95 +93,18 @@ struct DisciplinesView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Recent Workouts Feed
+    // MARK: - Training History
 
-    private var recentWorkoutsSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(.secondary)
-                Text("Recent Activity")
-                    .font(.headline)
-                Spacer()
-                NavigationLink(destination: SessionHistoryView()) {
-                    Text("See All")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.primary)
-                }
-            }
-
-            if externalWorkoutService.workouts.isEmpty && externalWorkoutService.isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .padding(.vertical, Spacing.lg)
-            } else if externalWorkoutService.workouts.isEmpty {
-                VStack(spacing: Spacing.sm) {
-                    Image(systemName: "figure.mixed.cardio")
-                        .font(.title)
-                        .foregroundStyle(.tertiary)
-                    Text("No recent workouts")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text("Complete a workout on Apple Watch or start a session above")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.lg)
-            } else {
-                ForEach(externalWorkoutService.workouts.prefix(5)) { workout in
-                    NavigationLink(destination: EnrichedWorkoutDetailView(workout: workout)) {
-                        recentWorkoutRow(workout)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+    private var trainingHistorySection: some View {
+        NavigationLink(destination: SessionHistoryView()) {
+            DisciplineCard(
+                title: "Training History",
+                subtitle: "Sessions and session insights",
+                icon: "clock.arrow.circlepath",
+                color: AppColors.neutralGray
+            )
         }
-        .padding(Spacing.lg)
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg, style: .continuous))
-    }
-
-    private func recentWorkoutRow(_ workout: ExternalWorkout) -> some View {
-        HStack(spacing: Spacing.md) {
-            Image(systemName: workout.activityIcon)
-                .font(.title3)
-                .foregroundStyle(.blue)
-                .frame(width: 32)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workout.activityName)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.primary)
-
-                HStack(spacing: 8) {
-                    Text(workout.formattedDuration)
-                    if let distance = workout.formattedDistance {
-                        Text("·")
-                        Text(distance)
-                    }
-                    if let hr = workout.averageHeartRate {
-                        Text("·")
-                        Text("\(Int(hr)) bpm")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(workout.startDate, style: .relative)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 6)
+        .buttonStyle(.plain)
     }
 
     // MARK: - More Section
@@ -197,16 +115,6 @@ struct DisciplinesView: View {
             : [GridItem(.flexible())]
 
         return LazyVGrid(columns: columns, spacing: Spacing.md) {
-            NavigationLink(destination: SessionHistoryView()) {
-                DisciplineCard(
-                    title: "Training History",
-                    subtitle: "Sessions and session insights",
-                    icon: "clock.arrow.circlepath",
-                    color: AppColors.neutralGray
-                )
-            }
-            .buttonStyle(.plain)
-
             NavigationLink(destination: TrainingLoadDashboardView()) {
                 DisciplineCard(
                     title: "Training Load",
@@ -289,12 +197,6 @@ struct DisciplinesView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    // MARK: - Data Loading
-
-    private func loadRecentWorkouts() async {
-        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
-        await externalWorkoutService.fetchWorkouts(from: twoWeeksAgo, to: Date())
-    }
 }
 
 struct DisciplineCard: View {
