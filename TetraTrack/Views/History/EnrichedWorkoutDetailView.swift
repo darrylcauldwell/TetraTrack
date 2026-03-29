@@ -109,13 +109,14 @@ struct EnrichedWorkoutDetailView: View {
                             cyclingMetricsSection(metrics)
                         }
 
-                        // Show HR zone summary for types without specific metrics
-                        if enrichment.walkingMetrics == nil &&
-                           enrichment.runningMetrics == nil &&
-                           enrichment.swimmingMetrics == nil &&
-                           enrichment.cyclingMetrics == nil,
-                           let general = enrichment.generalMetrics {
-                            heartRateZoneSummary(general)
+                        // HR zones — shown for all workout types with HR data
+                        if !enrichment.heartRateSamples.isEmpty {
+                            heartRateZoneSummary(enrichment.heartRateSamples)
+                        }
+
+                        // HR summary (min/avg/max) for all types
+                        if let general = enrichment.generalMetrics {
+                            heartRateZoneSummaryStats(general)
                         }
 
                         if let gain = enrichment.elevationGain, gain > 0 {
@@ -601,9 +602,42 @@ struct EnrichedWorkoutDetailView: View {
 
     // MARK: - Heart Rate Zone Summary (for generic workouts)
 
-    private func heartRateZoneSummary(_ metrics: WorkoutEnrichment.GeneralMetrics) -> some View {
+    private func heartRateZoneSummary(_ samples: [WorkoutEnrichment.HeartRateSamplePoint]) -> some View {
+        let zones = heartRateZones(from: samples)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Time in Zones")
+                .font(.headline)
+
+            ForEach(zones.sorted(by: { $0.key < $1.key }), id: \.key) { zone, percentage in
+                if percentage > 0 {
+                    HStack(spacing: 8) {
+                        Text("Z\(zone)")
+                            .font(.caption.bold().monospacedDigit())
+                            .frame(width: 24)
+
+                        GeometryReader { geo in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(zoneColor(zone))
+                                .frame(width: geo.size.width * percentage / 100)
+                        }
+                        .frame(height: 14)
+
+                        Text(String(format: "%.0f%%", percentage))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func heartRateZoneSummaryStats(_ metrics: WorkoutEnrichment.GeneralMetrics) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Heart Rate Summary")
+            Text("Heart Rate")
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -713,14 +747,12 @@ struct EnrichedWorkoutDetailView: View {
                 )
             }
 
-            // Physiology card (from HR data)
-            if let general = enrichment?.generalMetrics, general.averageHeartRate != nil {
-                PhysiologySectionCard(
-                    score: pillarPhysiologyScore,
-                    keyMetric: pillarPhysiologyMetric,
-                    tip: pillarPhysiologyTip
-                )
-            }
+            // Physiology card (always shown — score may be 0 if no HR data)
+            PhysiologySectionCard(
+                score: pillarPhysiologyScore,
+                keyMetric: pillarPhysiologyMetric,
+                tip: pillarPhysiologyTip
+            )
         }
     }
 
