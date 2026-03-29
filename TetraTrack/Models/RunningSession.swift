@@ -1010,14 +1010,18 @@ extension RunningSession {
             WorkoutEnrichment.HeartRateSamplePoint(date: $0.timestamp, bpm: Double($0.bpm))
         }
 
-        // General metrics from stored HR
+        // General metrics from stored HR and physiological data
         if averageHeartRate > 0 {
             enrichment.generalMetrics = WorkoutEnrichment.GeneralMetrics(
                 averageHeartRate: Double(averageHeartRate),
                 maxHeartRate: Double(maxHeartRate),
                 minHeartRate: minHeartRate > 0 ? Double(minHeartRate) : nil,
                 activeCalories: nil,
-                heartRateRecovery: healthKitHRRecoveryOneMinute
+                heartRateRecovery: healthKitHRRecoveryOneMinute,
+                averageBreathingRate: averageBreathingRate > 0 ? averageBreathingRate : nil,
+                averageSpO2: averageSpO2 > 0 ? averageSpO2 : nil,
+                endFatigueScore: endFatigueScore > 0 ? endFatigueScore : nil,
+                postureStability: postureStability > 0 ? postureStability : nil
             )
         }
 
@@ -1042,6 +1046,9 @@ extension RunningSession {
             if let speed = healthKitWalkingSpeed { wm.averageSpeed = speed }
             if let steadiness = healthKitWalkingSteadiness { wm.steadiness = steadiness }
             if let doubleSupport = healthKitDoubleSupportPercentage { wm.doubleSupportPercent = doubleSupport }
+            if walkingSymmetryScore > 0 { wm.symmetryScore = walkingSymmetryScore }
+            if walkingRhythmScore > 0 { wm.rhythmScore = walkingRhythmScore }
+            if walkingStabilityScore > 0 { wm.stabilityScore = walkingStabilityScore }
             enrichment.walkingMetrics = wm
             enrichment.runningMetrics = nil
         }

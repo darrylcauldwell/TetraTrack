@@ -42,6 +42,9 @@ struct WorkoutEnrichment: Sendable {
         var asymmetryPercent: Double?      // percentage
         var doubleSupportPercent: Double?  // percentage
         var steadiness: Double?            // 0-100
+        var symmetryScore: Double?         // 0-100
+        var rhythmScore: Double?           // 0-100
+        var stabilityScore: Double?        // 0-100
     }
 
     struct RunningMetrics: Sendable {
@@ -61,6 +64,11 @@ struct WorkoutEnrichment: Sendable {
         var laps: [SwimLap] = []         // per-lap breakdown
         var averageSpO2: Double?         // blood oxygen percentage
         var averageBreathingRate: Double? // breaths per minute
+        var totalSubmergedTime: TimeInterval? // seconds underwater
+        var submersionCount: Int?        // number of submersion events
+        var minSpO2: Double?             // minimum blood oxygen percentage
+        var recoveryQuality: Double?     // 0-100
+        var endFatigueScore: Double?     // fatigue score at session end
     }
 
     struct SwimLap: Identifiable, Sendable {
@@ -83,6 +91,10 @@ struct WorkoutEnrichment: Sendable {
         var minHeartRate: Double?       // bpm
         var activeCalories: Double?     // kcal
         var heartRateRecovery: Double?  // bpm drop in 1 min post-workout
+        var averageBreathingRate: Double? // breaths per minute
+        var averageSpO2: Double?         // percentage (0-100)
+        var endFatigueScore: Double?     // 0-100
+        var postureStability: Double?    // 0-100
     }
 }
 
@@ -113,8 +125,21 @@ final class WorkoutEnrichmentService {
             enrichment.elevationLoss = loss
         }
 
-        // General metrics (HR stats) — useful for all workout types
-        enrichment.generalMetrics = deriveGeneralMetrics(from: enrichment.heartRateSamples)
+        // Respiration rate and SpO2 — fetch for all workout types
+        let commonPredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        async let respirationTask = fetchAverageQuantity(.respiratoryRate, predicate: commonPredicate, unit: HKUnit.count().unitDivided(by: .minute()))
+        async let spo2Task = fetchAverageQuantity(.oxygenSaturation, predicate: commonPredicate, unit: .percent())
+
+        let respirationRate = await respirationTask
+        let spo2Value = await spo2Task
+
+        // General metrics (HR stats + respiration + SpO2 + HR recovery) — useful for all workout types
+        enrichment.generalMetrics = deriveGeneralMetrics(
+            from: enrichment.heartRateSamples,
+            endDate: endDate,
+            respirationRate: respirationRate,
+            spo2: spo2Value
+        )
 
         // Activity-specific metrics
         switch activityType {
@@ -533,16 +558,56 @@ final class WorkoutEnrichmentService {
         return (gain, loss)
     }
 
-    private func deriveGeneralMetrics(from samples: [WorkoutEnrichment.HeartRateSamplePoint]) -> WorkoutEnrichment.GeneralMetrics? {
+    private func deriveGeneralMetrics(
+        from samples: [WorkoutEnrichment.HeartRateSamplePoint],
+        endDate: Date,
+        respirationRate: Double?,
+        spo2: Double?
+    ) -> WorkoutEnrichment.GeneralMetrics? {
         guard !samples.isEmpty else { return nil }
 
         let bpms = samples.map(\.bpm)
+
+        // HR Recovery: find the last HR sample near workout end, then look for
+        // a sample ~60 seconds later. The drop is the recovery value.
+        let heartRateRecovery = deriveHeartRateRecovery(from: samples, workoutEndDate: endDate)
+
         return WorkoutEnrichment.GeneralMetrics(
             averageHeartRate: bpms.reduce(0, +) / Double(bpms.count),
             maxHeartRate: bpms.max(),
             minHeartRate: bpms.min(),
             activeCalories: nil,
-            heartRateRecovery: nil
+            heartRateRecovery: heartRateRecovery,
+            averageBreathingRate: respirationRate,
+            averageSpO2: spo2.map { $0 * 100 } // Convert 0-1 fraction to percentage
         )
+    }
+
+    /// Compute HR recovery: BPM drop from last workout HR to HR 60s post-workout.
+    /// Returns nil if insufficient data is available.
+    private func deriveHeartRateRecovery(
+        from samples: [WorkoutEnrichment.HeartRateSamplePoint],
+        workoutEndDate: Date
+    ) -> Double? {
+        guard !samples.isEmpty else { return nil }
+
+        // Find the last HR sample at or before workout end
+        let preSamples = samples.filter { $0.date <= workoutEndDate }
+        guard let lastWorkoutSample = preSamples.last else { return nil }
+
+        // Look for samples in the 50-90 second window after workout end
+        // to approximate the 1-minute recovery HR
+        let recoveryWindowStart = workoutEndDate.addingTimeInterval(50)
+        let recoveryWindowEnd = workoutEndDate.addingTimeInterval(90)
+
+        let recoverySamples = samples.filter {
+            $0.date >= recoveryWindowStart && $0.date <= recoveryWindowEnd
+        }
+
+        guard let recoverySample = recoverySamples.first else { return nil }
+
+        let drop = lastWorkoutSample.bpm - recoverySample.bpm
+        // Only return positive recovery values (HR should drop)
+        return drop > 0 ? drop : nil
     }
 }

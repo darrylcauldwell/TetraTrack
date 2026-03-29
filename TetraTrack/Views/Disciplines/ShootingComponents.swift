@@ -584,10 +584,14 @@ struct ShootingSessionDetailView: View {
                         }
                     }
 
-                    // Session info
+                    // Session configuration
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Session Info")
-                            .font(.headline)
+                        HStack {
+                            Image(systemName: "gearshape")
+                                .foregroundStyle(.blue)
+                            Text("Session Configuration")
+                                .font(.headline)
+                        }
 
                         HStack {
                             Text("Target")
@@ -604,6 +608,20 @@ struct ShootingSessionDetailView: View {
                         }
 
                         HStack {
+                            Text("Ends")
+                            Spacer()
+                            Text("\(session.numberOfEnds)")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack {
+                            Text("Shots per End")
+                            Spacer()
+                            Text("\(session.arrowsPerEnd)")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack {
                             Text("Duration")
                             Spacer()
                             Text(session.formattedDuration)
@@ -614,6 +632,97 @@ struct ShootingSessionDetailView: View {
                     .background(AppColors.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
+
+                    // Environmental data (manual fields)
+                    if session.temperature != nil || session.humidity != nil || session.windSpeed != nil {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "thermometer.medium")
+                                    .foregroundStyle(.orange)
+                                Text("Environmental Conditions")
+                                    .font(.headline)
+                            }
+
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                if let temp = session.temperature {
+                                    MiniStatCard(title: "Temperature", value: String(format: "%.0f\u{00B0}C", temp))
+                                }
+                                if let humidity = session.humidity {
+                                    MiniStatCard(title: "Humidity", value: String(format: "%.0f%%", humidity))
+                                }
+                                if let wind = session.windSpeed {
+                                    MiniStatCard(title: "Wind Speed", value: String(format: "%.1f m/s", wind))
+                                }
+                                if let direction = session.windDirection {
+                                    MiniStatCard(title: "Wind Direction", value: direction.rawValue)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
+                    }
+
+                    // Fatigue trend
+                    if session.firstHalfSteadiness > 0 && session.secondHalfSteadiness > 0 {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "chart.line.downtrend.xyaxis")
+                                    .foregroundStyle(.purple)
+                                Text("Fatigue Trend")
+                                    .font(.headline)
+                            }
+
+                            HStack(spacing: 16) {
+                                VStack(spacing: 4) {
+                                    Text(String(format: "%.0f%%", session.firstHalfSteadiness))
+                                        .font(.title2.bold())
+                                        .foregroundStyle(.green)
+                                    Text("1st Half")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text("Steadiness")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .frame(maxWidth: .infinity)
+
+                                Image(systemName: "arrow.right")
+                                    .foregroundStyle(.secondary)
+
+                                VStack(spacing: 4) {
+                                    Text(String(format: "%.0f%%", session.secondHalfSteadiness))
+                                        .font(.title2.bold())
+                                        .foregroundStyle(session.secondHalfSteadiness >= session.firstHalfSteadiness ? .green : .orange)
+                                    Text("2nd Half")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text("Steadiness")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .padding(.vertical, 4)
+
+                            if session.steadinessDegradation != 0 {
+                                let degradation = session.steadinessDegradation
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: degradation > 5 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                        .foregroundStyle(degradation > 5 ? .orange : .green)
+                                        .font(.caption)
+                                    Text(fatigueTrendInsight)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
+                    }
 
                     // Notes section
                     VStack(alignment: .leading, spacing: 12) {
@@ -739,6 +848,19 @@ struct ShootingSessionDetailView: View {
         case 60..<80: return .blue
         case 40..<60: return .yellow
         default: return .orange
+        }
+    }
+
+    private var fatigueTrendInsight: String {
+        let degradation = session.steadinessDegradation
+        if degradation > 15 {
+            return "Steadiness dropped \(String(format: "%.0f%%", degradation)) from first to second half. Consider shorter sessions or adding rest between ends to manage fatigue."
+        } else if degradation > 5 {
+            return "Mild fatigue detected (\(String(format: "%.0f%%", degradation)) drop). Focus on breathing and stance reset between ends."
+        } else if degradation > 0 {
+            return "Minimal fatigue — steadiness held well throughout the session."
+        } else {
+            return "Steadiness improved in the second half — strong finish."
         }
     }
 

@@ -567,11 +567,29 @@ struct EnrichedWorkoutDetailView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 if let spo2 = metrics.averageSpO2 {
-                    metricCard(title: "SpO2", value: String(format: "%.0f%%", spo2), icon: "lungs.fill")
+                    metricCard(title: "Avg SpO2", value: String(format: "%.0f%%", spo2), icon: "lungs.fill")
+                }
+
+                if let minSpo2 = metrics.minSpO2 {
+                    metricCard(title: "Min SpO2", value: String(format: "%.0f%%", minSpo2), icon: "lungs")
                 }
 
                 if let breathing = metrics.averageBreathingRate {
                     metricCard(title: "Breathing", value: String(format: "%.0f bpm", breathing), icon: "wind")
+                }
+
+                if let submergedTime = metrics.totalSubmergedTime {
+                    let mins = Int(submergedTime) / 60
+                    let secs = Int(submergedTime) % 60
+                    metricCard(title: "Submerged", value: String(format: "%d:%02d", mins, secs), icon: "water.waves.and.arrow.down")
+                }
+
+                if let count = metrics.submersionCount {
+                    metricCard(title: "Submersions", value: "\(count)", icon: "arrow.down.to.line")
+                }
+
+                if let recovery = metrics.recoveryQuality {
+                    metricCard(title: "Recovery", value: String(format: "%.0f", recovery), icon: "heart.circle")
                 }
             }
         }

@@ -506,6 +506,11 @@ extension SwimmingSession {
         sm.poolLength = poolLength
         if averageSpO2 > 0 { sm.averageSpO2 = averageSpO2 }
         if averageBreathingRate > 0 { sm.averageBreathingRate = averageBreathingRate }
+        if totalSubmergedTime > 0 { sm.totalSubmergedTime = totalSubmergedTime }
+        if submersionCount > 0 { sm.submersionCount = submersionCount }
+        if minSpO2 > 0 { sm.minSpO2 = minSpO2 }
+        if recoveryQuality > 0 { sm.recoveryQuality = recoveryQuality }
+        if endFatigueScore > 0 { sm.endFatigueScore = endFatigueScore }
 
         // Per-lap data from stored laps
         let storedLaps = sortedLaps
