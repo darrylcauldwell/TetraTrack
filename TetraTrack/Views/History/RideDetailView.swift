@@ -74,6 +74,11 @@ struct RideDetailView: View {
 
     private var iPadLayout: some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
+            // Session name (editable)
+            TextField("Session Name", text: $ride.name)
+                .font(.title3.bold())
+                .textFieldStyle(.plain)
+
             // Top row: Map + Stats side by side
             HStack(alignment: .top, spacing: Spacing.xl) {
                 // Left column: Map and Elevation
