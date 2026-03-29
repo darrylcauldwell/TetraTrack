@@ -16,7 +16,7 @@ struct ActiveSessionView: View {
             if let _ = tracker.plugin(as: RidingPlugin.self) {
                 TrackingView()
             } else if let _ = tracker.plugin(as: ShootingPlugin.self) {
-                ShootingCompetitionView()
+                ShootingPracticeView()
             } else {
                 ProgressView("Starting session...")
             }
