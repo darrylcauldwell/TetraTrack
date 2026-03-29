@@ -24,6 +24,9 @@ struct WorkoutEnrichment: Sendable {
     var elevationLoss: Double?
 
     // Weather
+    var startWeather: WeatherConditions?
+    var endWeather: WeatherConditions?
+    // Legacy string fields (kept for backward compat)
     var startWeatherDescription: String?
     var endWeatherDescription: String?
     var temperature: Double?  // celsius

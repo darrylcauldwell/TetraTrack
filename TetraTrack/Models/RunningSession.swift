@@ -1054,6 +1054,8 @@ extension RunningSession {
         }
 
         // Weather
+        enrichment.startWeather = startWeather
+        enrichment.endWeather = endWeather
         if let weather = startWeather {
             enrichment.startWeatherDescription = weather.condition
             enrichment.temperature = weather.temperature
