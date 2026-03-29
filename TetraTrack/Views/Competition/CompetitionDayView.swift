@@ -42,11 +42,26 @@ struct CompetitionDayView: View {
     /// Disciplines to show for the selected competition
     private var disciplinesToShow: [TriathlonDiscipline] {
         guard let comp = selectedCompetition else { return [] }
-        if comp.competitionType == .tetrathlon {
-            return orderedDisciplines(for: comp, all: [.shooting, .swimming, .running, .riding])
-        } else {
-            return orderedDisciplines(for: comp, all: comp.triathlonDisciplines)
+
+        // Map competition type disciplines to TriathlonDiscipline
+        let typeDisciplines = comp.competitionType.disciplines.compactMap { name -> TriathlonDiscipline? in
+            switch name {
+            case "Riding", "Dressage", "Cross Country", "Show Jumping", "Hunting":
+                return .riding
+            case "Shooting":
+                return .shooting
+            case "Swimming":
+                return .swimming
+            case "Running":
+                return .running
+            default:
+                return nil
+            }
         }
+
+        // Remove duplicates (eventing maps 3 riding disciplines to 1 .riding)
+        let unique = Array(Set(typeDisciplines))
+        return orderedDisciplines(for: comp, all: unique)
     }
 
     /// Order disciplines by start time if available, otherwise keep default order
@@ -89,6 +104,9 @@ struct CompetitionDayView: View {
 
                         // Health data sections for completed disciplines
                         healthDataSections
+
+                        // Simple task checklist
+                        taskChecklist(competition)
                     }
                 }
             }
@@ -392,6 +410,34 @@ struct CompetitionDayView: View {
                 .font(.subheadline.monospacedDigit().bold())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Task Checklist
+
+    @ViewBuilder
+    private func taskChecklist(_ competition: Competition) -> some View {
+        if let tasks = competition.tasks, !tasks.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Prep Checklist")
+                    .font(.headline)
+
+                VStack(spacing: 0) {
+                    ForEach(tasks) { task in
+                        HStack {
+                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(task.isCompleted ? .green : .secondary)
+                                .onTapGesture { task.isCompleted.toggle() }
+                            Text(task.title)
+                                .strikethrough(task.isCompleted)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                    }
+                }
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
     }
 
     // MARK: - Helpers

@@ -521,11 +521,7 @@ struct CompetitionDetailView: View {
                     .padding(.horizontal)
 
                     // Disciplines section - different views based on competition type
-                    if competition.competitionType == .triathlon || competition.competitionType == .tetrathlon {
-                        // Triathlon/Tetrathlon: Inline editable scorecard
-                        DisciplineScoreCardView(competition: competition)
-                            .padding(.horizontal)
-                    } else if !competition.competitionType.disciplines.isEmpty {
+                    if !competition.competitionType.disciplines.isEmpty {
                         // Other competition types: Generic disciplines list
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
