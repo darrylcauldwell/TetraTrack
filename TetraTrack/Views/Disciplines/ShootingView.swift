@@ -49,16 +49,6 @@ struct ShootingView: View {
                 }
             ),
             DisciplineMenuItem(
-                title: "Competition",
-                subtitle: "Official competition scoring",
-                icon: "trophy.fill",
-                color: .purple,
-                requiresCapture: true,
-                action: {
-                    startCompetitionSession(context: .competition)
-                }
-            ),
-            DisciplineMenuItem(
                 title: "Shooting History",
                 subtitle: "View patterns and pressure insights",
                 icon: "chart.line.uptrend.xyaxis",
