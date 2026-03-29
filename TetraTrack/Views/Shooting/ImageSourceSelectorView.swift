@@ -78,12 +78,36 @@ struct ImageSourceSelectorView: View {
                         showingPhotoPicker = true
                     }
 
+                    #if targetEnvironment(simulator)
+                    // Bundled test targets (simulator only)
+                    if let bundledImages = loadBundledTargetImages(), !bundledImages.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Bundled Targets")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+
+                            ForEach(bundledImages, id: \.0) { name, image in
+                                SourceOptionButton(
+                                    icon: "target",
+                                    title: name,
+                                    subtitle: "Bundled test target",
+                                    color: .orange,
+                                    isPrimary: false
+                                ) {
+                                    onImageSelected(image)
+                                }
+                            }
+                        }
+                    }
+                    #endif
+
                     #if DEBUG
-                    // Test fixtures option (debug only)
+                    // Test fixtures folder browser (debug only)
                     SourceOptionButton(
                         icon: "testtube.2",
                         title: "Test Fixtures",
-                        subtitle: "Use bundled test images",
+                        subtitle: "Browse test fixture folders",
                         color: .orange,
                         isPrimary: false
                     ) {
@@ -146,6 +170,28 @@ struct ImageSourceSelectorView: View {
             #endif
             .sheetBackground()
         }
+    }
+
+    /// Load bundled target images from SimulatorTargets folder
+    private func loadBundledTargetImages() -> [(String, UIImage)]? {
+        guard let resourceURL = Bundle.main.resourceURL else { return nil }
+        let folder = resourceURL.appendingPathComponent("SimulatorTargets")
+        guard FileManager.default.fileExists(atPath: folder.path) else { return nil }
+
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: folder,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        ) else { return nil }
+
+        let imageExtensions = Set(["jpeg", "jpg", "png"])
+        var images: [(String, UIImage)] = []
+        for url in contents where imageExtensions.contains(url.pathExtension.lowercased()) {
+            if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                images.append((url.deletingPathExtension().lastPathComponent, image))
+            }
+        }
+        return images.isEmpty ? nil : images
     }
 }
 
