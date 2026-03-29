@@ -71,26 +71,24 @@ struct EnrichedWorkoutDetailView: View {
 
     private var sessionTabContent: some View {
         VStack(spacing: 20) {
-            headerSection
-            summaryStats
-
             if isLoading {
+                summaryStats
+
                 ProgressView("Loading workout data...")
                     .padding(.vertical, 32)
             } else {
                     if let enrichment {
+                        // 1. Route map
                         if !enrichment.routeLocations.isEmpty {
                             routeMapSection(enrichment.routeLocations)
                         }
+                    }
 
-                        if !enrichment.heartRateSamples.isEmpty {
-                            heartRateChartSection(enrichment.heartRateSamples)
-                        }
+                    // 2. Stats grid
+                    summaryStats
 
-                        if !enrichment.splits.isEmpty {
-                            splitsSection(enrichment.splits)
-                        }
-
+                    if let enrichment {
+                        // 3. Discipline-specific metrics
                         if let metrics = enrichment.walkingMetrics {
                             walkingMetricsSection(metrics)
                         }
@@ -115,37 +113,51 @@ struct EnrichedWorkoutDetailView: View {
                             cyclingMetricsSection(metrics)
                         }
 
-                        // HR zones — shown for all workout types with HR data
+                        // 4. HR chart
+                        if !enrichment.heartRateSamples.isEmpty {
+                            heartRateChartSection(enrichment.heartRateSamples)
+                        }
+
+                        // 5. HR zones
                         if !enrichment.heartRateSamples.isEmpty {
                             heartRateZoneSummary(enrichment.heartRateSamples)
                         }
 
-                        // HR summary (min/avg/max) for all types
+                        // 6. HR summary (min/avg/max)
                         if let general = enrichment.generalMetrics {
                             heartRateZoneSummaryStats(general)
                         }
 
-                        // Recovery card
-                        if let recovery = enrichment.generalMetrics?.heartRateRecovery, recovery > 0 {
-                            recoverySection(recovery: recovery)
+                        // 7. Splits
+                        if !enrichment.splits.isEmpty {
+                            splitsSection(enrichment.splits)
                         }
 
+                        // 8. Elevation
                         if let gain = enrichment.elevationGain, gain > 0 {
                             elevationSection(gain: gain, loss: enrichment.elevationLoss ?? 0)
                         }
 
-                        // Fatigue trend — first half vs second half comparison
+                        // 9. Recovery
+                        if let recovery = enrichment.generalMetrics?.heartRateRecovery, recovery > 0 {
+                            recoverySection(recovery: recovery)
+                        }
+
+                        // 11. Fatigue trend
                         fatigueTrendSection(enrichment)
 
+                        // 12. Weather
                         if enrichment.startWeatherDescription != nil || enrichment.temperature != nil {
                             weatherSection(enrichment)
                         }
                     }
 
+                    // 13. Photos
                     if !photos.isEmpty {
                         photosSection
                     }
 
+                    // 14. Notes
                     if let notes = workout.notes, !notes.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Notes")
@@ -156,6 +168,7 @@ struct EnrichedWorkoutDetailView: View {
                         }
                     }
 
+                    // 15. Source + Share
                     sourceSection
 
                     ShareLink(item: workoutSummaryText) {
@@ -198,27 +211,6 @@ struct EnrichedWorkoutDetailView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Header
-
-    private var headerSection: some View {
-        VStack(spacing: 12) {
-            Image(systemName: workout.activityIcon)
-                .font(.system(size: 48))
-                .foregroundStyle(.blue)
-
-            Text(workout.activityName)
-                .font(.title2.bold())
-
-            Text(formattedDate)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Summary Stats

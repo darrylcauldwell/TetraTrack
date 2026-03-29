@@ -455,7 +455,7 @@ struct ShootingSessionDetailView: View {
             }
             .padding(.horizontal)
 
-            // Stance & Tremor data (from Watch)
+            // 3. Stance & Tremor data (from Watch) + Shot Timing (discipline-specific)
             if session.averageStanceStability > 0 || session.averageTremorLevel > 0 {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -503,7 +503,41 @@ struct ShootingSessionDetailView: View {
                 .padding(.horizontal)
             }
 
-            // Heart Rate (from HealthKit post-session)
+            // Shot Timing Consistency (discipline-specific, grouped with stance)
+            if session.averageHoldDuration > 0 || session.shotTimingConsistencyCV > 0 || session.averageHoldSteadiness > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "timer")
+                            .foregroundStyle(.cyan)
+                        Text("Shot Timing")
+                            .font(.headline)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        if session.averageHoldDuration > 0 {
+                            MiniStatCard(title: "Avg Hold", value: String(format: "%.1fs", session.averageHoldDuration))
+                        }
+                        if session.shotTimingConsistencyCV > 0 {
+                            MiniStatCard(title: "Consistency CV", value: String(format: "%.2f", session.shotTimingConsistencyCV))
+                        }
+                        if session.averageHoldSteadiness > 0 {
+                            MiniStatCard(title: "Avg Steadiness", value: String(format: "%.0f%%", session.averageHoldSteadiness))
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // 4. Heart Rate Timeline
+            shootingHeartRateChartSection
+
+            // 5. Heart Rate Zones
+            shootingHeartRateZoneSection
+
+            // 6. Heart Rate Summary (from HealthKit post-session)
             if session.averageHeartRate > 0 {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -554,56 +588,7 @@ struct ShootingSessionDetailView: View {
                 .padding(.horizontal)
             }
 
-            // Heart Rate Timeline & Zones
-            shootingHeartRateChartSection
-            shootingHeartRateZoneSection
-
-            // Weather
-            if session.hasWeatherData {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "cloud.sun")
-                        Text("Weather")
-                            .font(.headline)
-                    }
-
-                    if let startWeather = session.startWeather {
-                        WeatherDetailView(weather: startWeather, title: "Start Conditions")
-                    }
-
-                    if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
-                        WeatherChangeSummaryView(stats: session.weatherStats)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            // Photos
-            if !sessionPhotos.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "photo.on.rectangle")
-                            .foregroundStyle(.blue)
-                        Text("Photos (\(sessionPhotos.count))")
-                            .font(.headline)
-                    }
-                    .padding(.horizontal)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 8) {
-                            ForEach(sessionPhotos, id: \.localIdentifier) { asset in
-                                ShootingPhotoThumbnail(asset: asset)
-                                    .frame(width: 100, height: 100)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            // Ends breakdown
+            // 7. Ends breakdown (splits equivalent)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Ends")
                     .font(.headline)
@@ -614,7 +599,7 @@ struct ShootingSessionDetailView: View {
                 }
             }
 
-            // Session configuration
+            // 8. Session configuration
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "gearshape")
@@ -663,7 +648,7 @@ struct ShootingSessionDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
-            // Environmental data (manual fields)
+            // 9. Environmental data (manual fields)
             if session.temperature != nil || session.humidity != nil || session.windSpeed != nil {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -694,7 +679,53 @@ struct ShootingSessionDetailView: View {
                 .padding(.horizontal)
             }
 
-            // Fatigue trend
+            // 10. Physiology
+            if hasPhysiologyData {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                            .foregroundStyle(.pink)
+                        Text("Physiology")
+                            .font(.headline)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        if session.averageBreathingRate > 0 {
+                            MiniStatCard(title: "Breathing", value: String(format: "%.0f /min", session.averageBreathingRate))
+                        }
+                        if session.averageSpO2 > 0 {
+                            MiniStatCard(title: "SpO2", value: String(format: "%.0f%%", session.averageSpO2))
+                        }
+                        if session.minSpO2 > 0 {
+                            MiniStatCard(title: "Min SpO2", value: String(format: "%.0f%%", session.minSpO2))
+                        }
+                        if session.postureStability > 0 {
+                            MiniStatCard(title: "Posture", value: String(format: "%.0f%%", session.postureStability))
+                        }
+                        if session.recoveryQuality > 0 {
+                            MiniStatCard(title: "Recovery", value: String(format: "%.0f%%", session.recoveryQuality))
+                        }
+                        if session.trainingLoadScore > 0 {
+                            MiniStatCard(title: "Training Load", value: String(format: "%.0f", session.trainingLoadScore))
+                        }
+                        if session.goodPosturePercent > 0 {
+                            MiniStatCard(title: "Good Posture", value: String(format: "%.0f%%", session.goodPosturePercent))
+                        }
+                        if session.activeTimePercent > 0 {
+                            MiniStatCard(title: "Active Time", value: String(format: "%.0f%%", session.activeTimePercent))
+                        }
+                        if session.endFatigueScore > 0 {
+                            MiniStatCard(title: "Fatigue", value: String(format: "%.0f", session.endFatigueScore))
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // 11. Fatigue trend
             if session.firstHalfSteadiness > 0 && session.secondHalfSteadiness > 0 {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -754,81 +785,52 @@ struct ShootingSessionDetailView: View {
                 .padding(.horizontal)
             }
 
-            // Shot Timing Consistency
-            if session.averageHoldDuration > 0 || session.shotTimingConsistencyCV > 0 || session.averageHoldSteadiness > 0 {
+            // 12. Weather
+            if session.hasWeatherData {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Image(systemName: "timer")
-                            .foregroundStyle(.cyan)
-                        Text("Shot Timing")
+                        Image(systemName: "cloud.sun")
+                        Text("Weather")
                             .font(.headline)
                     }
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        if session.averageHoldDuration > 0 {
-                            MiniStatCard(title: "Avg Hold", value: String(format: "%.1fs", session.averageHoldDuration))
-                        }
-                        if session.shotTimingConsistencyCV > 0 {
-                            MiniStatCard(title: "Consistency CV", value: String(format: "%.2f", session.shotTimingConsistencyCV))
-                        }
-                        if session.averageHoldSteadiness > 0 {
-                            MiniStatCard(title: "Avg Steadiness", value: String(format: "%.0f%%", session.averageHoldSteadiness))
-                        }
+                    if let startWeather = session.startWeather {
+                        WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                    }
+
+                    if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                        WeatherChangeSummaryView(stats: session.weatherStats)
                     }
                 }
-                .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal)
             }
 
-            // Physiology
-            if hasPhysiologyData {
-                VStack(alignment: .leading, spacing: 12) {
+            // 13. Photos
+            if !sessionPhotos.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: "waveform.path.ecg")
-                            .foregroundStyle(.pink)
-                        Text("Physiology")
+                        Image(systemName: "photo.on.rectangle")
+                            .foregroundStyle(.blue)
+                        Text("Photos (\(sessionPhotos.count))")
                             .font(.headline)
                     }
+                    .padding(.horizontal)
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        if session.averageBreathingRate > 0 {
-                            MiniStatCard(title: "Breathing", value: String(format: "%.0f /min", session.averageBreathingRate))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 8) {
+                            ForEach(sessionPhotos, id: \.localIdentifier) { asset in
+                                ShootingPhotoThumbnail(asset: asset)
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
                         }
-                        if session.averageSpO2 > 0 {
-                            MiniStatCard(title: "SpO2", value: String(format: "%.0f%%", session.averageSpO2))
-                        }
-                        if session.minSpO2 > 0 {
-                            MiniStatCard(title: "Min SpO2", value: String(format: "%.0f%%", session.minSpO2))
-                        }
-                        if session.postureStability > 0 {
-                            MiniStatCard(title: "Posture", value: String(format: "%.0f%%", session.postureStability))
-                        }
-                        if session.recoveryQuality > 0 {
-                            MiniStatCard(title: "Recovery", value: String(format: "%.0f%%", session.recoveryQuality))
-                        }
-                        if session.trainingLoadScore > 0 {
-                            MiniStatCard(title: "Training Load", value: String(format: "%.0f", session.trainingLoadScore))
-                        }
-                        if session.goodPosturePercent > 0 {
-                            MiniStatCard(title: "Good Posture", value: String(format: "%.0f%%", session.goodPosturePercent))
-                        }
-                        if session.activeTimePercent > 0 {
-                            MiniStatCard(title: "Active Time", value: String(format: "%.0f%%", session.activeTimePercent))
-                        }
-                        if session.endFatigueScore > 0 {
-                            MiniStatCard(title: "Fatigue", value: String(format: "%.0f", session.endFatigueScore))
-                        }
+                        .padding(.horizontal)
                     }
                 }
-                .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal)
+                .padding(.vertical, 4)
             }
 
-            // Notes section
+            // 14. Notes section
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Notes")
@@ -865,6 +867,7 @@ struct ShootingSessionDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
 
+            // 15. Share
             ShareLink(item: shootingSummaryText) {
                 Label("Share Summary", systemImage: "square.and.arrow.up")
             }

@@ -81,16 +81,14 @@ struct RideDetailView: View {
                     mapSection
                         .frame(height: 400)
 
+                    // 8. Elevation
                     ElevationProfileView(profile: ride.elevationProfile)
-
-                    // Media Gallery
-                    mediaSection
                 }
                 .frame(maxWidth: .infinity)
 
                 // Right column: Stats and Info
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    // Stats Grid - 2 columns on iPad sidebar
+                    // 2. Stats Grid - 2 columns on iPad sidebar
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         StatCard(title: "Distance", value: ride.formattedDistance, icon: "arrow.left.and.right")
                         StatCard(title: "Duration", value: ride.formattedDuration, icon: "clock")
@@ -100,8 +98,10 @@ struct RideDetailView: View {
                         StatCard(title: "Elev. Loss", value: ride.formattedElevationLoss, icon: "arrow.down.right")
                     }
 
+                    // 3. Badges
                     badgesSection
 
+                    // 4. Discipline-specific: gait, transitions, lead, rein
                     if !ride.gaitBreakdown.isEmpty {
                         GaitBreakdownView(ride: ride)
                     }
@@ -118,35 +118,45 @@ struct RideDetailView: View {
                         ReinBalanceView(ride: ride)
                     }
 
+                    // 5. HR chart + 6. HR zones + 7. HR summary
                     if ride.hasHeartRateData {
-                        HeartRateSummaryView(ride: ride)
-                        HeartRateByGaitView(ride: ride)
                         rideHeartRateChartSection
                         rideHeartRateZoneSection
+                        HeartRateSummaryView(ride: ride)
+                        HeartRateByGaitView(ride: ride)
                     }
 
+                    // 9. Recovery
                     if let recoveryMetrics = ride.recoveryMetrics {
                         RecoverySummaryView(recoveryMetrics: recoveryMetrics)
                     }
 
-                    // Rider Physiology (Watch sensor metrics)
+                    // 10. Rider Physiology (Watch sensor metrics)
                     if hasRiderPhysiologyData {
                         riderPhysiologySection
                     }
 
-                    // Rider Fatigue Trend (IMU metrics)
+                    // 11. Rider Fatigue Trend (IMU metrics)
                     if ride.riderStabilityBaseline > 0 {
                         riderFatigueTrendSection
                     }
 
+                    // 12. Weather
                     if ride.hasWeatherData {
                         weatherSection
                     }
 
-                    notesSection
-                    actionButtons
+                    // 13. Media (photos/videos)
+                    mediaSection
 
+                    // 14. Date
                     dateSection
+
+                    // 15. Notes
+                    notesSection
+
+                    // 16. Action buttons
+                    actionButtons
                 }
                 .frame(width: 380)
             }
@@ -158,10 +168,11 @@ struct RideDetailView: View {
 
     private var iPhoneLayout: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // 1. Route map
             mapSection
                 .frame(height: 300)
 
-            // Stats Grid
+            // 2. Stats grid
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 StatCard(title: "Distance", value: ride.formattedDistance, icon: "arrow.left.and.right")
                 StatCard(title: "Duration", value: ride.formattedDuration, icon: "clock")
@@ -171,58 +182,67 @@ struct RideDetailView: View {
                 StatCard(title: "Elev. Loss", value: ride.formattedElevationLoss, icon: "arrow.down.right")
             }
 
+            // 3. Badges
             badgesSection
 
-            // Gait breakdown
+            // 4. Discipline-specific: gait, transitions, lead, rein
             if !ride.gaitBreakdown.isEmpty {
                 GaitBreakdownView(ride: ride)
             }
 
-            // Turn & transition stats
             if ride.transitionCount > 0 || ride.turnStats.totalAngle > 0 {
                 transitionStatsSection
             }
 
-            // Lead balance (canter/gallop)
             if ride.totalLeadDuration > 0 {
                 LeadBalanceView(ride: ride)
             }
 
-            // Rein balance (flatwork)
             if ride.totalReinDuration > 0 {
                 ReinBalanceView(ride: ride)
             }
 
+            // 5. HR chart + 6. HR zones + 7. HR summary
             if ride.hasHeartRateData {
-                HeartRateSummaryView(ride: ride)
-                HeartRateByGaitView(ride: ride)
                 rideHeartRateChartSection
                 rideHeartRateZoneSection
+                HeartRateSummaryView(ride: ride)
+                HeartRateByGaitView(ride: ride)
             }
 
+            // 8. Elevation
+            ElevationProfileView(profile: ride.elevationProfile)
+
+            // 9. Recovery
             if let recoveryMetrics = ride.recoveryMetrics {
                 RecoverySummaryView(recoveryMetrics: recoveryMetrics)
             }
 
-            ElevationProfileView(profile: ride.elevationProfile)
-
-            // Rider Physiology (Watch sensor metrics)
+            // 10. Rider Physiology (Watch sensor metrics)
             if hasRiderPhysiologyData {
                 riderPhysiologySection
             }
 
-            // Rider Fatigue Trend (IMU metrics)
+            // 11. Rider Fatigue Trend (IMU metrics)
             if ride.riderStabilityBaseline > 0 {
                 riderFatigueTrendSection
             }
 
+            // 12. Weather
             if ride.hasWeatherData {
                 weatherSection
             }
 
+            // 13. Media (photos/videos)
             mediaSection
+
+            // 14. Date
             dateSection
+
+            // 15. Notes
             notesSection
+
+            // 16. Action buttons
             actionButtons
         }
         .padding()
