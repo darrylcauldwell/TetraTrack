@@ -129,6 +129,9 @@ struct EnrichedWorkoutDetailView: View {
                             elevationSection(gain: gain, loss: enrichment.elevationLoss ?? 0)
                         }
 
+                        // Fatigue trend — first half vs second half comparison
+                        fatigueTrendSection(enrichment)
+
                         if enrichment.startWeatherDescription != nil || enrichment.temperature != nil {
                             weatherSection(enrichment)
                         }
@@ -762,6 +765,228 @@ struct EnrichedWorkoutDetailView: View {
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+    }
+
+    // MARK: - Fatigue Trend
+
+    @ViewBuilder
+    private func fatigueTrendSection(_ enrichment: WorkoutEnrichment) -> some View {
+        let hrAnalysis = computeHRFatigueTrend(enrichment.heartRateSamples)
+        let paceAnalysis = computePaceFatigueTrend(enrichment.splits)
+
+        if let hr = hrAnalysis {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "waveform.path.ecg")
+                        .foregroundStyle(.orange)
+                    Text("Fatigue Trend")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                HStack(spacing: 0) {
+                    // First half
+                    VStack(spacing: 4) {
+                        Text("First Half")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(Int(hr.firstHalfAvg))")
+                            .font(.title2.bold().monospacedDigit())
+                        Text("avg bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Trend arrow
+                    VStack(spacing: 4) {
+                        Image(systemName: hr.driftDetected ? "arrow.up.right" : "arrow.right")
+                            .font(.title3.bold())
+                            .foregroundStyle(hr.driftDetected ? .orange : .green)
+                        Text(hr.driftDetected ? "+\(Int(hr.secondHalfAvg - hr.firstHalfAvg))" : "±\(Int(abs(hr.secondHalfAvg - hr.firstHalfAvg)))")
+                            .font(.caption.bold().monospacedDigit())
+                            .foregroundStyle(hr.driftDetected ? .orange : .green)
+                    }
+
+                    // Second half
+                    VStack(spacing: 4) {
+                        Text("Second Half")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(Int(hr.secondHalfAvg))")
+                            .font(.title2.bold().monospacedDigit())
+                        Text("avg bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Coach insight
+                Text(hr.driftDetected
+                    ? "HR drift detected — cardiac fatigue. Consider shorter intervals or better pacing."
+                    : "Steady heart rate throughout — good cardiovascular endurance.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+
+                // Pace fade (if also available)
+                if let pace = paceAnalysis {
+                    Divider()
+
+                    HStack(spacing: 0) {
+                        VStack(spacing: 4) {
+                            Text("First Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(formatPace(pace.firstHalfAvgPace))
+                                .font(.headline.bold().monospacedDigit())
+                            Text("/km")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(spacing: 4) {
+                            Image(systemName: pace.fadeDetected ? "arrow.down.right" : "arrow.right")
+                                .font(.title3.bold())
+                                .foregroundStyle(pace.fadeDetected ? .red : .green)
+                        }
+
+                        VStack(spacing: 4) {
+                            Text("Second Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(formatPace(pace.secondHalfAvgPace))
+                                .font(.headline.bold().monospacedDigit())
+                            Text("/km")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    Text(pace.fadeDetected
+                        ? "Pace fade detected — second half \(Int(pace.fadePercent))% slower. Build endurance with negative splits."
+                        : "Even pacing — well-managed effort distribution.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else if let pace = paceAnalysis {
+            // Pace-only fatigue trend (no HR data)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "speedometer")
+                        .foregroundStyle(.orange)
+                    Text("Fatigue Trend")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                HStack(spacing: 0) {
+                    VStack(spacing: 4) {
+                        Text("First Half")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(formatPace(pace.firstHalfAvgPace))
+                            .font(.title2.bold().monospacedDigit())
+                        Text("/km")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    VStack(spacing: 4) {
+                        Image(systemName: pace.fadeDetected ? "arrow.down.right" : "arrow.right")
+                            .font(.title3.bold())
+                            .foregroundStyle(pace.fadeDetected ? .red : .green)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("Second Half")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(formatPace(pace.secondHalfAvgPace))
+                            .font(.title2.bold().monospacedDigit())
+                        Text("/km")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                Text(pace.fadeDetected
+                    ? "Pace fade detected — second half \(Int(pace.fadePercent))% slower. Build endurance with negative splits."
+                    : "Even pacing — well-managed effort distribution.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private struct HRFatigueTrend {
+        let firstHalfAvg: Double
+        let secondHalfAvg: Double
+        let driftDetected: Bool
+    }
+
+    private struct PaceFatigueTrend {
+        let firstHalfAvgPace: TimeInterval
+        let secondHalfAvgPace: TimeInterval
+        let fadeDetected: Bool
+        let fadePercent: Double
+    }
+
+    private func computeHRFatigueTrend(_ samples: [WorkoutEnrichment.HeartRateSamplePoint]) -> HRFatigueTrend? {
+        guard samples.count > 10 else { return nil }
+
+        let sorted = samples.sorted { $0.date < $1.date }
+        let midpoint = sorted.count / 2
+        let firstHalf = sorted[..<midpoint]
+        let secondHalf = sorted[midpoint...]
+
+        let firstAvg = firstHalf.map(\.bpm).reduce(0, +) / Double(firstHalf.count)
+        let secondAvg = secondHalf.map(\.bpm).reduce(0, +) / Double(secondHalf.count)
+
+        let driftDetected = secondAvg > firstAvg + 5
+
+        return HRFatigueTrend(
+            firstHalfAvg: firstAvg,
+            secondHalfAvg: secondAvg,
+            driftDetected: driftDetected
+        )
+    }
+
+    private func computePaceFatigueTrend(_ splits: [WorkoutEnrichment.PaceSplit]) -> PaceFatigueTrend? {
+        guard splits.count > 3 else { return nil }
+
+        let midpoint = splits.count / 2
+        let firstHalf = splits[..<midpoint]
+        let secondHalf = splits[midpoint...]
+
+        let firstAvgPace = firstHalf.map(\.pace).reduce(0, +) / Double(firstHalf.count)
+        let secondAvgPace = secondHalf.map(\.pace).reduce(0, +) / Double(secondHalf.count)
+
+        guard firstAvgPace > 0 else { return nil }
+
+        let fadePercent = ((secondAvgPace - firstAvgPace) / firstAvgPace) * 100
+        let fadeDetected = fadePercent > 5
+
+        return PaceFatigueTrend(
+            firstHalfAvgPace: firstAvgPace,
+            secondHalfAvgPace: secondAvgPace,
+            fadeDetected: fadeDetected,
+            fadePercent: fadePercent
+        )
     }
 
     // MARK: - Weather

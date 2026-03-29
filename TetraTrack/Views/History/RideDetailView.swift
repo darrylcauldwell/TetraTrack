@@ -6,6 +6,7 @@
 import SwiftUI
 import Photos
 import AVKit
+import Charts
 
 struct RideDetailView: View {
     @Bindable var ride: Ride
@@ -120,6 +121,8 @@ struct RideDetailView: View {
                     if ride.hasHeartRateData {
                         HeartRateSummaryView(ride: ride)
                         HeartRateByGaitView(ride: ride)
+                        rideHeartRateChartSection
+                        rideHeartRateZoneSection
                     }
 
                     if let recoveryMetrics = ride.recoveryMetrics {
@@ -193,6 +196,8 @@ struct RideDetailView: View {
             if ride.hasHeartRateData {
                 HeartRateSummaryView(ride: ride)
                 HeartRateByGaitView(ride: ride)
+                rideHeartRateChartSection
+                rideHeartRateZoneSection
             }
 
             if let recoveryMetrics = ride.recoveryMetrics {
@@ -324,6 +329,127 @@ struct RideDetailView: View {
                 .background(Color.orange.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+        }
+    }
+
+    // MARK: - Heart Rate Chart & Zones
+
+    @ViewBuilder
+    private var rideHeartRateChartSection: some View {
+        let samples = ride.heartRateSamples
+        if samples.count > 1 {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Heart Rate")
+                    .font(.headline)
+
+                let minHR = samples.map(\.bpm).min() ?? 0
+                let maxHR = samples.map(\.bpm).max() ?? 0
+
+                HStack {
+                    Label("\(minHR)", systemImage: "heart")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Label("\(maxHR) max", systemImage: "heart.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Chart(samples) { sample in
+                    AreaMark(
+                        x: .value("Time", sample.timestamp),
+                        y: .value("BPM", sample.bpm)
+                    )
+                    .foregroundStyle(.red.opacity(0.2))
+
+                    LineMark(
+                        x: .value("Time", sample.timestamp),
+                        y: .value("BPM", sample.bpm)
+                    )
+                    .foregroundStyle(.red)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5))
+                }
+                .chartYScale(domain: max(0, minHR - 10)...(maxHR + 10))
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                        AxisValueLabel(format: .dateTime.hour().minute())
+                    }
+                }
+                .frame(height: 180)
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var rideHeartRateZoneSection: some View {
+        let samples = ride.heartRateSamples
+        if samples.count > 1 {
+            let zones = rideHeartRateZones(from: samples)
+            if zones.values.contains(where: { $0 > 0 }) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Time in Zones")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(zones.sorted(by: { $0.key < $1.key }), id: \.key) { zone, percentage in
+                        HStack(spacing: 8) {
+                            Text("Z\(zone)")
+                                .font(.caption.bold().monospacedDigit())
+                                .frame(width: 24)
+
+                            GeometryReader { geo in
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(rideZoneColor(zone))
+                                    .frame(width: geo.size.width * percentage / 100)
+                            }
+                            .frame(height: 14)
+
+                            Text(String(format: "%.0f%%", percentage))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 36, alignment: .trailing)
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    private func rideHeartRateZones(from samples: [HeartRateSample]) -> [Int: Double] {
+        let maxObserved = samples.map(\.bpm).max() ?? 190
+        let estimatedMax = max(maxObserved, 180)
+
+        var zoneCounts: [Int: Int] = [1: 0, 2: 0, 3: 0, 4: 0, 5: 0]
+        for sample in samples {
+            let pct = Double(sample.bpm) / Double(estimatedMax) * 100
+            switch pct {
+            case ..<60: zoneCounts[1, default: 0] += 1
+            case 60..<70: zoneCounts[2, default: 0] += 1
+            case 70..<80: zoneCounts[3, default: 0] += 1
+            case 80..<90: zoneCounts[4, default: 0] += 1
+            default: zoneCounts[5, default: 0] += 1
+            }
+        }
+
+        let total = Double(samples.count)
+        guard total > 0 else { return [:] }
+        return zoneCounts.mapValues { Double($0) / total * 100 }
+    }
+
+    private func rideZoneColor(_ zone: Int) -> Color {
+        switch zone {
+        case 1: .gray
+        case 2: .blue
+        case 3: .green
+        case 4: .orange
+        case 5: .red
+        default: .gray
         }
     }
 
