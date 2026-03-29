@@ -9,6 +9,7 @@
 import SwiftUI
 import MapKit
 import Charts
+import HealthKit
 import Photos
 import CoreLocation
 
@@ -18,6 +19,7 @@ struct EnrichedWorkoutDetailView: View {
     @State private var enrichment: WorkoutEnrichment?
     @State private var insights: [WorkoutInsight] = []
     @State private var domainScores: [SkillDomainScore] = []
+    @State private var pillarCards: [PillarCardData] = []
     @State private var photos: [PHAsset] = []
     @State private var isLoading = true
 
@@ -35,9 +37,9 @@ struct EnrichedWorkoutDetailView: View {
                     insightsSection
                 }
 
-                // Skill Domain Scores
-                if !domainScores.isEmpty {
-                    skillDomainSection
+                // Biomechanical Pillar Cards
+                if !pillarCards.isEmpty {
+                    pillarCardsSection
                 }
 
                 if isLoading {
@@ -624,84 +626,392 @@ struct EnrichedWorkoutDetailView: View {
         }
     }
 
-    // MARK: - Skill Domains
+    // MARK: - Biomechanical Pillar Cards
 
-    private var skillDomainSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Skill Domains")
-                .font(.headline)
+    struct PillarCardData: Identifiable {
+        let id = UUID()
+        let pillar: BiomechanicalPillar
+        let subtitle: String
+        let score: Double
+        let keyMetric: String
+        let tip: String
+    }
 
-            ForEach(domainScores.sorted(by: { $0.score > $1.score })) { score in
-                HStack(spacing: 12) {
-                    Image(systemName: score.domain.icon)
-                        .font(.body)
-                        .foregroundStyle(score.domain.colorValue)
-                        .frame(width: 24)
+    private var pillarCardsSection: some View {
+        VStack(spacing: 16) {
+            // Overall score header
+            let scores = pillarCards.map(\.score).filter { $0 > 0 }
+            if !scores.isEmpty {
+                OverallBiomechanicalScore(
+                    stabilityScore: pillarCards.first(where: { $0.pillar == .stability })?.score ?? 0,
+                    rhythmScore: pillarCards.first(where: { $0.pillar == .rhythm })?.score ?? 0,
+                    symmetryScore: pillarCards.first(where: { $0.pillar == .symmetry })?.score ?? 0,
+                    economyScore: pillarCards.first(where: { $0.pillar == .economy })?.score ?? 0
+                )
+            }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(score.domain.displayName)
-                                .font(.subheadline.bold())
-                            Spacer()
-                            Text(String(format: "%.0f", score.score))
-                                .font(.subheadline.bold().monospacedDigit())
-                                .foregroundStyle(score.domain.colorValue)
-                        }
+            // Individual pillar cards
+            ForEach(pillarCards) { card in
+                PillarScoreCard(
+                    pillar: card.pillar,
+                    subtitle: card.subtitle,
+                    score: card.score,
+                    keyMetric: card.keyMetric,
+                    tip: card.tip
+                )
+            }
 
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(Color.gray.opacity(0.15))
-                                    .frame(height: 6)
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(score.domain.colorValue)
-                                    .frame(width: geo.size.width * score.score / 100, height: 6)
-                            }
-                        }
-                        .frame(height: 6)
-
-                        // Show contributing metric
-                        if let topMetric = score.contributingMetrics.sorted(by: { $0.key < $1.key }).first {
-                            Text(domainExplanation(domain: score.domain, metric: topMetric.key, value: topMetric.value))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(12)
-                .background(score.domain.colorValue.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            // Physiology card (from HR data)
+            if let general = enrichment?.generalMetrics, general.averageHeartRate != nil {
+                PhysiologySectionCard(
+                    score: pillarPhysiologyScore,
+                    keyMetric: pillarPhysiologyMetric,
+                    tip: pillarPhysiologyTip
+                )
             }
         }
     }
 
-    private func domainExplanation(domain: SkillDomain, metric: String, value: Double) -> String {
-        switch (domain, metric) {
-        case (.stability, "verticalOscillation"):
-            return String(format: "%.1f cm vertical oscillation — %@", value, value < 8 ? "efficient form" : "try to reduce bounce")
-        case (.stability, "steadiness"):
-            return String(format: "%.0f%% walking steadiness", value)
-        case (.symmetry, "asymmetry"):
-            return String(format: "%.1f%% gait asymmetry — %@", value, value < 5 ? "well balanced" : "consider physio check")
-        case (.symmetry, "groundContactTime"):
-            return String(format: "%.0f ms ground contact time", value)
-        case (.symmetry, "cadenceCV"):
-            return String(format: "Cadence variability: %.2f — %@", value, value < 0.05 ? "very consistent" : "work on consistency")
-        case (.rhythm, "cadence"):
-            return String(format: "%.0f spm — %@", value, value > 170 ? "good turnover" : "try increasing cadence")
-        case (.rhythm, "averageSWOLF"):
-            return String(format: "SWOLF %.0f — %@", value, value < 50 ? "efficient" : "work on stroke economy")
-        case (.endurance, "duration"):
-            return String(format: "%.0f min session", value / 60)
-        case (.endurance, "splitConsistency"):
-            return value >= 1.0 ? "Negative split — strong finish!" : "Pace dropped in second half"
-        case (.calmness, "hrRange"):
-            return String(format: "%.0f bpm HR range — %@", value, value < 40 ? "steady, controlled effort" : "variable intensity")
-        case (.balance, "doubleSupportPercent"):
-            return String(format: "%.1f%% double support — %@", value, value < 25 ? "excellent balance" : "above average")
+    // MARK: - Pillar Card Computation
+
+    private func computePillarCards() -> [PillarCardData] {
+        switch workout.activityType {
+        case .running, .hiking:
+            return computeRunningPillarCards()
+        case .walking:
+            return computeWalkingPillarCards()
+        case .swimming:
+            return computeSwimmingPillarCards()
+        case .cycling:
+            return computeCyclingPillarCards()
         default:
-            return String(format: "%@: %.1f", metric, value)
+            return computeGeneralPillarCards()
         }
+    }
+
+    private func computeRunningPillarCards() -> [PillarCardData] {
+        let rm = enrichment?.runningMetrics
+        var cards: [PillarCardData] = []
+
+        // Stability — vertical oscillation
+        let vo = rm?.averageVerticalOscillation ?? 0
+        let stabilityScore = vo > 0 ? Swift.max(0, Swift.min(100, (12 - vo) / 4 * 100)) : 0
+        cards.append(PillarCardData(
+            pillar: .stability,
+            subtitle: "Posture & Oscillation",
+            score: stabilityScore,
+            keyMetric: vo > 0 ? String(format: "%.1f cm bounce", vo) : "Needs Apple Watch",
+            tip: vo > 10 ? "Focus on running tall — imagine a string pulling you up"
+                : vo > 8 ? "Good height, try engaging core more"
+                : vo > 0 ? "Maintain your tall posture"
+                : "Run with Apple Watch to measure vertical oscillation"
+        ))
+
+        // Rhythm — cadence
+        let cadence = rm?.averageCadence ?? 0
+        let rhythmScore = cadence > 0 ? Swift.max(0, 100 - abs(cadence - 180) / 180 * 200) : 0
+        cards.append(PillarCardData(
+            pillar: .rhythm,
+            subtitle: "Cadence & Tempo",
+            score: rhythmScore,
+            keyMetric: cadence > 0 ? String(format: "%.0f spm", cadence) : "Needs motion data",
+            tip: cadence > 0 && cadence < 170 ? "Aim for quicker, lighter steps (170-180 spm)"
+                : cadence > 190 ? "Cadence is high — ensure you're not overstriding"
+                : cadence > 0 ? "Maintain your light, quick rhythm"
+                : "Carry phone or wear Apple Watch to track cadence"
+        ))
+
+        // Symmetry — GCT
+        let gct = rm?.averageGroundContactTime ?? 0
+        let symmetryScore = gct > 0 ? Swift.max(0, Swift.min(100, (300 - gct) / 100 * 100)) : 0
+        cards.append(PillarCardData(
+            pillar: .symmetry,
+            subtitle: "Stride & Balance",
+            score: symmetryScore,
+            keyMetric: gct > 0 ? String(format: "%.0f ms contact", gct) : "Needs Apple Watch",
+            tip: gct > 300 ? "Spend less time on ground — think 'hot coals'"
+                : gct > 250 ? "Good contact time, keep feet moving"
+                : gct > 0 ? "Good alignment — maintain forward lean"
+                : "Apple Watch measures ground contact time"
+        ))
+
+        // Economy — composite from splits
+        let economyScore = computeSplitConsistencyScore()
+        cards.append(PillarCardData(
+            pillar: .economy,
+            subtitle: "Running Economy",
+            score: economyScore,
+            keyMetric: economyScore > 0 ? "\(Int(economyScore))% economy" : "Building baseline",
+            tip: economyScore < 50 ? "Focus on relaxed shoulders, bent elbows, smooth arm swing"
+                : economyScore < 70 ? "Good flow — keep movements compact and circular"
+                : economyScore > 0 ? "Smooth running — maintain efficiency"
+                : "Economy score builds from cadence, GCT, and oscillation data"
+        ))
+
+        return cards
+    }
+
+    private func computeWalkingPillarCards() -> [PillarCardData] {
+        let wm = enrichment?.walkingMetrics
+        var cards: [PillarCardData] = []
+
+        // Stability — steadiness
+        let steadiness = wm?.steadiness ?? 0
+        cards.append(PillarCardData(
+            pillar: .stability,
+            subtitle: "Walking Steadiness",
+            score: steadiness,
+            keyMetric: steadiness > 0 ? String(format: "%.0f%% steady", steadiness) : "Needs Apple Watch",
+            tip: steadiness > 80 ? "Excellent steadiness — your balance is strong"
+                : steadiness > 60 ? "Good balance, try uneven terrain to challenge it"
+                : steadiness > 0 ? "Steadiness below average — consider fatigue or terrain"
+                : "Apple Watch measures walking steadiness automatically"
+        ))
+
+        // Rhythm — cadence
+        let cadence = wm?.averageCadence ?? 0
+        let rhythmScore = cadence > 0 ? Swift.min(100, cadence / 1.3) : 0
+        cards.append(PillarCardData(
+            pillar: .rhythm,
+            subtitle: "Step Cadence",
+            score: rhythmScore,
+            keyMetric: cadence > 0 ? String(format: "%.0f spm", cadence) : "Needs motion data",
+            tip: cadence > 120 ? "Brisk cadence — great for cardiovascular fitness"
+                : cadence > 100 ? "Good walking pace, try to maintain consistency"
+                : cadence > 0 ? "Try picking up the pace slightly"
+                : "Walk with Apple Watch to track step cadence"
+        ))
+
+        // Symmetry — asymmetry
+        let asymmetry = wm?.asymmetryPercent ?? 0
+        let symmetryScore = asymmetry >= 0 ? Swift.max(0, 100 - asymmetry * 5) : 0
+        cards.append(PillarCardData(
+            pillar: .symmetry,
+            subtitle: "Gait Balance",
+            score: asymmetry > 0 ? symmetryScore : 0,
+            keyMetric: asymmetry > 0 ? String(format: "%.1f%% asymmetry", asymmetry) : "Needs Apple Watch",
+            tip: asymmetry > 8 ? "Work on single-leg strength to improve balance"
+                : asymmetry > 5 ? "Slight imbalance — focus on even footstrikes"
+                : asymmetry > 0 ? "Well balanced gait — maintain this"
+                : "Apple Watch measures gait asymmetry automatically"
+        ))
+
+        // Economy — speed vs effort
+        let speed = wm?.averageSpeed ?? 0
+        let economyScore = speed > 0 ? Swift.min(100, speed * 3.6 / 6.0 * 100) : 0
+        cards.append(PillarCardData(
+            pillar: .economy,
+            subtitle: "Walking Efficiency",
+            score: economyScore,
+            keyMetric: speed > 0 ? String(format: "%.1f km/h", speed * 3.6) : "Building baseline",
+            tip: economyScore > 70 ? "Efficient walking pace — great aerobic work"
+                : economyScore > 40 ? "Moderate pace — good for recovery sessions"
+                : economyScore > 0 ? "Easy walk — good for active recovery"
+                : "Walk longer to build an efficiency baseline"
+        ))
+
+        return cards
+    }
+
+    private func computeSwimmingPillarCards() -> [PillarCardData] {
+        let sm = enrichment?.swimmingMetrics
+        var cards: [PillarCardData] = []
+
+        // Stability — stroke consistency (from lap SWOLF variance)
+        let laps = sm?.laps ?? []
+        let swolfValues = laps.compactMap(\.swolf)
+        var stabilityScore: Double = 0
+        if swolfValues.count >= 3 {
+            let mean = swolfValues.reduce(0, +) / Double(swolfValues.count)
+            let cv = mean > 0 ? sqrt(swolfValues.reduce(0) { $0 + pow($1 - mean, 2) } / Double(swolfValues.count)) / mean : 0
+            stabilityScore = Swift.max(0, 100 - cv * 500)
+        }
+        cards.append(PillarCardData(
+            pillar: .stability,
+            subtitle: "Stroke Consistency",
+            score: stabilityScore,
+            keyMetric: swolfValues.count >= 3 ? String(format: "%.0f avg SWOLF", swolfValues.reduce(0, +) / Double(swolfValues.count)) : "Needs more laps",
+            tip: stabilityScore > 80 ? "Very consistent strokes — excellent technique"
+                : stabilityScore > 50 ? "Good consistency, work on maintaining form when tired"
+                : stabilityScore > 0 ? "Stroke varies between laps — focus on technique drills"
+                : "Swim at least 3 laps for consistency analysis"
+        ))
+
+        // Rhythm — SWOLF (lower = better)
+        let swolf = sm?.averageSWOLF ?? 0
+        let rhythmScore = swolf > 0 ? Swift.max(0, Swift.min(100, (80 - swolf) / 40 * 100)) : 0
+        cards.append(PillarCardData(
+            pillar: .rhythm,
+            subtitle: "Stroke Efficiency",
+            score: rhythmScore,
+            keyMetric: swolf > 0 ? String(format: "SWOLF %.0f", swolf) : "Needs stroke data",
+            tip: swolf > 0 && swolf < 40 ? "Excellent SWOLF — elite-level efficiency"
+                : swolf < 55 ? "Good SWOLF — maintain long, powerful strokes"
+                : swolf > 0 ? "High SWOLF — focus on fewer, longer strokes per lap"
+                : "SWOLF = time + strokes per lap (lower is better)"
+        ))
+
+        // Symmetry — stroke count consistency
+        let strokeCounts = laps.compactMap(\.strokeCount).map { Double($0) }
+        var symScore: Double = 0
+        if strokeCounts.count >= 3 {
+            let mean = strokeCounts.reduce(0, +) / Double(strokeCounts.count)
+            let cv = mean > 0 ? sqrt(strokeCounts.reduce(0) { $0 + pow($1 - mean, 2) } / Double(strokeCounts.count)) / mean : 0
+            symScore = Swift.max(0, 100 - cv * 500)
+        }
+        cards.append(PillarCardData(
+            pillar: .symmetry,
+            subtitle: "Lap Consistency",
+            score: symScore,
+            keyMetric: strokeCounts.count >= 3 ? String(format: "%.0f avg strokes/lap", strokeCounts.reduce(0, +) / Double(strokeCounts.count)) : "Needs more laps",
+            tip: symScore > 80 ? "Consistent stroke count across laps — strong technique"
+                : symScore > 50 ? "Some variation — watch for form breakdown in later laps"
+                : symScore > 0 ? "Stroke count varies — focus on maintaining rhythm"
+                : "Swim at least 3 laps for consistency analysis"
+        ))
+
+        // Economy — total strokes vs distance
+        let totalStrokes = sm?.totalStrokeCount ?? 0
+        let distance = workout.totalDistance ?? 0
+        var econScore: Double = 0
+        if totalStrokes > 0 && distance > 0 {
+            let strokesPer100m = totalStrokes / (distance / 100)
+            econScore = Swift.max(0, Swift.min(100, (40 - strokesPer100m) / 20 * 100))
+        }
+        cards.append(PillarCardData(
+            pillar: .economy,
+            subtitle: "Swim Economy",
+            score: econScore,
+            keyMetric: totalStrokes > 0 && distance > 0 ? String(format: "%.0f strokes/100m", totalStrokes / (distance / 100)) : "Needs distance data",
+            tip: econScore > 70 ? "Efficient stroke count — long, powerful pulls"
+                : econScore > 40 ? "Good economy, try reducing strokes per length"
+                : econScore > 0 ? "High stroke count — focus on catch and pull technique"
+                : "Economy builds from stroke count and distance data"
+        ))
+
+        return cards
+    }
+
+    private func computeCyclingPillarCards() -> [PillarCardData] {
+        let cm = enrichment?.cyclingMetrics
+        var cards: [PillarCardData] = []
+
+        // Stability — core engagement (approximated from power consistency)
+        let stabilityScore = computeSplitConsistencyScore()
+        cards.append(PillarCardData(
+            pillar: .stability,
+            subtitle: "Riding Stability",
+            score: stabilityScore,
+            keyMetric: stabilityScore > 0 ? "\(Int(stabilityScore))% consistent" : "Building baseline",
+            tip: stabilityScore > 70 ? "Stable power output — good core engagement"
+                : stabilityScore > 40 ? "Some variation — work on maintaining seated position"
+                : "Ride longer for stability analysis"
+        ))
+
+        // Rhythm — cadence
+        let cadence = cm?.averageCadence ?? 0
+        let rhythmScore = cadence > 0 ? Swift.max(0, 100 - abs(cadence - 90) / 90 * 200) : 0
+        cards.append(PillarCardData(
+            pillar: .rhythm,
+            subtitle: "Pedal Cadence",
+            score: rhythmScore,
+            keyMetric: cadence > 0 ? String(format: "%.0f rpm", cadence) : "Needs cadence sensor",
+            tip: cadence > 0 && cadence < 80 ? "Try spinning faster in a lighter gear (aim ~90 rpm)"
+                : cadence > 100 ? "High cadence — ensure you're generating power"
+                : cadence > 0 ? "Good cadence — maintain smooth pedalling"
+                : "Use cadence sensor or power meter for rhythm data"
+        ))
+
+        // Symmetry + Economy use split consistency
+        cards.append(PillarCardData(
+            pillar: .symmetry,
+            subtitle: "Power Balance",
+            score: 0,
+            keyMetric: "Needs L/R power meter",
+            tip: "Dual-sided power meter measures left/right balance"
+        ))
+
+        let speed = cm?.averageSpeed ?? 0
+        let econScore = speed > 0 ? Swift.min(100, speed * 3.6 / 35 * 100) : 0
+        cards.append(PillarCardData(
+            pillar: .economy,
+            subtitle: "Cycling Efficiency",
+            score: econScore,
+            keyMetric: speed > 0 ? String(format: "%.1f km/h avg", speed * 3.6) : "Building baseline",
+            tip: econScore > 70 ? "Strong pace — efficient riding"
+                : econScore > 40 ? "Moderate pace — good endurance work"
+                : econScore > 0 ? "Easy ride — good for recovery"
+                : "Ride longer for efficiency analysis"
+        ))
+
+        return cards
+    }
+
+    private func computeGeneralPillarCards() -> [PillarCardData] {
+        // For yoga, HIIT, strength, etc. — show what we can from HR/duration
+        let econScore = Swift.min(100, workout.duration / 3600 * 100)
+        return [
+            PillarCardData(
+                pillar: .stability, subtitle: "Core & Balance", score: 0,
+                keyMetric: "Activity-specific", tip: "This workout type builds stability through \(workout.activityName.lowercased())"
+            ),
+            PillarCardData(
+                pillar: .rhythm, subtitle: "Movement Tempo", score: 0,
+                keyMetric: "Activity-specific", tip: "Focus on controlled, rhythmic movement"
+            ),
+            PillarCardData(
+                pillar: .symmetry, subtitle: "Bilateral Balance", score: 0,
+                keyMetric: "Activity-specific", tip: "Include exercises on both sides equally"
+            ),
+            PillarCardData(
+                pillar: .economy, subtitle: "Movement Efficiency", score: econScore,
+                keyMetric: String(format: "%.0f min session", workout.duration / 60),
+                tip: econScore > 70 ? "Good session length for building fitness" : "Try gradually extending session duration"
+            ),
+        ]
+    }
+
+    // MARK: - Physiology Helpers
+
+    private var pillarPhysiologyScore: Double {
+        guard let general = enrichment?.generalMetrics,
+              let avgHR = general.averageHeartRate, let maxHR = general.maxHeartRate,
+              avgHR > 0, maxHR > 0 else { return 0 }
+        let hrRange = maxHR - (general.minHeartRate ?? avgHR)
+        return Swift.max(0, Swift.min(100, 100 - hrRange / maxHR * 150))
+    }
+
+    private var pillarPhysiologyMetric: String {
+        guard let general = enrichment?.generalMetrics else { return "Needs HR data" }
+        if let avg = general.averageHeartRate {
+            return "\(Int(avg)) avg bpm"
+        }
+        return "Needs HR data"
+    }
+
+    private var pillarPhysiologyTip: String {
+        guard let general = enrichment?.generalMetrics,
+              let maxHR = general.maxHeartRate else {
+            return "Wear Apple Watch for heart rate monitoring"
+        }
+        if maxHR > 185 { return "High max HR — ensure adequate recovery before next session" }
+        if let avg = general.averageHeartRate, avg > 160 { return "Intense session — plan an easy day tomorrow" }
+        return "Good cardiovascular effort — maintain consistent training"
+    }
+
+    // MARK: - Split Consistency Score
+
+    private func computeSplitConsistencyScore() -> Double {
+        guard let splits = enrichment?.splits, splits.count >= 3 else { return 0 }
+        let paces = splits.map(\.pace)
+        let mean = paces.reduce(0, +) / Double(paces.count)
+        guard mean > 0 else { return 0 }
+        let variance = paces.reduce(0) { $0 + pow($1 - mean, 2) } / Double(paces.count)
+        let cv = sqrt(variance) / mean * 100
+        if cv < 3 { return 95 }
+        if cv < 6 { return 75 }
+        if cv < 10 { return 50 }
+        return 30
     }
 
     // MARK: - Insights
@@ -854,11 +1164,7 @@ struct EnrichedWorkoutDetailView: View {
                 enrichment: enrichment
             )
 
-            domainScores = skillDomainService.computeScores(
-                from: workout,
-                enrichment: enrichment,
-                activityType: workout.activityType
-            )
+            pillarCards = computePillarCards()
         }
     }
 
