@@ -26,26 +26,52 @@ struct EnrichedWorkoutDetailView: View {
     private let skillDomainService = SkillDomainService()
 
     private let photoService = RidePhotoService.shared
+    @State private var selectedTab: DetailTab = .session
+
+    enum DetailTab: String, CaseIterable {
+        case session = "Session"
+        case insights = "Insights"
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                headerSection
-                summaryStats
-
-                if !insights.isEmpty {
-                    insightsSection
+        VStack(spacing: 0) {
+            Picker("", selection: $selectedTab) {
+                ForEach(DetailTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
+            }
+            .pickerStyle(.segmented)
+            .padding()
 
-                // Biomechanical Pillar Cards
-                if !pillarCards.isEmpty {
-                    pillarCardsSection
+            ScrollView {
+                VStack(spacing: 20) {
+                    if selectedTab == .session {
+                        sessionTabContent
+                    } else {
+                        insightsTabContent
+                    }
                 }
+                .padding()
+            }
+        }
+        .navigationTitle(workout.activityName)
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadData()
+        }
+    }
 
-                if isLoading {
-                    ProgressView("Loading workout data...")
-                        .padding(.vertical, 32)
-                } else {
+    // MARK: - Session Tab
+
+    private var sessionTabContent: some View {
+        VStack(spacing: 20) {
+            headerSection
+            summaryStats
+
+            if isLoading {
+                ProgressView("Loading workout data...")
+                    .padding(.vertical, 32)
+            } else {
                     if let enrichment {
                         if !enrichment.routeLocations.isEmpty {
                             routeMapSection(enrichment.routeLocations)
@@ -104,12 +130,38 @@ struct EnrichedWorkoutDetailView: View {
                     sourceSection
                 }
             }
-            .padding()
         }
-        .navigationTitle(workout.activityName)
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await loadData()
+
+    private var insightsTabContent: some View {
+        VStack(spacing: 20) {
+            if !pillarCards.isEmpty {
+                pillarCardsSection
+            }
+
+            if !insights.isEmpty {
+                insightsSection
+            }
+
+            if pillarCards.isEmpty && insights.isEmpty {
+                if isLoading {
+                    ProgressView("Loading insights...")
+                        .padding(.vertical, 32)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.tertiary)
+                        Text("No insights available")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text("Insights are generated from workout metrics like heart rate, cadence, and pace.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 40)
+                }
+            }
         }
     }
 
