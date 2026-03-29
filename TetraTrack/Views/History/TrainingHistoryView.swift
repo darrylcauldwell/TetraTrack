@@ -144,20 +144,8 @@ struct SessionHistoryView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 12) {
-                    Button {
-                        showExternalWorkouts.toggle()
-                        if showExternalWorkouts {
-                            fetchExternalWorkouts()
-                        }
-                    } label: {
-                        Image(systemName: showExternalWorkouts ? "heart.circle.fill" : "heart.circle")
-                    }
-                    .help("Include workouts from other apps")
-
-                    if selectedTab == .sessions && selectedDiscipline != .shooting && !allSessions.isEmpty {
-                        EditButton()
-                    }
+                if selectedTab == .sessions && selectedDiscipline != .shooting && !allSessions.isEmpty {
+                    EditButton()
                 }
             }
         }
