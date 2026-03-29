@@ -806,18 +806,40 @@ struct EnrichedWorkoutDetailView: View {
                 : "Carry phone or wear Apple Watch to track cadence"
         ))
 
-        // Symmetry — GCT
+        // Symmetry — stride length balance & asymmetry
+        // Use stride length for form symmetry; GCT moves to Economy as efficiency metric
+        let stride = rm?.averageStrideLength ?? 0
         let gct = rm?.averageGroundContactTime ?? 0
-        let symmetryScore = gct > 0 ? Swift.max(0, Swift.min(100, (300 - gct) / 100 * 100)) : 0
+        let symmetryScore: Double = {
+            // Stride length ratio: ideal is 2.2-2.6x leg length (~0.8-1.2m)
+            if stride > 0 {
+                let idealRange = stride > 0.8 && stride < 1.3
+                return idealRange ? 85 : (stride > 0.6 ? 65 : 45)
+            }
+            // Fallback: use split consistency as proxy for balanced running
+            if !enrichment!.splits.isEmpty { return computeSplitConsistencyScore() }
+            return 0
+        }()
         cards.append(PillarCardData(
             pillar: .symmetry,
-            subtitle: "Stride & Balance",
+            subtitle: "Stride Balance",
             score: symmetryScore,
-            keyMetric: gct > 0 ? String(format: "%.0f ms contact", gct) : "Needs Apple Watch",
-            tip: gct > 300 ? "Spend less time on ground — think 'hot coals'"
-                : gct > 250 ? "Good contact time, keep feet moving"
-                : gct > 0 ? "Good alignment — maintain forward lean"
-                : "Apple Watch measures ground contact time"
+            keyMetric: {
+                if stride > 0 && gct > 0 {
+                    return String(format: "%.2fm stride, %.0fms GCT", stride, gct)
+                }
+                if stride > 0 { return String(format: "%.2f m stride length", stride) }
+                if gct > 0 { return String(format: "%.0f ms ground contact", gct) }
+                return "Needs Apple Watch"
+            }(),
+            tip: {
+                if stride > 1.3 { return "Long stride — ensure you're not overstriding, land under hips" }
+                if stride > 0.8 { return "Good stride length — balanced and efficient" }
+                if stride > 0 { return "Short stride — work on hip extension and flexibility" }
+                if gct > 300 { return "High ground contact — focus on quick, light footstrikes" }
+                if gct > 0 { return "Good ground contact time — maintain light feet" }
+                return "Apple Watch measures stride length and ground contact balance"
+            }()
         ))
 
         // Economy — composite from splits
@@ -923,17 +945,31 @@ struct EnrichedWorkoutDetailView: View {
         ))
 
         // Rhythm — SWOLF (lower = better)
-        let swolf = sm?.averageSWOLF ?? 0
-        let rhythmScore = swolf > 0 ? Swift.max(0, Swift.min(100, (80 - swolf) / 40 * 100)) : 0
+        // Rhythm — lap time consistency (are you holding a steady pace?)
+        let lapTimes = laps.map(\.duration)
+        var rhythmScore: Double = 0
+        if lapTimes.count >= 3 {
+            let mean = lapTimes.reduce(0, +) / Double(lapTimes.count)
+            let cv = mean > 0 ? sqrt(lapTimes.reduce(0) { $0 + pow($1 - mean, 2) } / Double(lapTimes.count)) / mean : 0
+            rhythmScore = Swift.max(0, 100 - cv * 500)
+        }
+        let avgLapTime = lapTimes.isEmpty ? 0 : lapTimes.reduce(0, +) / Double(lapTimes.count)
         cards.append(PillarCardData(
             pillar: .rhythm,
-            subtitle: "Stroke Efficiency",
+            subtitle: "Lap Timing",
             score: rhythmScore,
-            keyMetric: swolf > 0 ? String(format: "SWOLF %.0f", swolf) : "Needs stroke data",
-            tip: swolf > 0 && swolf < 40 ? "Excellent SWOLF — elite-level efficiency"
-                : swolf < 55 ? "Good SWOLF — maintain long, powerful strokes"
-                : swolf > 0 ? "High SWOLF — focus on fewer, longer strokes per lap"
-                : "SWOLF = time + strokes per lap (lower is better)"
+            keyMetric: {
+                if avgLapTime > 0 {
+                    let mins = Int(avgLapTime) / 60
+                    let secs = Int(avgLapTime) % 60
+                    return String(format: "%d:%02d avg lap", mins, secs)
+                }
+                return "Needs lap data"
+            }(),
+            tip: rhythmScore > 80 ? "Very consistent lap times — excellent pacing discipline"
+                : rhythmScore > 50 ? "Good timing — some variation between laps"
+                : rhythmScore > 0 ? "Lap times vary — try to hold a steady pace each length"
+                : "Swim at least 3 laps for timing analysis"
         ))
 
         // Symmetry — stroke count consistency
@@ -955,23 +991,35 @@ struct EnrichedWorkoutDetailView: View {
                 : "Swim at least 3 laps for consistency analysis"
         ))
 
-        // Economy — total strokes vs distance
+        // Economy — SWOLF + strokes per distance
+        let swolf = sm?.averageSWOLF ?? 0
         let totalStrokes = sm?.totalStrokeCount ?? 0
         let distance = workout.totalDistance ?? 0
         var econScore: Double = 0
-        if totalStrokes > 0 && distance > 0 {
+        if swolf > 0 {
+            econScore = Swift.max(0, Swift.min(100, (80 - swolf) / 40 * 100))
+        } else if totalStrokes > 0 && distance > 0 {
             let strokesPer100m = totalStrokes / (distance / 100)
             econScore = Swift.max(0, Swift.min(100, (40 - strokesPer100m) / 20 * 100))
         }
         cards.append(PillarCardData(
             pillar: .economy,
-            subtitle: "Swim Economy",
+            subtitle: "Stroke Economy",
             score: econScore,
-            keyMetric: totalStrokes > 0 && distance > 0 ? String(format: "%.0f strokes/100m", totalStrokes / (distance / 100)) : "Needs distance data",
-            tip: econScore > 70 ? "Efficient stroke count — long, powerful pulls"
-                : econScore > 40 ? "Good economy, try reducing strokes per length"
-                : econScore > 0 ? "High stroke count — focus on catch and pull technique"
-                : "Economy builds from stroke count and distance data"
+            keyMetric: {
+                if swolf > 0 && totalStrokes > 0 && distance > 0 {
+                    return String(format: "SWOLF %.0f · %.0f strokes/100m", swolf, totalStrokes / (distance / 100))
+                }
+                if swolf > 0 { return String(format: "SWOLF %.0f", swolf) }
+                if totalStrokes > 0 && distance > 0 { return String(format: "%.0f strokes/100m", totalStrokes / (distance / 100)) }
+                return "Needs stroke data"
+            }(),
+            tip: swolf > 0 && swolf < 40 ? "Excellent SWOLF — elite-level efficiency per lap"
+                : swolf > 0 && swolf < 55 ? "Good SWOLF — maintain long, powerful strokes"
+                : swolf > 0 ? "High SWOLF — focus on fewer, longer strokes per lap"
+                : econScore > 70 ? "Efficient stroke count — good distance per pull"
+                : econScore > 0 ? "Try reducing strokes per length while maintaining speed"
+                : "SWOLF = lap time + strokes (lower is more efficient)"
         ))
 
         return cards
@@ -1007,13 +1055,17 @@ struct EnrichedWorkoutDetailView: View {
                 : "Use cadence sensor or power meter for rhythm data"
         ))
 
-        // Symmetry + Economy use split consistency
+        // Symmetry — effort consistency across the ride (even pacing = balanced effort)
+        let symScore = computeSplitConsistencyScore()
         cards.append(PillarCardData(
             pillar: .symmetry,
-            subtitle: "Power Balance",
-            score: 0,
-            keyMetric: "Needs L/R power meter",
-            tip: "Dual-sided power meter measures left/right balance"
+            subtitle: "Effort Balance",
+            score: symScore,
+            keyMetric: symScore > 0 ? "\(Int(symScore))% balanced effort" : "Needs split data",
+            tip: symScore > 80 ? "Very even effort — well-paced throughout the ride"
+                : symScore > 50 ? "Good pacing — some effort variation between splits"
+                : symScore > 0 ? "Uneven effort — try to pace yourself more evenly"
+                : "Ride longer with GPS for effort balance analysis"
         ))
 
         let speed = cm?.averageSpeed ?? 0
@@ -1033,25 +1085,99 @@ struct EnrichedWorkoutDetailView: View {
     }
 
     private func computeGeneralPillarCards() -> [PillarCardData] {
-        // For yoga, HIIT, strength, etc. — show what we can from HR/duration
-        let econScore = Swift.min(100, workout.duration / 3600 * 100)
+        // For yoga, HIIT, strength, etc. — use HR data when available
+        let general = enrichment?.generalMetrics
+        let hrSamples = enrichment?.heartRateSamples ?? []
+        let duration = workout.duration
+        let activityName = workout.activityName
+
+        // Stability — HR steadiness (lower variability = calmer, more controlled)
+        let stabilityScore: Double = {
+            guard hrSamples.count > 10 else { return 0 }
+            let bpms = hrSamples.map(\.bpm)
+            let mean = bpms.reduce(0, +) / Double(bpms.count)
+            guard mean > 0 else { return 0 }
+            let cv = sqrt(bpms.reduce(0) { $0 + pow($1 - mean, 2) } / Double(bpms.count)) / mean * 100
+            if cv < 8 { return 90 }   // Very steady — yoga, strength
+            if cv < 15 { return 70 }  // Moderate — mixed cardio
+            if cv < 25 { return 50 }  // Variable — HIIT (expected)
+            return 35
+        }()
+
+        // Rhythm — session structure (duration relative to typical)
+        let rhythmScore = Swift.min(100, duration / 2700 * 100) // 45 min = 100
+
+        // Symmetry — HR recovery between efforts (for HIIT/intervals)
+        let symScore: Double = {
+            guard hrSamples.count > 20 else { return 0 }
+            let bpms = hrSamples.map(\.bpm)
+            let maxHR = bpms.max() ?? 0
+            let minHR = bpms.min() ?? 0
+            guard maxHR > 0 else { return 0 }
+            // Good range means you worked hard AND recovered — balanced effort
+            let range = maxHR - minHR
+            if range > 60 { return 85 }  // Wide range — good interval effort
+            if range > 40 { return 70 }  // Moderate range
+            if range > 20 { return 55 }  // Narrow range — steady state
+            return 40
+        }()
+
+        // Economy — duration + calories efficiency
+        let econScore = Swift.min(100, duration / 3600 * 100)
+
         return [
             PillarCardData(
-                pillar: .stability, subtitle: "Core & Balance", score: 0,
-                keyMetric: "Activity-specific", tip: "This workout type builds stability through \(workout.activityName.lowercased())"
+                pillar: .stability,
+                subtitle: "Effort Control",
+                score: stabilityScore,
+                keyMetric: {
+                    if let avg = general?.averageHeartRate {
+                        return "\(Int(avg)) avg bpm"
+                    }
+                    return String(format: "%.0f min %@", duration / 60, activityName.lowercased())
+                }(),
+                tip: stabilityScore > 80 ? "Very controlled effort — steady heart rate throughout"
+                    : stabilityScore > 50 ? "Moderate HR variation — good mix of effort and recovery"
+                    : stabilityScore > 0 ? "High HR variability — typical for interval-style training"
+                    : "Wear Apple Watch for heart rate-based stability analysis"
             ),
             PillarCardData(
-                pillar: .rhythm, subtitle: "Movement Tempo", score: 0,
-                keyMetric: "Activity-specific", tip: "Focus on controlled, rhythmic movement"
+                pillar: .rhythm,
+                subtitle: "Session Structure",
+                score: rhythmScore,
+                keyMetric: String(format: "%.0f min session", duration / 60),
+                tip: rhythmScore > 80 ? "Solid session length — great for building fitness"
+                    : rhythmScore > 50 ? "Good workout — consistency builds results"
+                    : "Try to build toward 30-45 minute sessions gradually"
             ),
             PillarCardData(
-                pillar: .symmetry, subtitle: "Bilateral Balance", score: 0,
-                keyMetric: "Activity-specific", tip: "Include exercises on both sides equally"
+                pillar: .symmetry,
+                subtitle: "Effort Distribution",
+                score: symScore,
+                keyMetric: {
+                    if let max = general?.maxHeartRate, let min = general?.minHeartRate {
+                        return "\(Int(min))-\(Int(max)) bpm range"
+                    }
+                    return "Needs HR data"
+                }(),
+                tip: symScore > 80 ? "Great effort range — good balance of intensity and recovery"
+                    : symScore > 50 ? "Moderate effort variation — well-structured session"
+                    : symScore > 0 ? "Narrow HR range — try adding some higher intensity intervals"
+                    : "Apple Watch measures effort distribution through heart rate"
             ),
             PillarCardData(
-                pillar: .economy, subtitle: "Movement Efficiency", score: econScore,
-                keyMetric: String(format: "%.0f min session", workout.duration / 60),
-                tip: econScore > 70 ? "Good session length for building fitness" : "Try gradually extending session duration"
+                pillar: .economy,
+                subtitle: "Training Volume",
+                score: econScore,
+                keyMetric: {
+                    if let cal = workout.totalEnergyBurned {
+                        return String(format: "%.0f kcal in %.0f min", cal, duration / 60)
+                    }
+                    return String(format: "%.0f min session", duration / 60)
+                }(),
+                tip: econScore > 70 ? "Good session volume — contributing to weekly training load"
+                    : econScore > 40 ? "Moderate session — every bit of movement counts"
+                    : "Short session — try to build duration gradually"
             ),
         ]
     }
