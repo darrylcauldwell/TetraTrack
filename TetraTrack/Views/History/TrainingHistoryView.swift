@@ -334,15 +334,15 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .walking:
                 if let session = item.runningSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .swimming:
                 if let session = item.swimmingSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .shooting:
                 if let session = item.shootingSession {
@@ -449,15 +449,15 @@ struct SessionHistoryView: View {
                 }
             case .running:
                 if let session = item.runningSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .walking:
                 if let session = item.runningSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .swimming:
                 if let session = item.swimmingSession {
-                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                    EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
                 }
             case .shooting:
                 if let session = item.shootingSession {

@@ -997,11 +997,80 @@ struct FifteenHundredTimeTrial {
     }
 }
 
+// MARK: - Enrichment from Model Data
+
+extension RunningSession {
+    /// Build a WorkoutEnrichment from stored model data (no HealthKit query needed)
+    var asEnrichment: WorkoutEnrichment {
+        var enrichment = WorkoutEnrichment()
+
+        // HR samples
+        let hrSamples = heartRateSamples
+        enrichment.heartRateSamples = hrSamples.map {
+            WorkoutEnrichment.HeartRateSamplePoint(date: $0.timestamp, bpm: Double($0.bpm))
+        }
+
+        // General metrics from stored HR
+        if averageHeartRate > 0 {
+            enrichment.generalMetrics = WorkoutEnrichment.GeneralMetrics(
+                averageHeartRate: Double(averageHeartRate),
+                maxHeartRate: Double(maxHeartRate),
+                minHeartRate: minHeartRate > 0 ? Double(minHeartRate) : nil,
+                activeCalories: nil,
+                heartRateRecovery: healthKitHRRecoveryOneMinute
+            )
+        }
+
+        // Running metrics from stored values
+        var rm = WorkoutEnrichment.RunningMetrics()
+        if averageCadence > 0 { rm.averageCadence = Double(averageCadence) }
+        if let stride = healthKitStrideLength, stride > 0 { rm.averageStrideLength = stride }
+        if averageGroundContactTime > 0 { rm.averageGroundContactTime = averageGroundContactTime }
+        if averageVerticalOscillation > 0 { rm.averageVerticalOscillation = averageVerticalOscillation }
+        if let power = healthKitPower, power > 0 { rm.averagePower = power }
+        if let speed = healthKitSpeed, speed > 0 { rm.averageSpeed = speed }
+        if rm.averageCadence != nil || rm.averageStrideLength != nil || rm.averageGroundContactTime != nil {
+            enrichment.runningMetrics = rm
+        }
+
+        // Walking metrics (for walking session type)
+        if sessionType == .walking {
+            var wm = WorkoutEnrichment.WalkingMetrics()
+            if averageCadence > 0 { wm.averageCadence = Double(averageCadence) }
+            if let asymmetry = healthKitAsymmetry { wm.asymmetryPercent = asymmetry }
+            if let stepLength = healthKitWalkingStepLength { wm.averageStepLength = stepLength }
+            if let speed = healthKitWalkingSpeed { wm.averageSpeed = speed }
+            if let steadiness = healthKitWalkingSteadiness { wm.steadiness = steadiness }
+            if let doubleSupport = healthKitDoubleSupportPercentage { wm.doubleSupportPercent = doubleSupport }
+            enrichment.walkingMetrics = wm
+            enrichment.runningMetrics = nil
+        }
+
+        // Elevation
+        if totalAscent > 0 { enrichment.elevationGain = totalAscent }
+        if totalDescent > 0 { enrichment.elevationLoss = totalDescent }
+
+        // Splits from stored split data
+        let storedSplits = sortedSplits
+        if !storedSplits.isEmpty {
+            enrichment.splits = storedSplits.enumerated().map { index, split in
+                WorkoutEnrichment.PaceSplit(
+                    id: index + 1,
+                    distance: split.distance,
+                    duration: split.duration,
+                    pace: split.pace
+                )
+            }
+        }
+
+        return enrichment
+    }
+}
+
 // MARK: - ExternalWorkout Conversion
 
 extension RunningSession {
     /// Convert a legacy RunningSession to ExternalWorkout for display in the enriched detail view.
-    /// The enriched view will re-fetch metrics from HealthKit using the workout UUID.
     var asExternalWorkout: ExternalWorkout {
         ExternalWorkout(
             id: UUID(uuidString: healthKitWorkoutUUID) ?? id,

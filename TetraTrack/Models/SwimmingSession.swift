@@ -474,6 +474,59 @@ struct ThreeMinuteSwimTest {
     }
 }
 
+// MARK: - Enrichment from Model Data
+
+extension SwimmingSession {
+    /// Build a WorkoutEnrichment from stored model data (no HealthKit query needed)
+    var asEnrichment: WorkoutEnrichment {
+        var enrichment = WorkoutEnrichment()
+
+        // HR samples
+        let hrSamples = heartRateSamples
+        enrichment.heartRateSamples = hrSamples.map {
+            WorkoutEnrichment.HeartRateSamplePoint(date: $0.timestamp, bpm: Double($0.bpm))
+        }
+
+        // General metrics
+        if averageHeartRate > 0 {
+            enrichment.generalMetrics = WorkoutEnrichment.GeneralMetrics(
+                averageHeartRate: Double(averageHeartRate),
+                maxHeartRate: Double(maxHeartRate),
+                minHeartRate: minHeartRate > 0 ? Double(minHeartRate) : nil,
+                activeCalories: nil,
+                heartRateRecovery: nil
+            )
+        }
+
+        // Swimming metrics
+        var sm = WorkoutEnrichment.SwimmingMetrics()
+        if totalStrokes > 0 { sm.totalStrokeCount = Double(totalStrokes) }
+        if averageSwolf > 0 { sm.averageSWOLF = averageSwolf }
+        if lapCount > 0 { sm.lapCount = lapCount }
+        sm.poolLength = poolLength
+        if averageSpO2 > 0 { sm.averageSpO2 = averageSpO2 }
+        if averageBreathingRate > 0 { sm.averageBreathingRate = averageBreathingRate }
+
+        // Per-lap data from stored laps
+        let storedLaps = sortedLaps
+        if !storedLaps.isEmpty {
+            sm.laps = storedLaps.enumerated().map { index, lap in
+                WorkoutEnrichment.SwimLap(
+                    id: index + 1,
+                    duration: lap.duration,
+                    strokeCount: lap.strokeCount > 0 ? Int(lap.strokeCount) : nil,
+                    swolf: lap.swolf > 0 ? Double(lap.swolf) : nil,
+                    strokeType: nil
+                )
+            }
+        }
+
+        enrichment.swimmingMetrics = sm
+
+        return enrichment
+    }
+}
+
 // MARK: - Swimming Personal Bests (legacy — kept for Settings display)
 
 struct SwimmingPersonalBests {

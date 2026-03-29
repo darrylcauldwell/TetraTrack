@@ -41,21 +41,21 @@ struct PostSessionInsightsView: View {
 
         case "running":
             if let session: RunningSession = fetchModel() {
-                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
             } else {
                 fallbackView
             }
 
         case "walking":
             if let session: RunningSession = fetchModel() {
-                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
             } else {
                 fallbackView
             }
 
         case "swimming":
             if let session: SwimmingSession = fetchModel() {
-                EnrichedWorkoutDetailView(workout: session.asExternalWorkout)
+                EnrichedWorkoutDetailView(workout: session.asExternalWorkout, prebuiltEnrichment: session.asEnrichment)
             } else {
                 fallbackView
             }

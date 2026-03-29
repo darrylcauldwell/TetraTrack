@@ -15,6 +15,7 @@ import CoreLocation
 
 struct EnrichedWorkoutDetailView: View {
     let workout: ExternalWorkout
+    var prebuiltEnrichment: WorkoutEnrichment?
 
     @State private var enrichment: WorkoutEnrichment?
     @State private var insights: [WorkoutInsight] = []
@@ -1228,20 +1229,25 @@ struct EnrichedWorkoutDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
-        // Fetch enrichment and photos concurrently
-        async let enrichTask = WorkoutEnrichmentService.shared.enrich(
-            workoutId: workout.id,
-            startDate: workout.startDate,
-            endDate: workout.endDate,
-            activityType: workout.activityType
-        )
+        // Use prebuilt enrichment (from legacy model data) or fetch from HealthKit
+        if let prebuilt = prebuiltEnrichment {
+            enrichment = prebuilt
+        } else {
+            enrichment = await WorkoutEnrichmentService.shared.enrich(
+                workoutId: workout.id,
+                startDate: workout.startDate,
+                endDate: workout.endDate,
+                activityType: workout.activityType
+            )
+        }
 
-        async let photosTask = loadPhotos()
+        // Merge: if prebuilt had data but HealthKit has more, prefer HealthKit enrichment
+        // For legacy sessions, prebuilt is the primary source
+        // For Apple Watch sessions, HealthKit query is primary
 
-        enrichment = await enrichTask
-        photos = await photosTask
+        photos = await loadPhotos()
 
-        // Generate insights and domain scores after enrichment is loaded
+        // Generate insights and pillar cards
         if let enrichment {
             insights = await WorkoutInsightsGenerator.shared.generateInsights(
                 for: workout,
