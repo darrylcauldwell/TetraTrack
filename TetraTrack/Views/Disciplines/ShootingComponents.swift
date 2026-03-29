@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import Photos
 import WidgetKit
 
 // MARK: - Shooting Watch Status Card
@@ -377,6 +378,9 @@ struct ShootingSessionDetailView: View {
     @Query(sort: \ShootingSession.startDate, order: .reverse) private var recentShoots: [ShootingSession]
 
     @State private var selectedTab: ShootingDetailTab = .session
+    @State private var sessionPhotos: [PHAsset] = []
+    @State private var hasLoadedMedia = false
+    private let photoService = RidePhotoService.shared
 
     enum ShootingDetailTab: String, CaseIterable {
         case session = "Session"
@@ -411,6 +415,16 @@ struct ShootingSessionDetailView: View {
             }
             .onDisappear {
                 applySensorAnalysisIfNeeded()
+            }
+            .task {
+                if !hasLoadedMedia {
+                    hasLoadedMedia = true
+                    guard photoService.isAuthorized else { return }
+                    let bufferedStart = session.startDate.addingTimeInterval(-300)
+                    let bufferedEnd = (session.endDate ?? Date()).addingTimeInterval(300)
+                    let media = await photoService.findMediaForDateRange(from: bufferedStart, to: bufferedEnd)
+                    sessionPhotos = media.photos
+                }
             }
         }
     }
@@ -558,6 +572,31 @@ struct ShootingSessionDetailView: View {
                     }
                 }
                 .padding(.horizontal)
+            }
+
+            // Photos
+            if !sessionPhotos.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "photo.on.rectangle")
+                            .foregroundStyle(.blue)
+                        Text("Photos (\(sessionPhotos.count))")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 8) {
+                            ForEach(sessionPhotos, id: \.localIdentifier) { asset in
+                                ShootingPhotoThumbnail(asset: asset)
+                                    .frame(width: 120, height: 120)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 4)
             }
 
             // Ends breakdown
@@ -1512,5 +1551,63 @@ struct EndRow: View {
             }
         }
         .frame(height: 4)
+    }
+}
+
+// MARK: - Shooting Photo Thumbnail
+
+private struct ShootingPhotoThumbnail: View {
+    let asset: PHAsset
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay {
+                        ProgressView()
+                    }
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() async {
+        let photoService = RidePhotoService.shared
+
+        if let cached = photoService.getCachedThumbnail(for: asset.localIdentifier) {
+            image = cached
+            return
+        }
+
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+
+        let size = CGSize(width: 240, height: 240)
+
+        let result: UIImage? = await withCheckedContinuation { continuation in
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: size,
+                contentMode: .aspectFill,
+                options: options
+            ) { image, _ in
+                continuation.resume(returning: image)
+            }
+        }
+
+        if let result {
+            photoService.cacheThumbnail(result, for: asset.localIdentifier)
+            image = result
+        }
     }
 }
