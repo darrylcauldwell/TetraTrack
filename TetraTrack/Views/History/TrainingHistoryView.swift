@@ -709,6 +709,7 @@ struct SessionInsightsView: View {
                         consistencyVariabilitySection
                     } else {
                         pillarScoreTrendsSection
+                        consistencyVariabilitySection
                         disciplineSpecificInsights
                     }
 
@@ -1239,7 +1240,7 @@ struct SessionInsightsView: View {
                 Text("Running Patterns")
                     .font(.headline)
                 Spacer()
-                Text("\(runningSessions.count) sessions")
+                Text("\(totalRunCount) sessions")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1337,7 +1338,7 @@ struct SessionInsightsView: View {
                 Text("Swimming Patterns")
                     .font(.headline)
                 Spacer()
-                Text("\(swimmingSessions.count) sessions")
+                Text("\(totalSwimCount) sessions")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1394,9 +1395,9 @@ struct SessionInsightsView: View {
 
                 Divider()
 
-                // Breathing patterns if available
+                // Typical session summary
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Session Patterns")
+                    Text("Typical Session")
                         .font(.subheadline.bold())
 
                     let avgDuration = swimmingSessions.reduce(0) { $0 + $1.totalDuration } / Double(swimmingSessions.count)
@@ -1770,6 +1771,18 @@ struct SessionInsightsView: View {
                         insight: result.previous > 0 ? "Recent avg \(Int(result.recent)) vs previous \(Int(result.previous)) spm" : "Building baseline from \(cadenceValues.count) sessions"
                     )
                 }
+
+                let gctValues = runningSessions.map(\.averageGroundContactTime).filter { $0 > 0 }
+                if gctValues.count >= 3 {
+                    let result = computeTrend(values: gctValues, inverted: true)
+                    InsightTrendRow(
+                        icon: "timer",
+                        label: "Running GCT",
+                        value: String(format: "%.0f ms", result.recent),
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Shorter is more efficient — recent \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous)) ms" : "Building baseline from \(gctValues.count) sessions"
+                    )
+                }
             }
 
             if swimmingSessions.count >= 3 {
@@ -1782,6 +1795,18 @@ struct SessionInsightsView: View {
                         value: String(format: "%.0f", result.recent),
                         trend: result.trend,
                         insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous))" : "Building baseline from \(swolfValues.count) sessions"
+                    )
+                }
+
+                let strokeValues = swimmingSessions.map(\.averageStrokesPerLap).filter { $0 > 0 }
+                if strokeValues.count >= 3 {
+                    let result = computeTrend(values: strokeValues, inverted: true)
+                    InsightTrendRow(
+                        icon: "water.waves",
+                        label: "Strokes/Lap",
+                        value: String(format: "%.1f", result.recent),
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", result.recent)) vs previous \(String(format: "%.1f", result.previous))" : "Building baseline from \(strokeValues.count) sessions"
                     )
                 }
             }

@@ -593,7 +593,7 @@ struct ShootingSessionDetailView: View {
                         LazyHStack(spacing: 8) {
                             ForEach(sessionPhotos, id: \.localIdentifier) { asset in
                                 ShootingPhotoThumbnail(asset: asset)
-                                    .frame(width: 120, height: 120)
+                                    .frame(width: 100, height: 100)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }
@@ -1044,7 +1044,7 @@ struct ShootingSessionDetailView: View {
                     .frame(height: 200)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -1091,7 +1091,7 @@ struct ShootingSessionDetailView: View {
                     .frame(height: 200)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -1131,7 +1131,7 @@ struct ShootingSessionDetailView: View {
                     .frame(height: 200)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -1172,7 +1172,7 @@ struct ShootingSessionDetailView: View {
                     .frame(height: 200)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -1236,7 +1236,7 @@ struct ShootingSessionDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(AppColors.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
@@ -1599,7 +1599,7 @@ struct MiniStatCard: View {
         .frame(maxWidth: .infinity)
         .padding()
         .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

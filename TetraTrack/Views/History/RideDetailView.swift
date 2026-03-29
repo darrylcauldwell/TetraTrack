@@ -588,12 +588,12 @@ struct RideDetailView: View {
                     HStack(spacing: 8) {
                         ForEach(ridePhotos.prefix(4), id: \.localIdentifier) { asset in
                             PhotoThumbnail(asset: asset)
-                                .frame(width: 80, height: 80)
+                                .frame(width: 100, height: 100)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         ForEach(rideVideos.prefix(2), id: \.localIdentifier) { asset in
                             VideoThumbnail(asset: asset)
-                                .frame(width: 80, height: 80)
+                                .frame(width: 100, height: 100)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .onTapGesture {
                                     selectedVideo = asset
@@ -604,7 +604,7 @@ struct RideDetailView: View {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 8)
                                         .fill(AppColors.cardBackground)
-                                        .frame(width: 80, height: 80)
+                                        .frame(width: 100, height: 100)
                                     VStack {
                                         Text("+\(ridePhotos.count + rideVideos.count - 6)")
                                             .font(.title3)

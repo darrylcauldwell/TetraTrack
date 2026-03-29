@@ -253,12 +253,15 @@ struct EnrichedWorkoutDetailView: View {
                 .font(.headline)
 
             let coords = locations.map(\.coordinate)
-            Map {
-                MapPolyline(coordinates: coords)
-                    .stroke(.blue, lineWidth: 3)
-            }
+            SessionRouteMapView(
+                coordinates: coords,
+                routeColors: .solid(.blue),
+                showMarkers: true,
+                showMapStylePicker: false,
+                showMapControls: true
+            )
             .frame(height: 250)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -305,7 +308,7 @@ struct EnrichedWorkoutDetailView: View {
             .frame(height: 180)
             .padding()
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
 
             // HR Zone Distribution
             let zones = heartRateZones(from: samples)
@@ -337,7 +340,7 @@ struct EnrichedWorkoutDetailView: View {
                 }
                 .padding()
                 .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -425,7 +428,7 @@ struct EnrichedWorkoutDetailView: View {
                 }
             }
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -587,7 +590,7 @@ struct EnrichedWorkoutDetailView: View {
                 }
             }
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -684,7 +687,7 @@ struct EnrichedWorkoutDetailView: View {
         }
         .padding()
         .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private func heartRateZoneSummaryStats(_ metrics: WorkoutEnrichment.GeneralMetrics) -> some View {
@@ -792,7 +795,7 @@ struct EnrichedWorkoutDetailView: View {
             }
             .padding()
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -905,7 +908,7 @@ struct EnrichedWorkoutDetailView: View {
             }
             .padding()
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         } else if let pace = paceAnalysis {
             // Pace-only fatigue trend (no HR data)
             VStack(alignment: .leading, spacing: 12) {
@@ -958,7 +961,7 @@ struct EnrichedWorkoutDetailView: View {
             }
             .padding()
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -1066,7 +1069,7 @@ struct EnrichedWorkoutDetailView: View {
                 LazyHStack(spacing: 8) {
                     ForEach(photos, id: \.localIdentifier) { asset in
                         PhotoThumbnailView(asset: asset)
-                            .frame(width: 120, height: 120)
+                            .frame(width: 100, height: 100)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
@@ -1675,7 +1678,7 @@ struct EnrichedWorkoutDetailView: View {
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(insightColor(insight.sentiment).opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
     }
@@ -1771,7 +1774,7 @@ struct EnrichedWorkoutDetailView: View {
             }
             .padding()
             .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -1781,7 +1784,7 @@ struct EnrichedWorkoutDetailView: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.primary)
 
             Text(value)
                 .font(.title3.bold().monospacedDigit())
@@ -1800,7 +1803,7 @@ struct EnrichedWorkoutDetailView: View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.body)
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppColors.primary)
 
             Text(value)
                 .font(.subheadline.bold().monospacedDigit())
@@ -1812,7 +1815,7 @@ struct EnrichedWorkoutDetailView: View {
         .frame(maxWidth: .infinity)
         .padding(12)
         .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var formattedDate: String {
