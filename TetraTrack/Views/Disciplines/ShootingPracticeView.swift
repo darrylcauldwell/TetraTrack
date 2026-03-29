@@ -83,11 +83,6 @@ struct ShootingPracticeView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
-                headerView
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
                 // Phase picker
                 Picker("Phase", selection: $selectedPhase) {
                     ForEach(ShootingPhase.allCases, id: \.self) { phase in
@@ -108,51 +103,9 @@ struct ShootingPracticeView: View {
                 }
             }
         }
-        .overlay(alignment: .bottom) {
-            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
-                FloatingControlPanel(
-                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "target",
-                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .orange,
-                    onStop: {
-                        // Switch to Mark tab instead of stopping session
-                        hasFinishedShooting = true
-                        selectedPhase = .mark
-                    }
-                )
-            }
-        }
     }
 
-    // MARK: - Header
-
-    private var headerView: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Image(systemName: sessionContext.icon)
-                    .font(.title3)
-                Text(sessionContext.displayName)
-                    .font(.title2.bold())
-            }
-            .foregroundStyle(contextColor)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(contextColor.opacity(0.15))
-            .clipShape(Capsule())
-
-            Spacer()
-
-            Button(action: {
-                tracker?.discardSession()
-            }) {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 36, height: 36)
-                    .background(AppColors.cardBackground)
-                    .clipShape(Circle())
-            }
-        }
-    }
+    // MARK: - Header (removed — nav title handles this)
 
     // MARK: - Shoot Tab
 
@@ -160,13 +113,18 @@ struct ShootingPracticeView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Watch connectivity
-                if WatchConnectivityManager.shared.isPaired {
-                    ShootingWatchStatusCard()
-                }
+                WatchStatusCard()
 
                 if let tracker {
                     if tracker.sessionState == .idle {
-                        // Start button (defensive — session is normally started before this view shows)
+                        // Start session button
+                        VStack(spacing: 12) {
+                            Text("Ready to shoot? Start the session to record stance, tremor, and shot timing from your Watch.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+
                         Button {
                             let plugin = ShootingPlugin(sessionContext: .competitionTraining)
                             Task {

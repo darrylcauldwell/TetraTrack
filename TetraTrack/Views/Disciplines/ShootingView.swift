@@ -20,6 +20,7 @@ struct ShootingView: View {
     @Environment(SessionTracker.self) private var tracker: SessionTracker?
 
     @State private var showingFreePractice = false
+    @State private var showingCompetitionPractice = false
     @State private var showingHistory = false
     @State private var showingSettings = false
     @State private var selectedContext: ShootingSessionContext = .freePractice
@@ -39,13 +40,13 @@ struct ShootingView: View {
                 }
             ),
             DisciplineMenuItem(
-                title: "Tetrathlon Practice",
-                subtitle: "Practice under competition conditions",
+                title: "Competition Practice",
+                subtitle: "Shoot then scan and score targets",
                 icon: "figure.run",
                 color: .orange,
                 requiresCapture: true,
                 action: {
-                    startCompetitionSession(context: .competitionTraining)
+                    showingCompetitionPractice = true
                 }
             ),
             DisciplineMenuItem(
@@ -101,6 +102,20 @@ struct ShootingView: View {
                     },
                     initialDateFilter: historyPreSelectedFilter
                 )
+            }
+            .fullScreenCover(isPresented: $showingCompetitionPractice) {
+                NavigationStack {
+                    ShootingPracticeView()
+                        .navigationTitle("Competition Practice")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") {
+                                    showingCompetitionPractice = false
+                                }
+                            }
+                        }
+                }
             }
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()
