@@ -473,17 +473,24 @@ struct RideInsightsView: View {
 
     private var stabilityCard: some View {
         let hasData = stabilityScore > 0
+        let maxSpeed = ride.maxSpeed
 
         return PillarScoreCard(
             pillar: .stability,
-            subtitle: "Speed Smoothness",
+            subtitle: "Seat & Speed Control",
             score: stabilityScore,
-            keyMetric: hasData ? "\(Int(stabilityScore))% smooth" : "Needs GPS data",
+            keyMetric: {
+                if hasData && maxSpeed > 0 {
+                    return String(format: "%.1f km/h max, %.0f%% smooth", maxSpeed * 3.6, stabilityScore)
+                }
+                if hasData { return "\(Int(stabilityScore))% smooth" }
+                return "Needs GPS data"
+            }(),
             tip: {
-                if !hasData { return "GPS tracks speed smoothness throughout ride" }
-                if stabilityScore >= 80 { return "Very smooth riding — excellent posture and seat" }
-                if stabilityScore >= 60 { return "Good smoothness — minor speed fluctuations" }
-                return "Jerky transitions — focus on smooth gait changes and steady seat"
+                if !hasData { return "GPS measures how smoothly you maintain speed through gait transitions" }
+                if stabilityScore >= 80 { return "Very smooth riding — excellent independent seat and soft hands" }
+                if stabilityScore >= 60 { return "Good stability — minor speed fluctuations during transitions" }
+                return "Jerky transitions — focus on smooth half-halts and sitting deeper in the saddle"
             }()
         )
     }
@@ -491,20 +498,31 @@ struct RideInsightsView: View {
     // MARK: - Rhythm Card
 
     private var rhythmCard: some View {
-        PillarScoreCard(
+        let gaitRhythm = ride.overallRhythm
+        let hasGaitData = gaitRhythm > 0
+        let score = hasGaitData ? gaitRhythm : rhythmScore
+
+        return PillarScoreCard(
             pillar: .rhythm,
-            subtitle: "Gait Rhythm",
-            score: rhythmScore,
+            subtitle: "Pace & Gait Consistency",
+            score: score,
             keyMetric: {
-                if hasWatchData { return "\(ride.averageHeartRate) avg bpm" }
-                if rhythmScore > 0 { return "\(Int(rhythmScore))% consistent" }
-                return "Needs GPS data"
+                if hasGaitData { return String(format: "%.0f%% gait rhythm", gaitRhythm) }
+                if !ride.gaitBreakdown.isEmpty {
+                    let dominant = ride.gaitBreakdown.max(by: { $0.percentage < $1.percentage })
+                    if let gait = dominant { return "\(gait.gait.rawValue.capitalized) \(Int(gait.percentage))% of ride" }
+                }
+                if rhythmScore > 0 { return "\(Int(rhythmScore))% pace consistency" }
+                return "Needs gait or GPS data"
             }(),
             tip: {
-                if rhythmScore >= 80 { return "Excellent consistency — steady effort throughout" }
-                if rhythmScore >= 60 { return "Good rhythm — minor fluctuations" }
-                if rhythmScore > 0 { return "Variable effort — focus on maintaining steady pace" }
-                return "GPS tracks rhythm through pace consistency"
+                if hasGaitData && gaitRhythm >= 80 { return "Excellent gait rhythm — consistent tempo between horse and rider" }
+                if hasGaitData && gaitRhythm >= 60 { return "Good rhythm — work on maintaining consistent gait tempo" }
+                if hasGaitData { return "Variable rhythm — try using a metronome or music to steady your tempo" }
+                if rhythmScore >= 80 { return "Very consistent pace — steady connection with your horse" }
+                if rhythmScore >= 60 { return "Good pace consistency — minor fluctuations in speed" }
+                if rhythmScore > 0 { return "Variable pace — focus on maintaining steady speed through transitions" }
+                return "Gait sensors measure rhythm through motion pattern regularity"
             }()
         )
     }
@@ -512,18 +530,35 @@ struct RideInsightsView: View {
     // MARK: - Symmetry Card
 
     private var symmetryCard: some View {
-        let hasData = symmetryScore > 0
+        let gaitSymmetry = ride.overallSymmetry
+        let hasGaitData = gaitSymmetry > 0
+        let reinBal = ride.reinBalance
+        let hasReinData = reinBal > 0
+        let score = hasGaitData ? gaitSymmetry : (hasReinData ? reinBal * 100 : symmetryScore)
 
         return PillarScoreCard(
             pillar: .symmetry,
-            subtitle: "Gait Balance",
-            score: symmetryScore,
-            keyMetric: hasData ? "\(Int(symmetryScore))% balanced" : "Needs GPS data",
+            subtitle: "Left/Right Balance",
+            score: score,
+            keyMetric: {
+                if hasGaitData { return String(format: "%.0f%% symmetry", gaitSymmetry) }
+                if hasReinData { return "\(ride.reinBalancePercent)% rein balance" }
+                if ride.totalLeadDuration > 0 {
+                    let leftPct = ride.leadBalance * 100
+                    return String(format: "L %.0f%% / R %.0f%% lead", leftPct, 100 - leftPct)
+                }
+                if symmetryScore > 0 { return "\(Int(symmetryScore))% transition balance" }
+                return "Needs gait or rein data"
+            }(),
             tip: {
-                if !hasData { return "GPS measures balance through gait transition smoothness" }
-                if symmetryScore >= 80 { return "Excellent balance — smooth transitions between gaits" }
-                if symmetryScore >= 60 { return "Good balance — some abrupt speed changes" }
-                return "Frequent zone changes — work on gradual gait transitions"
+                if hasGaitData && gaitSymmetry >= 80 { return "Excellent symmetry — even work on both reins" }
+                if hasGaitData && gaitSymmetry >= 60 { return "Good symmetry — slight left/right difference" }
+                if hasGaitData { return "Noticeable asymmetry — spend more time on your weaker rein" }
+                if hasReinData && reinBal > 0.8 { return "Well-balanced rein contact — maintaining even connection" }
+                if hasReinData { return "Rein contact differs between sides — focus on equal pressure" }
+                if symmetryScore >= 80 { return "Smooth transitions between speed zones" }
+                if symmetryScore > 0 { return "Frequent zone changes — work on gradual gait transitions" }
+                return "Gait sensors and rein analysis measure left/right balance"
             }()
         )
     }
@@ -532,17 +567,26 @@ struct RideInsightsView: View {
 
     private var economyCard: some View {
         let hasData = economyScore > 0
+        let distance = ride.totalDistance
+        let duration = ride.totalDuration
 
         return PillarScoreCard(
             pillar: .economy,
-            subtitle: "Pace Consistency",
+            subtitle: "Riding Efficiency",
             score: economyScore,
-            keyMetric: hasData ? "\(Int(economyScore))% connected" : "Needs GPS data",
+            keyMetric: {
+                if distance > 0 && duration > 0 {
+                    let avgSpeedKmh = (distance / 1000) / (duration / 3600)
+                    return String(format: "%.1f km/h avg", avgSpeedKmh)
+                }
+                if hasData { return "\(Int(economyScore))% efficient" }
+                return "Needs GPS data"
+            }(),
             tip: {
-                if !hasData { return "GPS tracks overall pace consistency" }
-                if economyScore >= 80 { return "Very steady pace — great connection with your horse" }
-                if economyScore >= 60 { return "Reasonably consistent — some pace changes" }
-                return "Variable pace — work on maintaining steady speed"
+                if !hasData { return "GPS tracks how efficiently you cover ground at a consistent pace" }
+                if economyScore >= 80 { return "Very efficient ride — steady pace with minimal wasted energy" }
+                if economyScore >= 60 { return "Good efficiency — some pace variation is normal with varied terrain" }
+                return "Variable pace — plan your route to maintain more consistent speeds"
             }()
         )
     }
@@ -554,18 +598,24 @@ struct RideInsightsView: View {
             score: physiologyScore,
             keyMetric: {
                 if hasWatchData {
-                    let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
-                    return "\(Int(intensity))% of max HR"
+                    let avg = ride.averageHeartRate
+                    let max = ride.maxHeartRate
+                    if avg > 0 && max > 0 {
+                        return "\(avg) avg / \(max) max bpm"
+                    }
+                    if avg > 0 { return "\(avg) avg bpm" }
                 }
-                if physiologyScore > 0 { return "\(Int(physiologyScore))% intensity" }
-                return "Needs data"
+                if ride.totalDuration > 0 {
+                    return ride.totalDuration.formattedDuration + " duration"
+                }
+                return "Needs Apple Watch"
             }(),
             tip: {
                 if hasWatchData {
                     let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
-                    if intensity >= 65 && intensity <= 80 { return "Ideal training zone — building fitness" }
-                    if intensity > 85 { return "High intensity — allow recovery tomorrow" }
-                    if intensity < 55 { return "Light session — good for recovery days" }
+                    if intensity >= 65 && intensity <= 80 { return "Ideal training zone — building cardiovascular fitness while riding" }
+                    if intensity > 85 { return "High intensity ride — allow recovery before your next session" }
+                    if intensity < 55 { return "Light session — good for horse and rider recovery" }
                     return "Moderate effort — consider pushing a bit more"
                 }
                 if physiologyScore >= 80 { return "Good training intensity — well-balanced zones" }
