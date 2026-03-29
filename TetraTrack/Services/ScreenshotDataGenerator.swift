@@ -720,6 +720,19 @@ struct ScreenshotDataGenerator {
         trial.maxHeartRate = 185
         trial.totalAscent = 12
         trial.totalDescent = 10
+        trial.minHeartRate = 142
+        trial.averageVerticalOscillation = 9.2
+        trial.averageGroundContactTime = 238
+        trial.healthKitStrideLength = 1.25
+        trial.healthKitPower = 320
+        trial.healthKitSpeed = 3.97
+        trial.startWeather = WeatherConditions(
+            timestamp: trial.startDate, temperature: 11, feelsLike: 9,
+            humidity: 0.72, windSpeed: 4.2, windDirection: 200, windGust: 6.5,
+            condition: "Partly Cloudy", conditionSymbol: "cloud.sun.fill",
+            uvIndex: 3, visibility: 12000, pressure: 1018, precipitationChance: 0.15, isDaylight: true
+        )
+        trial.endWeather = trial.startWeather
         trial.notes = "6:18 for 1500m - new PB! The last 200m was powered entirely by spite and the knowledge that ice cream awaited. Legs have filed a formal complaint."
         context.insert(trial)
 
@@ -735,6 +748,19 @@ struct ScreenshotDataGenerator {
         easy.maxHeartRate = 158
         easy.totalAscent = 45
         easy.totalDescent = 42
+        easy.minHeartRate = 118
+        easy.averageVerticalOscillation = 8.5
+        easy.averageGroundContactTime = 262
+        easy.healthKitStrideLength = 1.12
+        easy.healthKitPower = 245
+        easy.healthKitSpeed = 2.89
+        easy.startWeather = WeatherConditions(
+            timestamp: easy.startDate, temperature: 14, feelsLike: 13,
+            humidity: 0.58, windSpeed: 2.8, windDirection: 180, windGust: nil,
+            condition: "Sunny", conditionSymbol: "sun.max.fill",
+            uvIndex: 5, visibility: 15000, pressure: 1022, precipitationChance: 0.05, isDaylight: true
+        )
+        easy.endWeather = easy.startWeather
         easy.notes = "Easy 5k that was supposed to be 'gentle'. Still got overtaken by someone's grandmother. The dog that joined me for 2km was a highlight."
         context.insert(easy)
 
@@ -750,6 +776,19 @@ struct ScreenshotDataGenerator {
         intervals.maxHeartRate = 188
         intervals.totalAscent = 28
         intervals.totalDescent = 25
+        intervals.minHeartRate = 128
+        intervals.averageVerticalOscillation = 8.8
+        intervals.averageGroundContactTime = 242
+        intervals.healthKitStrideLength = 1.22
+        intervals.healthKitPower = 310
+        intervals.healthKitSpeed = 3.24
+        intervals.startWeather = WeatherConditions(
+            timestamp: intervals.startDate, temperature: 10, feelsLike: 8,
+            humidity: 0.68, windSpeed: 5.1, windDirection: 270, windGust: 7.8,
+            condition: "Cloudy", conditionSymbol: "cloud.fill",
+            uvIndex: 2, visibility: 8000, pressure: 1010, precipitationChance: 0.30, isDaylight: true
+        )
+        intervals.endWeather = intervals.startWeather
         intervals.notes = "8x400m intervals. Each one felt progressively more like a life choice I needed to reconsider. The voice coach telling me to 'pick it up' was NOT appreciated on rep 7."
         context.insert(intervals)
 
@@ -764,6 +803,12 @@ struct ScreenshotDataGenerator {
         treadmill.maxHeartRate = 162
         treadmill.manualDistance = true
         treadmill.treadmillIncline = 2.0
+        treadmill.minHeartRate = 125
+        treadmill.averageVerticalOscillation = 7.8
+        treadmill.averageGroundContactTime = 255
+        treadmill.healthKitStrideLength = 1.08
+        treadmill.healthKitPower = 260
+        treadmill.healthKitSpeed = 2.80
         treadmill.notes = "It was raining. I have no regrets. Watched an entire episode of something while running. This is peak efficiency. Or laziness. Possibly both."
         context.insert(treadmill)
 
@@ -779,6 +824,19 @@ struct ScreenshotDataGenerator {
         longRun.maxHeartRate = 165
         longRun.totalAscent = 125
         longRun.totalDescent = 118
+        longRun.minHeartRate = 120
+        longRun.averageVerticalOscillation = 8.2
+        longRun.averageGroundContactTime = 268
+        longRun.healthKitStrideLength = 1.05
+        longRun.healthKitPower = 230
+        longRun.healthKitSpeed = 2.92
+        longRun.startWeather = WeatherConditions(
+            timestamp: longRun.startDate, temperature: 8, feelsLike: 6,
+            humidity: 0.78, windSpeed: 3.2, windDirection: 315, windGust: 5.5,
+            condition: "Cloudy", conditionSymbol: "cloud.fill",
+            uvIndex: 2, visibility: 9000, pressure: 1008, precipitationChance: 0.40, isDaylight: true
+        )
+        longRun.endWeather = longRun.startWeather
         longRun.notes = "10.5km Sunday long run. The first 5km felt amazing. The last 5km felt like a negotiation with my legs. Discovered three new blisters and one new appreciation for sofas. The pub at the end was motivational."
         context.insert(longRun)
 
@@ -794,6 +852,19 @@ struct ScreenshotDataGenerator {
         tempo.maxHeartRate = 175
         tempo.totalAscent = 35
         tempo.totalDescent = 32
+        tempo.minHeartRate = 135
+        tempo.averageVerticalOscillation = 8.6
+        tempo.averageGroundContactTime = 245
+        tempo.healthKitStrideLength = 1.18
+        tempo.healthKitPower = 295
+        tempo.healthKitSpeed = 3.22
+        tempo.startWeather = WeatherConditions(
+            timestamp: tempo.startDate, temperature: 13, feelsLike: 12,
+            humidity: 0.62, windSpeed: 2.5, windDirection: 160, windGust: nil,
+            condition: "Partly Cloudy", conditionSymbol: "cloud.sun.fill",
+            uvIndex: 4, visibility: 14000, pressure: 1020, precipitationChance: 0.10, isDaylight: true
+        )
+        tempo.endWeather = tempo.startWeather
         tempo.notes = "Tempo pace practice - 'comfortably hard' they said. 'Uncomfortable and questioning life choices' is more accurate. Maintained pace for 4km though, which is a win. The voice coach was encouraging. Too encouraging."
         context.insert(tempo)
 
@@ -809,6 +880,19 @@ struct ScreenshotDataGenerator {
         pacer.maxHeartRate = 180
         pacer.totalAscent = 8
         pacer.totalDescent = 6
+        pacer.minHeartRate = 138
+        pacer.averageVerticalOscillation = 9.0
+        pacer.averageGroundContactTime = 240
+        pacer.healthKitStrideLength = 1.20
+        pacer.healthKitPower = 305
+        pacer.healthKitSpeed = 3.57
+        pacer.startWeather = WeatherConditions(
+            timestamp: pacer.startDate, temperature: 12, feelsLike: 10,
+            humidity: 0.65, windSpeed: 3.8, windDirection: 220, windGust: 5.2,
+            condition: "Partly Cloudy", conditionSymbol: "cloud.sun.fill",
+            uvIndex: 3, visibility: 11000, pressure: 1016, precipitationChance: 0.20, isDaylight: true
+        )
+        pacer.endWeather = pacer.startWeather
         pacer.notes = "Chasing my PB ghost on the 1500m. The ghost won by 42 seconds. The ghost is a show-off. Next time I'm setting a more achievable ghost. One that maybe takes a coffee break mid-run."
         context.insert(pacer)
 
@@ -824,6 +908,19 @@ struct ScreenshotDataGenerator {
         hills.maxHeartRate = 182
         hills.totalAscent = 185
         hills.totalDescent = 180
+        hills.minHeartRate = 130
+        hills.averageVerticalOscillation = 9.5
+        hills.averageGroundContactTime = 248
+        hills.healthKitStrideLength = 1.10
+        hills.healthKitPower = 340
+        hills.healthKitSpeed = 2.80
+        hills.startWeather = WeatherConditions(
+            timestamp: hills.startDate, temperature: 9, feelsLike: 7,
+            humidity: 0.75, windSpeed: 4.5, windDirection: 290, windGust: 7.0,
+            condition: "Cloudy", conditionSymbol: "cloud.fill",
+            uvIndex: 2, visibility: 7000, pressure: 1005, precipitationChance: 0.35, isDaylight: true
+        )
+        hills.endWeather = hills.startWeather
         hills.notes = "6x hill repeats. By rep 4, the hill had become my nemesis. By rep 6, we had reached an uneasy truce. My quads are filing a formal complaint with HR. The views from the top were lovely, when I could see through the tears."
         context.insert(hills)
 
@@ -839,6 +936,19 @@ struct ScreenshotDataGenerator {
         recovery.maxHeartRate = 132
         recovery.totalAscent = 15
         recovery.totalDescent = 12
+        recovery.minHeartRate = 95
+        recovery.averageVerticalOscillation = 7.2
+        recovery.averageGroundContactTime = 275
+        recovery.healthKitStrideLength = 1.02
+        recovery.healthKitPower = 205
+        recovery.healthKitSpeed = 2.53
+        recovery.startWeather = WeatherConditions(
+            timestamp: recovery.startDate, temperature: 15, feelsLike: 14,
+            humidity: 0.55, windSpeed: 1.8, windDirection: 150, windGust: nil,
+            condition: "Sunny", conditionSymbol: "sun.max.fill",
+            uvIndex: 5, visibility: 16000, pressure: 1025, precipitationChance: 0.05, isDaylight: true
+        )
+        recovery.endWeather = recovery.startWeather
         recovery.notes = "Post-XC-schooling recovery jog. My legs had a team meeting and decided anything faster than a shuffle was unacceptable. Three pensioners overtook me. One offered encouragement. It was humbling."
         context.insert(recovery)
 
@@ -854,6 +964,19 @@ struct ScreenshotDataGenerator {
         race.maxHeartRate = 192
         race.totalAscent = 42
         race.totalDescent = 40
+        race.minHeartRate = 145
+        race.averageVerticalOscillation = 9.3
+        race.averageGroundContactTime = 235
+        race.healthKitStrideLength = 1.28
+        race.healthKitPower = 335
+        race.healthKitSpeed = 3.09
+        race.startWeather = WeatherConditions(
+            timestamp: race.startDate, temperature: 10, feelsLike: 8,
+            humidity: 0.70, windSpeed: 3.5, windDirection: 240, windGust: 5.8,
+            condition: "Partly Cloudy", conditionSymbol: "cloud.sun.fill",
+            uvIndex: 3, visibility: 12000, pressure: 1014, precipitationChance: 0.15, isDaylight: true
+        )
+        race.endWeather = race.startWeather
         race.notes = "Parkrun PB attempt! Went out too fast, died at 3km, somehow resurrected for the sprint finish. Overtook someone in the funnel - peak athletic achievement. Free banana made it all worthwhile. Official time: 27:00."
         context.insert(race)
 
@@ -869,6 +992,19 @@ struct ScreenshotDataGenerator {
         fartlek.maxHeartRate = 184
         fartlek.totalAscent = 55
         fartlek.totalDescent = 52
+        fartlek.minHeartRate = 125
+        fartlek.averageVerticalOscillation = 8.4
+        fartlek.averageGroundContactTime = 250
+        fartlek.healthKitStrideLength = 1.15
+        fartlek.healthKitPower = 280
+        fartlek.healthKitSpeed = 3.00
+        fartlek.startWeather = WeatherConditions(
+            timestamp: fartlek.startDate, temperature: 12, feelsLike: 11,
+            humidity: 0.60, windSpeed: 2.2, windDirection: 170, windGust: nil,
+            condition: "Sunny", conditionSymbol: "sun.max.fill",
+            uvIndex: 4, visibility: 15000, pressure: 1021, precipitationChance: 0.08, isDaylight: true
+        )
+        fartlek.endWeather = fartlek.startWeather
         fartlek.notes = "Fartlek = Swedish for 'speed play'. My version = sprint to the next lamppost, wheeze dramatically, jog to recover, repeat. The dog walker who kept appearing thought I was having a medical emergency. Best unstructured session yet!"
         context.insert(fartlek)
     }
@@ -951,6 +1087,15 @@ struct ScreenshotDataGenerator {
         walk1.healthKitWalkingSpeed = 1.62
         walk1.healthKitWalkingStepLength = 0.72
         walk1.healthKitWalkingSteadiness = 85.0
+        walk1.healthKitAsymmetry = 4.2
+        walk1.minHeartRate = 88
+        walk1.startWeather = WeatherConditions(
+            timestamp: walk1.startDate, temperature: 14, feelsLike: 13,
+            humidity: 0.55, windSpeed: 2.0, windDirection: 190, windGust: nil,
+            condition: "Sunny", conditionSymbol: "sun.max.fill",
+            uvIndex: 4, visibility: 15000, pressure: 1022, precipitationChance: 0.05, isDaylight: true
+        )
+        walk1.endWeather = walk1.startWeather
         walk1.matchedRouteId = villageRoute.id
         walk1.routeComparison = WalkingRouteComparison(
             routeId: villageRoute.id,
@@ -1029,6 +1174,15 @@ struct ScreenshotDataGenerator {
         walk2.healthKitWalkingSpeed = 1.6
         walk2.healthKitWalkingStepLength = 0.70
         walk2.healthKitWalkingSteadiness = 79.0
+        walk2.healthKitAsymmetry = 5.8
+        walk2.minHeartRate = 92
+        walk2.startWeather = WeatherConditions(
+            timestamp: walk2.startDate, temperature: 11, feelsLike: 9,
+            humidity: 0.72, windSpeed: 3.5, windDirection: 250, windGust: 5.0,
+            condition: "Cloudy", conditionSymbol: "cloud.fill",
+            uvIndex: 2, visibility: 8000, pressure: 1012, precipitationChance: 0.25, isDaylight: true
+        )
+        walk2.endWeather = walk2.startWeather
         walk2.matchedRouteId = canalRoute.id
         walk2.routeComparison = WalkingRouteComparison(
             routeId: canalRoute.id,
@@ -1067,6 +1221,15 @@ struct ScreenshotDataGenerator {
         walk3.healthKitWalkingSpeed = 1.5
         walk3.healthKitWalkingStepLength = 0.68
         walk3.healthKitWalkingSteadiness = 76.0
+        walk3.healthKitAsymmetry = 6.5
+        walk3.minHeartRate = 85
+        walk3.startWeather = WeatherConditions(
+            timestamp: walk3.startDate, temperature: 16, feelsLike: 15,
+            humidity: 0.50, windSpeed: 1.5, windDirection: 140, windGust: nil,
+            condition: "Sunny", conditionSymbol: "sun.max.fill",
+            uvIndex: 6, visibility: 18000, pressure: 1028, precipitationChance: 0.02, isDaylight: true
+        )
+        walk3.endWeather = walk3.startWeather
         walk3.notes = "Just walked. No plan, no route, no pressure. Ended up at a farm shop and bought cheese. The walk home was slightly faster — possibly cheese-motivated. Sometimes the best training is no training."
         context.insert(walk3)
     }

@@ -128,6 +128,10 @@ struct EnrichedWorkoutDetailView: View {
                         if let gain = enrichment.elevationGain, gain > 0 {
                             elevationSection(gain: gain, loss: enrichment.elevationLoss ?? 0)
                         }
+
+                        if enrichment.startWeatherDescription != nil || enrichment.temperature != nil {
+                            weatherSection(enrichment)
+                        }
                     }
 
                     if !photos.isEmpty {
@@ -757,6 +761,39 @@ struct EnrichedWorkoutDetailView: View {
             .padding()
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Weather
+
+    private func weatherSection(_ enrichment: WorkoutEnrichment) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Weather")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if let condition = enrichment.startWeatherDescription {
+                    metricCard(title: "Conditions", value: condition, icon: "cloud.sun.fill")
+                }
+
+                if let temp = enrichment.temperature {
+                    metricCard(title: "Temperature", value: String(format: "%.0f\u{00B0}C", temp), icon: "thermometer.medium")
+                }
+
+                if let humidity = enrichment.humidity {
+                    metricCard(title: "Humidity", value: String(format: "%.0f%%", humidity), icon: "humidity.fill")
+                }
+
+                if let wind = enrichment.windSpeed {
+                    let kmh = wind * 3.6
+                    metricCard(title: "Wind", value: String(format: "%.0f km/h", kmh), icon: "wind")
+                }
+
+                if let endCondition = enrichment.endWeatherDescription,
+                   endCondition != enrichment.startWeatherDescription {
+                    metricCard(title: "End Conditions", value: endCondition, icon: "cloud.fill")
+                }
+            }
         }
     }
 

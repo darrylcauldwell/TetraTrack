@@ -1053,6 +1053,23 @@ extension RunningSession {
             enrichment.runningMetrics = nil
         }
 
+        // Weather
+        if let weather = startWeather {
+            enrichment.startWeatherDescription = weather.condition
+            enrichment.temperature = weather.temperature
+            enrichment.humidity = weather.humidity * 100
+            enrichment.windSpeed = weather.windSpeed
+        }
+        if let weather = endWeather {
+            enrichment.endWeatherDescription = weather.condition
+        }
+
+        // Route from stored GPS points
+        let gpsPoints = (locationPoints ?? []).sorted { $0.timestamp < $1.timestamp }
+        if !gpsPoints.isEmpty {
+            enrichment.routeLocations = gpsPoints.map { $0.clLocation }
+        }
+
         // Elevation
         if totalAscent > 0 { enrichment.elevationGain = totalAscent }
         if totalDescent > 0 { enrichment.elevationLoss = totalDescent }

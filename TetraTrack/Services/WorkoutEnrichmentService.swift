@@ -23,6 +23,13 @@ struct WorkoutEnrichment: Sendable {
     var elevationGain: Double?
     var elevationLoss: Double?
 
+    // Weather
+    var startWeatherDescription: String?
+    var endWeatherDescription: String?
+    var temperature: Double?  // celsius
+    var humidity: Double?     // percentage
+    var windSpeed: Double?    // m/s
+
     struct HeartRateSamplePoint: Sendable {
         let date: Date
         let bpm: Double
