@@ -110,6 +110,21 @@ struct TetraTrackApp: App {
             }
         }
 
+        // Simulator: use local-only storage to avoid CloudKit mirroring crash
+        #if targetEnvironment(simulator)
+        Log.app.info("Simulator detected: using local-only ModelContainer (no CloudKit)")
+        let simConfig = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .none
+        )
+        do {
+            return try ModelContainer(for: schema, configurations: [simConfig])
+        } catch {
+            fatalError("Could not create simulator ModelContainer: \(error)")
+        }
+        #endif
+
         // Try CloudKit first, fall back to local-only if it fails
         // Explicitly specify the CloudKit container for sync
         let cloudKitConfig = ModelConfiguration(
