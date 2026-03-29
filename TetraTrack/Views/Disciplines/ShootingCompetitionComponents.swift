@@ -43,7 +43,7 @@ struct ShootingCompetitionView: View {
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var showingResults = false
-    @State private var scoringMode: ScoringMode = .quickEntry
+    @State private var scoringMode: ScoringMode = .scanScore
     @State private var card1ScanAnalysisID: UUID?
     @State private var card2ScanAnalysisID: UUID?
     @State private var showingScanSheet = false
@@ -183,16 +183,6 @@ struct ShootingCompetitionView: View {
     private var scoringView: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Scoring mode toggle
-                Picker("Scoring Mode", selection: $scoringMode) {
-                    ForEach(ScoringMode.allCases, id: \.self) { mode in
-                        Label(mode.rawValue, systemImage: mode.icon)
-                            .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-
                 // Card 1
                 cardScoringView(cardNumber: 1, scores: $card1Scores, scanAnalysisID: card1ScanAnalysisID)
 
