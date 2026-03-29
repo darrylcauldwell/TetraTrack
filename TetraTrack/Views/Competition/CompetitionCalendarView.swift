@@ -246,6 +246,9 @@ struct CompetitionCalendarView: View {
             NavigationStack {
                 CompetitionStatsView()
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
         .sheet(isPresented: $showingAddCompetition) {
             CompetitionEditView(competition: nil)
