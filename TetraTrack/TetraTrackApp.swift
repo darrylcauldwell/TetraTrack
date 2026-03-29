@@ -259,8 +259,36 @@ struct TetraTrackApp: App {
         _ = await NotificationManager.shared.requestAuthorization()
         #if !targetEnvironment(simulator)
         await NotificationManager.shared.setupCloudKitSubscriptions()
+        #else
+        await saveBundledTargetsToPhotosIfNeeded()
         #endif
     }
+
+    /// Save bundled test target images to the simulator's Photos library (once only)
+    #if targetEnvironment(simulator)
+    private func saveBundledTargetsToPhotosIfNeeded() async {
+        let key = "bundledTargetsSavedToPhotos"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+
+        guard let resourceURL = Bundle.main.resourceURL else { return }
+        let folder = resourceURL.appendingPathComponent("SimulatorTargets")
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        ) else { return }
+
+        let imageExtensions = Set(["jpeg", "jpg", "png"])
+        for url in contents where imageExtensions.contains(url.pathExtension.lowercased()) {
+            if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            }
+        }
+
+        UserDefaults.standard.set(true, forKey: key)
+        Log.app.info("Saved bundled target images to simulator Photos library")
+    }
+    #endif
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
         let hasActiveSession = sessionTracker?.sessionState.isActive ?? false
