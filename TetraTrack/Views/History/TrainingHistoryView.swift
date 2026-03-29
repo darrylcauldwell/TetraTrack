@@ -696,6 +696,10 @@ struct SessionInsightsView: View {
                     // Unified Overview Layer (always visible at top)
                     unifiedOverviewSection
 
+                    // Fitness & Recovery (always visible)
+                    fitnessTrendsSection
+                    recoveryIntelligenceSection
+
                     // Discipline Lens Selector
                     disciplineLensSelector
 
@@ -704,6 +708,7 @@ struct SessionInsightsView: View {
                         crossDisciplineTransferSection
                         consistencyVariabilitySection
                     } else {
+                        pillarScoreTrendsSection
                         disciplineSpecificInsights
                     }
 
@@ -1672,6 +1677,405 @@ struct SessionInsightsView: View {
             return "Significant imbalance (±\(String(format: "%.0f", avgLeadBalance))%)"
         }
     }
+
+    // MARK: - Trend Computation Helper
+
+    private func computeTrend(values: [Double], inverted: Bool = false) -> (recent: Double, previous: Double, trend: InsightTrend) {
+        let recentSlice = Array(values.prefix(5))
+        let previousSlice = Array(values.dropFirst(5).prefix(5))
+        guard !recentSlice.isEmpty else { return (0, 0, .stable) }
+        let recentAvg = recentSlice.reduce(0, +) / Double(recentSlice.count)
+        guard !previousSlice.isEmpty else { return (recentAvg, 0, .stable) }
+        let previousAvg = previousSlice.reduce(0, +) / Double(previousSlice.count)
+        let delta = recentAvg - previousAvg
+        let threshold = max(previousAvg * 0.03, 1.0)
+        let trend: InsightTrend
+        if inverted {
+            trend = delta < -threshold ? .improving : (delta > threshold ? .declining : .stable)
+        } else {
+            trend = delta > threshold ? .improving : (delta < -threshold ? .declining : .stable)
+        }
+        return (recentAvg, previousAvg, trend)
+    }
+
+    // MARK: - Fitness Trends Section
+
+    private var fitnessTrendsSection: some View {
+        let calendar = Calendar.current
+        let now = Date()
+        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+        let fourteenDaysAgo = calendar.date(byAdding: .day, value: -14, to: now) ?? now
+
+        let thisWeekRides = rides.filter { $0.startDate >= sevenDaysAgo }
+        let thisWeekRuns = runningSessions.filter { $0.startDate >= sevenDaysAgo }
+        let thisWeekSwims = swimmingSessions.filter { $0.startDate >= sevenDaysAgo }
+        let thisWeekShoots = shootingSessions.filter { $0.startDate >= sevenDaysAgo }
+        let thisWeekExternal = externalWorkouts.filter { $0.startDate >= sevenDaysAgo }
+        let thisWeek = thisWeekRides.count + thisWeekRuns.count + thisWeekSwims.count + thisWeekShoots.count + thisWeekExternal.count
+
+        let lastWeekRides = rides.filter { $0.startDate >= fourteenDaysAgo && $0.startDate < sevenDaysAgo }
+        let lastWeekRuns = runningSessions.filter { $0.startDate >= fourteenDaysAgo && $0.startDate < sevenDaysAgo }
+        let lastWeekSwims = swimmingSessions.filter { $0.startDate >= fourteenDaysAgo && $0.startDate < sevenDaysAgo }
+        let lastWeekShoots = shootingSessions.filter { $0.startDate >= fourteenDaysAgo && $0.startDate < sevenDaysAgo }
+        let lastWeekExternal = externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && $0.startDate < sevenDaysAgo }
+        let lastWeek = lastWeekRides.count + lastWeekRuns.count + lastWeekSwims.count + lastWeekShoots.count + lastWeekExternal.count
+
+        let volumeTrend: InsightTrend = thisWeek > lastWeek ? .improving : (thisWeek == lastWeek ? .stable : .declining)
+        let volumeInsight: String = {
+            if lastWeek == 0 { return "No sessions recorded last week for comparison" }
+            if thisWeek > lastWeek { return "Up from \(lastWeek) sessions last week — great momentum" }
+            if thisWeek == lastWeek { return "Same volume as last week — steady routine" }
+            return "Down from \(lastWeek) sessions last week"
+        }()
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundStyle(.green)
+                Text("Fitness Trends")
+                    .font(.headline)
+            }
+
+            InsightTrendRow(
+                icon: "calendar",
+                label: "Training Volume",
+                value: "\(thisWeek) sessions/week",
+                trend: volumeTrend,
+                insight: volumeInsight
+            )
+
+            if rides.count >= 3 {
+                let rhythmValues = rides.map(\.overallRhythm).filter { $0 > 0 }
+                if rhythmValues.count >= 3 {
+                    let result = computeTrend(values: rhythmValues)
+                    InsightTrendRow(
+                        icon: "metronome",
+                        label: "Riding Rhythm",
+                        value: String(format: "%.0f%%", result.recent),
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%" : "Building baseline from \(rhythmValues.count) sessions"
+                    )
+                }
+            }
+
+            if runningSessions.count >= 3 {
+                let cadenceValues = runningSessions.map { Double($0.averageCadence) }.filter { $0 > 0 }
+                if cadenceValues.count >= 3 {
+                    let result = computeTrend(values: cadenceValues)
+                    InsightTrendRow(
+                        icon: "figure.run",
+                        label: "Running Cadence",
+                        value: "\(Int(result.recent)) spm",
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Recent avg \(Int(result.recent)) vs previous \(Int(result.previous)) spm" : "Building baseline from \(cadenceValues.count) sessions"
+                    )
+                }
+            }
+
+            if swimmingSessions.count >= 3 {
+                let swolfValues = swimmingSessions.map(\.averageSwolf).filter { $0 > 0 }
+                if swolfValues.count >= 3 {
+                    let result = computeTrend(values: swolfValues, inverted: true)
+                    InsightTrendRow(
+                        icon: "figure.pool.swim",
+                        label: "Swimming SWOLF",
+                        value: String(format: "%.0f", result.recent),
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous))" : "Building baseline from \(swolfValues.count) sessions"
+                    )
+                }
+            }
+
+            if shootingSessions.count >= 3 {
+                let scoreValues = shootingSessions.map(\.scorePercentage).filter { $0 > 0 }
+                if scoreValues.count >= 3 {
+                    let result = computeTrend(values: scoreValues)
+                    InsightTrendRow(
+                        icon: "target",
+                        label: "Shooting Score",
+                        value: String(format: "%.0f%%", result.recent),
+                        trend: result.trend,
+                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%" : "Building baseline from \(scoreValues.count) sessions"
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Recovery Intelligence Section
+
+    private var recoveryIntelligenceSection: some View {
+        let calendar = Calendar.current
+        let now = Date()
+        let fourteenDaysAgo = calendar.date(byAdding: .day, value: -14, to: now) ?? now
+
+        // Discipline balance in last 14 days
+        let recent14Rides = rides.filter { $0.startDate >= fourteenDaysAgo }.count
+        let recent14Runs = (runningSessions.filter { $0.startDate >= fourteenDaysAgo }.count) + (externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && ($0.activityType == .running || $0.activityType == .hiking) }.count)
+        let recent14Swims = (swimmingSessions.filter { $0.startDate >= fourteenDaysAgo }.count) + (externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && $0.activityType == .swimming }.count)
+        let recent14Shoots = shootingSessions.filter { $0.startDate >= fourteenDaysAgo }.count
+        let recent14Total = recent14Rides + recent14Runs + recent14Swims + recent14Shoots
+
+        // Average HR across all recent sessions
+        var allRecentHRs: [Double] = []
+        for ride in rides.prefix(10) where ride.averageHeartRate > 0 {
+            allRecentHRs.append(Double(ride.averageHeartRate))
+        }
+        for run in runningSessions.prefix(10) where run.averageHeartRate > 0 {
+            allRecentHRs.append(Double(run.averageHeartRate))
+        }
+        for swim in swimmingSessions.prefix(10) where swim.averageHeartRate > 0 {
+            allRecentHRs.append(Double(swim.averageHeartRate))
+        }
+        for shoot in shootingSessions.prefix(10) where shoot.averageHeartRate > 0 {
+            allRecentHRs.append(Double(shoot.averageHeartRate))
+        }
+        let hrResult = computeTrend(values: allRecentHRs, inverted: true)
+
+        // Riding fatigue degradation trend
+        let fatigueTrend: (hasData: Bool, result: (recent: Double, previous: Double, trend: InsightTrend)) = {
+            let fatigueValues = rides.map(\.endFatigueScore).filter { $0 > 0 }
+            if fatigueValues.count >= 3 {
+                return (true, computeTrend(values: fatigueValues, inverted: true))
+            }
+            return (false, (0, 0, .stable))
+        }()
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "heart.text.clipboard")
+                    .foregroundStyle(.pink)
+                Text("Recovery Intelligence")
+                    .font(.headline)
+            }
+
+            // Discipline balance
+            if recent14Total > 0 {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Training Balance (14 days)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 2) {
+                        if recent14Rides > 0 {
+                            balanceBar(count: recent14Rides, total: recent14Total, color: TrainingDiscipline.riding.color, label: "Ride")
+                        }
+                        if recent14Runs > 0 {
+                            balanceBar(count: recent14Runs, total: recent14Total, color: TrainingDiscipline.running.color, label: "Run")
+                        }
+                        if recent14Swims > 0 {
+                            balanceBar(count: recent14Swims, total: recent14Total, color: TrainingDiscipline.swimming.color, label: "Swim")
+                        }
+                        if recent14Shoots > 0 {
+                            balanceBar(count: recent14Shoots, total: recent14Total, color: TrainingDiscipline.shooting.color, label: "Shoot")
+                        }
+                    }
+                    .frame(height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    let disciplineCount = [recent14Rides, recent14Runs, recent14Swims, recent14Shoots].filter { $0 > 0 }.count
+                    Text(disciplineCount >= 3 ? "Well-rounded training across \(disciplineCount) disciplines" : (disciplineCount == 2 ? "Training in \(disciplineCount) disciplines — consider adding variety" : "Single-discipline focus — cross-training benefits recovery"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+
+            // Average HR trend
+            if allRecentHRs.count >= 3 {
+                InsightTrendRow(
+                    icon: "heart.fill",
+                    label: "Avg Heart Rate",
+                    value: "\(Int(hrResult.recent)) bpm",
+                    trend: hrResult.trend,
+                    insight: hrResult.previous > 0 ? "Lower resting effort may indicate improved fitness" : "Building HR baseline from recent sessions"
+                )
+            }
+
+            // Riding fatigue trend
+            if fatigueTrend.hasData {
+                let ft = fatigueTrend.result
+                InsightTrendRow(
+                    icon: "bolt.heart",
+                    label: "Ride Fatigue",
+                    value: String(format: "%.0f", ft.recent),
+                    trend: ft.trend,
+                    insight: ft.previous > 0 ? "End-of-session fatigue: recent \(String(format: "%.0f", ft.recent)) vs previous \(String(format: "%.0f", ft.previous))" : "Tracking fatigue build-up across rides"
+                )
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func balanceBar(count: Int, total: Int, color: Color, label: String) -> some View {
+        let fraction = Double(count) / Double(total)
+        let percentage = Int(fraction * 100)
+        return GeometryReader { geo in
+            ZStack {
+                color
+                if geo.size.width > 30 {
+                    Text("\(percentage)%")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(width: nil)
+        .layoutPriority(Double(count))
+        .accessibilityLabel("\(label) \(percentage)%")
+    }
+
+    // MARK: - Pillar Score Trends Section
+
+    @ViewBuilder
+    private var pillarScoreTrendsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundStyle(selectedLens.color)
+                Text("Metric Trends")
+                    .font(.headline)
+            }
+
+            switch selectedLens {
+            case .riding:
+                ridingMetricTrends
+            case .running:
+                runningMetricTrends
+            case .swimming:
+                swimmingMetricTrends
+            case .shooting:
+                shootingMetricTrends
+            case .unified:
+                EmptyView()
+            }
+        }
+        .padding()
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private var ridingMetricTrends: some View {
+        if rides.count < 3 {
+            Text("Need at least 3 rides to show trends")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            let rhythmValues = rides.map(\.overallRhythm).filter { $0 > 0 }
+            let symmetryValues = rides.map(\.overallSymmetry).filter { $0 > 0 }
+            let stabilityValues = rides.map(\.riderStabilityBaseline).filter { $0 > 0 }
+            let fatigueValues = rides.map(\.endFatigueScore).filter { $0 > 0 }
+
+            if rhythmValues.count >= 3 {
+                let r = computeTrend(values: rhythmValues)
+                InsightTrendRow(icon: "metronome", label: "Rhythm", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+            if symmetryValues.count >= 3 {
+                let r = computeTrend(values: symmetryValues)
+                InsightTrendRow(icon: "arrow.left.and.right", label: "Symmetry", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+            if stabilityValues.count >= 3 {
+                let r = computeTrend(values: stabilityValues)
+                InsightTrendRow(icon: "figure.equestrian.sports", label: "Rider Stability", value: String(format: "%.1f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))" : "Baseline: \(String(format: "%.1f", r.recent))")
+            }
+            if fatigueValues.count >= 3 {
+                let r = computeTrend(values: fatigueValues, inverted: true)
+                InsightTrendRow(icon: "bolt.heart", label: "End Fatigue", value: String(format: "%.0f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))" : "Baseline: \(String(format: "%.0f", r.recent))")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var runningMetricTrends: some View {
+        if runningSessions.count < 3 {
+            Text("Need at least 3 runs to show trends")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            let cadenceValues = runningSessions.map { Double($0.averageCadence) }.filter { $0 > 0 }
+            let gctValues = runningSessions.map(\.averageGroundContactTime).filter { $0 > 0 }
+            let voValues = runningSessions.map(\.averageVerticalOscillation).filter { $0 > 0 }
+
+            if cadenceValues.count >= 3 {
+                let r = computeTrend(values: cadenceValues)
+                InsightTrendRow(icon: "metronome", label: "Cadence", value: "\(Int(r.recent)) spm", trend: r.trend, insight: r.previous > 0 ? "Recent \(Int(r.recent)) vs previous \(Int(r.previous)) spm" : "Baseline: \(Int(r.recent)) spm")
+            }
+            if gctValues.count >= 3 {
+                let r = computeTrend(values: gctValues, inverted: true)
+                InsightTrendRow(icon: "timer", label: "Ground Contact", value: String(format: "%.0f ms", r.recent), trend: r.trend, insight: r.previous > 0 ? "Shorter is more efficient — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous)) ms" : "Baseline: \(String(format: "%.0f", r.recent)) ms")
+            }
+            if voValues.count >= 3 {
+                let r = computeTrend(values: voValues, inverted: true)
+                let voInsight = r.previous > 0
+                    ? "Less bounce = more efficient — \(String(format: "%.1f", r.recent)) vs \(String(format: "%.1f", r.previous)) cm"
+                    : "Baseline: \(String(format: "%.1f", r.recent)) cm"
+                InsightTrendRow(
+                    icon: "arrow.up.and.down", label: "Vertical Oscillation",
+                    value: String(format: "%.1f cm", r.recent),
+                    trend: r.trend, insight: voInsight
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var swimmingMetricTrends: some View {
+        if swimmingSessions.count < 3 {
+            Text("Need at least 3 swims to show trends")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            let swolfValues = swimmingSessions.map(\.averageSwolf).filter { $0 > 0 }
+            let strokeValues = swimmingSessions.map(\.averageStrokesPerLap).filter { $0 > 0 }
+
+            if swolfValues.count >= 3 {
+                let r = computeTrend(values: swolfValues, inverted: true)
+                InsightTrendRow(icon: "figure.pool.swim", label: "SWOLF", value: String(format: "%.0f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))" : "Baseline: \(String(format: "%.0f", r.recent))")
+            }
+            if strokeValues.count >= 3 {
+                let r = computeTrend(values: strokeValues, inverted: true)
+                InsightTrendRow(icon: "water.waves", label: "Strokes/Lap", value: String(format: "%.1f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))" : "Baseline: \(String(format: "%.1f", r.recent))")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var shootingMetricTrends: some View {
+        if shootingSessions.count < 3 {
+            Text("Need at least 3 shooting sessions to show trends")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            let stabilityValues = shootingSessions.map(\.stabilityScore).filter { $0 > 0 }
+            let rhythmValues = shootingSessions.map(\.rhythmScore).filter { $0 > 0 }
+            let symmetryValues = shootingSessions.map(\.symmetryScore).filter { $0 > 0 }
+            let economyValues = shootingSessions.map(\.economyScore).filter { $0 > 0 }
+
+            if stabilityValues.count >= 3 {
+                let r = computeTrend(values: stabilityValues)
+                InsightTrendRow(icon: "scope", label: "Stability", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+            if rhythmValues.count >= 3 {
+                let r = computeTrend(values: rhythmValues)
+                InsightTrendRow(icon: "metronome", label: "Rhythm", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+            if symmetryValues.count >= 3 {
+                let r = computeTrend(values: symmetryValues)
+                InsightTrendRow(icon: "arrow.left.and.right", label: "Symmetry", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+            if economyValues.count >= 3 {
+                let r = computeTrend(values: economyValues)
+                InsightTrendRow(icon: "bolt", label: "Economy", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+            }
+        }
+    }
 }
 
 // MARK: - Supporting Types
@@ -1755,6 +2159,36 @@ struct InsightBadge: View {
             .background(style.color.opacity(0.15))
             .foregroundStyle(style.color)
             .clipShape(Capsule())
+    }
+}
+
+struct InsightTrendRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let trend: InsightTrend
+    let insight: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text(label)
+                    .font(.subheadline)
+                Spacer()
+                Text(value)
+                    .font(.subheadline.bold().monospacedDigit())
+                Image(systemName: trend.icon)
+                    .foregroundStyle(trend.color)
+                    .font(.caption)
+            }
+            Text(insight)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
     }
 }
 

@@ -12,6 +12,7 @@ import Charts
 import HealthKit
 import Photos
 import CoreLocation
+import SwiftData
 
 struct EnrichedWorkoutDetailView: View {
     let workout: ExternalWorkout
@@ -23,6 +24,10 @@ struct EnrichedWorkoutDetailView: View {
     @State private var pillarCards: [PillarCardData] = []
     @State private var photos: [PHAsset] = []
     @State private var isLoading = true
+
+    // Historical trend queries for cross-session comparison
+    @Query(sort: \RunningSession.startDate, order: .reverse) private var recentRuns: [RunningSession]
+    @Query(sort: \SwimmingSession.startDate, order: .reverse) private var recentSwims: [SwimmingSession]
 
     private let skillDomainService = SkillDomainService()
 
@@ -819,6 +824,25 @@ struct EnrichedWorkoutDetailView: View {
         }
     }
 
+    // MARK: - Historical Trend Helper
+
+    /// Returns a short trend suffix comparing the current value to the average of recent sessions.
+    /// When `inverted` is true, a lower value is better (e.g. vertical oscillation, asymmetry).
+    private func trendSuffix(current: Double, recentValues: [Double], metric: String, inverted: Bool = false) -> String {
+        let filtered = recentValues.filter { $0 > 0 }
+        guard filtered.count >= 3 else { return "" }
+        let avg = filtered.reduce(0, +) / Double(filtered.count)
+        let threshold = avg * 0.05
+        if !inverted {
+            if current > avg + threshold { return " Improving from avg \(metric)." }
+            if current < avg - threshold { return " Below recent avg \(metric)." }
+        } else {
+            if current < avg - threshold { return " Improving from avg \(metric)." }
+            if current > avg + threshold { return " Above recent avg \(metric)." }
+        }
+        return " Consistent with recent sessions."
+    }
+
     // MARK: - Pillar Card Computation
 
     private func computePillarCards() -> [PillarCardData] {
@@ -838,34 +862,45 @@ struct EnrichedWorkoutDetailView: View {
 
     private func computeRunningPillarCards() -> [PillarCardData] {
         let rm = enrichment?.runningMetrics
+        let recentRunData = Array(recentRuns.prefix(5))
         var cards: [PillarCardData] = []
 
         // Stability — vertical oscillation
         let vo = rm?.averageVerticalOscillation ?? 0
         let stabilityScore = vo > 0 ? Swift.max(0, Swift.min(100, (12 - vo) / 4 * 100)) : 0
+        let voBaseTip: String = vo > 10 ? "Focus on running tall — imagine a string pulling you up"
+            : vo > 8 ? "Good height, try engaging core more"
+            : vo > 0 ? "Maintain your tall posture"
+            : "Run with Apple Watch to measure vertical oscillation"
+        let recentVO = recentRunData.map { $0.averageVerticalOscillation }
+        let voFiltered = recentVO.filter { $0 > 0 }
+        let voAvg = voFiltered.isEmpty ? 0.0 : voFiltered.reduce(0, +) / Double(voFiltered.count)
+        let voTrend = vo > 0 ? trendSuffix(current: vo, recentValues: recentVO, metric: String(format: "%.1f cm", voAvg), inverted: true) : ""
         cards.append(PillarCardData(
             pillar: .stability,
             subtitle: "Posture & Oscillation",
             score: stabilityScore,
             keyMetric: vo > 0 ? String(format: "%.1f cm bounce", vo) : "Needs Apple Watch",
-            tip: vo > 10 ? "Focus on running tall — imagine a string pulling you up"
-                : vo > 8 ? "Good height, try engaging core more"
-                : vo > 0 ? "Maintain your tall posture"
-                : "Run with Apple Watch to measure vertical oscillation"
+            tip: voBaseTip + voTrend
         ))
 
         // Rhythm — cadence
         let cadence = rm?.averageCadence ?? 0
         let rhythmScore = cadence > 0 ? Swift.max(0, 100 - abs(cadence - 180) / 180 * 200) : 0
+        let cadenceBaseTip: String = cadence > 0 && cadence < 170 ? "Aim for quicker, lighter steps (170-180 spm)"
+            : cadence > 190 ? "Cadence is high — ensure you're not overstriding"
+            : cadence > 0 ? "Maintain your light, quick rhythm"
+            : "Carry phone or wear Apple Watch to track cadence"
+        let recentCadence = recentRunData.map { Double($0.averageCadence) }
+        let cadenceFiltered = recentCadence.filter { $0 > 0 }
+        let cadenceAvg = cadenceFiltered.isEmpty ? 0.0 : cadenceFiltered.reduce(0, +) / Double(cadenceFiltered.count)
+        let cadenceTrend = cadence > 0 ? trendSuffix(current: cadence, recentValues: recentCadence, metric: String(format: "%.0f spm", cadenceAvg)) : ""
         cards.append(PillarCardData(
             pillar: .rhythm,
             subtitle: "Cadence & Tempo",
             score: rhythmScore,
             keyMetric: cadence > 0 ? String(format: "%.0f spm", cadence) : "Needs motion data",
-            tip: cadence > 0 && cadence < 170 ? "Aim for quicker, lighter steps (170-180 spm)"
-                : cadence > 190 ? "Cadence is high — ensure you're not overstriding"
-                : cadence > 0 ? "Maintain your light, quick rhythm"
-                : "Carry phone or wear Apple Watch to track cadence"
+            tip: cadenceBaseTip + cadenceTrend
         ))
 
         // Symmetry — stride length balance & asymmetry
@@ -922,19 +957,25 @@ struct EnrichedWorkoutDetailView: View {
 
     private func computeWalkingPillarCards() -> [PillarCardData] {
         let wm = enrichment?.walkingMetrics
+        let recentRunData = Array(recentRuns.prefix(5))
         var cards: [PillarCardData] = []
 
         // Stability — steadiness
         let steadiness = wm?.steadiness ?? 0
+        let steadinessBaseTip: String = steadiness > 80 ? "Excellent steadiness — your balance is strong"
+            : steadiness > 60 ? "Good balance, try uneven terrain to challenge it"
+            : steadiness > 0 ? "Steadiness below average — consider fatigue or terrain"
+            : "Apple Watch measures walking steadiness automatically"
+        let recentSteadiness = recentRunData.compactMap { $0.healthKitWalkingSteadiness }
+        let steadinessFiltered = recentSteadiness.filter { $0 > 0 }
+        let steadinessAvg = steadinessFiltered.isEmpty ? 0.0 : steadinessFiltered.reduce(0, +) / Double(steadinessFiltered.count)
+        let steadinessTrend = steadiness > 0 ? trendSuffix(current: steadiness, recentValues: recentSteadiness, metric: String(format: "%.0f%%", steadinessAvg)) : ""
         cards.append(PillarCardData(
             pillar: .stability,
             subtitle: "Walking Steadiness",
             score: steadiness,
             keyMetric: steadiness > 0 ? String(format: "%.0f%% steady", steadiness) : "Needs Apple Watch",
-            tip: steadiness > 80 ? "Excellent steadiness — your balance is strong"
-                : steadiness > 60 ? "Good balance, try uneven terrain to challenge it"
-                : steadiness > 0 ? "Steadiness below average — consider fatigue or terrain"
-                : "Apple Watch measures walking steadiness automatically"
+            tip: steadinessBaseTip + steadinessTrend
         ))
 
         // Rhythm — cadence
@@ -954,15 +995,20 @@ struct EnrichedWorkoutDetailView: View {
         // Symmetry — asymmetry
         let asymmetry = wm?.asymmetryPercent ?? 0
         let symmetryScore = asymmetry >= 0 ? Swift.max(0, 100 - asymmetry * 5) : 0
+        let asymmetryBaseTip: String = asymmetry > 8 ? "Work on single-leg strength to improve balance"
+            : asymmetry > 5 ? "Slight imbalance — focus on even footstrikes"
+            : asymmetry > 0 ? "Well balanced gait — maintain this"
+            : "Apple Watch measures gait asymmetry automatically"
+        let recentAsymmetry = recentRunData.compactMap { $0.healthKitAsymmetry }
+        let asymmetryFiltered = recentAsymmetry.filter { $0 > 0 }
+        let asymmetryAvg = asymmetryFiltered.isEmpty ? 0.0 : asymmetryFiltered.reduce(0, +) / Double(asymmetryFiltered.count)
+        let asymmetryTrend = asymmetry > 0 ? trendSuffix(current: asymmetry, recentValues: recentAsymmetry, metric: String(format: "%.1f%%", asymmetryAvg), inverted: true) : ""
         cards.append(PillarCardData(
             pillar: .symmetry,
             subtitle: "Gait Balance",
             score: asymmetry > 0 ? symmetryScore : 0,
             keyMetric: asymmetry > 0 ? String(format: "%.1f%% asymmetry", asymmetry) : "Needs Apple Watch",
-            tip: asymmetry > 8 ? "Work on single-leg strength to improve balance"
-                : asymmetry > 5 ? "Slight imbalance — focus on even footstrikes"
-                : asymmetry > 0 ? "Well balanced gait — maintain this"
-                : "Apple Watch measures gait asymmetry automatically"
+            tip: asymmetryBaseTip + asymmetryTrend
         ))
 
         // Economy — speed vs effort
@@ -984,6 +1030,7 @@ struct EnrichedWorkoutDetailView: View {
 
     private func computeSwimmingPillarCards() -> [PillarCardData] {
         let sm = enrichment?.swimmingMetrics
+        let recentSwimData = Array(recentSwims.prefix(5))
         var cards: [PillarCardData] = []
 
         // Stability — stroke consistency (from lap SWOLF variance)
@@ -1016,22 +1063,34 @@ struct EnrichedWorkoutDetailView: View {
             rhythmScore = Swift.max(0, 100 - cv * 500)
         }
         let avgLapTime = lapTimes.isEmpty ? 0 : lapTimes.reduce(0, +) / Double(lapTimes.count)
+        let recentAvgLapTimes = recentSwimData.compactMap { swim -> Double? in
+            let swimLaps = swim.laps ?? []
+            guard !swimLaps.isEmpty else { return nil }
+            let totalDur = swimLaps.reduce(0.0) { $0 + $1.duration }
+            return totalDur / Double(swimLaps.count)
+        }
+        let lapTimeFiltered = recentAvgLapTimes.filter { $0 > 0 }
+        let lapTimeAvg = lapTimeFiltered.isEmpty ? 0.0 : lapTimeFiltered.reduce(0, +) / Double(lapTimeFiltered.count)
+        let lapTimeMetric = String(format: "%d:%02d", Int(lapTimeAvg) / 60, Int(lapTimeAvg) % 60)
+        let lapTimeTrend = avgLapTime > 0 ? trendSuffix(current: avgLapTime, recentValues: recentAvgLapTimes, metric: lapTimeMetric, inverted: true) : ""
+        let rhythmBaseTip: String = rhythmScore > 80 ? "Very consistent lap times — excellent pacing discipline"
+            : rhythmScore > 50 ? "Good timing — some variation between laps"
+            : rhythmScore > 0 ? "Lap times vary — try to hold a steady pace each length"
+            : "Swim at least 3 laps for timing analysis"
+        let rhythmKeyMetric: String
+        if avgLapTime > 0 {
+            let mins = Int(avgLapTime) / 60
+            let secs = Int(avgLapTime) % 60
+            rhythmKeyMetric = String(format: "%d:%02d avg lap", mins, secs)
+        } else {
+            rhythmKeyMetric = "Needs lap data"
+        }
         cards.append(PillarCardData(
             pillar: .rhythm,
             subtitle: "Lap Timing",
             score: rhythmScore,
-            keyMetric: {
-                if avgLapTime > 0 {
-                    let mins = Int(avgLapTime) / 60
-                    let secs = Int(avgLapTime) % 60
-                    return String(format: "%d:%02d avg lap", mins, secs)
-                }
-                return "Needs lap data"
-            }(),
-            tip: rhythmScore > 80 ? "Very consistent lap times — excellent pacing discipline"
-                : rhythmScore > 50 ? "Good timing — some variation between laps"
-                : rhythmScore > 0 ? "Lap times vary — try to hold a steady pace each length"
-                : "Swim at least 3 laps for timing analysis"
+            keyMetric: rhythmKeyMetric,
+            tip: rhythmBaseTip + lapTimeTrend
         ))
 
         // Symmetry — stroke count consistency
@@ -1076,12 +1135,20 @@ struct EnrichedWorkoutDetailView: View {
                 if totalStrokes > 0 && distance > 0 { return String(format: "%.0f strokes/100m", totalStrokes / (distance / 100)) }
                 return "Needs stroke data"
             }(),
-            tip: swolf > 0 && swolf < 40 ? "Excellent SWOLF — elite-level efficiency per lap"
-                : swolf > 0 && swolf < 55 ? "Good SWOLF — maintain long, powerful strokes"
-                : swolf > 0 ? "High SWOLF — focus on fewer, longer strokes per lap"
-                : econScore > 70 ? "Efficient stroke count — good distance per pull"
-                : econScore > 0 ? "Try reducing strokes per length while maintaining speed"
-                : "SWOLF = lap time + strokes (lower is more efficient)"
+            tip: {
+                let baseTip: String
+                if swolf > 0 && swolf < 40 { baseTip = "Excellent SWOLF — elite-level efficiency per lap" }
+                else if swolf > 0 && swolf < 55 { baseTip = "Good SWOLF — maintain long, powerful strokes" }
+                else if swolf > 0 { baseTip = "High SWOLF — focus on fewer, longer strokes per lap" }
+                else if econScore > 70 { baseTip = "Efficient stroke count — good distance per pull" }
+                else if econScore > 0 { baseTip = "Try reducing strokes per length while maintaining speed" }
+                else { baseTip = "SWOLF = lap time + strokes (lower is more efficient)" }
+                let recentSwolf = recentSwimData.map { $0.averageSwolf }
+                let swolfFiltered = recentSwolf.filter { $0 > 0 }
+                let swolfAvg = swolfFiltered.isEmpty ? 0.0 : swolfFiltered.reduce(0, +) / Double(swolfFiltered.count)
+                let swolfTrend = swolf > 0 ? trendSuffix(current: swolf, recentValues: recentSwolf, metric: String(format: "%.0f SWOLF", swolfAvg), inverted: true) : ""
+                return baseTip + swolfTrend
+            }()
         ))
 
         return cards

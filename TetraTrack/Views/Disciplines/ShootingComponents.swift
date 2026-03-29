@@ -373,6 +373,9 @@ struct ShootingSessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: ShootingSession
 
+    // Historical trend query for cross-session comparison
+    @Query(sort: \ShootingSession.startDate, order: .reverse) private var recentShoots: [ShootingSession]
+
     @State private var selectedTab: ShootingDetailTab = .session
 
     enum ShootingDetailTab: String, CaseIterable {
@@ -1272,50 +1275,87 @@ struct ShootingSessionDetailView: View {
         }
     }
 
+    // MARK: - Historical Trend Helper
+
+    private func trendSuffix(current: Double, recentValues: [Double], metric: String, inverted: Bool = false) -> String {
+        let filtered = recentValues.filter { $0 > 0 }
+        guard filtered.count >= 3 else { return "" }
+        let avg = filtered.reduce(0, +) / Double(filtered.count)
+        let threshold = avg * 0.05
+        if !inverted {
+            if current > avg + threshold { return " Improving from avg \(metric)." }
+            if current < avg - threshold { return " Below recent avg \(metric)." }
+        } else {
+            if current < avg - threshold { return " Improving from avg \(metric)." }
+            if current > avg + threshold { return " Above recent avg \(metric)." }
+        }
+        return " Consistent with recent sessions."
+    }
+
+    /// Values from recent sessions (excluding current), max 5.
+    private func recentShootValues(_ keyPath: (ShootingSession) -> Double) -> [Double] {
+        recentShoots
+            .filter { $0.id != session.id }
+            .prefix(5)
+            .map { keyPath($0) }
+    }
+
     // MARK: - Insight Pillar Tips
 
     private var stabilityTip: String {
         let stability = session.averageStanceStability
+        let baseTip: String
         if stability >= 80 {
-            return "Your platform is rock-solid. Maintain this by continuing core stability work."
+            baseTip = "Your platform is rock-solid. Maintain this by continuing core stability work."
         } else if stability >= 60 {
-            return "Good base. Focus on distributing weight evenly and keeping knees slightly bent."
+            baseTip = "Good base. Focus on distributing weight evenly and keeping knees slightly bent."
         } else {
-            return "Widen your stance to shoulder width and plant your feet before raising. Practice dry-fire with focus on a stable base."
+            baseTip = "Widen your stance to shoulder width and plant your feet before raising. Practice dry-fire with focus on a stable base."
         }
+        let recent = recentShootValues { $0.stabilityScore }
+        return baseTip + trendSuffix(current: session.stabilityScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
     }
 
     private var rhythmTip: String {
         let cv = session.shotTimingConsistencyCV
+        let baseTip: String
         if cv < 0.15 {
-            return "Metronome-like timing. Your consistent rhythm is a significant competitive advantage."
+            baseTip = "Metronome-like timing. Your consistent rhythm is a significant competitive advantage."
         } else if cv < 0.25 {
-            return "Good rhythm. Try counting a consistent cadence between shots to tighten your timing."
+            baseTip = "Good rhythm. Try counting a consistent cadence between shots to tighten your timing."
         } else {
-            return "Variable timing between shots. Develop a pre-shot routine: breathe, raise, settle, commit."
+            baseTip = "Variable timing between shots. Develop a pre-shot routine: breathe, raise, settle, commit."
         }
+        let recent = recentShootValues { $0.rhythmScore }
+        return baseTip + trendSuffix(current: session.rhythmScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
     }
 
     private var symmetryTip: String {
         let steadiness = session.averageHoldSteadiness
+        let baseTip: String
         if steadiness >= 80 {
-            return "Excellent hold control. Your aim point barely moves during the hold phase."
+            baseTip = "Excellent hold control. Your aim point barely moves during the hold phase."
         } else if steadiness >= 60 {
-            return "Steady hold. Try extending your hold time in practice to build endurance in the aim phase."
+            baseTip = "Steady hold. Try extending your hold time in practice to build endurance in the aim phase."
         } else {
-            return "Your hold shows movement. Practice box breathing before each shot and strengthen your support arm."
+            baseTip = "Your hold shows movement. Practice box breathing before each shot and strengthen your support arm."
         }
+        let recent = recentShootValues { $0.symmetryScore }
+        return baseTip + trendSuffix(current: session.symmetryScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
     }
 
     private var economyTip: String {
         let holdDuration = session.averageHoldDuration
+        let baseTip: String
         if holdDuration >= 5 && holdDuration <= 10 {
-            return "Ideal shot cycle. You're committing to your shots with good timing."
+            baseTip = "Ideal shot cycle. You're committing to your shots with good timing."
         } else if holdDuration < 5 {
-            return "Fast cycle time. Ensure you're settling fully before committing to the shot."
+            baseTip = "Fast cycle time. Ensure you're settling fully before committing to the shot."
         } else {
-            return "Trust your aim and commit to the shot sooner. Extended holds increase fatigue and tremor."
+            baseTip = "Trust your aim and commit to the shot sooner. Extended holds increase fatigue and tremor."
         }
+        let recent = recentShootValues { $0.economyScore }
+        return baseTip + trendSuffix(current: session.economyScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
     }
 
     private var composureTip: String {

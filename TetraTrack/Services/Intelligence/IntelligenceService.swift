@@ -863,6 +863,9 @@ private extension IntelligenceService {
         let swimPercent = totalSessions > 0 ? Double(totalSwimCount) / Double(totalSessions) * 100 : 0
         let shootPercent = totalSessions > 0 ? Double(shooting.count) / Double(totalSessions) * 100 : 0
 
+        // Compute trend indicators from session arrays
+        let trendSection = buildTrendSection(rides: rides, running: running, swimming: swimming, shooting: shooting)
+
         return """
         Provide a comprehensive tetrathlon training analysis:
 
@@ -877,15 +880,139 @@ private extension IntelligenceService {
 
         Total training sessions: \(totalSessions)
         Note: Running and swimming data includes both TetraTrack-captured sessions and Apple Watch workouts from HealthKit.
-
+        \(trendSection)
         Analyze:
         1. Overall training balance across disciplines
         2. Strongest and weakest disciplines based on data
         3. Cross-training opportunities (how skills transfer between disciplines, including walking/cycling for aerobic base)
         4. Specific recommendations for tetrathlon competition readiness
         5. One key insight about the athlete's training pattern
+        6. Identify significant trends in the data (improving, stable, declining)
+        7. Flag any recovery concerns (rising HR, increasing fatigue, training imbalance)
 
         Be encouraging but honest. Focus on actionable advice.
+        """
+    }
+
+    // MARK: - Trend Helpers
+
+    private func trendLabel(_ current: Double, _ previous: Double) -> String {
+        guard previous > 0 else { return "insufficient data" }
+        let change = (current - previous) / previous * 100
+        if abs(change) < 5 { return "stable" }
+        return change > 0 ? "improving" : "declining"
+    }
+
+    private func buildTrendSection(
+        rides: [Ride],
+        running: [RunningSession],
+        swimming: [SwimmingSession],
+        shooting: [ShootingSession]
+    ) -> String {
+        var lines: [String] = []
+
+        // Sort each discipline by date descending, split recent 5 vs previous 5
+        let sortedRides = rides.sorted { $0.startDate > $1.startDate }
+        let recentRides = Array(sortedRides.prefix(5))
+        let previousRides = Array(sortedRides.dropFirst(5).prefix(5))
+
+        let sortedRuns = running.sorted { $0.startDate > $1.startDate }
+        let recentRuns = Array(sortedRuns.prefix(5))
+        let previousRuns = Array(sortedRuns.dropFirst(5).prefix(5))
+
+        let sortedSwims = swimming.sorted { $0.startDate > $1.startDate }
+        let recentSwims = Array(sortedSwims.prefix(5))
+        let previousSwims = Array(sortedSwims.dropFirst(5).prefix(5))
+
+        let sortedShots = shooting.sorted { $0.startDate > $1.startDate }
+        let recentShots = Array(sortedShots.prefix(5))
+        let previousShots = Array(sortedShots.dropFirst(5).prefix(5))
+
+        // Riding rhythm trend
+        if recentRides.count >= 2 {
+            let currentAvg = recentRides.reduce(0.0) { $0 + $1.overallRhythm } / Double(recentRides.count)
+            let previousAvg = previousRides.isEmpty ? 0.0 : previousRides.reduce(0.0) { $0 + $1.overallRhythm } / Double(previousRides.count)
+            let label = trendLabel(currentAvg, previousAvg)
+            lines.append("- Riding rhythm: \(String(format: "%.0f", currentAvg))% → \(previousRides.isEmpty ? "N/A" : String(format: "%.0f%%", previousAvg)) (\(label))")
+        }
+
+        // Running cadence trend
+        if recentRuns.count >= 2 {
+            let currentAvg = Double(recentRuns.reduce(0) { $0 + $1.averageCadence }) / Double(recentRuns.count)
+            let previousAvg = previousRuns.isEmpty ? 0.0 : Double(previousRuns.reduce(0) { $0 + $1.averageCadence }) / Double(previousRuns.count)
+            let label = trendLabel(currentAvg, previousAvg)
+            lines.append("- Running cadence: \(String(format: "%.0f", currentAvg)) spm → \(previousRuns.isEmpty ? "N/A" : String(format: "%.0f spm", previousAvg)) (\(label))")
+        }
+
+        // Swimming SWOLF trend
+        if recentSwims.count >= 2 {
+            let currentAvg = recentSwims.reduce(0.0) { $0 + $1.averageSwolf } / Double(recentSwims.count)
+            let previousAvg = previousSwims.isEmpty ? 0.0 : previousSwims.reduce(0.0) { $0 + $1.averageSwolf } / Double(previousSwims.count)
+            // Lower SWOLF is better, so invert the trend logic
+            let label: String
+            if previousAvg <= 0 { label = "insufficient data" }
+            else {
+                let change = (currentAvg - previousAvg) / previousAvg * 100
+                if abs(change) < 5 { label = "stable" }
+                else { label = change < 0 ? "improving" : "declining" }
+            }
+            lines.append("- Swimming SWOLF: \(String(format: "%.1f", currentAvg)) → \(previousSwims.isEmpty ? "N/A" : String(format: "%.1f", previousAvg)) (\(label))")
+        }
+
+        // Shooting accuracy trend
+        if recentShots.count >= 2 {
+            let currentAvg = recentShots.reduce(0.0) { $0 + $1.scorePercentage } / Double(recentShots.count)
+            let previousAvg = previousShots.isEmpty ? 0.0 : previousShots.reduce(0.0) { $0 + $1.scorePercentage } / Double(previousShots.count)
+            let label = trendLabel(currentAvg, previousAvg)
+            lines.append("- Shooting accuracy: \(String(format: "%.0f", currentAvg))% → \(previousShots.isEmpty ? "N/A" : String(format: "%.0f%%", previousAvg)) (\(label))")
+        }
+
+        // Overall HR trend across all disciplines
+        var recentHRs: [Int] = []
+        var previousHRs: [Int] = []
+        recentRides.forEach { if $0.averageHeartRate > 0 { recentHRs.append($0.averageHeartRate) } }
+        previousRides.forEach { if $0.averageHeartRate > 0 { previousHRs.append($0.averageHeartRate) } }
+        recentRuns.forEach { if $0.averageHeartRate > 0 { recentHRs.append($0.averageHeartRate) } }
+        previousRuns.forEach { if $0.averageHeartRate > 0 { previousHRs.append($0.averageHeartRate) } }
+        recentSwims.forEach { if $0.averageHeartRate > 0 { recentHRs.append($0.averageHeartRate) } }
+        previousSwims.forEach { if $0.averageHeartRate > 0 { previousHRs.append($0.averageHeartRate) } }
+        recentShots.forEach { if $0.averageHeartRate > 0 { recentHRs.append($0.averageHeartRate) } }
+        previousShots.forEach { if $0.averageHeartRate > 0 { previousHRs.append($0.averageHeartRate) } }
+
+        if recentHRs.count >= 2 {
+            let currentAvgHR = Double(recentHRs.reduce(0, +)) / Double(recentHRs.count)
+            let previousAvgHR = previousHRs.isEmpty ? 0.0 : Double(previousHRs.reduce(0, +)) / Double(previousHRs.count)
+            // Rising HR at same effort = declining fitness, so invert
+            let label: String
+            if previousAvgHR <= 0 { label = "insufficient data" }
+            else {
+                let change = (currentAvgHR - previousAvgHR) / previousAvgHR * 100
+                if abs(change) < 5 { label = "stable" }
+                else { label = change < 0 ? "improving" : "rising (possible fatigue)" }
+            }
+            lines.append("- Overall HR trend: \(String(format: "%.0f", currentAvgHR)) bpm → \(previousHRs.isEmpty ? "N/A" : String(format: "%.0f bpm", previousAvgHR)) (\(label))")
+        }
+
+        guard !lines.isEmpty else { return "" }
+
+        // Recovery indicators
+        var recoveryLines: [String] = []
+
+        // Training balance in last 14 days
+        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+        let recentRideCount = rides.filter { $0.startDate >= twoWeeksAgo }.count
+        let recentRunCount = running.filter { $0.startDate >= twoWeeksAgo }.count
+        let recentSwimCount = swimming.filter { $0.startDate >= twoWeeksAgo }.count
+        let recentShootCount = shooting.filter { $0.startDate >= twoWeeksAgo }.count
+        recoveryLines.append("- Training balance (last 14 days): Riding \(recentRideCount), Running \(recentRunCount), Swimming \(recentSwimCount), Shooting \(recentShootCount)")
+
+        return """
+
+        TRAINING TRENDS (last 5 sessions vs previous 5):
+        \(lines.joined(separator: "\n"))
+
+        RECOVERY INDICATORS:
+        \(recoveryLines.joined(separator: "\n"))
         """
     }
 
@@ -911,11 +1038,37 @@ private extension IntelligenceService {
             $0.startDate >= Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         }.count
 
+        // Volume trend: workouts per week over last 4 weeks
+        let calendar = Calendar.current
+        let now = Date()
+        var weeklyVolume: [Int] = []
+        for weekOffset in 0..<4 {
+            let weekStart = calendar.date(byAdding: .day, value: -(weekOffset + 1) * 7, to: now) ?? now
+            let weekEnd = calendar.date(byAdding: .day, value: -weekOffset * 7, to: now) ?? now
+            let count = workouts.filter { $0.startDate >= weekStart && $0.startDate < weekEnd }.count
+            weeklyVolume.append(count)
+        }
+        // weeklyVolume[0] = most recent week, [3] = 4 weeks ago
+        let recentWeeks = weeklyVolume.prefix(2)
+        let olderWeeks = weeklyVolume.suffix(2)
+        let recentAvg = recentWeeks.isEmpty ? 0.0 : Double(recentWeeks.reduce(0, +)) / Double(recentWeeks.count)
+        let olderAvg = olderWeeks.isEmpty ? 0.0 : Double(olderWeeks.reduce(0, +)) / Double(olderWeeks.count)
+        let volumeTrend: String
+        if olderAvg <= 0 { volumeTrend = "insufficient history" }
+        else {
+            let change = (recentAvg - olderAvg) / olderAvg * 100
+            if abs(change) < 15 { volumeTrend = "stable" }
+            else { volumeTrend = change > 0 ? "increasing" : "decreasing" }
+        }
+        let weeklyBreakdown = weeklyVolume.enumerated().map { "\($0.offset + 1)w ago: \($0.element)" }.joined(separator: ", ")
+
         return """
         Analyze this athlete's Apple Watch workout history for a tetrathlon athlete.
 
         WORKOUT SUMMARY (\(totalWorkouts) total, \(weeklyCount) this week):
         \(breakdown)
+
+        VOLUME TREND (last 4 weeks): \(weeklyBreakdown) — \(volumeTrend)
 
         This data comes from Apple Watch workouts (HealthKit). The athlete also does
         riding and shooting via TetraTrack.
@@ -1016,6 +1169,7 @@ private extension IntelligenceService {
         For each pillar, provide a specific insight about how this athlete's training
         contributes to it. Be specific with numbers where available.
 
+        Comment on training volume trends and consistency across the last 4 weeks.
         Also provide actionable recommendations for tetrathlon competition readiness.
         Be encouraging but honest.
         """
