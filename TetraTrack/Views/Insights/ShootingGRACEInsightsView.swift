@@ -45,6 +45,9 @@ struct ShootingGRACEInsightsView: View {
             economyCard
             physiologyCard
             perShotSteadinessChart
+            perShotRaiseSmoothnessChart
+            perShotCycleTimeChart
+            perShotTremorChart
             fatigueComparisonCard
         }
         .padding()
@@ -71,6 +74,9 @@ struct ShootingGRACEInsightsView: View {
 
             physiologyCard
             perShotSteadinessChart
+            perShotRaiseSmoothnessChart
+            perShotCycleTimeChart
+            perShotTremorChart
             fatigueComparisonCard
         }
         .padding(24)
@@ -208,6 +214,134 @@ struct ShootingGRACEInsightsView: View {
                             BarMark(
                                 x: .value("Shot", index + 1),
                                 y: .value("Steadiness", shot.holdSteadiness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100])
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Raise Smoothness Chart
+
+    private var perShotRaiseSmoothnessChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.raiseSmoothness > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "arrow.up.right")
+                            .foregroundStyle(.green)
+                        Text("Shot-by-Shot Raise Smoothness")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            LineMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Smoothness", shot.raiseSmoothness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+
+                            PointMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Smoothness", shot.raiseSmoothness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100])
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Cycle Time Chart
+
+    private var perShotCycleTimeChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.totalCycleTime > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundStyle(.orange)
+                        Text("Shot-by-Shot Cycle Time")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            BarMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Cycle Time", shot.totalCycleTime)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks()
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Tremor Intensity Chart
+
+    private var perShotTremorChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.tremorIntensity > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "hand.raised.fingers.spread")
+                            .foregroundStyle(.purple)
+                        Text("Shot-by-Shot Tremor Intensity")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            BarMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Tremor", shot.tremorIntensity)
                             )
                             .foregroundStyle(endColor(endIndex))
                         }

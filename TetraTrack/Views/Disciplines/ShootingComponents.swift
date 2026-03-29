@@ -724,6 +724,80 @@ struct ShootingSessionDetailView: View {
                         .padding(.horizontal)
                     }
 
+                    // Shot Timing Consistency
+                    if session.averageHoldDuration > 0 || session.shotTimingConsistencyCV > 0 || session.averageHoldSteadiness > 0 {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "timer")
+                                    .foregroundStyle(.cyan)
+                                Text("Shot Timing")
+                                    .font(.headline)
+                            }
+
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                if session.averageHoldDuration > 0 {
+                                    MiniStatCard(title: "Avg Hold", value: String(format: "%.1fs", session.averageHoldDuration))
+                                }
+                                if session.shotTimingConsistencyCV > 0 {
+                                    MiniStatCard(title: "Consistency CV", value: String(format: "%.2f", session.shotTimingConsistencyCV))
+                                }
+                                if session.averageHoldSteadiness > 0 {
+                                    MiniStatCard(title: "Avg Steadiness", value: String(format: "%.0f%%", session.averageHoldSteadiness))
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
+                    }
+
+                    // Physiology
+                    if hasPhysiologyData {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "waveform.path.ecg")
+                                    .foregroundStyle(.pink)
+                                Text("Physiology")
+                                    .font(.headline)
+                            }
+
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                if session.averageBreathingRate > 0 {
+                                    MiniStatCard(title: "Breathing", value: String(format: "%.0f /min", session.averageBreathingRate))
+                                }
+                                if session.averageSpO2 > 0 {
+                                    MiniStatCard(title: "SpO2", value: String(format: "%.0f%%", session.averageSpO2))
+                                }
+                                if session.minSpO2 > 0 {
+                                    MiniStatCard(title: "Min SpO2", value: String(format: "%.0f%%", session.minSpO2))
+                                }
+                                if session.postureStability > 0 {
+                                    MiniStatCard(title: "Posture", value: String(format: "%.0f%%", session.postureStability))
+                                }
+                                if session.recoveryQuality > 0 {
+                                    MiniStatCard(title: "Recovery", value: String(format: "%.0f%%", session.recoveryQuality))
+                                }
+                                if session.trainingLoadScore > 0 {
+                                    MiniStatCard(title: "Training Load", value: String(format: "%.0f", session.trainingLoadScore))
+                                }
+                                if session.goodPosturePercent > 0 {
+                                    MiniStatCard(title: "Good Posture", value: String(format: "%.0f%%", session.goodPosturePercent))
+                                }
+                                if session.activeTimePercent > 0 {
+                                    MiniStatCard(title: "Active Time", value: String(format: "%.0f%%", session.activeTimePercent))
+                                }
+                                if session.endFatigueScore > 0 {
+                                    MiniStatCard(title: "Fatigue", value: String(format: "%.0f", session.endFatigueScore))
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
+                    }
+
                     // Notes section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -774,6 +848,18 @@ struct ShootingSessionDetailView: View {
                 applySensorAnalysisIfNeeded()
             }
         }
+    }
+
+    private var hasPhysiologyData: Bool {
+        session.averageBreathingRate > 0 ||
+        session.averageSpO2 > 0 ||
+        session.minSpO2 > 0 ||
+        session.postureStability > 0 ||
+        session.recoveryQuality > 0 ||
+        session.trainingLoadScore > 0 ||
+        session.goodPosturePercent > 0 ||
+        session.activeTimePercent > 0 ||
+        session.endFatigueScore > 0
     }
 
     private func applySensorAnalysisIfNeeded() {
@@ -939,6 +1025,7 @@ struct EndRow: View {
                                 Text(String(format: "%.1fs", shot.holdDuration))
                                     .font(.system(size: 8))
                                     .foregroundStyle(.secondary)
+                                shotSensorMetrics(shot)
                             }
                             .frame(maxWidth: .infinity)
                         } else {
@@ -964,6 +1051,47 @@ struct EndRow: View {
         .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private func shotSensorMetrics(_ shot: Shot) -> some View {
+        let metrics: [(String, String)] = {
+            var items: [(String, String)] = []
+            if shot.raiseSmoothness > 0 {
+                items.append(("Raise", String(format: "%.0f", shot.raiseSmoothness)))
+            }
+            if shot.settleDuration > 0 {
+                items.append(("Settle", String(format: "%.1fs", shot.settleDuration)))
+            }
+            if shot.tremorIntensity > 0 {
+                items.append(("Tremor", String(format: "%.0f", shot.tremorIntensity)))
+            }
+            if shot.driftMagnitude > 0 {
+                items.append(("Drift", String(format: "%.0f", shot.driftMagnitude)))
+            }
+            if shot.totalCycleTime > 0 {
+                items.append(("Cycle", String(format: "%.1fs", shot.totalCycleTime)))
+            }
+            if shot.heartRateAtShot > 0 {
+                items.append(("HR", "\(shot.heartRateAtShot)"))
+            }
+            return items
+        }()
+
+        if !metrics.isEmpty {
+            VStack(spacing: 1) {
+                ForEach(metrics, id: \.0) { label, value in
+                    HStack(spacing: 1) {
+                        Text(label)
+                            .font(.system(size: 7))
+                            .foregroundStyle(.tertiary)
+                        Text(value)
+                            .font(.system(size: 7, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
     }
 
     private func shotSteadinessBar(_ value: Double) -> some View {
