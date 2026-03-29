@@ -315,8 +315,13 @@ struct CompetitionCalendarView: View {
                         .accessibilityHint("Create a new competition entry")
                     }
                 }
-                .navigationDestination(isPresented: $showingStats) {
-                    CompetitionStatsView()
+                .sheet(isPresented: $showingStats) {
+                    NavigationStack {
+                        CompetitionStatsView()
+                    }
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(.ultraThinMaterial)
                 }
                 .sheet(isPresented: $showingAddCompetition) {
                     CompetitionEditView(competition: nil)
