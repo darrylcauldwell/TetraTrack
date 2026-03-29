@@ -113,7 +113,7 @@ struct ShootingPracticeView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Watch connectivity
-                WatchStatusCard()
+                WatchStatusCard(discipline: .shooting)
 
                 if let tracker {
                     if tracker.sessionState == .idle {
