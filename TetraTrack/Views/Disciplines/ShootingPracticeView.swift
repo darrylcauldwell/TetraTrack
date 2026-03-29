@@ -73,17 +73,35 @@ struct ShootingPracticeView: View {
         }
     }
 
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(.systemBackground), contextColor.opacity(0.05)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+    @Environment(\.dismiss) private var dismiss
 
-            VStack(spacing: 0) {
-                // Phase picker
+    var body: some View {
+        VStack(spacing: 0) {
+            // Close button + Phase picker
+            HStack {
+                Button("Close") {
+                    // Stop session if running before dismissing
+                    if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
+                        tracker?.stopSession()
+                    }
+                    dismiss()
+                }
+                .font(.body)
+
+                Spacer()
+
+                Text("Competition Practice")
+                    .font(.headline)
+
+                Spacer()
+
+                // Invisible spacer to balance the layout
+                Text("Close").font(.body).hidden()
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            // Phase picker
                 Picker("Phase", selection: $selectedPhase) {
                     ForEach(ShootingPhase.allCases, id: \.self) { phase in
                         Text(phase.rawValue).tag(phase)
@@ -103,7 +121,6 @@ struct ShootingPracticeView: View {
                 }
             }
         }
-    }
 
     // MARK: - Header (removed — nav title handles this)
 
