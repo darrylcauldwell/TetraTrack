@@ -115,26 +115,15 @@ struct DisciplinesView: View {
             : [GridItem(.flexible())]
 
         return LazyVGrid(columns: columns, spacing: Spacing.md) {
-            NavigationLink(destination: TrainingLoadDashboardView()) {
+            NavigationLink(destination: TrainingHubView()) {
                 DisciplineCard(
-                    title: "Training Load",
-                    subtitle: "Monitor fitness, fatigue, and form",
-                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Training",
+                    subtitle: "Training load and drills",
+                    icon: "figure.run.circle",
                     color: AppColors.cardOrange
                 )
             }
             .buttonStyle(.plain)
-
-            NavigationLink(destination: UnifiedTrainingView()) {
-                DisciplineCard(
-                    title: "Drills",
-                    subtitle: "Off-discipline training drills",
-                    icon: "figure.run.circle",
-                    color: AppColors.mint
-                )
-            }
-            .buttonStyle(.plain)
-            .hideInReadOnlyMode()
 
             NavigationLink(destination: FamilyView()) {
                 DisciplineCard(
