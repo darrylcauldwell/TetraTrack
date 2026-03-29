@@ -257,7 +257,9 @@ struct TetraTrackApp: App {
     private func handleInitialSetup() async {
         guard !Self.isUITesting, !Self.isUnitTesting, !Self.isScreenshotMode else { return }
         _ = await NotificationManager.shared.requestAuthorization()
+        #if !targetEnvironment(simulator)
         await NotificationManager.shared.setupCloudKitSubscriptions()
+        #endif
     }
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
@@ -367,6 +369,8 @@ struct TetraTrackApp: App {
         UnifiedSharingCoordinator.shared.configure(with: sharedModelContainer.mainContext)
 
         // Initialize CloudKit schema for family sharing (creates record types in Development mode)
+        // Skip on simulator — CloudKit is not available without iCloud sign-in
+        #if !targetEnvironment(simulator)
         Task {
             let schemaInitializer = CloudKitSchemaInitializer()
             let result = await schemaInitializer.initializeSchema()
@@ -376,6 +380,7 @@ struct TetraTrackApp: App {
                 Log.app.warning("CloudKit schema initialization: \(result.errors.joined(separator: "; "))")
             }
         }
+        #endif
 
         // Migrate personal bests from UserDefaults to iCloud Key-Value Store
         SwimmingPersonalBests.migrateFromUserDefaults()
