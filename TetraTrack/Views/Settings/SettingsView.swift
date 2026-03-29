@@ -17,6 +17,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case training = "Training"
     case maps = "Offline Maps"
     case shooting = "Shooting Development"
+    case sharing = "Live Sharing"
     case data = "Data Management"
     case diagnostics = "Diagnostics"
     case demo = "Demonstration Data"
@@ -33,6 +34,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .training: return "timer"
         case .maps: return "map.fill"
         case .shooting: return "brain"
+        case .sharing: return "location.fill.viewfinder"
         case .data: return "externaldrive.fill"
         case .diagnostics: return "stethoscope"
         case .demo: return "sparkles.rectangle.stack"
@@ -49,6 +51,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .training: return AppColors.primary
         case .maps: return AppColors.primary
         case .shooting: return .purple
+        case .sharing: return .cyan
         case .data: return .red
         case .diagnostics: return .orange
         case .demo: return .orange
@@ -264,6 +267,8 @@ struct SettingsView: View {
                     mapsContent
                 case .shooting:
                     shootingContent
+                case .sharing:
+                    sharingContent
                 case .data:
                     dataManagementContent
                 case .diagnostics:
@@ -623,6 +628,27 @@ struct SettingsView: View {
                                     .fontWeight(.medium)
 
                                 Text("View collection progress for hole detection")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Sharing") {
+                    NavigationLink(destination: FamilyView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "location.fill.viewfinder")
+                                .font(.title2)
+                                .foregroundStyle(.cyan)
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Live Sharing")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+
+                                Text("Family & emergency contacts")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1238,6 +1264,23 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+        }
+    }
+
+    private var sharingContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            NavigationLink(destination: FamilyView()) {
+                SettingsRowContent(
+                    icon: "location.fill.viewfinder",
+                    iconColor: .cyan,
+                    title: "Live Sharing",
+                    subtitle: "Family & emergency contacts"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 

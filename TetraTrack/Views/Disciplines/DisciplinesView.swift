@@ -28,11 +28,11 @@ struct DisciplinesView: View {
                     // MARK: - Competitions
                     competitionsSection
 
-                    // MARK: - Training History
-                    trainingHistorySection
+                    // MARK: - Training
+                    trainingSection
 
-                    // MARK: - More
-                    moreSection
+                    // MARK: - Session History
+                    sessionHistorySection
                 }
                 .adaptivePadding(horizontalSizeClass)
                 .padding(.top, Spacing.md)
@@ -93,48 +93,32 @@ struct DisciplinesView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Training History
+    // MARK: - Training
 
-    private var trainingHistorySection: some View {
+    private var trainingSection: some View {
+        NavigationLink(destination: TrainingHubView()) {
+            DisciplineCard(
+                title: "Training",
+                subtitle: "Training load and drills",
+                icon: "figure.run.circle",
+                color: AppColors.cardOrange
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Session History
+
+    private var sessionHistorySection: some View {
         NavigationLink(destination: SessionHistoryView()) {
             DisciplineCard(
-                title: "Training History",
+                title: "Session History",
                 subtitle: "Sessions and session insights",
                 icon: "clock.arrow.circlepath",
                 color: AppColors.neutralGray
             )
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - More Section
-
-    private var moreSection: some View {
-        let columns = horizontalSizeClass == .regular
-            ? [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)]
-            : [GridItem(.flexible())]
-
-        return LazyVGrid(columns: columns, spacing: Spacing.md) {
-            NavigationLink(destination: TrainingHubView()) {
-                DisciplineCard(
-                    title: "Training",
-                    subtitle: "Training load and drills",
-                    icon: "figure.run.circle",
-                    color: AppColors.cardOrange
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink(destination: FamilyView()) {
-                DisciplineCard(
-                    title: "Live Sharing",
-                    subtitle: "Family & emergency contacts",
-                    icon: "location.fill.viewfinder",
-                    color: AppColors.cyan
-                )
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     // MARK: - iPad Banner
