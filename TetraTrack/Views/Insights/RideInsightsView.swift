@@ -25,8 +25,20 @@ struct RideInsightsView: View {
 
     // MARK: - Biomechanical Scores
 
-    /// Stability — speed smoothness (less jerkiness = better posture)
+    /// Stability — prefer IMU baseline/final when available, fall back to GPS speed jerk
     private var stabilityScore: Double {
+        // Prefer IMU-derived rider stability when available
+        let baseline = ride.riderStabilityBaseline
+        let final_ = ride.riderStabilityFinal
+        if baseline > 0 && final_ > 0 {
+            // Average of start and end stability as a percentage score
+            return ((baseline + final_) / 2.0) * 100
+        }
+        if baseline > 0 {
+            return baseline * 100
+        }
+
+        // Fall back to GPS speed jerk
         let points = ride.sortedLocationPoints
         guard points.count > 20 else { return 0 }
 
@@ -474,12 +486,27 @@ struct RideInsightsView: View {
     private var stabilityCard: some View {
         let hasData = stabilityScore > 0
         let maxSpeed = ride.maxSpeed
+        let hasIMU = ride.riderStabilityBaseline > 0
+        let tremor = ride.riderTremorTrend
+        let drift = ride.riderDriftTrend
 
         return PillarScoreCard(
             pillar: .stability,
             subtitle: "Seat & Speed Control",
             score: stabilityScore,
             keyMetric: {
+                if hasIMU {
+                    if tremor > 0 && drift > 0 {
+                        return String(format: "%.0f%% stable, tremor %.0f%%, drift %.0f%%", stabilityScore, tremor * 100, drift * 100)
+                    }
+                    if tremor > 0 {
+                        return String(format: "%.0f%% stable, tremor %.0f%%", stabilityScore, tremor * 100)
+                    }
+                    if drift > 0 {
+                        return String(format: "%.0f%% stable, drift %.0f%%", stabilityScore, drift * 100)
+                    }
+                    return String(format: "%.0f%% IMU stability", stabilityScore)
+                }
                 if hasData && maxSpeed > 0 {
                     return String(format: "%.1f km/h max, %.0f%% smooth", maxSpeed * 3.6, stabilityScore)
                 }
@@ -488,6 +515,7 @@ struct RideInsightsView: View {
             }(),
             tip: {
                 if !hasData { return "GPS measures how smoothly you maintain speed through gait transitions" }
+                if hasIMU && stabilityScore >= 80 { return "Excellent IMU stability — very steady seat throughout the ride" }
                 if stabilityScore >= 80 { return "Very smooth riding — excellent independent seat and soft hands" }
                 if stabilityScore >= 60 { return "Good stability — minor speed fluctuations during transitions" }
                 return "Jerky transitions — focus on smooth half-halts and sitting deeper in the saddle"
@@ -500,6 +528,7 @@ struct RideInsightsView: View {
     private var rhythmCard: some View {
         let gaitRhythm = ride.overallRhythm
         let hasGaitData = gaitRhythm > 0
+        let strideFreq = ride.averageStrideFrequency
         let score = hasGaitData ? gaitRhythm : rhythmScore
 
         return PillarScoreCard(
@@ -507,6 +536,12 @@ struct RideInsightsView: View {
             subtitle: "Pace & Gait Consistency",
             score: score,
             keyMetric: {
+                if hasGaitData && strideFreq > 0 {
+                    return String(format: "%.1f strides/sec, %.0f%% rhythm", strideFreq, gaitRhythm)
+                }
+                if strideFreq > 0 {
+                    return String(format: "%.1f strides/sec", strideFreq)
+                }
                 if hasGaitData { return String(format: "%.0f%% gait rhythm", gaitRhythm) }
                 if !ride.gaitBreakdown.isEmpty {
                     let dominant = ride.gaitBreakdown.max(by: { $0.percentage < $1.percentage })

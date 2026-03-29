@@ -126,6 +126,16 @@ struct RideDetailView: View {
                         RecoverySummaryView(recoveryMetrics: recoveryMetrics)
                     }
 
+                    // Rider Physiology (Watch sensor metrics)
+                    if hasRiderPhysiologyData {
+                        riderPhysiologySection
+                    }
+
+                    // Rider Fatigue Trend (IMU metrics)
+                    if ride.riderStabilityBaseline > 0 {
+                        riderFatigueTrendSection
+                    }
+
                     if ride.hasWeatherData {
                         weatherSection
                     }
@@ -191,6 +201,16 @@ struct RideDetailView: View {
 
             ElevationProfileView(profile: ride.elevationProfile)
 
+            // Rider Physiology (Watch sensor metrics)
+            if hasRiderPhysiologyData {
+                riderPhysiologySection
+            }
+
+            // Rider Fatigue Trend (IMU metrics)
+            if ride.riderStabilityBaseline > 0 {
+                riderFatigueTrendSection
+            }
+
             if ride.hasWeatherData {
                 weatherSection
             }
@@ -201,6 +221,110 @@ struct RideDetailView: View {
             actionButtons
         }
         .padding()
+    }
+
+    // MARK: - Rider Physiology & Fatigue Sections
+
+    private var hasRiderPhysiologyData: Bool {
+        ride.averageBreathingRate > 0 ||
+        ride.averageSpO2 > 0 ||
+        ride.minSpO2 > 0 ||
+        ride.endFatigueScore > 0 ||
+        ride.trainingLoadScore > 0 ||
+        ride.recoveryQuality > 0 ||
+        ride.detectedJumpCount > 0 ||
+        ride.activeTimePercent > 0 ||
+        ride.sessionPostureStability > 0 ||
+        ride.goodPosturePercent > 0
+    }
+
+    private var riderPhysiologySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "waveform.path.ecg")
+                Text("Rider Physiology")
+                    .font(.headline)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                if ride.averageBreathingRate > 0 {
+                    StatCard(title: "Breathing", value: String(format: "%.1f bpm", ride.averageBreathingRate), icon: "wind")
+                }
+                if ride.averageSpO2 > 0 {
+                    StatCard(title: "Blood O\u{2082}", value: String(format: "%.0f%%", ride.averageSpO2), icon: "lungs.fill")
+                }
+                if ride.minSpO2 > 0 {
+                    StatCard(title: "Min SpO\u{2082}", value: String(format: "%.0f%%", ride.minSpO2), icon: "lungs")
+                }
+                if ride.endFatigueScore > 0 {
+                    StatCard(title: "Fatigue", value: String(format: "%.0f", ride.endFatigueScore), icon: "battery.25percent")
+                }
+                if ride.trainingLoadScore > 0 {
+                    StatCard(title: "Training Load", value: String(format: "%.0f", ride.trainingLoadScore), icon: "flame.fill")
+                }
+                if ride.recoveryQuality > 0 {
+                    StatCard(title: "Recovery", value: String(format: "%.0f", ride.recoveryQuality), icon: "heart.circle")
+                }
+                if ride.detectedJumpCount > 0 {
+                    StatCard(title: "Jumps", value: "\(ride.detectedJumpCount)", icon: "arrow.up.forward")
+                }
+                if ride.activeTimePercent > 0 {
+                    StatCard(title: "Active Time", value: String(format: "%.0f%%", ride.activeTimePercent), icon: "figure.run")
+                }
+                if ride.sessionPostureStability > 0 {
+                    StatCard(title: "Posture", value: String(format: "%.0f", ride.sessionPostureStability), icon: "figure.stand")
+                }
+                if ride.goodPosturePercent > 0 {
+                    StatCard(title: "Good Posture", value: String(format: "%.0f%%", ride.goodPosturePercent), icon: "checkmark.circle")
+                }
+            }
+        }
+    }
+
+    private var riderFatigueTrendSection: some View {
+        let baseline = ride.riderStabilityBaseline
+        let final_ = ride.riderStabilityFinal
+        let degradation = ride.riderFatigueDegradation
+        let tremor = ride.riderTremorTrend
+        let drift = ride.riderDriftTrend
+        let significantFatigue = baseline > final_ && (baseline - final_) > 0.2
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.line.downtrend.xyaxis")
+                Text("Rider Fatigue Trend")
+                    .font(.headline)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                StatCard(title: "Start Stability", value: String(format: "%.0f%%", baseline * 100), icon: "arrow.up.circle")
+                if final_ > 0 {
+                    StatCard(title: "End Stability", value: String(format: "%.0f%%", final_ * 100), icon: "arrow.down.circle")
+                }
+                if degradation > 0 {
+                    StatCard(title: "Fatigue Rate", value: String(format: "%.2f/min", degradation), icon: "chart.line.downtrend.xyaxis")
+                }
+                if tremor > 0 {
+                    StatCard(title: "Tremor", value: String(format: "%.0f%%", tremor * 100), icon: "hand.raised.slash")
+                }
+                if drift > 0 {
+                    StatCard(title: "Postural Drift", value: String(format: "%.0f%%", drift * 100), icon: "arrow.left.arrow.right")
+                }
+            }
+
+            if significantFatigue {
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundStyle(.orange)
+                    Text("Fatigue detected — consider shorter sessions or more breaks")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
     }
 
     // MARK: - Extracted Sections
