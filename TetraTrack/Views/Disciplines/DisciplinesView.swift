@@ -197,6 +197,16 @@ struct DisciplinesView: View {
             : [GridItem(.flexible())]
 
         return LazyVGrid(columns: columns, spacing: Spacing.md) {
+            NavigationLink(destination: SessionHistoryView()) {
+                DisciplineCard(
+                    title: "Training History",
+                    subtitle: "Sessions and session insights",
+                    icon: "clock.arrow.circlepath",
+                    color: AppColors.neutralGray
+                )
+            }
+            .buttonStyle(.plain)
+
             NavigationLink(destination: TrainingLoadDashboardView()) {
                 DisciplineCard(
                     title: "Training Load",
