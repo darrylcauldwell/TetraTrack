@@ -56,6 +56,9 @@ struct MovementDNAView: View {
             NavigationStack {
                 DrillImpactChartView()
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
             ensureProfileExists()

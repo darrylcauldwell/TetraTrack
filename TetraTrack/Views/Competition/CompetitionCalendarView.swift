@@ -263,6 +263,8 @@ struct CompetitionCalendarView: View {
                 selectedLevel: $selectedLevel
             )
             .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
     }
 
@@ -332,6 +334,8 @@ struct CompetitionCalendarView: View {
                         selectedLevel: $selectedLevel
                     )
                     .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(.ultraThinMaterial)
                 }
                 .sheetBackground()
         }

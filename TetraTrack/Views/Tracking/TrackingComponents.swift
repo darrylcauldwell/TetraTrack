@@ -349,13 +349,18 @@ struct DisciplineSetupSheet: View {
             NavigationStack {
                 AudioCoachingView()
             }
-            .sheetBackground()
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
         .sheet(isPresented: $showingExerciseLibrary) {
             FlatworkLibraryView { exercise in
                 selectedExercise = exercise
                 showingExerciseLibrary = false
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
         .fullScreenCover(isPresented: $showingCountdown) {
             CountdownOverlay(
@@ -541,8 +546,10 @@ struct FlatworkSetupView: View {
                         }
                     }
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
         }
-        .sheetBackground()
     }
 
     // MARK: - Flatwork Content

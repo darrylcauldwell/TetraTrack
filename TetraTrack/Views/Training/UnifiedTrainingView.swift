@@ -87,11 +87,17 @@ struct UnifiedTrainingView: View {
                 NavigationStack {
                     UnifiedCoachingDashboardView()
                 }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.ultraThinMaterial)
             }
             .sheet(isPresented: $showDrillHistory) {
                 NavigationStack {
                     UnifiedDrillHistoryView()
                 }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.ultraThinMaterial)
             }
             .sheet(isPresented: $showTrainingWeek) {
                 NavigationStack {
