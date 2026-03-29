@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HealthKit
 import SwiftData
 import Observation
 
@@ -806,6 +807,328 @@ final class SkillDomainService {
         guard firstAvg > 0 else { return 70 }
         let dropoffPercent = (firstAvg - secondAvg) / firstAvg * 100
         return max(0, 100 - dropoffPercent * 2)
+    }
+
+    // MARK: - HealthKit Workout Score Computation
+
+    /// Compute domain scores from a HealthKit workout enrichment
+    func computeScores(
+        from workout: ExternalWorkout,
+        enrichment: WorkoutEnrichment,
+        activityType: HKWorkoutActivityType
+    ) -> [SkillDomainScore] {
+        switch activityType {
+        case .running, .hiking:
+            return computeRunningEnrichmentScores(workout: workout, enrichment: enrichment)
+        case .walking:
+            return computeWalkingEnrichmentScores(workout: workout, enrichment: enrichment)
+        case .swimming:
+            return computeSwimmingEnrichmentScores(workout: workout, enrichment: enrichment)
+        case .cycling:
+            return computeCyclingEnrichmentScores(workout: workout, enrichment: enrichment)
+        default:
+            return computeGeneralEnrichmentScores(workout: workout, enrichment: enrichment)
+        }
+    }
+
+    // MARK: - Running Enrichment Scores
+
+    private func computeRunningEnrichmentScores(workout: ExternalWorkout, enrichment: WorkoutEnrichment) -> [SkillDomainScore] {
+        var scores: [SkillDomainScore] = []
+        let metrics = enrichment.runningMetrics
+
+        // RHYTHM: cadence consistency
+        if let cadence = metrics?.averageCadence, cadence > 0 {
+            // Target cadence ~180 spm; score based on proximity
+            let deviation = abs(cadence - 180) / 180 * 100
+            let score = max(0, 100 - deviation * 2)
+            scores.append(SkillDomainScore(
+                domain: .rhythm,
+                score: score,
+                confidence: 0.7,
+                discipline: .running,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["cadence": cadence]
+            ))
+        }
+
+        // STABILITY: vertical oscillation (lower = more stable)
+        if let vo = metrics?.averageVerticalOscillation, vo > 0 {
+            // Target: <8cm is excellent, >12cm needs work
+            let score = max(0, min(100, (12 - vo) / 4 * 100))
+            scores.append(SkillDomainScore(
+                domain: .stability,
+                score: score,
+                confidence: 0.8,
+                discipline: .running,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["verticalOscillation": vo]
+            ))
+        }
+
+        // SYMMETRY: ground contact time balance (lower GCT = more symmetric)
+        if let gct = metrics?.averageGroundContactTime, gct > 0 {
+            let score = max(0, min(100, (300 - gct) / 100 * 100))
+            scores.append(SkillDomainScore(
+                domain: .symmetry,
+                score: score,
+                confidence: 0.6,
+                discipline: .running,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["groundContactTime": gct]
+            ))
+        }
+
+        // ENDURANCE: duration + split consistency
+        scores.append(contentsOf: computeEnduranceFromSplits(workout: workout, enrichment: enrichment, discipline: .running))
+
+        // CALMNESS: HR consistency
+        scores.append(contentsOf: computeCalmnessFromHR(workout: workout, enrichment: enrichment, discipline: .running))
+
+        return scores
+    }
+
+    // MARK: - Walking Enrichment Scores
+
+    private func computeWalkingEnrichmentScores(workout: ExternalWorkout, enrichment: WorkoutEnrichment) -> [SkillDomainScore] {
+        var scores: [SkillDomainScore] = []
+        let metrics = enrichment.walkingMetrics
+
+        // STABILITY: walking steadiness
+        if let steadiness = metrics?.steadiness, steadiness > 0 {
+            scores.append(SkillDomainScore(
+                domain: .stability,
+                score: steadiness,
+                confidence: 0.9,
+                discipline: .walking,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["steadiness": steadiness]
+            ))
+        }
+
+        // SYMMETRY: gait asymmetry (lower = more symmetric)
+        if let asymmetry = metrics?.asymmetryPercent, asymmetry >= 0 {
+            let score = max(0, 100 - asymmetry * 5)
+            scores.append(SkillDomainScore(
+                domain: .symmetry,
+                score: score,
+                confidence: 0.9,
+                discipline: .walking,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["asymmetry": asymmetry]
+            ))
+        }
+
+        // RHYTHM: cadence consistency
+        if let cadence = metrics?.averageCadence, cadence > 0 {
+            // Walking cadence: 100-130 spm is typical; consistency matters more
+            let score = min(100, cadence / 1.3) // Simple normalisation
+            scores.append(SkillDomainScore(
+                domain: .rhythm,
+                score: score,
+                confidence: 0.7,
+                discipline: .walking,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["cadence": cadence]
+            ))
+        }
+
+        // BALANCE: double support percentage (lower = better balance)
+        if let doubleSupport = metrics?.doubleSupportPercent, doubleSupport > 0 {
+            // Normal: 20-30%. Lower = better single-leg balance
+            let score = max(0, min(100, (35 - doubleSupport) / 15 * 100))
+            scores.append(SkillDomainScore(
+                domain: .balance,
+                score: score,
+                confidence: 0.8,
+                discipline: .walking,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["doubleSupportPercent": doubleSupport]
+            ))
+        }
+
+        // ENDURANCE + CALMNESS from common metrics
+        scores.append(contentsOf: computeEnduranceFromSplits(workout: workout, enrichment: enrichment, discipline: .walking))
+        scores.append(contentsOf: computeCalmnessFromHR(workout: workout, enrichment: enrichment, discipline: .walking))
+
+        return scores
+    }
+
+    // MARK: - Swimming Enrichment Scores
+
+    private func computeSwimmingEnrichmentScores(workout: ExternalWorkout, enrichment: WorkoutEnrichment) -> [SkillDomainScore] {
+        var scores: [SkillDomainScore] = []
+        let metrics = enrichment.swimmingMetrics
+
+        // RHYTHM: SWOLF consistency across laps
+        if let swolf = metrics?.averageSWOLF, swolf > 0 {
+            // Lower SWOLF = better efficiency; 40-60 is good pool
+            let score = max(0, min(100, (80 - swolf) / 40 * 100))
+            scores.append(SkillDomainScore(
+                domain: .rhythm,
+                score: score,
+                confidence: 0.8,
+                discipline: .swimming,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["averageSWOLF": swolf]
+            ))
+        }
+
+        // SYMMETRY: stroke count consistency across laps
+        if let laps = metrics?.laps, laps.count >= 3 {
+            let strokeCounts = laps.compactMap(\.strokeCount).map { Double($0) }
+            if strokeCounts.count >= 3 {
+                let mean = strokeCounts.reduce(0, +) / Double(strokeCounts.count)
+                let variance = strokeCounts.reduce(0) { $0 + pow($1 - mean, 2) } / Double(strokeCounts.count)
+                let cv = mean > 0 ? sqrt(variance) / mean : 0
+                let score = max(0, 100 - cv * 500)
+                scores.append(SkillDomainScore(
+                    domain: .symmetry,
+                    score: score,
+                    confidence: 0.7,
+                    discipline: .swimming,
+                    sourceSessionId: workout.id,
+                    contributingMetrics: ["strokeCV": cv, "meanStrokes": mean]
+                ))
+            }
+        }
+
+        // ENDURANCE: lap time consistency (negative split = good)
+        if let laps = metrics?.laps, laps.count >= 4 {
+            let halfPoint = laps.count / 2
+            let firstHalfAvg = laps[0..<halfPoint].map(\.duration).reduce(0, +) / Double(halfPoint)
+            let secondHalfAvg = laps[halfPoint...].map(\.duration).reduce(0, +) / Double(laps.count - halfPoint)
+            let score = secondHalfAvg <= firstHalfAvg ? 90.0 : max(0, 100 - (secondHalfAvg - firstHalfAvg) / firstHalfAvg * 200)
+            scores.append(SkillDomainScore(
+                domain: .endurance,
+                score: score,
+                confidence: 0.8,
+                discipline: .swimming,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["firstHalfAvg": firstHalfAvg, "secondHalfAvg": secondHalfAvg]
+            ))
+        }
+
+        // CALMNESS from HR
+        scores.append(contentsOf: computeCalmnessFromHR(workout: workout, enrichment: enrichment, discipline: .swimming))
+
+        return scores
+    }
+
+    // MARK: - Cycling Enrichment Scores
+
+    private func computeCyclingEnrichmentScores(workout: ExternalWorkout, enrichment: WorkoutEnrichment) -> [SkillDomainScore] {
+        var scores: [SkillDomainScore] = []
+        let metrics = enrichment.cyclingMetrics
+
+        // RHYTHM: cadence consistency (~90 rpm target)
+        if let cadence = metrics?.averageCadence, cadence > 0 {
+            let deviation = abs(cadence - 90) / 90 * 100
+            let score = max(0, 100 - deviation * 2)
+            scores.append(SkillDomainScore(
+                domain: .rhythm,
+                score: score,
+                confidence: 0.7,
+                discipline: .running, // Cycling maps to running discipline for cross-training
+                sourceSessionId: workout.id,
+                contributingMetrics: ["cadence": cadence]
+            ))
+        }
+
+        // ENDURANCE + CALMNESS from common metrics
+        scores.append(contentsOf: computeEnduranceFromSplits(workout: workout, enrichment: enrichment, discipline: .running))
+        scores.append(contentsOf: computeCalmnessFromHR(workout: workout, enrichment: enrichment, discipline: .running))
+
+        return scores
+    }
+
+    // MARK: - General Workout Scores (yoga, HIIT, strength, etc.)
+
+    private func computeGeneralEnrichmentScores(workout: ExternalWorkout, enrichment: WorkoutEnrichment) -> [SkillDomainScore] {
+        var scores: [SkillDomainScore] = []
+
+        // ENDURANCE: duration-based
+        let duration = workout.duration
+        if duration > 0 {
+            let score = min(100, duration / 3600 * 100) // 1 hour = 100
+            scores.append(SkillDomainScore(
+                domain: .endurance,
+                score: score,
+                confidence: 0.5,
+                discipline: .running,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["duration": duration]
+            ))
+        }
+
+        // CALMNESS from HR
+        scores.append(contentsOf: computeCalmnessFromHR(workout: workout, enrichment: enrichment, discipline: .running))
+
+        return scores
+    }
+
+    // MARK: - Common Enrichment Helpers
+
+    private func computeEnduranceFromSplits(workout: ExternalWorkout, enrichment: WorkoutEnrichment, discipline: TrainingDiscipline) -> [SkillDomainScore] {
+        guard enrichment.splits.count >= 3 else {
+            // Fallback: duration-based
+            let duration = workout.duration
+            guard duration > 0 else { return [] }
+            let score = min(100, duration / 3600 * 100)
+            return [SkillDomainScore(
+                domain: .endurance,
+                score: score,
+                confidence: 0.5,
+                discipline: discipline,
+                sourceSessionId: workout.id,
+                contributingMetrics: ["duration": duration]
+            )]
+        }
+
+        // Negative split assessment
+        let halfPoint = enrichment.splits.count / 2
+        let firstHalfAvg = enrichment.splits[0..<halfPoint].map(\.pace).reduce(0, +) / Double(halfPoint)
+        let secondHalfAvg = enrichment.splits[halfPoint...].map(\.pace).reduce(0, +) / Double(enrichment.splits.count - halfPoint)
+
+        // Negative split (faster second half) = great endurance
+        let score: Double
+        if secondHalfAvg <= firstHalfAvg {
+            score = 90
+        } else {
+            let dropoff = (secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100
+            score = max(0, 100 - dropoff * 3)
+        }
+
+        return [SkillDomainScore(
+            domain: .endurance,
+            score: score,
+            confidence: 0.7,
+            discipline: discipline,
+            sourceSessionId: workout.id,
+            contributingMetrics: ["splitConsistency": firstHalfAvg / max(1, secondHalfAvg)]
+        )]
+    }
+
+    private func computeCalmnessFromHR(workout: ExternalWorkout, enrichment: WorkoutEnrichment, discipline: TrainingDiscipline) -> [SkillDomainScore] {
+        guard let general = enrichment.generalMetrics,
+              let avgHR = general.averageHeartRate, let maxHR = general.maxHeartRate,
+              avgHR > 0 && maxHR > 0 else { return [] }
+
+        // Lower HR range relative to max = calmer, more controlled effort
+        let hrRange = maxHR - (general.minHeartRate ?? avgHR)
+        let rangePercent = hrRange / maxHR * 100
+
+        // Low variability in steady-state = calm
+        let score = Swift.max(0, Swift.min(100, 100 - rangePercent * 1.5))
+
+        return [SkillDomainScore(
+            domain: .calmness,
+            score: score,
+            confidence: 0.6,
+            discipline: discipline,
+            sourceSessionId: workout.id,
+            contributingMetrics: ["averageHR": avgHR, "maxHR": maxHR, "hrRange": hrRange]
+        )]
     }
 
 }

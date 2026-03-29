@@ -17,8 +17,11 @@ struct EnrichedWorkoutDetailView: View {
 
     @State private var enrichment: WorkoutEnrichment?
     @State private var insights: [WorkoutInsight] = []
+    @State private var domainScores: [SkillDomainScore] = []
     @State private var photos: [PHAsset] = []
     @State private var isLoading = true
+
+    private let skillDomainService = SkillDomainService()
 
     private let photoService = RidePhotoService.shared
 
@@ -30,6 +33,11 @@ struct EnrichedWorkoutDetailView: View {
 
                 if !insights.isEmpty {
                     insightsSection
+                }
+
+                // Skill Domain Scores
+                if !domainScores.isEmpty {
+                    skillDomainSection
                 }
 
                 if isLoading {
@@ -616,6 +624,86 @@ struct EnrichedWorkoutDetailView: View {
         }
     }
 
+    // MARK: - Skill Domains
+
+    private var skillDomainSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Skill Domains")
+                .font(.headline)
+
+            ForEach(domainScores.sorted(by: { $0.score > $1.score })) { score in
+                HStack(spacing: 12) {
+                    Image(systemName: score.domain.icon)
+                        .font(.body)
+                        .foregroundStyle(score.domain.colorValue)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(score.domain.displayName)
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Text(String(format: "%.0f", score.score))
+                                .font(.subheadline.bold().monospacedDigit())
+                                .foregroundStyle(score.domain.colorValue)
+                        }
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color.gray.opacity(0.15))
+                                    .frame(height: 6)
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(score.domain.colorValue)
+                                    .frame(width: geo.size.width * score.score / 100, height: 6)
+                            }
+                        }
+                        .frame(height: 6)
+
+                        // Show contributing metric
+                        if let topMetric = score.contributingMetrics.sorted(by: { $0.key < $1.key }).first {
+                            Text(domainExplanation(domain: score.domain, metric: topMetric.key, value: topMetric.value))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(score.domain.colorValue.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    private func domainExplanation(domain: SkillDomain, metric: String, value: Double) -> String {
+        switch (domain, metric) {
+        case (.stability, "verticalOscillation"):
+            return String(format: "%.1f cm vertical oscillation — %@", value, value < 8 ? "efficient form" : "try to reduce bounce")
+        case (.stability, "steadiness"):
+            return String(format: "%.0f%% walking steadiness", value)
+        case (.symmetry, "asymmetry"):
+            return String(format: "%.1f%% gait asymmetry — %@", value, value < 5 ? "well balanced" : "consider physio check")
+        case (.symmetry, "groundContactTime"):
+            return String(format: "%.0f ms ground contact time", value)
+        case (.symmetry, "cadenceCV"):
+            return String(format: "Cadence variability: %.2f — %@", value, value < 0.05 ? "very consistent" : "work on consistency")
+        case (.rhythm, "cadence"):
+            return String(format: "%.0f spm — %@", value, value > 170 ? "good turnover" : "try increasing cadence")
+        case (.rhythm, "averageSWOLF"):
+            return String(format: "SWOLF %.0f — %@", value, value < 50 ? "efficient" : "work on stroke economy")
+        case (.endurance, "duration"):
+            return String(format: "%.0f min session", value / 60)
+        case (.endurance, "splitConsistency"):
+            return value >= 1.0 ? "Negative split — strong finish!" : "Pace dropped in second half"
+        case (.calmness, "hrRange"):
+            return String(format: "%.0f bpm HR range — %@", value, value < 40 ? "steady, controlled effort" : "variable intensity")
+        case (.balance, "doubleSupportPercent"):
+            return String(format: "%.1f%% double support — %@", value, value < 25 ? "excellent balance" : "above average")
+        default:
+            return String(format: "%@: %.1f", metric, value)
+        }
+    }
+
     // MARK: - Insights
 
     private var insightsSection: some View {
@@ -759,11 +847,17 @@ struct EnrichedWorkoutDetailView: View {
         enrichment = await enrichTask
         photos = await photosTask
 
-        // Generate insights after enrichment is loaded
+        // Generate insights and domain scores after enrichment is loaded
         if let enrichment {
             insights = await WorkoutInsightsGenerator.shared.generateInsights(
                 for: workout,
                 enrichment: enrichment
+            )
+
+            domainScores = skillDomainService.computeScores(
+                from: workout,
+                enrichment: enrichment,
+                activityType: workout.activityType
             )
         }
     }
