@@ -655,7 +655,8 @@ struct EnrichedWorkoutDetailView: View {
     }
 
     private func heartRateZoneSummaryStats(_ metrics: WorkoutEnrichment.GeneralMetrics) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            // HR Summary
             Text("Heart Rate")
                 .font(.headline)
 
@@ -670,6 +671,49 @@ struct EnrichedWorkoutDetailView: View {
 
                 if let max = metrics.maxHeartRate {
                     metricCard(title: "Max", value: "\(Int(max)) bpm", icon: "heart.bolt.fill")
+                }
+
+                if let recovery = metrics.heartRateRecovery, recovery > 0 {
+                    metricCard(title: "Recovery", value: String(format: "%.0f bpm drop", recovery), icon: "heart.circle")
+                }
+
+                if let restingHR = metrics.restingHeartRate {
+                    metricCard(title: "Resting HR", value: "\(Int(restingHR)) bpm", icon: "bed.double.fill")
+                }
+            }
+
+            // Fitness Indicators (if any available)
+            let hasFitnessData = metrics.vo2Max != nil || metrics.hrvSDNN != nil || metrics.activeCalories != nil || metrics.flightsClimbed != nil || metrics.averageBreathingRate != nil || metrics.averageSpO2 != nil
+
+            if hasFitnessData {
+                Text("Physiology")
+                    .font(.headline)
+                    .padding(.top, 4)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    if let vo2 = metrics.vo2Max {
+                        metricCard(title: "VO\u{2082} Max", value: String(format: "%.1f", vo2), icon: "lungs.fill")
+                    }
+
+                    if let hrv = metrics.hrvSDNN {
+                        metricCard(title: "HRV", value: String(format: "%.0f ms", hrv), icon: "waveform.path.ecg")
+                    }
+
+                    if let breathing = metrics.averageBreathingRate {
+                        metricCard(title: "Breathing", value: String(format: "%.0f bpm", breathing), icon: "wind")
+                    }
+
+                    if let spo2 = metrics.averageSpO2 {
+                        metricCard(title: "SpO\u{2082}", value: String(format: "%.0f%%", spo2), icon: "drop.fill")
+                    }
+
+                    if let cal = metrics.activeCalories {
+                        metricCard(title: "Calories", value: String(format: "%.0f kcal", cal), icon: "flame.fill")
+                    }
+
+                    if let flights = metrics.flightsClimbed, flights > 0 {
+                        metricCard(title: "Flights", value: String(format: "%.0f", flights), icon: "figure.stairs")
+                    }
                 }
             }
         }

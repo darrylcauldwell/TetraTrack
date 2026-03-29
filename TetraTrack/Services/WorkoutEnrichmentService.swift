@@ -95,6 +95,10 @@ struct WorkoutEnrichment: Sendable {
         var averageSpO2: Double?         // percentage (0-100)
         var endFatigueScore: Double?     // 0-100
         var postureStability: Double?    // 0-100
+        var vo2Max: Double?              // mL/kg/min
+        var hrvSDNN: Double?             // ms (heart rate variability)
+        var restingHeartRate: Double?    // bpm
+        var flightsClimbed: Double?      // count
     }
 }
 
@@ -125,20 +129,37 @@ final class WorkoutEnrichmentService {
             enrichment.elevationLoss = loss
         }
 
-        // Respiration rate and SpO2 — fetch for all workout types
+        // Respiration, SpO2, and fitness indicators — fetch for all workout types
         let commonPredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         async let respirationTask = fetchAverageQuantity(.respiratoryRate, predicate: commonPredicate, unit: HKUnit.count().unitDivided(by: .minute()))
         async let spo2Task = fetchAverageQuantity(.oxygenSaturation, predicate: commonPredicate, unit: .percent())
+        async let caloriesTask = fetchSumQuantity(.activeEnergyBurned, predicate: commonPredicate, unit: .kilocalorie())
+        async let flightsTask = fetchSumQuantity(.flightsClimbed, predicate: commonPredicate, unit: .count())
+
+        // VO2 Max, HRV, resting HR — query most recent value near workout date (daily metrics)
+        async let vo2Task = fetchMostRecentQuantity(.vo2Max, before: endDate, unit: HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .minute())))
+        async let hrvTask = fetchMostRecentQuantity(.heartRateVariabilitySDNN, before: endDate, unit: .secondUnit(with: .milli))
+        async let restingHRTask = fetchMostRecentQuantity(.restingHeartRate, before: endDate, unit: HKUnit.count().unitDivided(by: .minute()))
 
         let respirationRate = await respirationTask
         let spo2Value = await spo2Task
+        let activeCalories = await caloriesTask
+        let flights = await flightsTask
+        let vo2Max = await vo2Task
+        let hrv = await hrvTask
+        let restingHR = await restingHRTask
 
-        // General metrics (HR stats + respiration + SpO2 + HR recovery) — useful for all workout types
+        // General metrics (HR stats + respiration + SpO2 + fitness indicators + HR recovery)
         enrichment.generalMetrics = deriveGeneralMetrics(
             from: enrichment.heartRateSamples,
             endDate: endDate,
             respirationRate: respirationRate,
-            spo2: spo2Value
+            spo2: spo2Value,
+            activeCalories: activeCalories,
+            vo2Max: vo2Max,
+            hrv: hrv,
+            restingHR: restingHR,
+            flights: flights
         )
 
         // Activity-specific metrics
@@ -562,25 +583,62 @@ final class WorkoutEnrichmentService {
         from samples: [WorkoutEnrichment.HeartRateSamplePoint],
         endDate: Date,
         respirationRate: Double?,
-        spo2: Double?
+        spo2: Double?,
+        activeCalories: Double? = nil,
+        vo2Max: Double? = nil,
+        hrv: Double? = nil,
+        restingHR: Double? = nil,
+        flights: Double? = nil
     ) -> WorkoutEnrichment.GeneralMetrics? {
-        guard !samples.isEmpty else { return nil }
-
+        // Allow metrics even without HR samples (VO2, HRV, etc. are independent)
         let bpms = samples.map(\.bpm)
 
-        // HR Recovery: find the last HR sample near workout end, then look for
-        // a sample ~60 seconds later. The drop is the recovery value.
-        let heartRateRecovery = deriveHeartRateRecovery(from: samples, workoutEndDate: endDate)
+        let heartRateRecovery = samples.isEmpty ? nil : deriveHeartRateRecovery(from: samples, workoutEndDate: endDate)
 
-        return WorkoutEnrichment.GeneralMetrics(
-            averageHeartRate: bpms.reduce(0, +) / Double(bpms.count),
+        var metrics = WorkoutEnrichment.GeneralMetrics(
+            averageHeartRate: bpms.isEmpty ? nil : bpms.reduce(0, +) / Double(bpms.count),
             maxHeartRate: bpms.max(),
             minHeartRate: bpms.min(),
-            activeCalories: nil,
+            activeCalories: activeCalories,
             heartRateRecovery: heartRateRecovery,
             averageBreathingRate: respirationRate,
             averageSpO2: spo2.map { $0 * 100 } // Convert 0-1 fraction to percentage
         )
+        metrics.vo2Max = vo2Max
+        metrics.hrvSDNN = hrv
+        metrics.restingHeartRate = restingHR
+        metrics.flightsClimbed = flights
+
+        // Return nil only if absolutely no data
+        if metrics.averageHeartRate == nil && vo2Max == nil && hrv == nil && restingHR == nil && respirationRate == nil {
+            return nil
+        }
+        return metrics
+    }
+
+    /// Fetch the most recent value of a quantity type before a given date (for daily metrics like VO2 Max, HRV)
+    private func fetchMostRecentQuantity(
+        _ typeIdentifier: HKQuantityTypeIdentifier,
+        before date: Date,
+        unit: HKUnit
+    ) async -> Double? {
+        let quantityType = HKQuantityType(typeIdentifier)
+        // Look back up to 7 days for the most recent value
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: date) ?? date
+        let predicate = HKQuery.predicateForSamples(withStart: weekAgo, end: date, options: .strictEndDate)
+
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: quantityType, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)],
+            limit: 1
+        )
+
+        do {
+            let samples = try await descriptor.result(for: healthStore)
+            return samples.first?.quantity.doubleValue(for: unit)
+        } catch {
+            return nil
+        }
     }
 
     /// Compute HR recovery: BPM drop from last workout HR to HR 60s post-workout.
