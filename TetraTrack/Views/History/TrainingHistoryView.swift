@@ -143,11 +143,6 @@ struct SessionHistoryView: View {
                     Button("Close") { dismissAction() }
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
-                if selectedTab == .sessions && selectedDiscipline != .shooting && !allSessions.isEmpty {
-                    EditButton()
-                }
-            }
         }
         .onAppear {
             // Apply initial values if provided

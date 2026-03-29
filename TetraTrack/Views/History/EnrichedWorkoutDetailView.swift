@@ -60,7 +60,7 @@ struct EnrichedWorkoutDetailView: View {
                 .padding()
             }
         }
-        .navigationTitle(workout.activityName)
+        .navigationTitle(workout.name ?? workout.activityName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadData()
@@ -71,6 +71,18 @@ struct EnrichedWorkoutDetailView: View {
 
     private var sessionTabContent: some View {
         VStack(spacing: 20) {
+            // Session name and date
+            if let name = workout.name, !name.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(name)
+                        .font(.title3.bold())
+                    Text(formattedDate)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             if isLoading {
                 summaryStats
 

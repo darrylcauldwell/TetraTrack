@@ -168,6 +168,11 @@ struct RideDetailView: View {
 
     private var iPhoneLayout: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // Session name (editable)
+            TextField("Session Name", text: $ride.name)
+                .font(.title3.bold())
+                .textFieldStyle(.plain)
+
             // 1. Route map
             mapSection
                 .frame(height: 300)

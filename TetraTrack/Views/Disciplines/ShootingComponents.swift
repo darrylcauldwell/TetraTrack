@@ -433,6 +433,11 @@ struct ShootingSessionDetailView: View {
 
     private var sessionContent: some View {
         VStack(spacing: 20) {
+            // Session name (editable)
+            TextField("Session Name", text: $session.name)
+                .font(.title3.bold())
+                .textFieldStyle(.plain)
+
             // Score summary
             VStack(spacing: 8) {
                 Text("\(session.totalScore)")

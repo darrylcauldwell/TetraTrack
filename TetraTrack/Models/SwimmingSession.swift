@@ -641,6 +641,7 @@ extension SwimmingSession {
             totalEnergyBurned: nil,
             averageHeartRate: averageHeartRate > 0 ? Double(averageHeartRate) : nil,
             hasRoute: hasRouteData,
+            name: name.isEmpty ? nil : name,
             notes: notes.isEmpty ? nil : notes
         )
     }
