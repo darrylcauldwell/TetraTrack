@@ -456,29 +456,21 @@ struct CompetitionDetailView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header — compact
-                    HStack(spacing: 12) {
-                        Image(systemName: competition.competitionType.icon)
-                            .font(.title2)
-                            .foregroundStyle(AppColors.primary)
-                            .frame(width: 40)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            if !competition.name.isEmpty {
-                                Text(competition.name)
-                                    .font(.title3.bold())
-                            }
-
-                            HStack(spacing: 4) {
-                                Text(competition.competitionType.rawValue)
-                                Text("·")
-                                Text(competition.level.rawValue)
-                            }
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !competition.name.isEmpty {
+                            Text(competition.name)
+                                .font(.title3.bold())
                         }
 
-                        Spacer()
+                        HStack(spacing: 4) {
+                            Text(competition.competitionType.rawValue)
+                            Text("·")
+                            Text(competition.level.rawValue)
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
 
                     // Countdown or status
