@@ -454,9 +454,9 @@ extension View {
         modifier(GlassNavigationStyle())
     }
 
-    /// Standard dark background for sheet presentations
+    /// Standard adaptive background for sheet presentations
     func sheetBackground() -> some View {
-        presentationBackground(Color.black)
+        presentationBackground(Color(.systemBackground))
     }
 }
 
