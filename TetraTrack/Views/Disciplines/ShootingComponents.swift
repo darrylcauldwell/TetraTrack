@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Charts
 import WidgetKit
 
 // MARK: - Shooting Watch Status Card
@@ -372,470 +373,31 @@ struct ShootingSessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: ShootingSession
 
+    @State private var selectedTab: ShootingDetailTab = .session
+
+    enum ShootingDetailTab: String, CaseIterable {
+        case session = "Session"
+        case insights = "Insights"
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Score summary
-                    VStack(spacing: 8) {
-                        Text("\(session.totalScore)")
-                            .scaledFont(size: 60, weight: .bold, relativeTo: .largeTitle)
-                            .foregroundStyle(AppColors.primary)
-
-                        Text("out of \(session.maxPossibleScore)")
-                            .foregroundStyle(.secondary)
-
-                        Text(String(format: "%.1f%%", session.scorePercentage))
-                            .font(.title3)
+            VStack(spacing: 0) {
+                Picker("", selection: $selectedTab) {
+                    ForEach(ShootingDetailTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
                     }
-                    .padding()
-
-                    // Stats grid
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        MiniStatCard(title: "X's", value: "\(session.xCount)")
-                        MiniStatCard(title: "10's", value: "\(session.tensCount)")
-                        MiniStatCard(title: "Avg/Arrow", value: String(format: "%.1f", session.averageScorePerArrow))
-                    }
-                    .padding(.horizontal)
-
-                    // Stance & Tremor data (from Watch)
-                    if session.averageStanceStability > 0 || session.averageTremorLevel > 0 {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "figure.stand")
-                                    .foregroundStyle(.cyan)
-                                Text("Stance Analysis")
-                                    .font(.headline)
-                            }
-                            .padding(.horizontal)
-
-                            HStack(spacing: 24) {
-                                CircularGaugeView(
-                                    value: session.averageStanceStability,
-                                    maxValue: 100,
-                                    title: "Stability",
-                                    subtitle: stanceStabilityLabel,
-                                    color: stanceStabilityColor
-                                )
-
-                                CircularGaugeView(
-                                    value: session.averageTremorLevel,
-                                    maxValue: 100,
-                                    title: "Tremor",
-                                    subtitle: tremorLevelLabel,
-                                    color: tremorLevelColor
-                                )
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-
-                            // Coach insight
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "lightbulb.fill")
-                                    .foregroundStyle(.yellow)
-                                    .font(.caption)
-                                Text(stanceCoachInsight)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Session Insights link
-                    if session.overallBiomechanicalScore > 0 {
-                        NavigationLink(destination: ShootingGRACEInsightsView(session: session)) {
-                            HStack {
-                                Image(systemName: "chart.bar.xaxis.ascending")
-                                    .font(.title3)
-                                    .foregroundStyle(.purple)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Session Insights")
-                                        .font(.headline)
-                                    Text("Stability · Rhythm · Symmetry · Economy")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Text(String(format: "%.0f", session.overallBiomechanicalScore))
-                                    .font(.title2.bold())
-                                    .foregroundStyle(graceScoreColor(session.overallBiomechanicalScore))
-
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding()
-                            .background(AppColors.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal)
-                    } else {
-                        // Prompt to use Watch for Session Insights
-                        HStack(spacing: 12) {
-                            Image(systemName: "applewatch.radiowaves.left.and.right")
-                                .font(.title3)
-                                .foregroundStyle(.purple.opacity(0.6))
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Session Insights")
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                Text("Start your next session from the Apple Watch to unlock shot-by-shot sensor analysis")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-
-                            Spacer()
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground.opacity(0.6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Heart Rate (from HealthKit post-session)
-                    if session.averageHeartRate > 0 {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "heart.fill")
-                                    .foregroundStyle(.red)
-                                Text("Heart Rate")
-                                    .font(.headline)
-                            }
-                            .padding(.horizontal)
-
-                            HStack(spacing: 24) {
-                                VStack(spacing: 4) {
-                                    Text("\(session.averageHeartRate)")
-                                        .font(.title2.bold())
-                                    Text("Avg bpm")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-
-                                if session.maxHeartRate > 0 {
-                                    VStack(spacing: 4) {
-                                        Text("\(session.maxHeartRate)")
-                                            .font(.title2.bold())
-                                        Text("Max bpm")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                }
-
-                                if session.minHeartRate > 0 {
-                                    VStack(spacing: 4) {
-                                        Text("\(session.minHeartRate)")
-                                            .font(.title2.bold())
-                                        Text("Min bpm")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Weather
-                    if session.hasWeatherData {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "cloud.sun")
-                                Text("Weather")
-                                    .font(.headline)
-                            }
-
-                            if let startWeather = session.startWeather {
-                                WeatherDetailView(weather: startWeather, title: "Start Conditions")
-                            }
-
-                            if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
-                                WeatherChangeSummaryView(stats: session.weatherStats)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Ends breakdown
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Ends")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        ForEach(session.sortedEnds) { end in
-                            EndRow(end: end)
-                        }
-                    }
-
-                    // Session configuration
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "gearshape")
-                                .foregroundStyle(.blue)
-                            Text("Session Configuration")
-                                .font(.headline)
-                        }
-
-                        HStack {
-                            Text("Target")
-                            Spacer()
-                            Text(session.targetType.rawValue)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack {
-                            Text("Distance")
-                            Spacer()
-                            Text(session.formattedDistance)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack {
-                            Text("Ends")
-                            Spacer()
-                            Text("\(session.numberOfEnds)")
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack {
-                            Text("Shots per End")
-                            Spacer()
-                            Text("\(session.arrowsPerEnd)")
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack {
-                            Text("Duration")
-                            Spacer()
-                            Text(session.formattedDuration)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding()
-                    .background(AppColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
-
-                    // Environmental data (manual fields)
-                    if session.temperature != nil || session.humidity != nil || session.windSpeed != nil {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "thermometer.medium")
-                                    .foregroundStyle(.orange)
-                                Text("Environmental Conditions")
-                                    .font(.headline)
-                            }
-
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                if let temp = session.temperature {
-                                    MiniStatCard(title: "Temperature", value: String(format: "%.0f\u{00B0}C", temp))
-                                }
-                                if let humidity = session.humidity {
-                                    MiniStatCard(title: "Humidity", value: String(format: "%.0f%%", humidity))
-                                }
-                                if let wind = session.windSpeed {
-                                    MiniStatCard(title: "Wind Speed", value: String(format: "%.1f m/s", wind))
-                                }
-                                if let direction = session.windDirection {
-                                    MiniStatCard(title: "Wind Direction", value: direction.rawValue)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Fatigue trend
-                    if session.firstHalfSteadiness > 0 && session.secondHalfSteadiness > 0 {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "chart.line.downtrend.xyaxis")
-                                    .foregroundStyle(.purple)
-                                Text("Fatigue Trend")
-                                    .font(.headline)
-                            }
-
-                            HStack(spacing: 16) {
-                                VStack(spacing: 4) {
-                                    Text(String(format: "%.0f%%", session.firstHalfSteadiness))
-                                        .font(.title2.bold())
-                                        .foregroundStyle(.green)
-                                    Text("1st Half")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text("Steadiness")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .frame(maxWidth: .infinity)
-
-                                Image(systemName: "arrow.right")
-                                    .foregroundStyle(.secondary)
-
-                                VStack(spacing: 4) {
-                                    Text(String(format: "%.0f%%", session.secondHalfSteadiness))
-                                        .font(.title2.bold())
-                                        .foregroundStyle(session.secondHalfSteadiness >= session.firstHalfSteadiness ? .green : .orange)
-                                    Text("2nd Half")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text("Steadiness")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                            .padding(.vertical, 4)
-
-                            if session.steadinessDegradation != 0 {
-                                let degradation = session.steadinessDegradation
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: degradation > 5 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                                        .foregroundStyle(degradation > 5 ? .orange : .green)
-                                        .font(.caption)
-                                    Text(fatigueTrendInsight)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Shot Timing Consistency
-                    if session.averageHoldDuration > 0 || session.shotTimingConsistencyCV > 0 || session.averageHoldSteadiness > 0 {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "timer")
-                                    .foregroundStyle(.cyan)
-                                Text("Shot Timing")
-                                    .font(.headline)
-                            }
-
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                if session.averageHoldDuration > 0 {
-                                    MiniStatCard(title: "Avg Hold", value: String(format: "%.1fs", session.averageHoldDuration))
-                                }
-                                if session.shotTimingConsistencyCV > 0 {
-                                    MiniStatCard(title: "Consistency CV", value: String(format: "%.2f", session.shotTimingConsistencyCV))
-                                }
-                                if session.averageHoldSteadiness > 0 {
-                                    MiniStatCard(title: "Avg Steadiness", value: String(format: "%.0f%%", session.averageHoldSteadiness))
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Physiology
-                    if hasPhysiologyData {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "waveform.path.ecg")
-                                    .foregroundStyle(.pink)
-                                Text("Physiology")
-                                    .font(.headline)
-                            }
-
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                if session.averageBreathingRate > 0 {
-                                    MiniStatCard(title: "Breathing", value: String(format: "%.0f /min", session.averageBreathingRate))
-                                }
-                                if session.averageSpO2 > 0 {
-                                    MiniStatCard(title: "SpO2", value: String(format: "%.0f%%", session.averageSpO2))
-                                }
-                                if session.minSpO2 > 0 {
-                                    MiniStatCard(title: "Min SpO2", value: String(format: "%.0f%%", session.minSpO2))
-                                }
-                                if session.postureStability > 0 {
-                                    MiniStatCard(title: "Posture", value: String(format: "%.0f%%", session.postureStability))
-                                }
-                                if session.recoveryQuality > 0 {
-                                    MiniStatCard(title: "Recovery", value: String(format: "%.0f%%", session.recoveryQuality))
-                                }
-                                if session.trainingLoadScore > 0 {
-                                    MiniStatCard(title: "Training Load", value: String(format: "%.0f", session.trainingLoadScore))
-                                }
-                                if session.goodPosturePercent > 0 {
-                                    MiniStatCard(title: "Good Posture", value: String(format: "%.0f%%", session.goodPosturePercent))
-                                }
-                                if session.activeTimePercent > 0 {
-                                    MiniStatCard(title: "Active Time", value: String(format: "%.0f%%", session.activeTimePercent))
-                                }
-                                if session.endFatigueScore > 0 {
-                                    MiniStatCard(title: "Fatigue", value: String(format: "%.0f", session.endFatigueScore))
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(AppColors.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal)
-                    }
-
-                    // Notes section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Notes")
-                                .font(.headline)
-
-                            Spacer()
-
-                            VoiceNoteToolbarButton { note in
-                                let service = VoiceNotesService.shared
-                                session.notes = service.appendNote(note, to: session.notes)
-                            }
-                        }
-
-                        if !session.notes.isEmpty {
-                            Text(session.notes)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            Button {
-                                session.notes = ""
-                            } label: {
-                                Label("Clear Notes", systemImage: "trash")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-                        } else {
-                            Text("Tap the mic to add voice notes")
-                                .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .padding()
-                    .background(AppColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
                 }
-                .padding(.vertical)
+                .pickerStyle(.segmented)
+                .padding()
+
+                ScrollView {
+                    if selectedTab == .session {
+                        sessionContent
+                    } else {
+                        insightsContent
+                    }
+                }
             }
             .navigationTitle(session.name.isEmpty ? "Session" : session.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -848,6 +410,760 @@ struct ShootingSessionDetailView: View {
                 applySensorAnalysisIfNeeded()
             }
         }
+    }
+
+    // MARK: - Session Tab
+
+    private var sessionContent: some View {
+        VStack(spacing: 20) {
+            // Score summary
+            VStack(spacing: 8) {
+                Text("\(session.totalScore)")
+                    .scaledFont(size: 60, weight: .bold, relativeTo: .largeTitle)
+                    .foregroundStyle(AppColors.primary)
+
+                Text("out of \(session.maxPossibleScore)")
+                    .foregroundStyle(.secondary)
+
+                Text(String(format: "%.1f%%", session.scorePercentage))
+                    .font(.title3)
+            }
+            .padding()
+
+            // Stats grid
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                MiniStatCard(title: "X's", value: "\(session.xCount)")
+                MiniStatCard(title: "10's", value: "\(session.tensCount)")
+                MiniStatCard(title: "Avg/Arrow", value: String(format: "%.1f", session.averageScorePerArrow))
+            }
+            .padding(.horizontal)
+
+            // Stance & Tremor data (from Watch)
+            if session.averageStanceStability > 0 || session.averageTremorLevel > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "figure.stand")
+                            .foregroundStyle(.cyan)
+                        Text("Stance Analysis")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal)
+
+                    HStack(spacing: 24) {
+                        CircularGaugeView(
+                            value: session.averageStanceStability,
+                            maxValue: 100,
+                            title: "Stability",
+                            subtitle: stanceStabilityLabel,
+                            color: stanceStabilityColor
+                        )
+
+                        CircularGaugeView(
+                            value: session.averageTremorLevel,
+                            maxValue: 100,
+                            title: "Tremor",
+                            subtitle: tremorLevelLabel,
+                            color: tremorLevelColor
+                        )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+
+                    // Coach insight
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundStyle(.yellow)
+                            .font(.caption)
+                        Text(stanceCoachInsight)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Heart Rate (from HealthKit post-session)
+            if session.averageHeartRate > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                        Text("Heart Rate")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal)
+
+                    HStack(spacing: 24) {
+                        VStack(spacing: 4) {
+                            Text("\(session.averageHeartRate)")
+                                .font(.title2.bold())
+                            Text("Avg bpm")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        if session.maxHeartRate > 0 {
+                            VStack(spacing: 4) {
+                                Text("\(session.maxHeartRate)")
+                                    .font(.title2.bold())
+                                Text("Max bpm")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+
+                        if session.minHeartRate > 0 {
+                            VStack(spacing: 4) {
+                                Text("\(session.minHeartRate)")
+                                    .font(.title2.bold())
+                                Text("Min bpm")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Weather
+            if session.hasWeatherData {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "cloud.sun")
+                        Text("Weather")
+                            .font(.headline)
+                    }
+
+                    if let startWeather = session.startWeather {
+                        WeatherDetailView(weather: startWeather, title: "Start Conditions")
+                    }
+
+                    if let endWeather = session.endWeather, session.startWeather?.condition != endWeather.condition {
+                        WeatherChangeSummaryView(stats: session.weatherStats)
+                    }
+                }
+                .padding(.horizontal)
+            }
+
+            // Ends breakdown
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Ends")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                ForEach(session.sortedEnds) { end in
+                    EndRow(end: end)
+                }
+            }
+
+            // Session configuration
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(.blue)
+                    Text("Session Configuration")
+                        .font(.headline)
+                }
+
+                HStack {
+                    Text("Target")
+                    Spacer()
+                    Text(session.targetType.rawValue)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Distance")
+                    Spacer()
+                    Text(session.formattedDistance)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Ends")
+                    Spacer()
+                    Text("\(session.numberOfEnds)")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Shots per End")
+                    Spacer()
+                    Text("\(session.arrowsPerEnd)")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Duration")
+                    Spacer()
+                    Text(session.formattedDuration)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+
+            // Environmental data (manual fields)
+            if session.temperature != nil || session.humidity != nil || session.windSpeed != nil {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "thermometer.medium")
+                            .foregroundStyle(.orange)
+                        Text("Environmental Conditions")
+                            .font(.headline)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        if let temp = session.temperature {
+                            MiniStatCard(title: "Temperature", value: String(format: "%.0f\u{00B0}C", temp))
+                        }
+                        if let humidity = session.humidity {
+                            MiniStatCard(title: "Humidity", value: String(format: "%.0f%%", humidity))
+                        }
+                        if let wind = session.windSpeed {
+                            MiniStatCard(title: "Wind Speed", value: String(format: "%.1f m/s", wind))
+                        }
+                        if let direction = session.windDirection {
+                            MiniStatCard(title: "Wind Direction", value: direction.rawValue)
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Fatigue trend
+            if session.firstHalfSteadiness > 0 && session.secondHalfSteadiness > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "chart.line.downtrend.xyaxis")
+                            .foregroundStyle(.purple)
+                        Text("Fatigue Trend")
+                            .font(.headline)
+                    }
+
+                    HStack(spacing: 16) {
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.0f%%", session.firstHalfSteadiness))
+                                .font(.title2.bold())
+                                .foregroundStyle(.green)
+                            Text("1st Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Steadiness")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Image(systemName: "arrow.right")
+                            .foregroundStyle(.secondary)
+
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.0f%%", session.secondHalfSteadiness))
+                                .font(.title2.bold())
+                                .foregroundStyle(session.secondHalfSteadiness >= session.firstHalfSteadiness ? .green : .orange)
+                            Text("2nd Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Steadiness")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.vertical, 4)
+
+                    if session.steadinessDegradation != 0 {
+                        let degradation = session.steadinessDegradation
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: degradation > 5 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundStyle(degradation > 5 ? .orange : .green)
+                                .font(.caption)
+                            Text(fatigueTrendInsight)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Shot Timing Consistency
+            if session.averageHoldDuration > 0 || session.shotTimingConsistencyCV > 0 || session.averageHoldSteadiness > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "timer")
+                            .foregroundStyle(.cyan)
+                        Text("Shot Timing")
+                            .font(.headline)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        if session.averageHoldDuration > 0 {
+                            MiniStatCard(title: "Avg Hold", value: String(format: "%.1fs", session.averageHoldDuration))
+                        }
+                        if session.shotTimingConsistencyCV > 0 {
+                            MiniStatCard(title: "Consistency CV", value: String(format: "%.2f", session.shotTimingConsistencyCV))
+                        }
+                        if session.averageHoldSteadiness > 0 {
+                            MiniStatCard(title: "Avg Steadiness", value: String(format: "%.0f%%", session.averageHoldSteadiness))
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Physiology
+            if hasPhysiologyData {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                            .foregroundStyle(.pink)
+                        Text("Physiology")
+                            .font(.headline)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        if session.averageBreathingRate > 0 {
+                            MiniStatCard(title: "Breathing", value: String(format: "%.0f /min", session.averageBreathingRate))
+                        }
+                        if session.averageSpO2 > 0 {
+                            MiniStatCard(title: "SpO2", value: String(format: "%.0f%%", session.averageSpO2))
+                        }
+                        if session.minSpO2 > 0 {
+                            MiniStatCard(title: "Min SpO2", value: String(format: "%.0f%%", session.minSpO2))
+                        }
+                        if session.postureStability > 0 {
+                            MiniStatCard(title: "Posture", value: String(format: "%.0f%%", session.postureStability))
+                        }
+                        if session.recoveryQuality > 0 {
+                            MiniStatCard(title: "Recovery", value: String(format: "%.0f%%", session.recoveryQuality))
+                        }
+                        if session.trainingLoadScore > 0 {
+                            MiniStatCard(title: "Training Load", value: String(format: "%.0f", session.trainingLoadScore))
+                        }
+                        if session.goodPosturePercent > 0 {
+                            MiniStatCard(title: "Good Posture", value: String(format: "%.0f%%", session.goodPosturePercent))
+                        }
+                        if session.activeTimePercent > 0 {
+                            MiniStatCard(title: "Active Time", value: String(format: "%.0f%%", session.activeTimePercent))
+                        }
+                        if session.endFatigueScore > 0 {
+                            MiniStatCard(title: "Fatigue", value: String(format: "%.0f", session.endFatigueScore))
+                        }
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            }
+
+            // Notes section
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Notes")
+                        .font(.headline)
+
+                    Spacer()
+
+                    VoiceNoteToolbarButton { note in
+                        let service = VoiceNotesService.shared
+                        session.notes = service.appendNote(note, to: session.notes)
+                    }
+                }
+
+                if !session.notes.isEmpty {
+                    Text(session.notes)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button {
+                        session.notes = ""
+                    } label: {
+                        Label("Clear Notes", systemImage: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } else {
+                    Text("Tap the mic to add voice notes")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+        }
+        .padding(.vertical)
+    }
+
+    // MARK: - Insights Tab
+
+    private var insightsContent: some View {
+        VStack(spacing: 16) {
+            if session.overallBiomechanicalScore > 0 {
+                OverallBiomechanicalScore(
+                    stabilityScore: session.stabilityScore,
+                    rhythmScore: session.rhythmScore,
+                    symmetryScore: session.symmetryScore,
+                    economyScore: session.economyScore
+                )
+
+                PillarScoreCard(
+                    pillar: .stability,
+                    subtitle: "Stance Stability",
+                    score: session.stabilityScore,
+                    keyMetric: String(format: "%.0f%% stance stability", session.averageStanceStability),
+                    tip: stabilityTip
+                )
+
+                PillarScoreCard(
+                    pillar: .rhythm,
+                    subtitle: "Shot Timing",
+                    score: session.rhythmScore,
+                    keyMetric: String(format: "%.2f CV consistency", session.shotTimingConsistencyCV),
+                    tip: rhythmTip
+                )
+
+                PillarScoreCard(
+                    pillar: .symmetry,
+                    subtitle: "Hold Steadiness",
+                    score: session.symmetryScore,
+                    keyMetric: String(format: "%.0f%% hold steadiness", session.averageHoldSteadiness),
+                    tip: symmetryTip
+                )
+
+                PillarScoreCard(
+                    pillar: .economy,
+                    subtitle: "Shot Cycle",
+                    score: session.economyScore,
+                    keyMetric: String(format: "%.1fs avg hold", session.averageHoldDuration),
+                    tip: economyTip
+                )
+
+                PhysiologySectionCard(
+                    score: session.composureScore,
+                    keyMetric: session.averageHeartRate > 0
+                        ? "\(session.averageHeartRate) bpm avg HR"
+                        : session.averageBreathingRate > 0
+                            ? String(format: "%.0f breaths/min", session.averageBreathingRate)
+                            : "No HR data",
+                    tip: composureTip,
+                    subtitle: "Composure"
+                )
+
+                // Per-shot trend charts
+                perShotSteadinessChart
+                perShotRaiseSmoothnessChart
+                perShotCycleTimeChart
+                perShotTremorChart
+                fatigueComparisonCard
+            } else {
+                // Prompt to use Watch for insights
+                VStack(spacing: 16) {
+                    Image(systemName: "applewatch.radiowaves.left.and.right")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.purple.opacity(0.6))
+
+                    Text("Session Insights")
+                        .font(.title2.bold())
+
+                    Text("Start your next session from the Apple Watch to unlock biomechanical analysis with shot-by-shot sensor data.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        insightFeatureRow(icon: "arrow.up.circle.fill", text: "Stability — Stance analysis", color: .green)
+                        insightFeatureRow(icon: "metronome.fill", text: "Rhythm — Shot timing consistency", color: .indigo)
+                        insightFeatureRow(icon: "arrow.left.arrow.right", text: "Symmetry — Hold steadiness", color: .orange)
+                        insightFeatureRow(icon: "arrow.triangle.2.circlepath", text: "Economy — Shot cycle efficiency", color: .purple)
+                        insightFeatureRow(icon: "heart.fill", text: "Physiology — Composure under pressure", color: .red)
+                    }
+                    .padding()
+                }
+                .padding(24)
+            }
+        }
+        .padding()
+    }
+
+    private func insightFeatureRow(icon: String, text: String, color: Color) -> some View {
+        Label {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } icon: {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(color)
+                .frame(width: 20)
+        }
+    }
+
+    // MARK: - Per-Shot Steadiness Chart
+
+    private var perShotSteadinessChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.hasSensorData }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "chart.xyaxis.line")
+                            .foregroundStyle(.cyan)
+                        Text("Shot-by-Shot Steadiness")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            BarMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Steadiness", shot.holdSteadiness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100])
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Raise Smoothness Chart
+
+    private var perShotRaiseSmoothnessChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.raiseSmoothness > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "arrow.up.right")
+                            .foregroundStyle(.green)
+                        Text("Shot-by-Shot Raise Smoothness")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            LineMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Smoothness", shot.raiseSmoothness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+
+                            PointMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Smoothness", shot.raiseSmoothness)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100])
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Cycle Time Chart
+
+    private var perShotCycleTimeChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.totalCycleTime > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundStyle(.orange)
+                        Text("Shot-by-Shot Cycle Time")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            BarMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Cycle Time", shot.totalCycleTime)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks()
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Per-Shot Tremor Chart
+
+    private var perShotTremorChart: some View {
+        let shots = (session.ends ?? [])
+            .flatMap { $0.shots ?? [] }
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .filter { $0.tremorIntensity > 0 }
+
+        return Group {
+            if !shots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "hand.raised.fingers.spread")
+                            .foregroundStyle(.purple)
+                        Text("Shot-by-Shot Tremor Intensity")
+                            .font(.headline)
+                    }
+
+                    Chart {
+                        ForEach(Array(shots.enumerated()), id: \.offset) { index, shot in
+                            let endIndex = shot.end?.orderIndex ?? 0
+                            BarMark(
+                                x: .value("Shot", index + 1),
+                                y: .value("Tremor", shot.tremorIntensity)
+                            )
+                            .foregroundStyle(endColor(endIndex))
+                        }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100])
+                    }
+                    .frame(height: 200)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Fatigue Comparison
+
+    private var fatigueComparisonCard: some View {
+        Group {
+            if session.firstHalfSteadiness > 0 || session.secondHalfSteadiness > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "battery.75percent")
+                            .foregroundStyle(.orange)
+                        Text("Fatigue Analysis")
+                            .font(.headline)
+                    }
+
+                    HStack(spacing: 24) {
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.0f%%", session.firstHalfSteadiness))
+                                .font(.title3.bold())
+                            Text("First Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Image(systemName: session.steadinessDegradation > 10 ? "arrow.down.right" : "arrow.right")
+                            .font(.title3)
+                            .foregroundStyle(session.steadinessDegradation > 10 ? .orange : .green)
+
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.0f%%", session.secondHalfSteadiness))
+                                .font(.title3.bold())
+                            Text("Second Half")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if session.steadinessDegradation > 10 {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            Text(String(format: "%.0f%% steadiness degradation — build endurance with extended dry-fire practice", session.steadinessDegradation))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                            Text("Excellent fatigue resistance — your steadiness remained consistent throughout")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func endColor(_ endIndex: Int) -> Color {
+        let colors: [Color] = [.blue, .green, .orange, .purple, .cyan, .red]
+        return colors[endIndex % colors.count]
     }
 
     private var hasPhysiologyData: Bool {
@@ -928,15 +1244,6 @@ struct ShootingSessionDetailView: View {
         }
     }
 
-    private func graceScoreColor(_ score: Double) -> Color {
-        switch score {
-        case 80...: return .green
-        case 60..<80: return .blue
-        case 40..<60: return .yellow
-        default: return .orange
-        }
-    }
-
     private var fatigueTrendInsight: String {
         let degradation = session.steadinessDegradation
         if degradation > 15 {
@@ -962,6 +1269,67 @@ struct ShootingSessionDetailView: View {
             return "Stance stability of \(stability)% — tremor level \(tremor)/100. High tremor detected. Try box breathing (4-4-4-4) and ensure your stance width matches shoulder width."
         } else {
             return "Stance stability of \(stability)% — tremor level \(tremor)/100. Work on balance drills and core strength to build a more stable shooting platform."
+        }
+    }
+
+    // MARK: - Insight Pillar Tips
+
+    private var stabilityTip: String {
+        let stability = session.averageStanceStability
+        if stability >= 80 {
+            return "Your platform is rock-solid. Maintain this by continuing core stability work."
+        } else if stability >= 60 {
+            return "Good base. Focus on distributing weight evenly and keeping knees slightly bent."
+        } else {
+            return "Widen your stance to shoulder width and plant your feet before raising. Practice dry-fire with focus on a stable base."
+        }
+    }
+
+    private var rhythmTip: String {
+        let cv = session.shotTimingConsistencyCV
+        if cv < 0.15 {
+            return "Metronome-like timing. Your consistent rhythm is a significant competitive advantage."
+        } else if cv < 0.25 {
+            return "Good rhythm. Try counting a consistent cadence between shots to tighten your timing."
+        } else {
+            return "Variable timing between shots. Develop a pre-shot routine: breathe, raise, settle, commit."
+        }
+    }
+
+    private var symmetryTip: String {
+        let steadiness = session.averageHoldSteadiness
+        if steadiness >= 80 {
+            return "Excellent hold control. Your aim point barely moves during the hold phase."
+        } else if steadiness >= 60 {
+            return "Steady hold. Try extending your hold time in practice to build endurance in the aim phase."
+        } else {
+            return "Your hold shows movement. Practice box breathing before each shot and strengthen your support arm."
+        }
+    }
+
+    private var economyTip: String {
+        let holdDuration = session.averageHoldDuration
+        if holdDuration >= 5 && holdDuration <= 10 {
+            return "Ideal shot cycle. You're committing to your shots with good timing."
+        } else if holdDuration < 5 {
+            return "Fast cycle time. Ensure you're settling fully before committing to the shot."
+        } else {
+            return "Trust your aim and commit to the shot sooner. Extended holds increase fatigue and tremor."
+        }
+    }
+
+    private var composureTip: String {
+        let degradation = session.steadinessDegradation
+        let hr = session.averageHeartRate
+
+        if degradation > 20 {
+            return "Build endurance with extended dry-fire practice. Your steadiness drops significantly in the second half."
+        } else if hr > 100 {
+            return "Elevated heart rate affects precision. Develop a pre-shot routine to manage nerves."
+        } else if session.averageTremorLevel > 50 {
+            return "Practice box breathing before each shot to reduce tremor. 4 seconds in, 4 hold, 4 out, 4 hold."
+        } else {
+            return "You're composed under pressure. Your body stays calm and your steadiness holds firm."
         }
     }
 }
