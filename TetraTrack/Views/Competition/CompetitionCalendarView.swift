@@ -242,8 +242,10 @@ struct CompetitionCalendarView: View {
                 )
             }
         }
-        .navigationDestination(isPresented: $showingStats) {
-            CompetitionStatsView()
+        .sheet(isPresented: $showingStats) {
+            NavigationStack {
+                CompetitionStatsView()
+            }
         }
         .sheet(isPresented: $showingAddCompetition) {
             CompetitionEditView(competition: nil)
