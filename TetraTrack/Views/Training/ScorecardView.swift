@@ -9,7 +9,6 @@ import SwiftUI
 import SwiftData
 import Speech
 import AVFoundation
-import Combine
 
 struct ScorecardView: View {
     @Environment(\.dismiss) private var dismiss

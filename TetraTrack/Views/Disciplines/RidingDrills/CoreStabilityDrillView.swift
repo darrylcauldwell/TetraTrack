@@ -10,7 +10,6 @@
 import SwiftUI
 import CoreMotion
 import SwiftData
-import Combine
 
 struct CoreStabilityDrillView: View {
     @Environment(\.dismiss) private var dismiss
