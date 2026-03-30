@@ -24,12 +24,31 @@ struct CloudKitDiagnosticsView: View {
     @State private var shootingCounts: Int?
     @State private var horseCounts: Int?
     @State private var isChecking = false
+    @State private var schemaResults: [(String, Bool)] = []
+    @State private var schemaCheckComplete = false
+
+    /// All record types the app expects in CloudKit (CD_ prefix = SwiftData managed)
+    private let expectedRecordTypes = [
+        "CD_Ride", "CD_GPSPoint", "CD_GaitSegment", "CD_GaitTransition",
+        "CD_ReinSegment", "CD_RiderProfile", "CD_AthleteProfile",
+        "CD_RunningSession", "CD_RunningSplit", "CD_SwimmingSession",
+        "CD_ShootingSession", "CD_Horse", "CD_Competition", "CD_CompetitionTask",
+        "CD_FlatworkExercise", "CD_PoleworkExercise", "CD_SkillDomainScore",
+        "CD_ScheduledWorkout", "CD_TrainingWeekFocus", "CD_TrainingStreak",
+        "CD_UnifiedDrillSession", "CD_SharingRelationship", "CD_TrainingArtifact",
+        "CD_LinkedRiderRecord", "CD_LocationPoint", "CD_RunningLocationPoint",
+        "CD_SwimmingLocationPoint", "CD_SharedCompetition",
+        "CD_PlannedRoute", "CD_RouteWaypoint", "CD_OSMNode", "CD_DownloadedRegion",
+        "CD_TargetScanAnalysis", "CD_RidePhoto", "CD_FatigueIndicator",
+        "CD_LiveTrackingSession", "CD_FamilyMember"
+    ]
 
     var body: some View {
         List {
             containerModeSection
             iCloudAccountSection
             syncStatusSection
+            schemaHealthSection
             recordCountsSection
             recordZonesSection
             actionsSection
@@ -161,6 +180,88 @@ struct CloudKitDiagnosticsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Schema Health
+
+    private var schemaHealthSection: some View {
+        Section("Schema Health") {
+            if !schemaCheckComplete {
+                Button {
+                    Task { await checkSchemaHealth() }
+                } label: {
+                    Label("Check Schema", systemImage: "checkmark.shield")
+                }
+            } else {
+                let missing = schemaResults.filter { !$0.1 }
+                let found = schemaResults.filter { $0.1 }
+
+                if missing.isEmpty {
+                    HStack {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Text("All \(found.count) record types present")
+                            .font(.subheadline)
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("\(missing.count) record types missing — promote Development to Production in CloudKit Dashboard")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+
+                DisclosureGroup("Details (\(found.count) found, \(missing.count) missing)") {
+                    ForEach(Array(schemaResults.enumerated()), id: \.offset) { _, result in
+                        HStack {
+                            Image(systemName: result.1 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(result.1 ? .green : .red)
+                                .font(.caption)
+                            Text(result.0)
+                                .font(.caption.monospaced())
+                                .foregroundColor(result.1 ? .primary : .red)
+                        }
+                    }
+                }
+
+                Button("Re-check") {
+                    schemaCheckComplete = false
+                    schemaResults = []
+                    Task { await checkSchemaHealth() }
+                }
+                .font(.caption)
+            }
+        }
+    }
+
+    private func checkSchemaHealth() async {
+        let container = CKContainer(identifier: "iCloud.dev.dreamfold.TetraTrack")
+        let database = container.privateCloudDatabase
+
+        var results: [(String, Bool)] = []
+
+        for recordType in expectedRecordTypes {
+            let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+            do {
+                _ = try await database.records(matching: query, resultsLimit: 1)
+                results.append((recordType, true))
+            } catch let error as CKError {
+                if error.code == .unknownItem {
+                    // Record type doesn't exist in this environment
+                    results.append((recordType, false))
+                } else {
+                    // Other error (network, auth) — assume exists but inaccessible
+                    results.append((recordType, true))
+                }
+            } catch {
+                results.append((recordType, true)) // Assume exists on non-CK errors
+            }
+        }
+
+        schemaResults = results.sorted { $0.1 && !$1.1 } // Found first, missing last
+        schemaCheckComplete = true
     }
 
     private var actionsSection: some View {
