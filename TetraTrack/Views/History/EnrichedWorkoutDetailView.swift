@@ -24,10 +24,17 @@ struct EnrichedWorkoutDetailView: View {
     @State private var pillarCards: [PillarCardData] = []
     @State private var photos: [PHAsset] = []
     @State private var isLoading = true
+    @State private var showingRideAnnotation = false
 
     // Historical trend queries for cross-session comparison
     @Query(sort: \RunningSession.startDate, order: .reverse) private var recentRuns: [RunningSession]
     @Query(sort: \SwimmingSession.startDate, order: .reverse) private var recentSwims: [SwimmingSession]
+
+    // Linked Ride annotation for equestrian workouts
+    @Query private var allRides: [Ride]
+    private var linkedRide: Ride? {
+        allRides.first { $0.healthKitWorkoutUUID == workout.id.uuidString }
+    }
 
     private let skillDomainService = SkillDomainService()
 
@@ -64,6 +71,11 @@ struct EnrichedWorkoutDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadData()
+        }
+        .sheet(isPresented: $showingRideAnnotation) {
+            if let ride = linkedRide ?? createRideAnnotation() {
+                RideAnnotationView(ride: ride)
+            }
         }
     }
 
@@ -180,7 +192,12 @@ struct EnrichedWorkoutDetailView: View {
                         }
                     }
 
-                    // 15. Source + Share
+                    // 15. Ride Annotation (equestrian workouts only)
+                    if workout.activityType == .equestrianSports {
+                        rideAnnotationSection
+                    }
+
+                    // 16. Source + Share
                     sourceSection
 
                     ShareLink(item: workoutSummaryText) {
@@ -1779,6 +1796,143 @@ struct EnrichedWorkoutDetailView: View {
             .padding()
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    // MARK: - Ride Annotation Section
+
+    /// Pending ride summary from Watch (before Ride annotation is created)
+    private var pendingSummary: WatchRideSummaryReceived? {
+        watchManager?.pendingRideSummaries.first { $0.hkWorkoutUUID == workout.id.uuidString }
+    }
+
+    private var rideAnnotationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Ride Details")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showingRideAnnotation = true
+                } label: {
+                    Text(linkedRide != nil ? "Edit" : "Add Details")
+                        .font(.subheadline)
+                }
+            }
+
+            // Show Watch metrics from pending summary even before Ride is created
+            if linkedRide == nil, let summary = pendingSummary {
+                VStack(spacing: 8) {
+                    annotationRow(icon: "applewatch", label: "Type", value: summary.rideType)
+                    if summary.jumpCount > 0 {
+                        annotationRow(icon: "arrow.up.forward", label: "Jumps", value: "\(summary.jumpCount)")
+                    }
+                    if summary.leftTurnCount > 0 || summary.rightTurnCount > 0 {
+                        annotationRow(icon: "arrow.triangle.turn.up.right.diamond", label: "Turns", value: "L:\(summary.leftTurnCount) R:\(summary.rightTurnCount)")
+                    }
+                    if summary.armSteadiness > 0 {
+                        annotationRow(icon: "hand.raised", label: "Arm Steadiness", value: String(format: "%.0f%%", summary.armSteadiness))
+                    }
+                    if summary.postingRhythm > 0 {
+                        annotationRow(icon: "metronome", label: "Posting Rhythm", value: String(format: "%.0f%%", summary.postingRhythm))
+                    }
+                    if summary.haltCount > 0 {
+                        annotationRow(icon: "pause.circle", label: "Halts", value: "\(summary.haltCount)")
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if let ride = linkedRide {
+                VStack(spacing: 8) {
+                    if let horse = ride.horse {
+                        annotationRow(icon: "figure.equestrian.sports", label: "Horse", value: horse.name)
+                    }
+                    annotationRow(icon: ride.rideType.icon, label: "Type", value: ride.rideType.rawValue)
+                    if ride.detectedJumpCount > 0 {
+                        annotationRow(icon: "arrow.up.forward", label: "Jumps", value: "\(ride.detectedJumpCount)")
+                    }
+                    if ride.leftTurnCount > 0 || ride.rightTurnCount > 0 {
+                        annotationRow(icon: "arrow.triangle.turn.up.right.diamond", label: "Turns", value: "L:\(ride.leftTurnCount) R:\(ride.rightTurnCount)")
+                    }
+                    if ride.armSteadiness > 0 {
+                        annotationRow(icon: "hand.raised", label: "Arm Steadiness", value: String(format: "%.0f%%", ride.armSteadiness))
+                    }
+                    if ride.postingRhythm > 0 {
+                        annotationRow(icon: "metronome", label: "Posting Rhythm", value: String(format: "%.0f%%", ride.postingRhythm))
+                    }
+                    if ride.haltCount > 0 {
+                        annotationRow(icon: "pause.circle", label: "Halts", value: "\(ride.haltCount)")
+                    }
+                    if !ride.notes.isEmpty {
+                        annotationRow(icon: "note.text", label: "Notes", value: ride.notes)
+                    }
+                }
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                Button {
+                    showingRideAnnotation = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle")
+                        Text("Add horse, scores, and notes")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
+    }
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(WatchConnectivityManager.self) private var watchManager: WatchConnectivityManager?
+
+    /// Create a new Ride annotation record linked to this HealthKit workout.
+    /// Pulls Watch metrics from pending ride summary if available.
+    private func createRideAnnotation() -> Ride? {
+        guard workout.activityType == .equestrianSports else { return nil }
+        let ride = Ride()
+        ride.healthKitWorkoutUUID = workout.id.uuidString
+        ride.startDate = workout.startDate
+        ride.endDate = workout.endDate
+        ride.totalDuration = workout.duration
+        ride.totalDistance = workout.totalDistance ?? 0
+
+        // Pull Watch metrics from pending ride summary
+        let uuid = workout.id.uuidString
+        if let summary = watchManager?.pendingRideSummaries.first(where: { $0.hkWorkoutUUID == uuid }) {
+            ride.rideTypeValue = summary.rideType
+            ride.detectedJumpCount = summary.jumpCount
+            ride.leftTurnCount = summary.leftTurnCount
+            ride.rightTurnCount = summary.rightTurnCount
+            ride.armSteadiness = summary.armSteadiness
+            ride.postingRhythm = summary.postingRhythm
+            ride.haltCount = summary.haltCount
+            watchManager?.removePendingRideSummary(workoutUUID: uuid)
+        }
+
+        modelContext.insert(ride)
+        try? modelContext.save()
+        return ride
+    }
+
+    private func annotationRow(icon: String, label: String, value: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundStyle(.green)
+                .frame(width: 24)
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.subheadline)
         }
     }
 

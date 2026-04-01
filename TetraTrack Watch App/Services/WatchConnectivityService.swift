@@ -422,6 +422,19 @@ final class WatchConnectivityService: NSObject {
         }
     }
 
+    /// Send ride summary to iPhone after autonomous ride ends.
+    /// Uses transferUserInfo for guaranteed delivery.
+    func sendRideSummary(_ summary: WatchRideSummary) {
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.debug("Session not active for ride summary send")
+            return
+        }
+        let message = summary.toDictionary()
+        session.transferUserInfo(message)
+        Log.watch.info("TT: Ride summary sent via transferUserInfo: \(summary.rideType)")
+    }
+
     /// Send a message via transferUserInfo (guaranteed queued delivery).
     /// Use for lifecycle commands (ACK, session handshakes) that must not be
     /// overwritten by applicationContext status updates.

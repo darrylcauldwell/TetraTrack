@@ -66,6 +66,11 @@ final class WorkoutManager: NSObject {
     private(set) var elapsedTime: TimeInterval = 0
     private(set) var activeCalories: Double = 0
 
+    // MARK: - Riding Metrics (Autonomous)
+
+    private(set) var rideMetricsCollector: WatchRideMetricsCollector?
+    private(set) var currentRideType: WatchRideType?
+
     // MARK: - Swimming Metrics
 
     private(set) var strokeCount: Int = 0
@@ -392,6 +397,167 @@ final class WorkoutManager: NSObject {
         }
     }
 
+    // MARK: - Autonomous Ride (Watch-Primary)
+
+    /// Start an autonomous ride — Watch owns the HKWorkoutSession, no iPhone needed.
+    /// Post-ride summary sent to iPhone via transferUserInfo.
+    func startAutonomousRide(type: WatchRideType) async {
+        guard !isWorkoutActive else {
+            Log.tracking.error("TT: startAutonomousRide skipped — workout already active")
+            return
+        }
+
+        let authorized = await requestAuthorization()
+        if !authorized {
+            Log.tracking.error("TT: startAutonomousRide — HealthKit authorization denied")
+            return
+        }
+
+        await resetWorkout()
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .equestrianSports
+        configuration.locationType = .outdoor
+
+        do {
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore,
+                workoutConfiguration: configuration
+            )
+
+            session.prepare()
+
+            // Wire WCSession callbacks for HR/motion relay to iPhone
+            onHeartRateUpdate = { bpm in
+                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+            }
+            onMotionDataSend = {
+                WatchConnectivityService.shared.sendMotionUpdate()
+            }
+
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
+
+            workoutSession = session
+            workoutBuilder = builder
+            activityType = .riding
+            currentRideType = type
+            isWorkoutActive = true
+            isCompanionMode = false
+            isMirroringToiPhone = false
+            isPaused = false
+            startTime = startDate
+            resetMetrics()
+
+            locationManager.startTracking()
+            WatchMotionManager.shared.startTracking(mode: .riding)
+
+            // Start ride metrics collector
+            let collector = WatchRideMetricsCollector()
+            collector.start(rideType: type)
+            rideMetricsCollector = collector
+
+            startMotionDataSending()
+            startElapsedTimer()
+            _ = sessionStore.startSession(discipline: .riding)
+
+            persistRecoveryContext()
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Started autonomous \(type.rawValue) ride (Watch-primary)")
+
+        } catch {
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: startAutonomousRide FAILED: \(errMsg, privacy: .public)")
+        }
+    }
+
+    /// Stop autonomous ride — save workout + send summary to iPhone
+    func stopAutonomousRide() async {
+        guard isWorkoutActive, activityType == .riding else { return }
+
+        // Stop ride metrics collector
+        var rideSummary = rideMetricsCollector?.stop()
+
+        // Stop all tracking
+        locationManager.stopTracking()
+        stopElapsedTimer()
+        stopMotionDataSending()
+        stopAnchoredHRQuery()
+        onMotionDataSend = nil
+        WatchMotionManager.shared.stopTracking()
+
+        let endDate = Date()
+        var workoutUUID: String = ""
+
+        do {
+            try await workoutBuilder?.endCollection(at: endDate)
+            if let builder = workoutBuilder {
+                if let finishedWorkout = try await builder.finishWorkout() {
+                    workoutUUID = finishedWorkout.uuid.uuidString
+                }
+                Log.health.info("Autonomous ride saved to HealthKit")
+            }
+        } catch {
+            Log.tracking.error("Failed to end autonomous ride: \(error.localizedDescription)")
+        }
+
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
+
+        // Update session store
+        sessionStore.updateActiveSession(
+            duration: elapsedTime,
+            distance: locationManager.totalDistance,
+            elevationGain: locationManager.elevationGain,
+            elevationLoss: locationManager.elevationLoss,
+            averageSpeed: locationManager.averageSpeed,
+            maxSpeed: locationManager.maxSpeed,
+            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            minHeartRate: minHeartRate > 0 ? minHeartRate : nil
+        )
+        sessionStore.completeSession(locationPointsData: locationManager.getEncodedPoints())
+
+        // Send ride summary to iPhone via transferUserInfo (guaranteed delivery)
+        if !workoutUUID.isEmpty, var summary = rideSummary {
+            summary = WatchRideSummary(
+                rideType: summary.rideType,
+                jumpCount: summary.jumpCount,
+                leftTurnCount: summary.leftTurnCount,
+                rightTurnCount: summary.rightTurnCount,
+                armSteadiness: summary.armSteadiness,
+                postingRhythm: summary.postingRhythm,
+                haltCount: summary.haltCount,
+                hkWorkoutUUID: workoutUUID
+            )
+            WatchConnectivityService.shared.sendRideSummary(summary)
+            Log.tracking.info("Ride summary sent to iPhone: \(workoutUUID)")
+        }
+
+        // Clean up
+        clearRecoveryContext()
+        workoutSession = nil
+        workoutBuilder = nil
+        isWorkoutActive = false
+        isCompanionMode = false
+        isMirroredFromiPhone = false
+        isMirroringToiPhone = false
+        isPaused = false
+        activityType = nil
+        currentRideType = nil
+        rideMetricsCollector = nil
+
+        onWorkoutStateChanged?(false)
+        Log.tracking.info("Autonomous ride stopped and saved")
+    }
+
     /// Pause the current workout (user-initiated)
     func pauseWorkout() {
         guard isWorkoutActive, !isUserPaused else { return }
@@ -416,6 +582,12 @@ final class WorkoutManager: NSObject {
 
     /// Stop and save the workout
     func stopWorkout() async {
+        // Route to autonomous ride stop if this is a Watch-primary ride
+        if currentRideType != nil {
+            await stopAutonomousRide()
+            return
+        }
+
         guard isWorkoutActive else { return }
 
         // Stop all tracking

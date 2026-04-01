@@ -20,6 +20,21 @@ enum WatchFallEventType: Sendable {
     case emergency
 }
 
+// MARK: - Watch Ride Summary (received from autonomous Watch ride)
+
+struct WatchRideSummaryReceived: Identifiable {
+    let id = UUID()
+    let rideType: String
+    let jumpCount: Int
+    let leftTurnCount: Int
+    let rightTurnCount: Int
+    let armSteadiness: Double
+    let postingRhythm: Double
+    let haltCount: Int
+    let hkWorkoutUUID: String
+    let receivedAt: Date
+}
+
 // MARK: - Watch Synced Session
 
 /// Represents a session recorded on Apple Watch and synced to iPhone
@@ -109,6 +124,10 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     // Riding metrics (forwarded from Watch)
     private(set) var postureStability: Double = 0.0  // 0-100%
     private(set) var rhythmScore: Double = 0.0  // 0-100%
+
+    // MARK: - Ride Summaries (from Watch autonomous rides)
+
+    private(set) var pendingRideSummaries: [WatchRideSummaryReceived] = []
 
     // MARK: - Session Lifecycle
 
@@ -820,7 +839,37 @@ extension WatchConnectivityManager: WCSessionDelegate {
             handleWatchSessionSync(userInfo)
             return
         }
+
+        // Handle ride summary from autonomous Watch ride
+        if userInfo["tt_rideSummary"] as? Bool == true {
+            handleRideSummary(userInfo)
+            return
+        }
+
         handleReceivedMessage(userInfo)
+    }
+
+    // MARK: - Ride Summary Handling
+
+    private func handleRideSummary(_ userInfo: [String: Any]) {
+        let summary = WatchRideSummaryReceived(
+            rideType: userInfo["tt_rideType"] as? String ?? "Ride",
+            jumpCount: userInfo["tt_jumpCount"] as? Int ?? 0,
+            leftTurnCount: userInfo["tt_leftTurnCount"] as? Int ?? 0,
+            rightTurnCount: userInfo["tt_rightTurnCount"] as? Int ?? 0,
+            armSteadiness: userInfo["tt_armSteadiness"] as? Double ?? 0,
+            postingRhythm: userInfo["tt_postingRhythm"] as? Double ?? 0,
+            haltCount: userInfo["tt_haltCount"] as? Int ?? 0,
+            hkWorkoutUUID: userInfo["tt_hkWorkoutUUID"] as? String ?? "",
+            receivedAt: Date()
+        )
+        pendingRideSummaries.append(summary)
+        Log.watch.info("TT: Received ride summary from Watch: \(summary.rideType) workout=\(summary.hkWorkoutUUID)")
+    }
+
+    /// Remove a processed ride summary
+    func removePendingRideSummary(workoutUUID: String) {
+        pendingRideSummaries.removeAll { $0.hkWorkoutUUID == workoutUUID }
     }
 
     #if os(iOS)

@@ -604,6 +604,10 @@ struct SessionInsightsView: View {
         externalWorkouts.filter { $0.activityType == .cycling }
     }
 
+    private var externalRides: [ExternalWorkout] {
+        externalWorkouts.filter { $0.activityType == .equestrianSports }
+    }
+
     private var externalOther: [ExternalWorkout] {
         externalWorkouts.filter {
             $0.activityType != .running && $0.activityType != .hiking &&

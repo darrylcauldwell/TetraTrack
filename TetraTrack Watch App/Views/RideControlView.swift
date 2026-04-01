@@ -2,15 +2,13 @@
 //  RideControlView.swift
 //  TetraTrack Watch App
 //
-//  Autonomous riding session control for Apple Watch
-//  Start, monitor, and stop rides directly from Watch
+//  Type-specific active ride display for autonomous Watch rides.
+//  Shows metrics relevant to each ride type (Ride, Dressage, Showjumping).
 //
 
 import SwiftUI
-import TetraTrackShared
 
 struct RideControlView: View {
-    @Environment(WatchConnectivityService.self) private var connectivityService
     @Environment(WorkoutManager.self) private var workoutManager
 
     var body: some View {
@@ -18,93 +16,29 @@ struct RideControlView: View {
             if workoutManager.isWorkoutActive && workoutManager.activityType == .riding {
                 activeRideView
             } else {
-                startRideView
+                // Fallback — should navigate via RideTypePickerView instead
+                Text("Select a ride type to start")
+                    .foregroundStyle(.secondary)
             }
         }
-    }
-
-    // MARK: - Start Ride View
-
-    private var startRideView: some View {
-        VStack(spacing: 12) {
-            // Icon at top
-            Image(systemName: "figure.equestrian.sports")
-                .font(.system(size: 44))
-                .foregroundStyle(WatchAppColors.riding)
-                .padding(.top, 8)
-
-            // Pending sync indicator (only if needed)
-            if WatchSessionStore.shared.pendingCount > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "icloud.and.arrow.up")
-                    Text("\(WatchSessionStore.shared.pendingCount) pending")
-                }
-                .font(.caption2)
-                .foregroundStyle(.orange)
-            }
-
-            Spacer()
-
-            // Start button
-            Button {
-                Task {
-                    await workoutManager.startWorkout(type: .riding)
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "play.fill")
-                    Text("Start Ride")
-                }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(WatchAppColors.riding)
-            .padding(.bottom, 8)
-        }
-        .padding(.horizontal)
     }
 
     // MARK: - Active Ride View
 
+    @ViewBuilder
     private var activeRideView: some View {
+        let collector = workoutManager.rideMetricsCollector
+        let rideType = workoutManager.currentRideType ?? .ride
+
         ZStack(alignment: .bottom) {
             VStack(spacing: 8) {
-                // Distance — hero metric
-                Text(workoutManager.formattedDistance)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(WatchAppColors.riding)
-
-                // Current gait indicator
-                if let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult, gaitResult.gaitState != "stationary" {
-                    Text(gaitResult.gaitState.capitalized)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 3)
-                        .background(watchGaitColor(gaitResult.gaitState))
-                        .clipShape(Capsule())
-                }
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                // Metrics grid
-                HStack(spacing: 12) {
-                    // Speed
-                    WatchMetricCell(
-                        value: String(format: "%.1f", workoutManager.currentSpeed * 3.6),
-                        unit: "km/h"
-                    )
-
-                    // Heart Rate
-                    WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
-
-                    // Elevation
-                    WatchMetricCell(
-                        value: String(format: "%.0f", workoutManager.elevationGain),
-                        unit: "m gain"
-                    )
+                switch rideType {
+                case .ride:
+                    rideLayout(collector: collector)
+                case .dressage:
+                    dressageLayout(collector: collector)
+                case .showjumping:
+                    showjumpingLayout(collector: collector)
                 }
 
                 Spacer()
@@ -113,25 +47,134 @@ struct RideControlView: View {
             .padding(.bottom, 62)
 
             WatchFloatingControlPanel(
-                disciplineIcon: "figure.equestrian.sports",
+                disciplineIcon: rideType.icon,
                 disciplineColor: WatchAppColors.riding,
-                disciplineName: "Ride"
+                disciplineName: rideType.rawValue
             )
         }
     }
 
-    private func watchGaitColor(_ gait: String) -> Color {
-        switch gait {
-        case "walk": return .green
-        case "trot": return .blue
-        case "canter": return .orange
-        case "gallop": return .red
-        default: return .gray
+    // MARK: - Ride (General) Layout
+
+    private func rideLayout(collector: WatchRideMetricsCollector?) -> some View {
+        VStack(spacing: 8) {
+            // Distance — hero metric
+            Text(workoutManager.formattedDistance)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchAppColors.riding)
+
+            // Timer
+            Text(workoutManager.formattedElapsedTime)
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+
+            Divider().padding(.vertical, 4)
+
+            HStack(spacing: 12) {
+                WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+
+                WatchMetricCell(
+                    value: String(format: "%.0f", collector?.armSteadiness ?? 0),
+                    unit: "steady"
+                )
+
+                WatchMetricCell(
+                    value: String(format: "%.0f", workoutManager.elevationGain),
+                    unit: "m gain"
+                )
+            }
+        }
+    }
+
+    // MARK: - Dressage Layout
+
+    private func dressageLayout(collector: WatchRideMetricsCollector?) -> some View {
+        VStack(spacing: 8) {
+            // Timer — hero metric for dressage
+            Text(workoutManager.formattedElapsedTime)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchAppColors.riding)
+
+            Divider().padding(.vertical, 4)
+
+            HStack(spacing: 12) {
+                WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+
+                WatchMetricCell(
+                    value: String(format: "%.0f", collector?.postingRhythm ?? 0),
+                    unit: "rhythm"
+                )
+            }
+
+            Divider().padding(.vertical, 2)
+
+            // Turn balance + halts
+            HStack(spacing: 12) {
+                WatchMetricCell(
+                    value: "L:\(collector?.leftTurnCount ?? 0) R:\(collector?.rightTurnCount ?? 0)",
+                    unit: "turns"
+                )
+
+                WatchMetricCell(
+                    value: "\(collector?.haltCount ?? 0)",
+                    unit: "halts"
+                )
+            }
+        }
+    }
+
+    // MARK: - Showjumping Layout
+
+    private func showjumpingLayout(collector: WatchRideMetricsCollector?) -> some View {
+        VStack(spacing: 8) {
+            // Jump count — hero metric
+            Text("\(collector?.jumpCount ?? 0)")
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchAppColors.riding)
+            Text("jumps")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            // Manual +/- buttons
+            HStack(spacing: 20) {
+                Button {
+                    collector?.decrementJumps()
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    collector?.incrementJumps()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider().padding(.vertical, 2)
+
+            HStack(spacing: 12) {
+                WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+
+                WatchMetricCell(
+                    value: String(format: "%.0f", collector?.armSteadiness ?? 0),
+                    unit: "steady"
+                )
+
+                WatchMetricCell(
+                    value: workoutManager.formattedElapsedTime,
+                    unit: "time"
+                )
+            }
         }
     }
 }
 
 #Preview {
     RideControlView()
-        .environment(WatchConnectivityService.shared)
 }

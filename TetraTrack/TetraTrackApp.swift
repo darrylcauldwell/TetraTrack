@@ -387,6 +387,9 @@ struct TetraTrackApp: App {
         // Activate Watch connectivity
         WatchConnectivityManager.shared.activate()
 
+        // Process any pending ride summaries from Watch autonomous rides
+        processPendingRideSummaries()
+
         // Sync widget data on app launch
         WidgetDataSyncService.shared.syncAllWidgetData(context: sharedModelContainer.mainContext)
 
@@ -421,6 +424,15 @@ struct TetraTrackApp: App {
 
         // Process any pending share URL that arrived before app was ready
         processPendingShareURLIfNeeded()
+    }
+
+    /// Log any pending ride summaries from Watch (actual Ride creation happens lazily
+    /// when user opens the equestrian workout in EnrichedWorkoutDetailView)
+    private func processPendingRideSummaries() {
+        let count = WatchConnectivityManager.shared.pendingRideSummaries.count
+        if count > 0 {
+            Log.app.info("Found \(count) pending ride summaries from Watch")
+        }
     }
 
     /// Process a share URL that was persisted because the app wasn't ready when it arrived.

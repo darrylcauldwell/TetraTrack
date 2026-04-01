@@ -35,7 +35,7 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     var totalRightAngle: Double = 0.0  // degrees
 
     // Ride type
-    var rideTypeValue: String = RideType.hack.rawValue
+    var rideTypeValue: String = RideType.ride.rawValue
 
     // Lead tracking (for canter/gallop)
     var leftLeadDuration: TimeInterval = 0.0
@@ -92,12 +92,19 @@ final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
     var breathingRateTrend: Double = 0
     var spo2Trend: Double = 0
 
-    // Rider stress analysis (from RiderStressAnalyzer)
+    // Rider stress analysis (from RiderStressAnalyzer — legacy, kept for historical rides)
     var riderStabilityBaseline: Double = 0
     var riderStabilityFinal: Double = 0
     var riderFatigueDegradation: Double = 0
     var riderTremorTrend: Double = 0
     var riderDriftTrend: Double = 0
+
+    // Watch-primary ride metrics (from WatchRideMetricsCollector)
+    var leftTurnCount: Int = 0
+    var rightTurnCount: Int = 0
+    var armSteadiness: Double = 0  // 0-100%
+    var postingRhythm: Double = 0  // 0-100%
+    var haltCount: Int = 0
 
     /// Coaching notes from trusted contact (JSON-encoded [CoachingNote])
     var coachingNotesData: Data?

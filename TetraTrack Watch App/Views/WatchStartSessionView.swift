@@ -8,14 +8,14 @@
 import SwiftUI
 
 struct WatchStartSessionView: View {
-    @State private var showRideControl = false
+    @State private var showRideTypePicker = false
     @State private var showShootingControl = false
 
     var body: some View {
         NavigationStack {
             disciplineSelectorView
-            .navigationDestination(isPresented: $showRideControl) {
-                RideControlView()
+            .navigationDestination(isPresented: $showRideTypePicker) {
+                RideTypePickerView()
             }
             .navigationDestination(isPresented: $showShootingControl) {
                 ShootingControlView()
@@ -29,13 +29,13 @@ struct WatchStartSessionView: View {
         VStack(spacing: 6) {
             // Riding button
             Button {
-                showRideControl = true
+                showRideTypePicker = true
             } label: {
                 HStack {
                     Image(systemName: "figure.equestrian.sports")
                         .font(.title3)
                         .foregroundStyle(WatchAppColors.riding)
-                    Text("GPS + Heart Rate")
+                    Text("Riding")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -58,7 +58,7 @@ struct WatchStartSessionView: View {
                     Image(systemName: "target")
                         .font(.title3)
                         .foregroundStyle(WatchAppColors.shooting)
-                    Text("IMU + Heart Rate")
+                    Text("Shooting")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()

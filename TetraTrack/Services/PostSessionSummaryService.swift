@@ -132,10 +132,8 @@ final class PostSessionSummaryService {
         // Build headline
         let headline: String
         switch ride.rideType {
-        case .hack:
-            headline = "Nice hack covering \(ride.formattedDistance)"
-        case .schooling:
-            headline = "Productive schooling session of \(ride.formattedDuration)"
+        case .ride, .hack, .schooling:
+            headline = "Nice ride covering \(ride.formattedDistance)"
         case .dressage:
             headline = "Focused dressage session of \(ride.formattedDuration)"
         case .showjumping:

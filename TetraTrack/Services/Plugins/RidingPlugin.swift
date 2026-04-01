@@ -778,7 +778,7 @@ final class RidingPlugin: DisciplinePlugin {
         fields.rideType = selectedRideType.rawValue
 
         switch selectedRideType {
-        case .hack, .showjumping, .gaitTesting:
+        case .ride, .hack, .showjumping, .gaitTesting:
             fields.walkPercent = gaits.walk
             fields.trotPercent = gaits.trot
             fields.canterPercent = gaits.canter
