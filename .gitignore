@@ -83,3 +83,6 @@ playground.xcworkspace
 AuthKey_*.p8
 fastlane/api_key.json
 .mcp.json
+DiagnosticLogs/
+ProxiedDevice-*/
+Retired/
