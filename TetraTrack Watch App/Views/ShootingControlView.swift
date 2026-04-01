@@ -79,65 +79,78 @@ struct ShootingControlView: View {
 
     private var activeShootingView: some View {
         ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(spacing: 6) {
-                    // Shot count — hero metric
-                    HStack(spacing: 4) {
-                        Image(systemName: "target")
-                            .font(.caption)
-                        Text("\(shotDetector.shotCount)")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                        Text("shots")
+            VStack(spacing: 6) {
+                // Hero: Steadiness + HR side by side
+                HStack(spacing: 16) {
+                    // Steadiness
+                    VStack(spacing: 2) {
+                        steadinessGauge
+                        Text("steady")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(WatchAppColors.shooting)
 
-                    // Steadiness gauge
-                    steadinessGauge
+                    // Heart Rate
+                    VStack(spacing: 2) {
+                        Text("\(workoutManager.currentHeartRate)")
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundStyle(.red)
+                        Text("bpm")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-                    Divider()
-                        .padding(.vertical, 2)
+                Divider().padding(.vertical, 2)
 
-                    // Heart rate, delta, fatigue
-                    HStack(spacing: 10) {
-                        WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
+                // Metrics row: shot count, delta, form trend
+                HStack(spacing: 10) {
+                    // Shot count
+                    WatchMetricCell(
+                        value: "\(shotDetector.shotCount)",
+                        unit: "shots"
+                    )
 
-                        // Last shot delta
-                        if let delta = lastShotDelta {
-                            VStack(spacing: 2) {
-                                HStack(spacing: 2) {
-                                    Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
-                                        .font(.caption2)
-                                        .foregroundStyle(delta >= 0 ? .green : .orange)
-                                    Text(String(format: "%.0f", abs(delta)))
-                                        .font(.callout)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(delta >= 0 ? .green : .orange)
-                                }
-                                Text("steadiness")
+                    // Last shot delta
+                    if let delta = lastShotDelta {
+                        VStack(spacing: 2) {
+                            HStack(spacing: 2) {
+                                Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(delta >= 0 ? .green : .orange)
+                                Text(String(format: "%.0f", abs(delta)))
+                                    .font(.callout.weight(.semibold))
+                                    .foregroundStyle(delta >= 0 ? .green : .orange)
                             }
+                            Text("delta")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
+                    }
 
-                        // Fatigue trend (3+ shots)
-                        if shotDetector.shotCount >= 3 {
-                            VStack(spacing: 2) {
-                                Image(systemName: fatigueTrendIcon)
-                                    .font(.callout)
-                                    .foregroundStyle(fatigueTrendColor)
-                                Text("form")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                    // Form trend (3+ shots)
+                    if shotDetector.shotCount >= 3 {
+                        VStack(spacing: 2) {
+                            Image(systemName: fatigueTrendIcon)
+                                .font(.callout)
+                                .foregroundStyle(fatigueTrendColor)
+                            Text("form")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .padding(.bottom, 62)
+
+                // Timer
+                Text(workoutManager.formattedElapsedTime)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
             }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 62)
 
             WatchFloatingControlPanel(
                 disciplineIcon: "target",
