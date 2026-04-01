@@ -186,7 +186,7 @@ struct RideModelTests {
     @Test func rideTypeDefault() {
         let ride = Ride()
 
-        #expect(ride.rideType == .hack)
+        #expect(ride.rideType == .ride)
     }
 
     @Test(.disabled("Pre-existing failure")) func rideTypeAssignment() {
@@ -265,16 +265,17 @@ struct RideTypeTests {
     }
 
     @Test func rideTypeIsIndoor() {
-        #expect(RideType.schooling.isIndoor == true)
-        #expect(RideType.hack.isIndoor == false)
-        #expect(RideType.crossCountry.isIndoor == false)
+        #expect(RideType.dressage.isIndoor == true)
+        #expect(RideType.ride.isIndoor == false)
+        #expect(RideType.showjumping.isIndoor == false)
     }
 
-    @Test(.disabled("Pre-existing failure")) func rideTypeOutdoorTypes() {
-        let outdoorTypes = RideType.outdoorTypes
-        #expect(outdoorTypes.count == 2)
-        #expect(outdoorTypes.contains(.hack))
-        #expect(outdoorTypes.contains(.crossCountry))
+    @Test func rideTypeActiveCases() {
+        let active = RideType.activeCases
+        #expect(active.count == 3)
+        #expect(active.contains(.ride))
+        #expect(active.contains(.dressage))
+        #expect(active.contains(.showjumping))
     }
 }
 
