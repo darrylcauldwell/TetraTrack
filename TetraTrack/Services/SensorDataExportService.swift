@@ -302,13 +302,6 @@ final class SensorDataExportService {
                 "breed": horse.typedBreed.rawValue,
                 "color": horse.color,
                 "notes": horse.notes,
-                "has_custom_gait_settings": horse.hasCustomGaitSettings,
-                "gait_frequency_offset": horse.gaitFrequencyOffset,
-                "gait_speed_sensitivity": horse.gaitSpeedSensitivity,
-                "gait_transition_speed": horse.gaitTransitionSpeed,
-                "canter_sensitivity": horse.canterSensitivity,
-                "walk_trot_threshold": horse.walkTrotThreshold,
-                "trot_canter_threshold": horse.trotCanterThreshold,
             ]
             if let height = horse.heightHands {
                 horseDict["height_hands"] = height
@@ -318,21 +311,6 @@ final class SensorDataExportService {
             }
             if let dob = horse.dateOfBirth {
                 horseDict["date_of_birth"] = Formatters.iso8601(dob)
-            }
-            if let learned = horse.learnedGaitParameters {
-                var learnedDict: [String: Any] = [
-                    "ride_count": learned.rideCount,
-                ]
-                if let v = learned.walkFrequencyCenter { learnedDict["walk_frequency_center"] = v }
-                if let v = learned.trotFrequencyCenter { learnedDict["trot_frequency_center"] = v }
-                if let v = learned.canterFrequencyCenter { learnedDict["canter_frequency_center"] = v }
-                if let v = learned.gallopFrequencyCenter { learnedDict["gallop_frequency_center"] = v }
-                if let v = learned.walkH2Mean { learnedDict["walk_h2_mean"] = v }
-                if let v = learned.trotH2Mean { learnedDict["trot_h2_mean"] = v }
-                if let v = learned.canterH3Mean { learnedDict["canter_h3_mean"] = v }
-                if let v = learned.gallopEntropyMean { learnedDict["gallop_entropy_mean"] = v }
-                if let v = learned.lastUpdate { learnedDict["last_update"] = Formatters.iso8601(v) }
-                horseDict["learned_gait_parameters"] = learnedDict
             }
             payload["horse"] = horseDict
         }

@@ -12,7 +12,7 @@ struct HorseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showingEditSheet = false
-    @State private var showingGaitTuning = false
+    // Gait tuning removed — riding is Watch-primary
     @State private var selectedPeriod: StatisticsPeriod = .allTime
     @State private var selectedVideoIndex: Int?
     @State private var showingVideoPlayer = false
@@ -58,8 +58,6 @@ struct HorseDetailView: View {
             VStack(spacing: 20) {
                 profileHeader
 
-                gaitTuningSection
-
                 if horse.hasVideos {
                     videoGallerySection
                 }
@@ -84,8 +82,6 @@ struct HorseDetailView: View {
     private var iPhoneLayout: some View {
         VStack(spacing: 20) {
             profileHeader
-
-            gaitTuningSection
 
             if horse.hasVideos {
                 videoGallerySection
@@ -145,43 +141,6 @@ struct HorseDetailView: View {
         .frame(maxWidth: .infinity)
         .background(AppColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    // MARK: - Gait Tuning Section
-
-    private var gaitTuningSection: some View {
-        Button {
-            showingGaitTuning = true
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("Gait Detection", systemImage: "waveform.path.ecg")
-                        .font(.headline)
-
-                    if horse.hasCustomGaitSettings {
-                        Text("Custom settings applied")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("Using \(horse.typedBreed.displayName) defaults")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .sheet(isPresented: $showingGaitTuning) {
-            HorseGaitTuningView(horse: horse)
-        }
     }
 
     // MARK: - Video Gallery Section

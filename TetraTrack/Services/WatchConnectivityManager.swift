@@ -164,15 +164,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 
     // MARK: - Watch Gait Classification
 
-    private(set) var gaitResultSequence: Int = 0
-    private(set) var watchGaitState: String = "stationary"
-    private(set) var watchGaitConfidence: Double = 0
-    private(set) var watchStrideFrequency: Double = 0
-    private(set) var watchBounceAmplitude: Double = 0
-    private(set) var watchLateralSymmetry: Double = 0
-    private(set) var watchCanterLead: String?
-    private(set) var watchCanterLeadConfidence: Double = 0
-    private(set) var lastGaitResultTimestamp: Date?
+    // Gait result properties removed — riding is Watch-primary (#307)
 
     // MARK: - Enhanced Sensor Data (Phase 3)
 
@@ -502,19 +494,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
         enhancedSensorSequence += 1
     }
 
-    /// Update from Watch gait classification result received via WCSession
-    func updateFromWatchGaitResult(_ result: WatchGaitResult) {
-        watchGaitState = result.gaitState
-        watchGaitConfidence = result.confidence
-        watchStrideFrequency = result.strideFrequency
-        watchBounceAmplitude = result.bounceAmplitude
-        watchLateralSymmetry = result.lateralSymmetry
-        watchCanterLead = result.canterLead
-        watchCanterLeadConfidence = result.canterLeadConfidence
-        lastGaitResultTimestamp = result.timestamp
-        gaitResultSequence += 1
-        Log.watch.info("Watch gait result: \(result.gaitState) (conf: \(String(format: "%.2f", result.confidence)))")
-    }
+    // updateFromWatchGaitResult removed — riding is Watch-primary (#307)
 
     // MARK: - Private Methods
 
@@ -582,16 +562,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
-        if message["wcSessionGaitResult"] != nil {
-            if let resultString = message["resultJSON"] as? String,
-               let resultData = resultString.data(using: .utf8),
-               let result = try? JSONDecoder().decode(WatchGaitResult.self, from: resultData) {
-                Task { @MainActor in
-                    self.updateFromWatchGaitResult(result)
-                }
-            }
-            return
-        }
+        // Gait result handling removed — riding is Watch-primary (#307)
 
         // Check for shooting shot detection message
         if let type = message["type"] as? String, type == "shootingShotDetected" {

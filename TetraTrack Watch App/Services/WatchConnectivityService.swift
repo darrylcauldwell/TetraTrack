@@ -328,15 +328,7 @@ final class WatchConnectivityService: NSObject {
         sendRawMessage(payload)
     }
 
-    /// Send gait classification result to iPhone via WCSession.
-    func sendGaitResult(_ resultJSON: String, discipline: String) {
-        let payload: [String: Any] = [
-            "wcSessionGaitResult": true,
-            "resultJSON": resultJSON,
-            "discipline": discipline
-        ]
-        sendRawMessage(payload)
-    }
+    // sendGaitResult removed — riding is Watch-primary (#307)
 
     /// Send raw motion samples for detailed analysis (bulk transfer)
     func sendMotionSamples(_ samples: [WatchMotionSample]) {
