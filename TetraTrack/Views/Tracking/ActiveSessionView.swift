@@ -3,7 +3,7 @@
 //  TetraTrack
 //
 //  Routes to the correct discipline-specific live view based on the active plugin type.
-//  All disciplines are routed equally through this single entry point.
+//  Riding is Watch-primary — only shooting uses iPhone-based session tracking.
 //
 
 import SwiftUI
@@ -13,9 +13,7 @@ struct ActiveSessionView: View {
 
     var body: some View {
         if let tracker {
-            if let _ = tracker.plugin(as: RidingPlugin.self) {
-                TrackingView()
-            } else if let _ = tracker.plugin(as: ShootingPlugin.self) {
+            if let _ = tracker.plugin(as: ShootingPlugin.self) {
                 ShootingPracticeView()
             } else {
                 ProgressView("Starting session...")

@@ -287,15 +287,7 @@ struct RideInsightsView: View {
                 economyScore: economyScore
             )
 
-            // Phase timeline (showjumping rides)
-            if !ride.sortedPhases.isEmpty {
-                PhaseTimelineCard(phases: ride.sortedPhases)
-            }
-
-            // Dressage test scoresheet
-            if let execution = ride.dressageTestExecution {
-                DressageTestScoresheetCard(execution: execution)
-            }
+            // Phase timeline and dressage scoresheet removed — riding is now Watch-primary
 
             // Coaching notes
             if !ride.coachingNotes.isEmpty {
@@ -351,15 +343,7 @@ struct RideInsightsView: View {
                 economyScore: economyScore
             )
 
-            // Phase timeline (showjumping rides)
-            if !ride.sortedPhases.isEmpty {
-                PhaseTimelineCard(phases: ride.sortedPhases)
-            }
-
-            // Dressage test scoresheet
-            if let execution = ride.dressageTestExecution {
-                DressageTestScoresheetCard(execution: execution)
-            }
+            // Phase timeline and dressage scoresheet removed — riding is now Watch-primary
 
             // Coaching notes
             if !ride.coachingNotes.isEmpty {

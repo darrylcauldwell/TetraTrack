@@ -906,13 +906,7 @@ final class WorkoutManager: NSObject {
             let elapsed = isUserPaused ? elapsedTime : Date().timeIntervalSince(start)
             WatchConnectivityService.shared.sendElapsedTime(elapsed: elapsed, isPaused: isUserPaused)
         }
-        // Gait classification (riding only)
-        if activityType == .riding,
-           let gaitResult = WatchGaitAnalyzer.shared.currentGaitResult,
-           let resultJSON = try? JSONEncoder().encode(gaitResult),
-           let resultString = String(data: resultJSON, encoding: .utf8) {
-            WatchConnectivityService.shared.sendGaitResult(resultString, discipline: "riding")
-        }
+        // Gait classification removed — riding is now Watch-primary with no gait analysis
         // Periodic data-path diagnostic (every 30 ticks ≈ 30s)
         if motionSendTickCount % 30 == 0 {
             let hr = currentHeartRate

@@ -51,23 +51,10 @@ enum GaitType: String, Codable, CaseIterable {
 
 // MARK: - Phone Mount Position
 
-/// Phone mounting position on rider (iPhone-only subset of MountPosition)
-/// Delegates DSP parameters to the shared MountPosition enum
-enum PhoneMountPosition: String, Codable, CaseIterable, PhonePlacementConfigurable {
+/// Phone mounting position on rider (legacy, kept for historical ride data)
+enum PhoneMountPosition: String, Codable, CaseIterable {
     case jodhpurThigh = "Jodhpur Pocket"
     case jacketChest = "Jacket Pocket"
-
-    /// Convert to shared MountPosition for DSP pipeline
-    var mountPosition: MountPosition {
-        switch self {
-        case .jodhpurThigh: return .jodhpurThigh
-        case .jacketChest: return .jacketChest
-        }
-    }
-
-    var calibrationDelay: Int { mountPosition.calibrationDelay }
-    var filterAlpha: Double { mountPosition.filterAlpha }
-    var driftThreshold: Double { mountPosition.driftThreshold }
 }
 
 // MARK: - Gait Segment Model

@@ -543,17 +543,8 @@ struct TetraTrackApp: App {
     }
 
     private func handleStartRide(notification: Notification) {
-        guard let tracker = sessionTracker else { return }
-
-        let plugin = RidingPlugin()
-        if let rideTypeRaw = notification.userInfo?["rideType"] as? String,
-           let rideType = RideType(rawValue: rideTypeRaw) {
-            plugin.selectedRideType = rideType
-        }
-
-        Task {
-            await tracker.startSession(plugin: plugin)
-        }
+        // Riding is now Watch-primary — iPhone no longer starts ride sessions
+        Log.app.info("Ride start request received but riding is Watch-primary")
     }
 
     private func handleIncomingURL(_ url: URL) {
