@@ -330,6 +330,18 @@ final class WatchConnectivityService: NSObject {
 
     // sendGaitResult removed — riding is Watch-primary (#307)
 
+    /// Send shooting summary to iPhone after autonomous shooting ends.
+    /// Uses transferUserInfo for guaranteed delivery.
+    func sendShootingSummary(_ summary: [String: Any]) {
+        guard let session = session,
+              session.activationState == .activated else {
+            Log.watch.debug("Session not active for shooting summary send")
+            return
+        }
+        session.transferUserInfo(summary)
+        Log.watch.info("TT: Shooting summary sent via transferUserInfo")
+    }
+
     /// Send raw motion samples for detailed analysis (bulk transfer)
     func sendMotionSamples(_ samples: [WatchMotionSample]) {
         guard !samples.isEmpty else { return }

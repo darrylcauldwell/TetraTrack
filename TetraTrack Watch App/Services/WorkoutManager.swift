@@ -696,6 +696,161 @@ final class WorkoutManager: NSObject {
         Log.tracking.info("Autonomous walk stopped and saved")
     }
 
+    // MARK: - Autonomous Shooting (Watch-Primary)
+
+    /// Whether this is an autonomous shooting session
+    private(set) var isAutonomousShooting: Bool = false
+
+    /// Accumulated shot metrics during autonomous shooting session
+    private(set) var accumulatedShotMetrics: [[String: Any]] = []
+
+    /// Add a detected shot to the accumulated metrics
+    func addShotMetrics(_ metrics: [String: Any]) {
+        accumulatedShotMetrics.append(metrics)
+    }
+
+    /// Start an autonomous shooting session — Watch owns the HKWorkoutSession
+    func startAutonomousShooting() async {
+        guard !isWorkoutActive else {
+            Log.tracking.error("TT: startAutonomousShooting skipped — workout already active")
+            return
+        }
+
+        let authorized = await requestAuthorization()
+        if !authorized {
+            Log.tracking.error("TT: startAutonomousShooting — HealthKit authorization denied")
+            return
+        }
+
+        await resetWorkout()
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .archery
+        configuration.locationType = .outdoor
+
+        do {
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore,
+                workoutConfiguration: configuration
+            )
+
+            session.prepare()
+
+            onHeartRateUpdate = { bpm in
+                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+            }
+
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
+
+            workoutSession = session
+            workoutBuilder = builder
+            activityType = .shooting
+            isAutonomousShooting = true
+            accumulatedShotMetrics = []
+            isWorkoutActive = true
+            isCompanionMode = false
+            isMirroringToiPhone = false
+            isPaused = false
+            startTime = startDate
+            resetMetrics()
+
+            // Shooting is indoor — no location tracking
+            WatchMotionManager.shared.startTracking(mode: .shooting)
+
+            startMotionDataSending()
+            startElapsedTimer()
+            _ = sessionStore.startSession(discipline: .shooting)
+
+            persistRecoveryContext()
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Started autonomous shooting (Watch-primary)")
+
+        } catch {
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: startAutonomousShooting FAILED: \(errMsg, privacy: .public)")
+        }
+    }
+
+    /// Stop autonomous shooting — save workout + send summary with all shot metrics to iPhone
+    func stopAutonomousShooting() async {
+        guard isWorkoutActive, activityType == .shooting else { return }
+
+        stopElapsedTimer()
+        stopMotionDataSending()
+        stopAnchoredHRQuery()
+        onMotionDataSend = nil
+        WatchMotionManager.shared.stopTracking()
+
+        let endDate = Date()
+        var workoutUUID: String = ""
+
+        do {
+            try await workoutBuilder?.endCollection(at: endDate)
+            if let builder = workoutBuilder {
+                if let finishedWorkout = try await builder.finishWorkout() {
+                    workoutUUID = finishedWorkout.uuid.uuidString
+                }
+                Log.health.info("Autonomous shooting saved to HealthKit")
+            }
+        } catch {
+            Log.tracking.error("Failed to end autonomous shooting: \(error.localizedDescription)")
+        }
+
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
+
+        sessionStore.updateActiveSession(
+            duration: elapsedTime,
+            distance: 0,
+            elevationGain: 0,
+            elevationLoss: 0,
+            averageSpeed: 0,
+            maxSpeed: 0,
+            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            minHeartRate: minHeartRate > 0 ? minHeartRate : nil
+        )
+        sessionStore.completeSession(locationPointsData: nil)
+
+        // Send shooting summary with all per-shot metrics to iPhone
+        if !workoutUUID.isEmpty {
+            let summary: [String: Any] = [
+                "tt_shootingSummary": true,
+                "tt_shotCount": accumulatedShotMetrics.count,
+                "tt_hkWorkoutUUID": workoutUUID,
+                "tt_duration": elapsedTime,
+                "tt_averageHeartRate": averageHeartRate,
+                "tt_shots": accumulatedShotMetrics
+            ]
+            WatchConnectivityService.shared.sendShootingSummary(summary)
+            let shotCount = self.accumulatedShotMetrics.count
+            Log.tracking.info("Shooting summary sent: \(shotCount) shots, UUID=\(workoutUUID)")
+        }
+
+        clearRecoveryContext()
+        workoutSession = nil
+        workoutBuilder = nil
+        isWorkoutActive = false
+        isCompanionMode = false
+        isMirroredFromiPhone = false
+        isMirroringToiPhone = false
+        isPaused = false
+        activityType = nil
+        isAutonomousShooting = false
+        accumulatedShotMetrics = []
+
+        onWorkoutStateChanged?(false)
+        Log.tracking.info("Autonomous shooting stopped and saved")
+    }
+
     /// Pause the current workout (user-initiated)
     func pauseWorkout() {
         guard isWorkoutActive, !isUserPaused else { return }
@@ -728,6 +883,11 @@ final class WorkoutManager: NSObject {
         // Route to autonomous walk stop
         if isAutonomousWalk {
             await stopAutonomousWalk()
+            return
+        }
+        // Route to autonomous shooting stop
+        if isAutonomousShooting {
+            await stopAutonomousShooting()
             return
         }
 

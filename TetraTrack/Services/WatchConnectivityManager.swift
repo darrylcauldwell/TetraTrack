@@ -35,6 +35,18 @@ struct WatchRideSummaryReceived: Identifiable {
     let receivedAt: Date
 }
 
+// MARK: - Watch Shooting Summary (received from autonomous Watch shooting)
+
+struct WatchShootingSummaryReceived: Identifiable {
+    let id = UUID()
+    let shotCount: Int
+    let hkWorkoutUUID: String
+    let duration: TimeInterval
+    let averageHeartRate: Int
+    let shots: [[String: Any]]  // Raw DetectedShotMetrics dictionaries
+    let receivedAt: Date
+}
+
 // MARK: - Watch Synced Session
 
 /// Represents a session recorded on Apple Watch and synced to iPhone
@@ -128,6 +140,10 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
     // MARK: - Ride Summaries (from Watch autonomous rides)
 
     private(set) var pendingRideSummaries: [WatchRideSummaryReceived] = []
+
+    // MARK: - Shooting Summaries (from Watch autonomous shooting)
+
+    private(set) var pendingShootingSummaries: [WatchShootingSummaryReceived] = []
 
     // MARK: - Session Lifecycle
 
@@ -817,6 +833,12 @@ extension WatchConnectivityManager: WCSessionDelegate {
             return
         }
 
+        // Handle shooting summary from autonomous Watch shooting
+        if userInfo["tt_shootingSummary"] as? Bool == true {
+            handleShootingSummary(userInfo)
+            return
+        }
+
         handleReceivedMessage(userInfo)
     }
 
@@ -836,6 +858,24 @@ extension WatchConnectivityManager: WCSessionDelegate {
         )
         pendingRideSummaries.append(summary)
         Log.watch.info("TT: Received ride summary from Watch: \(summary.rideType) workout=\(summary.hkWorkoutUUID)")
+    }
+
+    private func handleShootingSummary(_ userInfo: [String: Any]) {
+        let summary = WatchShootingSummaryReceived(
+            shotCount: userInfo["tt_shotCount"] as? Int ?? 0,
+            hkWorkoutUUID: userInfo["tt_hkWorkoutUUID"] as? String ?? "",
+            duration: userInfo["tt_duration"] as? TimeInterval ?? 0,
+            averageHeartRate: userInfo["tt_averageHeartRate"] as? Int ?? 0,
+            shots: userInfo["tt_shots"] as? [[String: Any]] ?? [],
+            receivedAt: Date()
+        )
+        pendingShootingSummaries.append(summary)
+        Log.watch.info("TT: Received shooting summary: \(summary.shotCount) shots, UUID=\(summary.hkWorkoutUUID)")
+    }
+
+    /// Remove a processed shooting summary
+    func removePendingShootingSummary(workoutUUID: String) {
+        pendingShootingSummaries.removeAll { $0.hkWorkoutUUID == workoutUUID }
     }
 
     /// Remove a processed ride summary

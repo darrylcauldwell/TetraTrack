@@ -58,7 +58,7 @@ struct ShootingControlView: View {
                 shotDetector.reset()
                 recentSteadiness = []
                 Task {
-                    await workoutManager.startWorkout(type: .shooting)
+                    await workoutManager.startAutonomousShooting()
                 }
             } label: {
                 HStack {
@@ -221,7 +221,11 @@ struct ShootingControlView: View {
                 lastShotDelta = metrics.holdSteadiness - previous.holdSteadiness
             }
 
+            // Accumulate for post-session transfer
             let dict = metrics.toDictionary()
+            workoutManager.addShotMetrics(dict)
+
+            // Also send real-time to iPhone if reachable (bonus live feedback)
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(dict, replyHandler: nil) { error in
                     Log.tracking.error("Failed to send shot metrics: \(error.localizedDescription)")

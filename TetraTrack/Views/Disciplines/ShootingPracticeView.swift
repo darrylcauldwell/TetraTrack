@@ -2,24 +2,21 @@
 //  ShootingPracticeView.swift
 //  TetraTrack
 //
-//  Two-phase Shoot + Mark flow for tetrathlon shooting practice.
-//  Shoot tab: live session metrics (timer, HR, breathing, shot count).
-//  Mark tab: scan & score UI reusing ShootingCompetitionView's scoring flow.
+//  Mark-only scoring view for tetrathlon shooting.
+//  Shooting session capture is Watch-primary — this view handles
+//  post-session target scanning and score entry.
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import TetraTrackShared
 
-// MARK: - Shooting Practice View
-
 struct ShootingPracticeView: View {
-    @Environment(SessionTracker.self) private var tracker: SessionTracker?
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedPhase: ShootingPhase = .shoot
-    @State private var hasFinishedShooting = false
-
-    // Scoring state (shared between tabs so Mark tab can save)
+    // Scoring state
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card1ScanAnalysisID: UUID?
@@ -28,11 +25,6 @@ struct ShootingPracticeView: View {
     @State private var scoringMode: ScoringMode = .scanScore
     @State private var showingScanSheet = false
     @State private var scanningCard: Int = 1
-
-    enum ShootingPhase: String, CaseIterable {
-        case shoot = "Shoot"
-        case mark = "Mark"
-    }
 
     enum ScoringMode: String, CaseIterable {
         case quickEntry = "Quick Entry"
@@ -56,243 +48,9 @@ struct ShootingPracticeView: View {
         card1Scores.allSatisfy({ $0 > 0 }) && card2Scores.allSatisfy({ $0 > 0 })
     }
 
-    private var shootingPlugin: ShootingPlugin? {
-        tracker?.plugin(as: ShootingPlugin.self)
-    }
-
-    private var sessionContext: ShootingSessionContext {
-        shootingPlugin?.sessionContext ?? .competitionTraining
-    }
-
-    private var contextColor: Color {
-        switch sessionContext.color {
-        case "blue": return .blue
-        case "orange": return .orange
-        case "purple": return .purple
-        default: return .gray
-        }
-    }
-
-    @Environment(\.dismiss) private var dismiss
+    private let contextColor: Color = .orange
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top bar with close
-            HStack {
-                Spacer()
-                Button {
-                    if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
-                        tracker?.discardSession()
-                    }
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, 4)
-
-            // Phase picker
-                Picker("Phase", selection: $selectedPhase) {
-                    ForEach(ShootingPhase.allCases, id: \.self) { phase in
-                        Text(phase.rawValue).tag(phase)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-                // Tab content
-                switch selectedPhase {
-                case .shoot:
-                    shootTabContent
-                case .mark:
-                    markTabContent
-                }
-            }
-        }
-
-    // MARK: - Header (removed — nav title handles this)
-
-    // MARK: - Shoot Tab
-
-    private var shootTabContent: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Watch connectivity
-                WatchStatusCard(discipline: .shooting)
-
-                if let tracker {
-                    if tracker.sessionState == .idle {
-                        // Start session button
-                        VStack(spacing: 12) {
-                            Text("Ready to shoot? Start the session to record stance, tremor, and shot timing from your Watch.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-
-                        Button {
-                            let plugin = ShootingPlugin(sessionContext: .competitionTraining)
-                            Task {
-                                await tracker.startSession(plugin: plugin)
-                            }
-                        } label: {
-                            Text("Start Session")
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(minHeight: 60)
-                                .background(.green)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                        }
-                    } else if tracker.sessionState == .tracking {
-                        liveSessionMetrics(tracker: tracker)
-                    } else if tracker.sessionState == .paused {
-                        pausedSessionView(tracker: tracker)
-                    }
-                }
-
-                // Per-shot feedback from Watch (when available)
-                let watchMetrics = WatchConnectivityManager.shared.receivedShotMetrics
-                if let lastShot = watchMetrics.last {
-                    lastShotFeedbackCard(lastShot, allMetrics: watchMetrics)
-                }
-
-                // Session shot summary (when 3+ shots detected)
-                if watchMetrics.count >= 3 {
-                    sessionShotSummaryCard(metrics: watchMetrics)
-                }
-
-                // Finish Shooting button
-                if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
-                    Button {
-                        hasFinishedShooting = true
-                        selectedPhase = .mark
-                    } label: {
-                        Label("Finish Shooting", systemImage: "arrow.right.circle.fill")
-                            .font(.title3.bold())
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: 60)
-                            .background(contextColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.top, 8)
-                }
-
-                Spacer(minLength: 100) // Space for floating control panel
-            }
-            .padding(.horizontal)
-            .padding(.top, 12)
-        }
-    }
-
-    // MARK: - Live Session Metrics
-
-    private func liveSessionMetrics(tracker: SessionTracker) -> some View {
-        VStack(spacing: 16) {
-            // Elapsed time
-            Text(tracker.formattedElapsedTime)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(.primary)
-
-            // Shot count and heart rate
-            HStack(spacing: 32) {
-                // Shot count from Watch
-                let shotCount = WatchConnectivityManager.shared.receivedShotMetrics.count
-                VStack(spacing: 4) {
-                    Text("\(shotCount)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                    Text("Shots")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Heart rate
-                if tracker.currentHeartRate > 0 {
-                    let hr = tracker.currentHeartRate
-                    VStack(spacing: 4) {
-                        Text("\(hr)")
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.red)
-                        Text("BPM")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Breathing rate
-                if let plugin = shootingPlugin, plugin.currentBreathingRate > 0 {
-                    let rate = plugin.currentBreathingRate
-                    VStack(spacing: 4) {
-                        Text(String(format: "%.0f", rate))
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.cyan)
-                        Text("Breaths/min")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // Pause button
-            Button {
-                tracker.pauseSession()
-            } label: {
-                Label("Pause", systemImage: "pause.fill")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(minWidth: 200, minHeight: 60)
-                    .background(.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
-    }
-
-    // MARK: - Paused Session View
-
-    private func pausedSessionView(tracker: SessionTracker) -> some View {
-        VStack(spacing: 16) {
-            Text("Paused")
-                .font(.title2.bold())
-                .foregroundStyle(.orange)
-
-            Text(tracker.formattedElapsedTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-                .monospacedDigit()
-
-            HStack(spacing: 20) {
-                Button {
-                    tracker.resumeSession()
-                } label: {
-                    Label("Resume", systemImage: "play.fill")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(minWidth: 140, minHeight: 60)
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .glassCard(material: .thin, cornerRadius: 16, padding: 0)
-    }
-
-    // MARK: - Mark Tab
-
-    private var markTabContent: some View {
         Group {
             if showingResults {
                 resultsView
@@ -302,18 +60,26 @@ struct ShootingPracticeView: View {
         }
     }
 
-    // MARK: - Scoring View (Mark Tab)
+    // MARK: - Scoring View
 
     private var scoringView: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Scoring mode picker
+                Picker("Mode", selection: $scoringMode) {
+                    ForEach(ScoringMode.allCases, id: \.self) { mode in
+                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 // Card 1
                 cardScoringView(cardNumber: 1, scores: $card1Scores, scanAnalysisID: card1ScanAnalysisID)
 
                 // Card 2
                 cardScoringView(cardNumber: 2, scores: $card2Scores, scanAnalysisID: card2ScanAnalysisID)
 
-                // Running total with tetrathlon points
+                // Running total
                 VStack(spacing: 4) {
                     HStack {
                         Text("Total:")
@@ -350,7 +116,7 @@ struct ShootingPracticeView: View {
         .fullScreenCover(isPresented: $showingScanSheet) {
             CardScanFlowView(
                 cardNumber: scanningCard,
-                sessionContext: sessionContext,
+                sessionContext: .competitionTraining,
                 onComplete: { scores, analysisID in
                     if scanningCard == 1 {
                         card1Scores = scores
@@ -498,7 +264,7 @@ struct ShootingPracticeView: View {
 
             Spacer()
 
-            Button(action: { saveAndFinish() }) {
+            Button(action: { saveAndDismiss() }) {
                 Label("Save & Finish", systemImage: "checkmark.circle.fill")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
@@ -511,169 +277,65 @@ struct ShootingPracticeView: View {
         }
     }
 
-    // MARK: - Save & Finish
+    // MARK: - Save
 
-    private func saveAndFinish() {
-        shootingPlugin?.saveScores(
-            card1Scores: card1Scores,
-            card2Scores: card2Scores,
-            card1ScanID: card1ScanAnalysisID,
-            card2ScanID: card2ScanAnalysisID
-        )
-        tracker?.stopSession()
-    }
+    private func saveAndDismiss() {
+        let session = ShootingSession()
+        session.startDate = Date()
+        session.endDate = Date()
+        session.sessionContextRaw = ShootingSessionContext.competitionTraining.rawValue
 
-    // MARK: - Per-Shot Feedback Card
-
-    private func lastShotFeedbackCard(_ shot: DetectedShotMetrics, allMetrics: [DetectedShotMetrics]) -> some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Shot \(shot.shotIndex)")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let hr = shot.heartRateAtShot {
-                    HStack(spacing: 2) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                        Text("\(hr)")
-                            .font(.caption.weight(.semibold))
-                    }
-                }
-            }
-
-            HStack(spacing: 16) {
-                // Steadiness
-                VStack(spacing: 2) {
-                    Text(String(format: "%.0f", shot.holdSteadiness))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(steadinessColor(shot.holdSteadiness))
-                    Text("Steadiness")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Delta from previous shot
-                if shot.shotIndex > 1, allMetrics.count >= 2 {
-                    let prev = allMetrics[allMetrics.count - 2]
-                    let delta = shot.holdSteadiness - prev.holdSteadiness
-                    VStack(spacing: 2) {
-                        HStack(spacing: 2) {
-                            Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
-                                .font(.caption)
-                            Text(String(format: "%.0f", abs(delta)))
-                                .font(.subheadline.weight(.semibold))
-                        }
-                        .foregroundStyle(delta >= 0 ? .green : .orange)
-                        Text("vs prev")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Tremor
-                VStack(spacing: 2) {
-                    Text(shot.tremorIntensity < 30 ? "Low" : shot.tremorIntensity < 60 ? "Med" : "High")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(shot.tremorIntensity < 30 ? .green : shot.tremorIntensity < 60 ? .yellow : .red)
-                    Text("Tremor")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Drift
-                VStack(spacing: 2) {
-                    Text(shot.driftMagnitude < 20 ? "Low" : shot.driftMagnitude < 50 ? "Med" : "High")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(shot.driftMagnitude < 20 ? .green : shot.driftMagnitude < 50 ? .yellow : .orange)
-                    Text("Drift")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        // Create ends and shots
+        let end1 = ShootingEnd(orderIndex: 0)
+        var shots1: [Shot] = []
+        for (i, score) in card1Scores.enumerated() {
+            let shot = Shot()
+            shot.score = score
+            shot.orderIndex = i
+            shot.isX = score == 10
+            shots1.append(shot)
         }
-        .padding()
-        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
-    }
+        end1.shots = shots1
+        if let id = card1ScanAnalysisID { end1.targetScanAnalysisID = id }
 
-    // MARK: - Session Shot Summary Card
-
-    private func sessionShotSummaryCard(metrics: [DetectedShotMetrics]) -> some View {
-        let recentCount = min(metrics.count, 10)
-        let recentMetrics = Array(metrics.suffix(recentCount))
-        let avgSteadiness = recentMetrics.map(\.holdSteadiness).reduce(0, +) / Double(recentCount)
-
-        let midpoint = metrics.count / 2
-        let firstHalfAvg = metrics.prefix(max(1, midpoint)).map(\.holdSteadiness).reduce(0, +) / Double(max(1, midpoint))
-        let secondHalfAvg = metrics.suffix(max(1, metrics.count - midpoint)).map(\.holdSteadiness).reduce(0, +) / Double(max(1, metrics.count - midpoint))
-        let fatigueDelta = secondHalfAvg - firstHalfAvg
-
-        return VStack(spacing: 8) {
-            HStack {
-                Text("Session Summary")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(metrics.count) shots detected")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            HStack(spacing: 20) {
-                VStack(spacing: 2) {
-                    Text(String(format: "%.0f", avgSteadiness))
-                        .font(.title3.weight(.bold).monospacedDigit())
-                        .foregroundStyle(steadinessColor(avgSteadiness))
-                    Text("Avg Steady")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(spacing: 2) {
-                    HStack(spacing: 2) {
-                        Image(systemName: fatigueDelta > 2 ? "arrow.up" : fatigueDelta < -2 ? "arrow.down" : "arrow.right")
-                            .font(.caption)
-                        Text(fatigueDelta > 2 ? "Improving" : fatigueDelta < -2 ? "Degrading" : "Stable")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .foregroundStyle(fatigueDelta > 2 ? .green : fatigueDelta < -2 ? .orange : .primary)
-                    Text("Form Trend")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                let avgHold = recentMetrics.map(\.holdDuration).reduce(0, +) / Double(recentCount)
-                VStack(spacing: 2) {
-                    Text(String(format: "%.1fs", avgHold))
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                    Text("Avg Hold")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // Mini steadiness bar chart
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(recentMetrics) { shot in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(steadinessColor(shot.holdSteadiness))
-                        .frame(width: max(6, CGFloat(200 / recentCount)), height: max(4, CGFloat(shot.holdSteadiness) * 0.4))
-                }
-            }
-            .frame(height: 40)
+        let end2 = ShootingEnd(orderIndex: 1)
+        var shots2: [Shot] = []
+        for (i, score) in card2Scores.enumerated() {
+            let shot = Shot()
+            shot.score = score
+            shot.orderIndex = i + 5  // Offset by card 1 shots
+            shot.isX = score == 10
+            shots2.append(shot)
         }
-        .padding()
-        .glassCard(material: .thin, cornerRadius: 12, padding: 0)
-    }
+        end2.shots = shots2
+        if let id = card2ScanAnalysisID { end2.targetScanAnalysisID = id }
 
-    // MARK: - Helpers
+        session.ends = [end1, end2]
 
-    private func steadinessColor(_ value: Double) -> Color {
-        if value > 80 { return .green }
-        if value > 60 { return .cyan }
-        if value > 40 { return .orange }
-        return .red
+        // Wire Watch sensor data from pending shooting summary if available
+        let watchManager = WatchConnectivityManager.shared
+        if let summary = watchManager.pendingShootingSummaries.last {
+            session.healthKitWorkoutUUID = summary.hkWorkoutUUID
+            session.totalDuration = summary.duration
+            session.averageHeartRate = summary.averageHeartRate
+
+            // Convert dictionaries to DetectedShotMetrics and wire to shots
+            let detectedMetrics = summary.shots.compactMap { DetectedShotMetrics.from(dictionary: $0) }
+            let allShots = shots1 + shots2
+            ShootingSensorAnalyzer.applyShotSensorData(detectedMetrics, to: allShots)
+
+            // Compute and apply pillar scores
+            let analysis = ShootingSensorAnalyzer.analyzeSession(
+                shotMetrics: detectedMetrics,
+                averageHeartRate: summary.averageHeartRate
+            )
+            ShootingSensorAnalyzer.applyAnalysis(analysis, to: session)
+
+            watchManager.removePendingShootingSummary(workoutUUID: summary.hkWorkoutUUID)
+        }
+
+        modelContext.insert(session)
+        try? modelContext.save()
+        dismiss()
     }
 }
