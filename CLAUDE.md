@@ -40,24 +40,32 @@ xcodebuild -project TetraTrack.xcodeproj -scheme TetraTrackShared -configuration
 ### Project Structure
 ```
 TetraTrack/
-├── TetraTrack/                      # Main iOS app
-│   ├── Models/                      # SwiftData models (Ride, Horse, LocationPoint, etc.)
-│   │   └── SessionState.swift       # Discipline-neutral session state enum
+├── TetraTrack/                      # Main iOS app (enrichment, annotation, history)
+│   ├── Models/                      # SwiftData models (Ride, Horse, ShootingSession, etc.)
 │   ├── Services/                    # Business logic and managers
-│   │   ├── SessionTracker.swift     # Unified session tracker (all disciplines)
-│   │   ├── DisciplinePlugin.swift   # Protocol for discipline-specific logic
-│   │   ├── Plugins/                 # DisciplinePlugin implementations (Riding + Shooting only)
-│   │   │   ├── RidingPlugin.swift   # Riding-specific session logic
-│   │   │   └── ShootingPlugin.swift # Shooting-specific session logic
-│   │   ├── Intelligence/            # Apple Intelligence integration
+│   │   ├── WorkoutEnrichmentService.swift  # Fetches HealthKit metrics for any workout
+│   │   ├── Shooting/               # ShootingSensorAnalyzer for pillar scores
+│   │   ├── Intelligence/           # Apple Intelligence integration
 │   │   └── [service files]
 │   ├── Views/                       # SwiftUI views by feature area
-│   │   ├── Disciplines/             # Riding, Shooting (capture) + drills for all disciplines
-│   │   ├── Tracking/                # Active session UI
+│   │   ├── Disciplines/            # Drill views, shooting scoring, ride annotation
+│   │   ├── History/                # Session detail views with enrichment + insights
+│   │   ├── Competition/            # Competition calendar, day view, stats
 │   │   └── [subdirectories]
 │   ├── Utilities/                   # Helpers (formatters, colors, calculators)
 │   └── Intents/                     # Siri Shortcuts
-├── TetraTrack Watch App/            # watchOS app
+├── TetraTrack Watch App/            # watchOS app (primary session capture)
+│   ├── Services/
+│   │   ├── WorkoutManager.swift     # Autonomous HKWorkoutSession for all disciplines
+│   │   ├── ShootingShotDetector.swift # 50Hz IMU shot detection state machine
+│   │   ├── WatchRideMetricsCollector.swift # Jump, turn, steadiness, rhythm, halt
+│   │   └── WatchMotionManager.swift # Cadence, stance, posture from IMU
+│   └── Views/
+│       ├── RideControlView.swift    # 3 ride types (Ride, Dressage, Showjumping)
+│       ├── RunControlView.swift     # min/400m pace hero
+│       ├── SwimControlView.swift    # Lap count hero
+│       ├── WalkControlView.swift    # SPM hero
+│       └── ShootingControlView.swift # Steadiness + HR hero
 ├── TetraTrackWidgetExtension/       # Home screen widgets
 ├── TetraTrackShared/                # SPM package shared between iOS/watchOS
 └── TetraTrackTests/                 # Unit tests (Swift Testing framework)
@@ -69,41 +77,38 @@ Use the correct suffix — it signals intent and lifecycle:
 
 | Suffix | Role | Stateful? | Example |
 |--------|------|-----------|---------|
-| `*Manager` | Owns a subsystem, long-lived, `@Observable @MainActor` | Yes | `HealthKitManager`, `FallDetectionManager` |
-| `*Service` | Coordinates operations, business logic | Usually no | `WeatherService`, `TrainingProgramService` |
-| `*Analyzer` | Signal processing / DSP on streaming data | Internal buffers only | `GaitAnalyzer`, `TurnAnalyzer`, `RhythmAnalyzer` |
+| `*Manager` | Owns a subsystem, long-lived, `@Observable @MainActor` | Yes | `HealthKitManager`, `WorkoutManager` |
+| `*Service` | Coordinates operations, business logic | Usually no | `WeatherService`, `WorkoutEnrichmentService` |
+| `*Analyzer` | Signal processing / DSP on streaming data | Internal buffers only | `WatchSensorAnalyzer`, `ShootingSensorAnalyzer` |
 | `*Coordinator` | Orchestrates across multiple services | No | `UnifiedSharingCoordinator`, `InsightsCoordinator` |
+| `*Collector` | Gathers metrics from sensors during a session | Internal buffers only | `WatchRideMetricsCollector` |
 
-### Session Tracking Architecture
+### Watch-Primary Session Architecture
 
-All disciplines share a unified `SessionTracker` (`@Observable @MainActor`) that owns common session concerns: GPS, timer, heart rate, elevation, fall detection, vehicle detection, weather, family sharing, and Watch connectivity. Discipline-specific logic lives in `DisciplinePlugin` conformances.
+**All disciplines capture on Apple Watch.** iPhone is the enrichment, annotation, and review layer.
 
 ```
-SessionTracker (common)          DisciplinePlugin (protocol)
-├── sessionState                 ├── createSessionModel()
-├── elapsedTime, totalDistance   ├── createLocationPoint()
-├── currentSpeed, elevation      ├── onSessionStarted/Stopped()
-├── heartRate, HR zones          ├── onLocationProcessed()
-├── fallDetection, weather       ├── onTimerTick()
-├── familySharing                └── watchStatusFields()
-└── startSession(plugin:)
-         │
-         ▼
-    RidingPlugin (riding-specific)
-    ├── gait detection, lead/rein analysis
-    ├── phase management (warmup/round/rest/cooldown)
-    ├── dressage test practice
-    ├── XC timing
-    └── CoreMotion processing
+Watch (capture)                          iPhone (review)
+├── WorkoutManager                       ├── WorkoutEnrichmentService
+│   ├── startAutonomousRide(type:)       │   (HR, route, elevation, weather, photos)
+│   ├── startAutonomousRun()             ├── EnrichedWorkoutDetailView
+│   ├── startAutonomousSwim()            │   (Session + Insights tabs)
+│   ├── startAutonomousWalk()            ├── RideAnnotationView
+│   └── startAutonomousShooting()        │   (horse, scores, notes)
+│                                        └── ShootingPracticeView
+├── HKWorkoutSession (.equestrianSports, │   (scan targets, enter scores)
+│   .running, .swimming, .walking,       │
+│   .archery) — Watch owns + saves       │
+│                                        │
+├── Post-session: transferUserInfo       │
+│   sends summary to iPhone              │
+│   (ride metrics, shot data, etc.)      │
+└── Workout appears in HealthKit ────────┘
+    → iPhone enriches via HealthKit queries
 ```
 
-**Views** access common metrics from `SessionTracker` and discipline-specific data via plugin downcast:
-```swift
-@Environment(SessionTracker.self) private var tracker
-let ridingPlugin = tracker?.plugin(as: RidingPlugin.self)
-```
-
-**`SessionState`** (`idle`, `tracking`, `paused`) replaces the old `RideState`. A `typealias RideState = SessionState` exists for backward compatibility until all disciplines are migrated.
+**No iPhone app needed during sessions.** Watch is fully autonomous.
+Post-session data flows via `transferUserInfo` (guaranteed delivery) for ride annotations and shooting scores.
 
 ### HealthKit Workout Enrichment
 
@@ -247,20 +252,20 @@ locationManager.activityType = .fitness
 
 **Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
 
-### iPhone-Primary Workout Architecture
+### Watch-Primary Workout Architecture
 
-iPhone always owns the `HKWorkoutSession` (iOS 26 WWDC 2025 session 322 pattern). Watch provides HR and motion data via WCSession. No mirroring is used.
-
-iPhone calls `HKHealthStore.startWatchApp(toHandle:)` → Watch receives config via `handle(_ workoutConfiguration:)` → creates local HKWorkoutSession for HR sensor activation → sends HR/motion at 1Hz via WCSession → iPhone's `HKLiveWorkoutBuilder` collects calories/distance/steps → iPhone saves workout to HealthKit → Watch discards its workout.
+Watch owns all `HKWorkoutSession` instances. Each discipline has an autonomous start/stop method on `WorkoutManager`. Watch saves workouts directly to HealthKit. Post-session summaries sent to iPhone via `WCSession.transferUserInfo` for annotation data (ride metrics, shot sensor data).
 
 ### Key Files
 
 | File | Side | Role |
 |------|------|------|
-| `WatchConnectivityManager.swift` | iPhone | Sends commands, receives Watch data |
-| `WorkoutLifecycleService.swift` | iPhone | Manages iPhone-primary HKWorkoutSession lifecycle |
-| `WorkoutManager.swift` | Watch | Manages Watch HKWorkoutSession for HR sensor |
-| `WatchConnectivityService.swift` | Watch | Receives commands, sends HR/motion/gait data |
+| `WorkoutManager.swift` | Watch | Autonomous HKWorkoutSession for all 5 disciplines |
+| `WatchRideMetricsCollector.swift` | Watch | Jump, turn, steadiness, rhythm, halt detection |
+| `ShootingShotDetector.swift` | Watch | 50Hz IMU shot detection state machine |
+| `WatchMotionManager.swift` | Watch | Cadence, stance, posture from IMU sensors |
+| `WatchConnectivityManager.swift` | iPhone | Receives Watch summaries, stores pending annotations |
+| `WorkoutEnrichmentService.swift` | iPhone | Fetches HealthKit metrics for completed workouts |
 
 ## UI Guidelines
 

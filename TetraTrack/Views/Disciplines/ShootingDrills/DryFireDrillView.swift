@@ -214,16 +214,37 @@ struct DryFireDrillView: View {
                         }
                         .padding(.top, 8)
 
-                        // Enhanced shooting sensor metrics
+                        // Sensor metrics summary
                         if sensorAnalyzer.tremorLevel > 0 || sensorAnalyzer.breathingRate > 0 {
-                            ShootingSensorMetricsView(
-                                tremorLevel: sensorAnalyzer.tremorLevel,
-                                breathingRate: sensorAnalyzer.breathingRate,
-                                posturePitch: sensorAnalyzer.posturePitch,
-                                postureRoll: sensorAnalyzer.postureRoll,
-                                postureStability: sensorAnalyzer.postureStability,
-                                stillnessScore: max(0, 100 - sensorAnalyzer.movementIntensity)
-                            )
+                            HStack(spacing: 16) {
+                                if sensorAnalyzer.postureStability > 0 {
+                                    VStack(spacing: 2) {
+                                        Text(String(format: "%.0f", sensorAnalyzer.postureStability))
+                                            .font(.title3.bold())
+                                        Text("stability")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                if sensorAnalyzer.tremorLevel > 0 {
+                                    VStack(spacing: 2) {
+                                        Text(String(format: "%.0f", 100 - sensorAnalyzer.tremorLevel))
+                                            .font(.title3.bold())
+                                        Text("steadiness")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                if sensorAnalyzer.breathingRate > 0 {
+                                    VStack(spacing: 2) {
+                                        Text(String(format: "%.0f", sensorAnalyzer.breathingRate))
+                                            .font(.title3.bold())
+                                        Text("breaths/min")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
                             .padding(.top, 8)
                         }
                     }

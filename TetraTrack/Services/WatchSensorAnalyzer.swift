@@ -11,7 +11,7 @@ import Observation
 
 /// Comprehensive analyzer for Watch sensor data across all disciplines
 @Observable @MainActor
-final class WatchSensorAnalyzer: Resettable {
+final class WatchSensorAnalyzer {
 
     // MARK: - Singleton
 

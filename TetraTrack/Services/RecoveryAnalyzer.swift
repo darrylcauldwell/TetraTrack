@@ -12,7 +12,7 @@ import os
 
 @MainActor
 @Observable
-final class RecoveryAnalyzer: Resettable {
+final class RecoveryAnalyzer {
     // MARK: - State
 
     private(set) var isAnalyzing: Bool = false
