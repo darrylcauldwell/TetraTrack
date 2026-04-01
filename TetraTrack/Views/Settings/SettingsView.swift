@@ -71,7 +71,6 @@ struct SettingsView: View {
     @Query private var competitions: [Competition]
     @Query private var competitionTasks: [CompetitionTask]
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.routePlanning) private var routePlanning
     private var healthKit = HealthKitManager.shared
     private var watchConnectivity = WatchConnectivityManager.shared
     @AppStorage("demonstrationDataEnabled") private var demonstrationDataEnabled: Bool = false
@@ -81,7 +80,7 @@ struct SettingsView: View {
     @State private var showingClearTasksConfirmation = false
     @State private var showingClearCompetitionsConfirmation = false
     @State private var showingClearAllConfirmation = false
-    @State private var hasDownloadedRegions = false
+    // hasDownloadedRegions removed — route planning deleted (#307)
 
     // iPad navigation state
     @State private var selectedSection: SettingsSection? = .horses
@@ -158,7 +157,7 @@ struct SettingsView: View {
             if healthKit.isAuthorized {
                 await healthKit.updateProfileFromHealthKit(profile)
             }
-            checkDownloadedRegions()
+            // checkDownloadedRegions removed — route planning deleted (#307)
         }
         .confirmationDialog(
             "Clear Session History",
@@ -808,7 +807,7 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
-                    .disabled(trainingSessionCount == 0 && competitionTasks.isEmpty && competitions.isEmpty && horses.isEmpty && !hasDownloadedRegions)
+                    .disabled(trainingSessionCount == 0 && competitionTasks.isEmpty && competitions.isEmpty && horses.isEmpty )
                     .accessibleButton(
                         "Clear All Data",
                         hint: "Permanently delete all training history, horses, tasks, competitions, and downloaded map data"
@@ -1250,7 +1249,7 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
-            .disabled(trainingSessionCount == 0 && competitionTasks.isEmpty && competitions.isEmpty && horses.isEmpty && !hasDownloadedRegions)
+            .disabled(trainingSessionCount == 0 && competitionTasks.isEmpty && competitions.isEmpty && horses.isEmpty )
             .padding()
             .background(AppColors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1491,35 +1490,9 @@ struct SettingsView: View {
         clearTasks()
         clearCompetitions()
         clearHorses()
-        clearRouteMapData()
     }
 
-    private func clearRouteMapData() {
-        // Use the OSMDataManager to properly delete all regions
-        // This handles batch deletion of potentially thousands of nodes
-        Task {
-            do {
-                let regions = try routePlanning.getDownloadedRegions()
-                for region in regions {
-                    try await routePlanning.deleteRegion(region.regionId)
-                }
-                await MainActor.run {
-                    hasDownloadedRegions = false
-                }
-            } catch {
-                // Silent fail - data may already be cleared
-            }
-        }
-    }
-
-    private func checkDownloadedRegions() {
-        do {
-            let regions = try routePlanning.getDownloadedRegions()
-            hasDownloadedRegions = !regions.isEmpty
-        } catch {
-            hasDownloadedRegions = false
-        }
-    }
+    // clearRouteMapData and checkDownloadedRegions removed — route planning deleted (#307)
 
     private func clearHorses() {
         // Fetch ALL horses directly (including archived) to ensure complete deletion
@@ -1579,195 +1552,7 @@ struct SettingsRowContent: View {
     }
 }
 
-// MARK: - Route Data Regions List
-
-struct RouteDataRegionsList: View {
-    @Environment(\.routePlanning) private var routePlanning
-    @State private var downloadedRegions: [DownloadedRegion] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var showingError = false
-    @State private var regionToDelete: DownloadedRegion?
-    @State private var showingDeleteConfirmation = false
-
-    var body: some View {
-        Group {
-            if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .padding()
-                    Spacer()
-                }
-            } else {
-                ForEach(AvailableRegion.ukRegions) { region in
-                    RouteDataRegionRow(
-                        region: region,
-                        downloadedRegion: downloadedRegion(for: region),
-                        downloadProgress: routePlanning.activeDownloads[region.id],
-                        onDownload: { downloadRegion(region) },
-                        onDelete: { deleteRegion(region) }
-                    )
-                }
-            }
-        }
-        .onAppear { loadDownloadedRegions() }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") {}
-        } message: {
-            Text(errorMessage ?? "An error occurred")
-        }
-    }
-
-    private func downloadedRegion(for region: AvailableRegion) -> DownloadedRegion? {
-        downloadedRegions.first { $0.regionId == region.id }
-    }
-
-    private func loadDownloadedRegions() {
-        do {
-            downloadedRegions = try routePlanning.getDownloadedRegions()
-        } catch {
-            errorMessage = error.localizedDescription
-            showingError = true
-        }
-        isLoading = false
-    }
-
-    private func downloadRegion(_ region: AvailableRegion) {
-        Task {
-            do {
-                try await routePlanning.downloadRegion(region)
-                await MainActor.run { loadDownloadedRegions() }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    showingError = true
-                }
-            }
-        }
-    }
-
-    private func deleteRegion(_ region: AvailableRegion) {
-        // CRITICAL: SwiftUI's swipe delete expects synchronous data source updates.
-        // We must update the local state FIRST before any async work.
-        // Using withAnimation helps SwiftUI properly coordinate with UICollectionView.
-
-        // 1. Optimistically remove from local state IMMEDIATELY with animation
-        let deletedRegion = downloadedRegions.first { $0.regionId == region.id }
-        withAnimation {
-            downloadedRegions.removeAll { $0.regionId == region.id }
-        }
-
-        // 2. Perform actual deletion in background
-        Task {
-            do {
-                try await routePlanning.deleteRegion(region.id)
-                // Success - state is already correct
-            } catch {
-                // Failed - restore the item and show error
-                await MainActor.run {
-                    withAnimation {
-                        if let deletedRegion = deletedRegion {
-                            downloadedRegions.append(deletedRegion)
-                        }
-                    }
-                    errorMessage = error.localizedDescription
-                    showingError = true
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Route Data Region Row
-
-struct RouteDataRegionRow: View {
-    let region: AvailableRegion
-    let downloadedRegion: DownloadedRegion?
-    let downloadProgress: OSMDataManager.DownloadProgress?
-    let onDownload: () -> Void
-    let onDelete: () -> Void
-
-    private var isDownloaded: Bool {
-        downloadedRegion != nil
-    }
-
-    private var isDownloading: Bool {
-        if let progress = downloadProgress {
-            return progress.phase != .complete && progress.phase != .failed
-        }
-        return false
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Region info (no left icon - status shown on right only)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(region.displayName)
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-
-                if let downloaded = downloadedRegion {
-                    HStack(spacing: 8) {
-                        Text(downloaded.formattedFileSize)
-                        if downloaded.isStale {
-                            Text("• Update available")
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                } else if let progress = downloadProgress {
-                    Text(progress.message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("~\(region.formattedEstimatedSize)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            // Action button / status indicator (right side only)
-            if isDownloading {
-                // Show progress percentage
-                if let progress = downloadProgress {
-                    Text("\(Int(progress.progress * 100))%")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.blue)
-                        .monospacedDigit()
-                }
-            } else if isDownloaded {
-                // Downloaded checkmark
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.green)
-            } else {
-                // Download button
-                Button(action: onDownload) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if isDownloaded {
-                Button(role: .destructive) {
-                    // Delete immediately without confirmation
-                    // Swipe delete is already a deliberate gesture
-                    onDelete()
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        }
-    }
-
-}
+// RouteDataRegionsList, RouteDataRegionRow removed — route planning deleted (#307)
 
 #Preview {
     SettingsView()

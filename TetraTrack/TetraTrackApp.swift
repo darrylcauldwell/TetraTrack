@@ -79,10 +79,7 @@ struct TetraTrackApp: App {
             SwimmingSession.self,      // SCHEMA-ONLY: CloudKit backward compat (capture removed, uses HealthKit)
             ShootingSession.self,
             // Route planning models
-            PlannedRoute.self,
-            RouteWaypoint.self,
-            OSMNode.self,
-            DownloadedRegion.self,
+            // PlannedRoute, RouteWaypoint, OSMNode, DownloadedRegion removed — route planning deleted (#307)
             // Shooting analysis
             TargetScanAnalysis.self,
             // Skill domain tracking
@@ -333,7 +330,7 @@ struct TetraTrackApp: App {
 
             // App became active - restore download state from persistence
             // This ensures UI shows correct state if a download completed/failed while in background
-            ServiceContainer.shared.routePlanning.restoreDownloadState()
+            // Route planning restore removed (#307)
 
             // Resume family location refresh loop if views were watching before background
             UnifiedSharingCoordinator.shared.resumeWatchingForForeground()
@@ -393,8 +390,7 @@ struct TetraTrackApp: App {
         // Sync widget data on app launch
         WidgetDataSyncService.shared.syncAllWidgetData(context: sharedModelContainer.mainContext)
 
-        // Configure route planning service
-        ServiceContainer.shared.routePlanning.configure(with: sharedModelContainer.mainContext, container: sharedModelContainer)
+        // Route planning service removed (#307)
 
         // Configure family sharing coordinator
         UnifiedSharingCoordinator.shared.configure(with: sharedModelContainer.mainContext)

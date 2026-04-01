@@ -38,7 +38,7 @@ struct CloudKitDiagnosticsView: View {
         "CD_UnifiedDrillSession", "CD_SharingRelationship", "CD_TrainingArtifact",
         "CD_LinkedRiderRecord", "CD_LocationPoint", "CD_RunningLocationPoint",
         "CD_SwimmingLocationPoint", "CD_SharedCompetition",
-        "CD_PlannedRoute", "CD_RouteWaypoint", "CD_OSMNode", "CD_DownloadedRegion",
+        // CD_PlannedRoute, CD_RouteWaypoint, CD_OSMNode, CD_DownloadedRegion removed — route planning deleted
         "CD_TargetScanAnalysis", "CD_RidePhoto", "CD_FatigueIndicator",
         "CD_LiveTrackingSession", "CD_FamilyMember"
     ]

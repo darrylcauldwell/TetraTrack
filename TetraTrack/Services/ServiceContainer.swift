@@ -23,7 +23,6 @@ final class ServiceContainer {
     let unifiedSharing: UnifiedSharingCoordinator
     let fallDetection: FallDetecting
     let watchConnectivity: WatchConnecting
-    let routePlanning: RoutePlanningService
 
     /// Initialize with default (production) implementations
     private init() {
@@ -33,7 +32,6 @@ final class ServiceContainer {
         self.familySharing = UnifiedSharingCoordinator.shared  // Use unified coordinator
         self.fallDetection = FallDetectionManager.shared
         self.watchConnectivity = WatchConnectivityManager.shared
-        self.routePlanning = RoutePlanningService()
     }
 
     /// Initialize with custom implementations (for testing)
@@ -43,8 +41,7 @@ final class ServiceContainer {
         familySharing: FamilySharing,
         unifiedSharing: UnifiedSharingCoordinator? = nil,
         fallDetection: FallDetecting,
-        watchConnectivity: WatchConnecting,
-        routePlanning: RoutePlanningService? = nil
+        watchConnectivity: WatchConnecting
     ) {
         self.audioCoach = audioCoach
         self.weatherService = weatherService
@@ -52,7 +49,6 @@ final class ServiceContainer {
         self.unifiedSharing = unifiedSharing ?? UnifiedSharingCoordinator.shared
         self.fallDetection = fallDetection
         self.watchConnectivity = watchConnectivity
-        self.routePlanning = routePlanning ?? RoutePlanningService()
     }
 }
 
@@ -80,10 +76,6 @@ private struct FallDetectionKey: EnvironmentKey {
 
 private struct WatchConnectivityKey: EnvironmentKey {
     static let defaultValue: WatchConnecting = WatchConnectivityManager.shared
-}
-
-private struct RoutePlanningKey: EnvironmentKey {
-    static let defaultValue: RoutePlanningService = ServiceContainer.shared.routePlanning
 }
 
 // MARK: - Environment Values Extension
@@ -119,10 +111,6 @@ extension EnvironmentValues {
         set { self[WatchConnectivityKey.self] = newValue }
     }
 
-    var routePlanning: RoutePlanningService {
-        get { self[RoutePlanningKey.self] }
-        set { self[RoutePlanningKey.self] = newValue }
-    }
 }
 
 // MARK: - View Modifier for Injecting Test Services
@@ -137,6 +125,5 @@ extension View {
             .environment(\.unifiedSharing, container.unifiedSharing)
             .environment(\.fallDetection, container.fallDetection)
             .environment(\.watchConnectivity, container.watchConnectivity)
-            .environment(\.routePlanning, container.routePlanning)
     }
 }
