@@ -9,7 +9,9 @@ import SwiftUI
 
 struct WatchStartSessionView: View {
     @State private var showRideTypePicker = false
+    @State private var showRunControl = false
     @State private var showWalkControl = false
+    @State private var showSwimControl = false
     @State private var showShootingControl = false
 
     var body: some View {
@@ -18,8 +20,14 @@ struct WatchStartSessionView: View {
             .navigationDestination(isPresented: $showRideTypePicker) {
                 RideTypePickerView()
             }
+            .navigationDestination(isPresented: $showRunControl) {
+                RunControlView()
+            }
             .navigationDestination(isPresented: $showWalkControl) {
                 WalkControlView()
+            }
+            .navigationDestination(isPresented: $showSwimControl) {
+                SwimControlView()
             }
             .navigationDestination(isPresented: $showShootingControl) {
                 ShootingControlView()
@@ -31,26 +39,27 @@ struct WatchStartSessionView: View {
 
     private var disciplineSelectorView: some View {
         VStack(spacing: 6) {
-            // Riding button
-            Button {
-                showRideTypePicker = true
-            } label: {
+            Button { showRideTypePicker = true } label: {
                 disciplineButton(icon: "figure.equestrian.sports", label: "Riding", color: WatchAppColors.riding)
             }
             .buttonStyle(.plain)
 
-            // Walking button
-            Button {
-                showWalkControl = true
-            } label: {
+            Button { showRunControl = true } label: {
+                disciplineButton(icon: "figure.run", label: "Running", color: WatchAppColors.running)
+            }
+            .buttonStyle(.plain)
+
+            Button { showSwimControl = true } label: {
+                disciplineButton(icon: "figure.pool.swim", label: "Swimming", color: WatchAppColors.swimming)
+            }
+            .buttonStyle(.plain)
+
+            Button { showWalkControl = true } label: {
                 disciplineButton(icon: "figure.walk", label: "Walking", color: WatchAppColors.walking)
             }
             .buttonStyle(.plain)
 
-            // Shooting button
-            Button {
-                showShootingControl = true
-            } label: {
+            Button { showShootingControl = true } label: {
                 disciplineButton(icon: "target", label: "Shooting", color: WatchAppColors.shooting)
             }
             .buttonStyle(.plain)

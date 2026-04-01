@@ -696,6 +696,185 @@ final class WorkoutManager: NSObject {
         Log.tracking.info("Autonomous walk stopped and saved")
     }
 
+    // MARK: - Autonomous Running (Watch-Primary)
+
+    private(set) var isAutonomousRun: Bool = false
+
+    func startAutonomousRun() async {
+        guard !isWorkoutActive else { return }
+        let authorized = await requestAuthorization()
+        guard authorized else { return }
+        await resetWorkout()
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .running
+        configuration.locationType = .outdoor
+
+        do {
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+
+            session.prepare()
+            onHeartRateUpdate = { bpm in WatchConnectivityService.shared.sendHeartRateUpdate(bpm) }
+
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
+
+            workoutSession = session
+            workoutBuilder = builder
+            activityType = .running
+            isAutonomousRun = true
+            isWorkoutActive = true
+            isCompanionMode = false
+            isPaused = false
+            startTime = startDate
+            resetMetrics()
+
+            locationManager.startTracking()
+            WatchMotionManager.shared.startTracking(mode: .running)
+            startMotionDataSending()
+            startElapsedTimer()
+            _ = sessionStore.startSession(discipline: .running)
+            persistRecoveryContext()
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Started autonomous run (Watch-primary)")
+        } catch {
+            Log.tracking.error("TT: startAutonomousRun FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    func stopAutonomousRun() async {
+        guard isWorkoutActive, activityType == .running else { return }
+        locationManager.stopTracking()
+        stopElapsedTimer()
+        stopMotionDataSending()
+        stopAnchoredHRQuery()
+        onMotionDataSend = nil
+        WatchMotionManager.shared.stopTracking()
+
+        let endDate = Date()
+        do {
+            try await workoutBuilder?.endCollection(at: endDate)
+            if let builder = workoutBuilder { _ = try await builder.finishWorkout() }
+        } catch {
+            Log.tracking.error("Failed to end autonomous run: \(error.localizedDescription)")
+        }
+        if let session = workoutSession, session.state == .running || session.state == .paused { session.end() }
+
+        sessionStore.updateActiveSession(
+            duration: elapsedTime, distance: locationManager.totalDistance,
+            elevationGain: locationManager.elevationGain, elevationLoss: locationManager.elevationLoss,
+            averageSpeed: locationManager.averageSpeed, maxSpeed: locationManager.maxSpeed,
+            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            minHeartRate: minHeartRate > 0 ? minHeartRate : nil
+        )
+        sessionStore.completeSession(locationPointsData: locationManager.getEncodedPoints())
+
+        clearRecoveryContext()
+        workoutSession = nil; workoutBuilder = nil
+        isWorkoutActive = false; isCompanionMode = false
+        isMirroredFromiPhone = false; isMirroringToiPhone = false
+        isPaused = false; activityType = nil; isAutonomousRun = false
+        onWorkoutStateChanged?(false)
+        Log.tracking.info("Autonomous run stopped and saved")
+    }
+
+    // MARK: - Autonomous Swimming (Watch-Primary)
+
+    private(set) var isAutonomousSwim: Bool = false
+
+    func startAutonomousSwim() async {
+        guard !isWorkoutActive else { return }
+        let authorized = await requestAuthorization()
+        guard authorized else { return }
+        await resetWorkout()
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .swimming
+        configuration.locationType = .indoor
+        configuration.swimmingLocationType = .pool
+        configuration.lapLength = HKQuantity(unit: .meter(), doubleValue: poolLength)
+
+        do {
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+
+            session.prepare()
+            onHeartRateUpdate = { bpm in WatchConnectivityService.shared.sendHeartRateUpdate(bpm) }
+
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
+
+            workoutSession = session
+            workoutBuilder = builder
+            activityType = .swimming
+            isAutonomousSwim = true
+            isWorkoutActive = true
+            isCompanionMode = false
+            isPaused = false
+            startTime = startDate
+            resetMetrics()
+
+            // No location tracking for swimming
+            WatchMotionManager.shared.startTracking(mode: .swimming)
+            startMotionDataSending()
+            startElapsedTimer()
+            _ = sessionStore.startSession(discipline: .swimming)
+            persistRecoveryContext()
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Started autonomous swim (Watch-primary)")
+        } catch {
+            Log.tracking.error("TT: startAutonomousSwim FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    func stopAutonomousSwim() async {
+        guard isWorkoutActive, activityType == .swimming else { return }
+        stopElapsedTimer()
+        stopMotionDataSending()
+        stopAnchoredHRQuery()
+        onMotionDataSend = nil
+        WatchMotionManager.shared.stopTracking()
+
+        let endDate = Date()
+        do {
+            try await workoutBuilder?.endCollection(at: endDate)
+            if let builder = workoutBuilder { _ = try await builder.finishWorkout() }
+        } catch {
+            Log.tracking.error("Failed to end autonomous swim: \(error.localizedDescription)")
+        }
+        if let session = workoutSession, session.state == .running || session.state == .paused { session.end() }
+
+        sessionStore.updateActiveSession(
+            duration: elapsedTime, distance: swimmingDistance,
+            elevationGain: 0, elevationLoss: 0,
+            averageSpeed: 0, maxSpeed: 0,
+            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            minHeartRate: minHeartRate > 0 ? minHeartRate : nil
+        )
+        sessionStore.completeSession(locationPointsData: nil)
+
+        clearRecoveryContext()
+        workoutSession = nil; workoutBuilder = nil
+        isWorkoutActive = false; isCompanionMode = false
+        isMirroredFromiPhone = false; isMirroringToiPhone = false
+        isPaused = false; activityType = nil; isAutonomousSwim = false
+        onWorkoutStateChanged?(false)
+        Log.tracking.info("Autonomous swim stopped and saved")
+    }
+
     // MARK: - Autonomous Shooting (Watch-Primary)
 
     /// Whether this is an autonomous shooting session
@@ -883,6 +1062,16 @@ final class WorkoutManager: NSObject {
         // Route to autonomous walk stop
         if isAutonomousWalk {
             await stopAutonomousWalk()
+            return
+        }
+        // Route to autonomous run stop
+        if isAutonomousRun {
+            await stopAutonomousRun()
+            return
+        }
+        // Route to autonomous swim stop
+        if isAutonomousSwim {
+            await stopAutonomousSwim()
             return
         }
         // Route to autonomous shooting stop
@@ -1324,13 +1513,27 @@ final class WorkoutManager: NSObject {
         return String(format: "%.2f km", km)
     }
 
-    /// Formatted pace (for running)
+    /// Formatted pace per km (for running)
     var formattedPace: String {
         guard currentSpeed > 0 else { return "--:--" }
         let paceSecondsPerKm = 1000.0 / currentSpeed
         let minutes = Int(paceSecondsPerKm) / 60
         let seconds = Int(paceSecondsPerKm) % 60
         return String(format: "%d:%02d /km", minutes, seconds)
+    }
+
+    /// Formatted pace per 400m (tetrathlon running)
+    var formattedPace400m: String {
+        guard currentSpeed > 0 else { return "-:--" }
+        let secondsPer400m = 400.0 / currentSpeed
+        let minutes = Int(secondsPer400m) / 60
+        let seconds = Int(secondsPer400m) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    /// Current cadence from WatchMotionManager (steps per minute)
+    var runningCadence: Int {
+        WatchMotionManager.shared.cadence
     }
 
     // MARK: - Swimming Computed Properties
