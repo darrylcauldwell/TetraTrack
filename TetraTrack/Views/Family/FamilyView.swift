@@ -9,7 +9,7 @@ import SwiftUI
 import os
 
 struct FamilyView: View {
-    @Environment(SessionTracker.self) private var sessionTracker: SessionTracker?
+    // SessionTracker removed — all disciplines Watch-primary (#309)
     private let sharingCoordinator = UnifiedSharingCoordinator.shared
     private let notificationManager = NotificationManager.shared
     private let syncMonitor = SyncStatusMonitor.shared
@@ -36,7 +36,6 @@ struct FamilyView: View {
                         // Has contacts - show merged sharing status and contacts
                         SharingWithCard(
                             contacts: trustedContacts,
-                            sessionTracker: sessionTracker,
                             notificationManager: notificationManager,
                             sharingCoordinator: sharingCoordinator,
                             onAddMember: { showingAddMember = true },
@@ -356,7 +355,7 @@ struct ActiveRideCard: View {
 
 struct SharingWithCard: View {
     let contacts: [SharingRelationship]
-    let sessionTracker: SessionTracker?
+    // sessionTracker removed — sessions are Watch-primary (#309)
     let notificationManager: NotificationManager
     let sharingCoordinator: UnifiedSharingCoordinator
     let onAddMember: () -> Void
@@ -380,44 +379,7 @@ struct SharingWithCard: View {
                 }
             }
 
-            // Current sharing status
-            if let tracker = sessionTracker {
-                HStack(spacing: 8) {
-                    Image(systemName: tracker.sessionState == .tracking ? "antenna.radiowaves.left.and.right" : "circle")
-                        .font(.caption)
-                        .foregroundStyle(tracker.sessionState == .tracking ? AppColors.active : .secondary)
-
-                    Text(tracker.sessionState == .tracking ? "Currently sharing your ride" : "Not currently riding")
-                        .font(.caption)
-                        .foregroundStyle(tracker.sessionState == .tracking ? AppColors.active : .secondary)
-                }
-                .padding(.top, 8)
-
-                // Show error indicator when location updates are failing
-                if tracker.sessionState == .tracking && sharingCoordinator.hasLocationUpdateError {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(sharingCoordinator.locationErrorDescription ?? "Location updates failing")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.orange)
-                        }
-                        if let errorTime = sharingCoordinator.locationErrorStartTime {
-                            Text("Family may not see updates since \(errorTime.formatted(date: .omitted, time: .shortened))")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.orange.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.top, 8)
-                }
-            }
+            // Session sharing status — sessions are Watch-primary, location shared via Apple Find My
 
             Divider()
                 .padding(.vertical, 12)
@@ -1417,8 +1379,5 @@ struct BulletPoint: View {
 // ShareSheet is defined in RideDetailView.swift
 
 #Preview {
-    let locManager = LocationManager()
-    let gpsTracker = GPSSessionTracker(locationManager: locManager)
     FamilyView()
-        .environment(SessionTracker(locationManager: locManager, gpsTracker: gpsTracker))
 }

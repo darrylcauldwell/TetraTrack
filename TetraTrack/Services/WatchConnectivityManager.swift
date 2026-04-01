@@ -555,30 +555,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
             return
         }
 
-        // Handle WCSession data channels from Watch (builder stats, elapsed time, gait results).
-        if message["wcSessionBuilderStats"] != nil {
-            Task { @MainActor in
-                let service = WorkoutLifecycleService.shared
-                if let v = message["activeCalories"] as? Double { service.liveActiveCalories = v }
-                if let v = message["distance"] as? Double { service.liveDistance = v }
-                if let v = message["stepCount"] as? Int { service.liveStepCount = v }
-                if let v = message["swimmingStrokeCount"] as? Int { service.liveSwimmingStrokeCount = v }
-                if let v = message["runningSpeed"] as? Double { service.liveRunningSpeed = v }
-                if let v = message["runningPower"] as? Double { service.liveRunningPower = v }
-                if let v = message["runningStrideLength"] as? Double { service.liveRunningStrideLength = v }
-                if let v = message["groundContactTime"] as? Double { service.liveGroundContactTime = v }
-                if let v = message["verticalOscillation"] as? Double { service.liveVerticalOscillation = v }
-            }
-            return
-        }
-
-        // Watch elapsed time via WCSession — iPhone-primary mode uses its own timer,
-        // so Watch elapsed time is informational only (logged but not consumed).
-        if message["wcSessionElapsedTime"] != nil {
-            return
-        }
-
-        // Gait result handling removed — riding is Watch-primary (#307)
+        // Builder stats and elapsed time handlers removed — all disciplines Watch-primary (#309)
 
         // Check for shooting shot detection message
         if let type = message["type"] as? String, type == "shootingShotDetected" {

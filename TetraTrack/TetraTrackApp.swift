@@ -172,8 +172,7 @@ struct TetraTrackApp: App {
     }()
 
     @State private var locationManager = LocationManager()
-    @State private var gpsTracker: GPSSessionTracker?
-    @State private var sessionTracker: SessionTracker?
+    // SessionTracker removed — all disciplines are Watch-primary (#309)
     @State private var isConfigured = false
     @State private var showShareLinkAlert = false
     @State private var shareLinkAlertMessage = ""
@@ -196,21 +195,16 @@ struct TetraTrackApp: App {
         ScreenshotRouterView(screen: screen)
             .environment(\.locale, LocalizationManager.shared.locale)
             .environment(locationManager)
-            .environment(gpsTracker)
-            .environment(sessionTracker)
             .viewContext(viewContext)
             .onAppear(perform: handleAppear)
         } else {
         ContentView()
             .environment(\.locale, LocalizationManager.shared.locale)
             .environment(locationManager)
-            .environment(gpsTracker)
-            .environment(sessionTracker)
             .viewContext(viewContext)
             .onAppear(perform: handleAppear)
             .task { await handleInitialSetup() }
             .modifier(SiriNotificationModifier(
-                sessionTracker: $sessionTracker,
                 onStartRide: handleStartRide,
                 onAnnounceStatus: announceCurrentStatus,
                 onSetAudio: setAudioCoaching,
@@ -236,18 +230,6 @@ struct TetraTrackApp: App {
     }
 
     private func handleAppear() {
-        Log.app.info("ContentView.onAppear - sessionTracker is \(sessionTracker == nil ? "nil" : "set")")
-        if gpsTracker == nil {
-            Log.app.info("Creating GPSSessionTracker...")
-            gpsTracker = GPSSessionTracker(locationManager: locationManager)
-            Log.app.info("GPSSessionTracker created")
-        }
-        if sessionTracker == nil, let gps = gpsTracker {
-            Log.app.info("Creating SessionTracker...")
-            let tracker = SessionTracker(locationManager: locationManager, gpsTracker: gps)
-            sessionTracker = tracker
-            Log.app.info("SessionTracker created")
-        }
         configureAppIfNeeded()
     }
 
@@ -288,42 +270,21 @@ struct TetraTrackApp: App {
     #endif
 
     private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
-        let hasActiveSession = sessionTracker?.sessionState.isActive ?? false
+        // All sessions are Watch-primary — no iPhone session state to manage
 
         switch newPhase {
         case .background:
-            // Only stop audio if there is no active session.
-            // During an active session, audio coaching and safety announcements
-            // must continue playing with the screen off.
-            if !hasActiveSession {
-                AudioCoachManager.shared.stopSpeaking()
-            }
-
-            // Only clean up location tracking if nothing is actively using it.
-            // Running and swimming sessions also use LocationManager, not just rides.
-            // Each session is responsible for stopping tracking on end/discard.
-            if sessionTracker?.sessionState == .idle && !locationManager.isTracking {
-                locationManager.stopTracking()
-            }
-
-            // Checkpoint save session data when entering background
-            if hasActiveSession {
-                sessionTracker?.checkpointSave()
-                Log.app.info("Checkpoint save triggered for active session entering background")
-            }
+            AudioCoachManager.shared.stopSpeaking()
 
             // Suspend family location refresh loop to prevent battery drain
             if !Self.isUITesting, !Self.isUnitTesting {
                 UnifiedSharingCoordinator.shared.suspendWatchingForBackground()
             }
 
-            Log.app.info("App entered background - active session: \(hasActiveSession)")
+            Log.app.info("App entered background")
 
         case .inactive:
-            // Only stop audio when no session is active
-            if !hasActiveSession {
-                AudioCoachManager.shared.stopSpeaking()
-            }
+            AudioCoachManager.shared.stopSpeaking()
 
         case .active:
             guard !Self.isUITesting, !Self.isUnitTesting else { break }
@@ -348,10 +309,7 @@ struct TetraTrackApp: App {
     private func configureAppIfNeeded() {
         // Only run one-time setup once
         guard !isConfigured else { return }
-        guard let tracker = sessionTracker else { return }
-
-        // Configure SessionTracker with model context
-        tracker.configure(with: sharedModelContainer.mainContext)
+        // SessionTracker configuration removed — all sessions Watch-primary (#309)
 
         // Migrate legacy drill sessions to UnifiedDrillSession
         Task {
@@ -371,15 +329,7 @@ struct TetraTrackApp: App {
             return
         }
 
-        // Recover interrupted workout session (iOS 26 crash recovery)
-        if let tracker = sessionTracker {
-            Task {
-                if let recovered = await WorkoutLifecycleService.shared.recoverInterruptedWorkout() {
-                    Log.app.info("Recovered interrupted \(recovered.discipline) workout from \(recovered.startDate)")
-                    // TODO: Restore SessionTracker to tracking state with recovered discipline
-                }
-            }
-        }
+        // Workout recovery removed — sessions are Watch-primary (#309)
 
         // Activate Watch connectivity
         WatchConnectivityManager.shared.activate()
@@ -505,13 +455,7 @@ struct TetraTrackApp: App {
         let audioCoach = AudioCoachManager.shared
         let fallDetectionActive = FallDetectionManager.shared.isMonitoring
 
-        if sessionTracker?.sessionState == .tracking {
-            audioCoach.announceSafetyStatus(fallDetectionActive: fallDetectionActive)
-        } else if sessionTracker?.sessionState == .paused {
-            audioCoach.announce("Session is paused. Tracking will resume when you continue.")
-        } else {
-            audioCoach.announce("No session in progress. Say start my ride to begin tracking.")
-        }
+        audioCoach.announce("Start a workout from Apple Watch to begin tracking.")
     }
 
     private func setAudioCoaching(enabled: Bool) {
@@ -631,8 +575,8 @@ struct TetraTrackApp: App {
 
 /// Extracts Siri .onReceive handlers into a ViewModifier to reduce type-checker
 /// complexity in the main App body.
+// Siri session control removed — all disciplines are Watch-primary (#309)
 private struct SiriNotificationModifier: ViewModifier {
-    @Binding var sessionTracker: SessionTracker?
     var onStartRide: (Notification) -> Void
     var onAnnounceStatus: () -> Void
     var onSetAudio: (Bool) -> Void
@@ -642,15 +586,6 @@ private struct SiriNotificationModifier: ViewModifier {
         content
             .onReceive(NotificationCenter.default.publisher(for: .startRideFromSiri)) { notification in
                 onStartRide(notification)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .stopRideFromSiri)) { _ in
-                sessionTracker?.stopSession()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .pauseRideFromSiri)) { _ in
-                sessionTracker?.pauseSession()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .resumeRideFromSiri)) { _ in
-                sessionTracker?.resumeSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
                 onAnnounceStatus()

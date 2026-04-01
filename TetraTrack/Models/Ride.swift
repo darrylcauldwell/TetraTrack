@@ -10,7 +10,7 @@ import TetraTrackShared
 import os
 
 @Model
-final class Ride: GaitTimeTracking, TrainingSessionProtocol, SessionWritable {
+final class Ride: GaitTimeTracking, TrainingSessionProtocol {
     // MARK: - Indexes for Query Performance
     // These indexes optimize frequently used queries (ride history, filtering by discipline)
     #Index<Ride>([\.startDate], [\.rideTypeValue])

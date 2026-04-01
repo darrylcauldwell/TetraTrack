@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import TetraTrackShared
 import AVFoundation
@@ -38,7 +39,8 @@ struct ShootingCompetitionView: View {
     var onEnd: ((Int) -> Void)? = nil
     var onComplete: ((Int) -> Void)? = nil
 
-    @Environment(SessionTracker.self) private var tracker: SessionTracker?
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
     @State private var card1Scores: [Int] = Array(repeating: 0, count: 5)
     @State private var card2Scores: [Int] = Array(repeating: 0, count: 5)
@@ -79,7 +81,7 @@ struct ShootingCompetitionView: View {
     private var isStandalone: Bool { standaloneContext != nil }
 
     private var sessionContext: ShootingSessionContext {
-        standaloneContext ?? shootingPlugin?.sessionContext ?? .competitionTraining
+        standaloneContext ?? .competitionTraining
     }
 
     private var contextColor: Color {
@@ -120,10 +122,10 @@ struct ShootingCompetitionView: View {
 
                     Button(action: {
                         if isStandalone {
-                            tracker?.discardSession()
+                            dismiss()
                             onEnd?(0)
                         } else {
-                            tracker?.discardSession()
+                            dismiss()
                         }
                     }) {
                         Image(systemName: "xmark")
@@ -149,34 +151,9 @@ struct ShootingCompetitionView: View {
             }
             .padding(.top, 8)
         }
-        .overlay(alignment: .bottom) {
-            if tracker?.sessionState == .tracking || tracker?.sessionState == .paused {
-                FloatingControlPanel(
-                    disciplineIcon: tracker?.activePlugin?.disciplineIcon ?? "target",
-                    disciplineColor: tracker?.activePlugin?.disciplineColor ?? .orange,
-                    onStop: {
-                        if isStandalone {
-                            tracker?.discardSession()
-                            onEnd?(0)
-                        } else {
-                            tracker?.stopSession()
-                        }
-                    }
-                )
-            }
-        }
-        .task {
-            // Standalone mode (competition day): start session here
-            if let context = standaloneContext, tracker?.sessionState == .idle {
-                let plugin = ShootingPlugin(sessionContext: context)
-                await tracker?.startSession(plugin: plugin)
-            }
-        }
+        // FloatingControlPanel removed — shooting sessions are Watch-primary (#309)
         .onDisappear {
-            // Standalone mode: discard if still active
-            if isStandalone && tracker?.sessionState.isActive == true {
-                tracker?.discardSession()
-            }
+            // Shooting sessions are now Watch-primary (#309)
         }
     }
 
@@ -397,11 +374,7 @@ struct ShootingCompetitionView: View {
         }
     }
 
-    // MARK: - Plugin Access
-
-    private var shootingPlugin: ShootingPlugin? {
-        tracker?.plugin(as: ShootingPlugin.self)
-    }
+    // MARK: - Watch Metrics Access
 
     private var watchShotMetrics: [DetectedShotMetrics] {
         WatchConnectivityManager.shared.receivedShotMetrics
@@ -612,18 +585,37 @@ struct ShootingCompetitionView: View {
     }
 
     private func saveCompetitionSession() {
-        // Save scores via plugin (creates ends/shots, wires Watch data, runs GRACE analysis)
-        shootingPlugin?.saveScores(
-            card1Scores: card1Scores,
-            card2Scores: card2Scores,
-            card1ScanID: card1ScanAnalysisID,
-            card2ScanID: card2ScanAnalysisID
-        )
+        // Save scores directly to SwiftData — shooting is Watch-primary (#309)
+        let session = ShootingSession()
+        session.startDate = Date()
+        session.endDate = Date()
+        session.sessionContextRaw = sessionContext.rawValue
 
-        // Stop session (triggers HealthKit enrichment, workout save, widget sync, artifact conversion)
-        tracker?.stopSession()
+        let end1 = ShootingEnd(orderIndex: 0)
+        end1.shots = card1Scores.enumerated().map { i, score in
+            let shot = Shot()
+            shot.score = score
+            shot.orderIndex = i
+            shot.isX = score == 10
+            return shot
+        }
+        if let id = card1ScanAnalysisID { end1.targetScanAnalysisID = id }
 
-        // Standalone mode (competition day): bridge score back via callbacks
+        let end2 = ShootingEnd(orderIndex: 1)
+        end2.shots = card2Scores.enumerated().map { i, score in
+            let shot = Shot()
+            shot.score = score
+            shot.orderIndex = i + 5
+            shot.isX = score == 10
+            return shot
+        }
+        if let id = card2ScanAnalysisID { end2.targetScanAnalysisID = id }
+
+        session.ends = [end1, end2]
+        modelContext.insert(session)
+        try? modelContext.save()
+
+        // Competition day callbacks
         if isStandalone {
             onComplete?(totalRawScore)
             onEnd?(totalRawScore)

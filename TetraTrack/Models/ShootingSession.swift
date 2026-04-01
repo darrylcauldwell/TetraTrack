@@ -70,7 +70,7 @@ enum ShootingSessionContext: String, Codable, CaseIterable {
 // MARK: - Shooting Session
 
 @Model
-final class ShootingSession: TrainingSessionProtocol, SessionWritable {
+final class ShootingSession: TrainingSessionProtocol {
     #Index<ShootingSession>([\.startDate])
     var id: UUID = UUID()
     var startDate: Date = Date()

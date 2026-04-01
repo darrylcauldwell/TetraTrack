@@ -13,7 +13,7 @@ import CoreLocation
 // MARK: - Swimming Session
 
 @Model
-final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol, SessionWritable {
+final class SwimmingSession: TrainingSessionProtocol, PaceBasedSessionProtocol {
     #Index<SwimmingSession>([\.startDate])
     var id: UUID = UUID()
     var startDate: Date = Date()
