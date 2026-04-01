@@ -9,6 +9,7 @@ import SwiftUI
 
 struct WatchStartSessionView: View {
     @State private var showRideTypePicker = false
+    @State private var showWalkControl = false
     @State private var showShootingControl = false
 
     var body: some View {
@@ -16,6 +17,9 @@ struct WatchStartSessionView: View {
             disciplineSelectorView
             .navigationDestination(isPresented: $showRideTypePicker) {
                 RideTypePickerView()
+            }
+            .navigationDestination(isPresented: $showWalkControl) {
+                WalkControlView()
             }
             .navigationDestination(isPresented: $showShootingControl) {
                 ShootingControlView()
@@ -31,22 +35,15 @@ struct WatchStartSessionView: View {
             Button {
                 showRideTypePicker = true
             } label: {
-                HStack {
-                    Image(systemName: "figure.equestrian.sports")
-                        .font(.title3)
-                        .foregroundStyle(WatchAppColors.riding)
-                    Text("Riding")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(WatchAppColors.riding.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                disciplineButton(icon: "figure.equestrian.sports", label: "Riding", color: WatchAppColors.riding)
+            }
+            .buttonStyle(.plain)
+
+            // Walking button
+            Button {
+                showWalkControl = true
+            } label: {
+                disciplineButton(icon: "figure.walk", label: "Walking", color: WatchAppColors.walking)
             }
             .buttonStyle(.plain)
 
@@ -54,26 +51,30 @@ struct WatchStartSessionView: View {
             Button {
                 showShootingControl = true
             } label: {
-                HStack {
-                    Image(systemName: "target")
-                        .font(.title3)
-                        .foregroundStyle(WatchAppColors.shooting)
-                    Text("Shooting")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(WatchAppColors.shooting.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                disciplineButton(icon: "target", label: "Shooting", color: WatchAppColors.shooting)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
+    }
+
+    private func disciplineButton(icon: String, label: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

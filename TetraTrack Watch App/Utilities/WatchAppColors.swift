@@ -64,6 +64,9 @@ struct WatchAppColors {
     /// Swimming discipline - cyan
     static let swimming = Color(red: 0.3, green: 0.85, blue: 0.95)
 
+    /// Walking discipline - yellow
+    static let walking = Color(red: 1.0, green: 0.85, blue: 0.3)
+
     /// Shooting discipline - red/maroon
     static let shooting = Color(red: 0.9, green: 0.35, blue: 0.4)
 

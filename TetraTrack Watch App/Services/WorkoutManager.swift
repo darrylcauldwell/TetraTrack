@@ -71,6 +71,16 @@ final class WorkoutManager: NSObject {
     private(set) var rideMetricsCollector: WatchRideMetricsCollector?
     private(set) var currentRideType: WatchRideType?
 
+    // MARK: - Walking Metrics (Autonomous)
+
+    /// Whether this is an autonomous walking session
+    private(set) var isAutonomousWalk: Bool = false
+
+    /// Current steps per minute from WatchMotionManager
+    var walkingCadence: Int {
+        WatchMotionManager.shared.cadence
+    }
+
     // MARK: - Swimming Metrics
 
     private(set) var strokeCount: Int = 0
@@ -558,6 +568,134 @@ final class WorkoutManager: NSObject {
         Log.tracking.info("Autonomous ride stopped and saved")
     }
 
+    // MARK: - Autonomous Walk (Watch-Primary)
+
+    /// Start an autonomous walk — Watch owns the HKWorkoutSession, shows SPM.
+    func startAutonomousWalk() async {
+        guard !isWorkoutActive else {
+            Log.tracking.error("TT: startAutonomousWalk skipped — workout already active")
+            return
+        }
+
+        let authorized = await requestAuthorization()
+        if !authorized {
+            Log.tracking.error("TT: startAutonomousWalk — HealthKit authorization denied")
+            return
+        }
+
+        await resetWorkout()
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .walking
+        configuration.locationType = .outdoor
+
+        do {
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            let builder = session.associatedWorkoutBuilder()
+            session.delegate = self
+            builder.delegate = self
+            builder.dataSource = HKLiveWorkoutDataSource(
+                healthStore: healthStore,
+                workoutConfiguration: configuration
+            )
+
+            session.prepare()
+
+            onHeartRateUpdate = { bpm in
+                WatchConnectivityService.shared.sendHeartRateUpdate(bpm)
+            }
+            onMotionDataSend = {
+                WatchConnectivityService.shared.sendMotionUpdate()
+            }
+
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            try await builder.beginCollection(at: startDate)
+            startAnchoredHRQuery(from: startDate)
+
+            workoutSession = session
+            workoutBuilder = builder
+            activityType = .walking
+            isAutonomousWalk = true
+            isWorkoutActive = true
+            isCompanionMode = false
+            isMirroringToiPhone = false
+            isPaused = false
+            startTime = startDate
+            resetMetrics()
+
+            locationManager.startTracking()
+            WatchMotionManager.shared.startTracking(mode: .walking)
+
+            startMotionDataSending()
+            startElapsedTimer()
+            _ = sessionStore.startSession(discipline: .walking)
+
+            persistRecoveryContext()
+            onWorkoutStateChanged?(true)
+            Log.tracking.info("Started autonomous walk (Watch-primary)")
+
+        } catch {
+            let errMsg = error.localizedDescription
+            Log.tracking.error("TT: startAutonomousWalk FAILED: \(errMsg, privacy: .public)")
+        }
+    }
+
+    /// Stop autonomous walk — save workout to HealthKit
+    func stopAutonomousWalk() async {
+        guard isWorkoutActive, activityType == .walking else { return }
+
+        locationManager.stopTracking()
+        stopElapsedTimer()
+        stopMotionDataSending()
+        stopAnchoredHRQuery()
+        onMotionDataSend = nil
+        WatchMotionManager.shared.stopTracking()
+
+        let endDate = Date()
+
+        do {
+            try await workoutBuilder?.endCollection(at: endDate)
+            if let builder = workoutBuilder {
+                _ = try await builder.finishWorkout()
+                Log.health.info("Autonomous walk saved to HealthKit")
+            }
+        } catch {
+            Log.tracking.error("Failed to end autonomous walk: \(error.localizedDescription)")
+        }
+
+        if let session = workoutSession, session.state == .running || session.state == .paused {
+            session.end()
+        }
+
+        sessionStore.updateActiveSession(
+            duration: elapsedTime,
+            distance: locationManager.totalDistance,
+            elevationGain: locationManager.elevationGain,
+            elevationLoss: locationManager.elevationLoss,
+            averageSpeed: locationManager.averageSpeed,
+            maxSpeed: locationManager.maxSpeed,
+            averageHeartRate: averageHeartRate > 0 ? averageHeartRate : nil,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            minHeartRate: minHeartRate > 0 ? minHeartRate : nil
+        )
+        sessionStore.completeSession(locationPointsData: locationManager.getEncodedPoints())
+
+        clearRecoveryContext()
+        workoutSession = nil
+        workoutBuilder = nil
+        isWorkoutActive = false
+        isCompanionMode = false
+        isMirroredFromiPhone = false
+        isMirroringToiPhone = false
+        isPaused = false
+        activityType = nil
+        isAutonomousWalk = false
+
+        onWorkoutStateChanged?(false)
+        Log.tracking.info("Autonomous walk stopped and saved")
+    }
+
     /// Pause the current workout (user-initiated)
     func pauseWorkout() {
         guard isWorkoutActive, !isUserPaused else { return }
@@ -585,6 +723,11 @@ final class WorkoutManager: NSObject {
         // Route to autonomous ride stop if this is a Watch-primary ride
         if currentRideType != nil {
             await stopAutonomousRide()
+            return
+        }
+        // Route to autonomous walk stop
+        if isAutonomousWalk {
+            await stopAutonomousWalk()
             return
         }
 
