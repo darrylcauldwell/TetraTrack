@@ -5,7 +5,7 @@ Shared Swift/iOS conventions (tech stack, code style, testing, error handling) a
 
 ## Project Overview
 
-TetraTrack is a tetrathlon training app for iOS 26+ and watchOS 26+. It captures two disciplines in-app: **riding** (equestrian with GPS, gait detection, balance analysis) and **shooting** (competition card scanning, stance tracking). For running, swimming, walking, and all other workout types, the app enriches native Apple Watch workouts from HealthKit with detailed metrics, actionable insights, cross-discipline analytics, and AI-powered training analysis mapped to 5 biomechanical pillars (Stability, Rhythm, Symmetry, Economy, Physiology).
+TetraTrack is a tetrathlon training app for iOS 26+ and watchOS 26+. **The Watch app is the primary session capture device** — all disciplines (riding, running, swimming, walking, shooting) start and record on Apple Watch using native `HKWorkoutSession`. The iPhone app enriches completed workouts from HealthKit with detailed metrics, actionable insights, post-session annotation (horse, scores, notes), target scanning for shooting, cross-discipline analytics, and AI-powered training analysis mapped to 5 biomechanical pillars (Stability, Rhythm, Symmetry, Economy, Physiology).
 
 ## Build Commands
 
@@ -112,7 +112,7 @@ Post-session data flows via `transferUserInfo` (guaranteed delivery) for ride an
 
 ### HealthKit Workout Enrichment
 
-Running, swimming, walking, and all other workout types are captured via native Apple Watch. TetraTrack enriches these from HealthKit:
+All workouts (riding, running, swimming, walking, shooting, and Apple Watch native types) are captured on Watch and saved to HealthKit. TetraTrack enriches these on iPhone:
 
 - `WorkoutEnrichmentService` — fetches HR timeseries, per-km splits, walking/running/swimming/cycling metrics, elevation, route
 - `WorkoutInsightsGenerator` — generates actionable insights by comparing against recent history (pace trends, PBs, form feedback, consistency)
@@ -241,16 +241,14 @@ locationManager.activityType = .fitness
 
 ## WatchConnectivity
 
-**Transport selection is critical** — wrong transport causes lost commands.
+**Transport selection** — Watch-primary architecture simplifies transport. No lifecycle commands sent from iPhone.
 
-| Message Type | Transport | Why |
-|-------------|-----------|-----|
-| Lifecycle (start/stop/pause/resume) | `sendReliableCommand()` — dual sendMessage + transferUserInfo | Must survive disconnect; applicationContext clobbered by 1Hz timer |
-| Status updates (1Hz) | `sendMessage()` / `applicationContext` | Last-value-wins is acceptable |
-| Haptic commands | `sendMessage()` | Non-critical; don't flood transferUserInfo queue |
-| HR/motion data (1Hz) | `sendMessage()` / `applicationContext` | Watch → iPhone sensor data |
-
-**Never** send lifecycle commands via `applicationContext` — the 1Hz status timer overwrites them before the Watch reads them.
+| Message Type | Transport | Direction | Why |
+|-------------|-----------|-----------|-----|
+| Post-session summary (ride metrics, shot data) | `transferUserInfo` | Watch → iPhone | Guaranteed delivery, survives disconnect |
+| Real-time shot metrics | `sendMessage()` | Watch → iPhone | Bonus live feedback if iPhone open |
+| HR updates (1Hz) | `sendMessage()` | Watch → iPhone | Last-value-wins acceptable |
+| Motion data (1Hz) | `sendMessage()` / `applicationContext` | Watch → iPhone | Sensor relay |
 
 ### Watch-Primary Workout Architecture
 
