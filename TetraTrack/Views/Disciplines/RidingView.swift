@@ -2,29 +2,20 @@
 //  RidingView.swift
 //  TetraTrack
 //
-//  Riding discipline — sessions are Watch-primary, this view guides to Watch
+//  Riding placeholder — sessions are Watch-primary.
+//  Kept for ScreenshotRouterView compatibility.
 //
 
 import SwiftUI
 
 struct RidingView: View {
     var body: some View {
-        WatchSessionGuideView(
-            discipline: "Riding",
-            icon: "figure.equestrian.sports",
-            color: .green,
-            description: "Riding session with type-specific metrics",
-            metrics: [
-                (icon: "figure.equestrian.sports", name: "Ride", detail: "General riding — hacking, schooling, trail"),
-                (icon: "figure.equestrian.sports", name: "Dressage", detail: "Posting rhythm and turn balance"),
-                (icon: "arrow.up.forward", name: "Showjumping", detail: "Jump counting with manual override")
-            ]
+        ContentUnavailableView(
+            "Start on Apple Watch",
+            systemImage: "applewatch",
+            description: Text("Open TetraTrack on your Apple Watch to start a riding session.")
         )
-    }
-}
-
-#Preview {
-    NavigationStack {
-        RidingView()
+        .navigationTitle("Riding")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

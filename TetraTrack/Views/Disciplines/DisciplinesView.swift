@@ -20,11 +20,6 @@ struct DisciplinesView: View {
                         iPadWelcomeBanner
                     }
 
-                    // MARK: - Capture Disciplines
-                    if !viewContext.isReadOnly {
-                        captureSection
-                    }
-
                     // MARK: - Competitions
                     competitionsSection
 
@@ -46,66 +41,6 @@ struct DisciplinesView: View {
                     .accessibilityLabel("Settings")
                 }
             }
-        }
-    }
-
-    // MARK: - Capture Section
-
-    private var captureSection: some View {
-        let columns = horizontalSizeClass == .regular
-            ? [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)]
-            : [GridItem(.flexible())]
-
-        return LazyVGrid(columns: columns, spacing: Spacing.md) {
-            NavigationLink(destination: RidingView()) {
-                DisciplineCard(
-                    title: "Riding",
-                    subtitle: "Record a riding session",
-                    icon: "figure.equestrian.sports",
-                    color: AppColors.riding
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink(destination: RunningGuideView()) {
-                DisciplineCard(
-                    title: "Running",
-                    subtitle: "min/400m pace tracking",
-                    icon: "figure.run",
-                    color: AppColors.running
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink(destination: SwimmingGuideView()) {
-                DisciplineCard(
-                    title: "Swimming",
-                    subtitle: "Lap and stroke counting",
-                    icon: "figure.pool.swim",
-                    color: AppColors.swimming
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink(destination: WalkingGuideView()) {
-                DisciplineCard(
-                    title: "Walking",
-                    subtitle: "Steps per minute tracking",
-                    icon: "figure.walk",
-                    color: AppColors.walking
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink(destination: ShootingView()) {
-                DisciplineCard(
-                    title: "Shooting",
-                    subtitle: "Steadiness and target scoring",
-                    icon: "target",
-                    color: AppColors.shooting
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -165,18 +100,8 @@ struct DisciplinesView: View {
 
             Spacer()
 
-            if !viewContext.isReadOnly {
-                HStack(spacing: Spacing.md) {
-                    NavigationLink(destination: RidingView()) {
-                        quickActionButton(icon: "figure.equestrian.sports", label: "Ride", color: AppColors.riding)
-                    }
-                    NavigationLink(destination: ShootingView()) {
-                        quickActionButton(icon: "target", label: "Shoot", color: AppColors.shooting)
-                    }
-                    NavigationLink(destination: CompetitionHubView()) {
-                        quickActionButton(icon: "calendar", label: "Compete", color: AppColors.purple)
-                    }
-                }
+            NavigationLink(destination: CompetitionHubView()) {
+                quickActionButton(icon: "calendar", label: "Compete", color: AppColors.purple)
             }
         }
         .padding(Spacing.xl)
