@@ -2,7 +2,7 @@
 //  DrillSessionDetailView.swift
 //  TetraTrack
 //
-//  Detail view for a completed training drill session
+//  Rich detail view for a completed training drill session
 //
 
 import SwiftUI
@@ -10,6 +10,12 @@ import SwiftUI
 struct DrillSessionDetailView: View {
     let session: UnifiedDrillSession
     @Environment(\.dismiss) private var dismiss
+
+    private var scoreColor: Color {
+        if session.score >= 80 { return .green }
+        if session.score >= 60 { return .orange }
+        return .red
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,11 +25,11 @@ struct DrillSessionDetailView: View {
                     HStack(spacing: 16) {
                         ZStack {
                             Circle()
-                                .fill(Color.purple.opacity(0.2))
+                                .fill(scoreColor.opacity(0.2))
                                 .frame(width: 64, height: 64)
                             Image(systemName: session.drillType.icon)
                                 .font(.title2)
-                                .foregroundStyle(.purple)
+                                .foregroundStyle(scoreColor)
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             Text(session.drillType.displayName)
@@ -39,18 +45,31 @@ struct DrillSessionDetailView: View {
 
                     Divider()
 
-                    // Overall score
-                    VStack(spacing: 4) {
-                        Text(String(format: "%.0f", session.score))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(.purple)
-                        Text("Overall Score")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    // Overall score — colour-coded
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .stroke(scoreColor.opacity(0.2), lineWidth: 8)
+                                .frame(width: 120, height: 120)
+                            Circle()
+                                .trim(from: 0, to: session.score / 100)
+                                .stroke(scoreColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                .frame(width: 120, height: 120)
+                                .rotationEffect(.degrees(-90))
+                            VStack(spacing: 0) {
+                                Text(String(format: "%.0f", session.score))
+                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                    .foregroundStyle(scoreColor)
+                                Text("%")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Text(scoreLabel)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(scoreColor)
                     }
                     .frame(maxWidth: .infinity)
-
-                    Divider()
 
                     // Duration
                     HStack {
@@ -61,6 +80,9 @@ struct DrillSessionDetailView: View {
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
+                    .padding()
+                    .background(AppColors.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     // Subscores
                     if hasSubscores {
@@ -68,25 +90,30 @@ struct DrillSessionDetailView: View {
                             Text("Subscores")
                                 .font(.headline)
 
-                            if session.stabilityScore > 0 {
-                                subscoreRow(label: "Stability", value: session.stabilityScore, icon: "hand.raised")
-                            }
-                            if session.symmetryScore > 0 {
-                                subscoreRow(label: "Symmetry", value: session.symmetryScore, icon: "arrow.left.and.right")
-                            }
-                            if session.enduranceScore > 0 {
-                                subscoreRow(label: "Endurance", value: session.enduranceScore, icon: "flame")
-                            }
-                            if session.coordinationScore > 0 {
-                                subscoreRow(label: "Coordination", value: session.coordinationScore, icon: "figure.walk")
-                            }
-                            if session.breathingScore > 0 {
-                                subscoreRow(label: "Breathing", value: session.breathingScore, icon: "lungs")
-                            }
-                            if session.rhythmScore > 0 {
-                                subscoreRow(label: "Rhythm", value: session.rhythmScore, icon: "metronome")
+                            VStack(spacing: 8) {
+                                if session.stabilityScore > 0 {
+                                    subscoreBar(label: "Stability", value: session.stabilityScore, icon: "hand.raised")
+                                }
+                                if session.symmetryScore > 0 {
+                                    subscoreBar(label: "Symmetry", value: session.symmetryScore, icon: "arrow.left.and.right")
+                                }
+                                if session.enduranceScore > 0 {
+                                    subscoreBar(label: "Endurance", value: session.enduranceScore, icon: "flame")
+                                }
+                                if session.coordinationScore > 0 {
+                                    subscoreBar(label: "Coordination", value: session.coordinationScore, icon: "figure.walk")
+                                }
+                                if session.breathingScore > 0 {
+                                    subscoreBar(label: "Breathing", value: session.breathingScore, icon: "lungs")
+                                }
+                                if session.rhythmScore > 0 {
+                                    subscoreBar(label: "Rhythm", value: session.rhythmScore, icon: "metronome")
+                                }
                             }
                         }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
 
                     // Notes
@@ -98,6 +125,9 @@ struct DrillSessionDetailView: View {
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
                 .padding()
@@ -112,23 +142,48 @@ struct DrillSessionDetailView: View {
         }
     }
 
+    private var scoreLabel: String {
+        if session.score >= 80 { return "Excellent" }
+        if session.score >= 60 { return "Good" }
+        if session.score >= 40 { return "Developing" }
+        return "Needs Work"
+    }
+
     private var hasSubscores: Bool {
         session.stabilityScore > 0 || session.symmetryScore > 0 ||
         session.enduranceScore > 0 || session.coordinationScore > 0 ||
         session.breathingScore > 0 || session.rhythmScore > 0
     }
 
-    private func subscoreRow(label: String, value: Double, icon: String) -> some View {
-        HStack {
+    private func subscoreBar(label: String, value: Double, icon: String) -> some View {
+        let color = subscoreColor(value)
+        return HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(.purple)
-                .frame(width: 24)
+                .foregroundStyle(color)
+                .frame(width: 20)
             Text(label)
                 .font(.subheadline)
-            Spacer()
+                .frame(width: 100, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color.opacity(0.2))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color)
+                        .frame(width: geo.size.width * value / 100)
+                }
+            }
+            .frame(height: 8)
             Text(String(format: "%.0f", value))
-                .font(.subheadline.bold())
-                .foregroundStyle(.purple)
+                .font(.subheadline.bold().monospacedDigit())
+                .foregroundStyle(color)
+                .frame(width: 30, alignment: .trailing)
         }
+    }
+
+    private func subscoreColor(_ value: Double) -> Color {
+        if value >= 80 { return .green }
+        if value >= 60 { return .orange }
+        return .red
     }
 }

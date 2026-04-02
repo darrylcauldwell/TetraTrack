@@ -504,6 +504,66 @@ struct SessionHistoryRow: View {
     let item: SessionHistoryItem
 
     var body: some View {
+        if let drill = item.drillSession {
+            drillRow(drill)
+        } else {
+            standardRow
+        }
+    }
+
+    // MARK: - Drill Row (colour-coded, rich)
+
+    private func drillRow(_ drill: UnifiedDrillSession) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(drillScoreColor(drill.score).opacity(0.2))
+                    .frame(width: 44, height: 44)
+                Image(systemName: drill.drillType.icon)
+                    .font(.title3)
+                    .foregroundStyle(drillScoreColor(drill.score))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(drill.drillType.displayName)
+                    .font(.headline)
+
+                Text(drill.drillType.primaryDiscipline.displayName)
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(drillScoreColor(drill.score).opacity(0.15))
+                    .foregroundStyle(drillScoreColor(drill.score))
+                    .clipShape(Capsule())
+
+                Text(item.formattedDate)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(String(format: "%.0f%%", drill.score))
+                    .font(.title3.bold())
+                    .foregroundStyle(drillScoreColor(drill.score))
+                Text(item.formattedDuration)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func drillScoreColor(_ score: Double) -> Color {
+        if score >= 80 { return .green }
+        if score >= 60 { return .orange }
+        return .red
+    }
+
+    // MARK: - Standard Row (non-drill sessions)
+
+    private var standardRow: some View {
         HStack(spacing: 12) {
             ZStack(alignment: .bottomTrailing) {
                 Image(systemName: item.isExternal ? (item.externalWorkout?.activityIcon ?? item.discipline.icon) : item.discipline.icon)
