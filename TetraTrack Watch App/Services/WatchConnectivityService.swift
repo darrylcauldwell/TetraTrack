@@ -53,32 +53,7 @@ final class WatchConnectivityService: NSObject {
     private(set) var runningPhase: String = ""
     private(set) var asymmetryIndex: Double = 0
 
-    // MARK: - Phase 2: Insights Data from iPhone
-
-    /// Recent training sessions (received from iPhone)
-    private(set) var recentSessions: [TrainingSessionSummary] = []
-
-    /// Training trends data (received from iPhone)
-    private(set) var trends: TrainingTrends = TrainingTrends(
-        periodLabel: "This Week",
-        sessionCount: 0,
-        totalDuration: 0,
-        ridingCount: 0,
-        runningCount: 0,
-        swimmingCount: 0,
-        shootingCount: 0,
-        comparedToPrevious: 0
-    )
-
-    /// Workload data (received from iPhone)
-    private(set) var workload: WorkloadData = WorkloadData(
-        sessionsThisWeek: 0,
-        targetSessionsPerWeek: 4,
-        totalDurationThisWeek: 0,
-        restDays: 0,
-        consecutiveTrainingDays: 0,
-        recommendation: .ready
-    )
+    // Insights/trends/workload properties removed — Watch views deleted (#309)
 
     // MARK: - SpO2 Monitoring
 
@@ -464,19 +439,7 @@ final class WatchConnectivityService: NSObject {
         self.messageCount += 1
         Log.watch.debug("Received message #\(self.messageCount) with keys: \(message.keys)")
 
-        // Handle insights data updates
-        if let type = message["type"] as? String {
-            switch type {
-            case "recentSessions":
-                handleRecentSessionsUpdate(message)
-            case "trends":
-                handleTrendsUpdate(message)
-            case "workload":
-                handleWorkloadUpdate(message)
-            default:
-                break
-            }
-        }
+        // Insights/trends/workload message handling removed (#309)
 
         // Handle standard WatchMessage
         guard let watchMessage = WatchMessage.from(dictionary: message) else {
@@ -757,58 +720,7 @@ final class WatchConnectivityService: NSObject {
         }
     }
 
-    // MARK: - Insights Data Handlers
-
-    private func handleRecentSessionsUpdate(_ message: [String: Any]) {
-        guard let sessionsData = message["sessions"] as? [[String: Any]] else { return }
-
-        self.recentSessions = sessionsData.compactMap { dict -> TrainingSessionSummary? in
-            guard let idString = dict["id"] as? String,
-                  let id = UUID(uuidString: idString),
-                  let discipline = dict["discipline"] as? String,
-                  let timestamp = dict["date"] as? TimeInterval,
-                  let duration = dict["duration"] as? TimeInterval,
-                  let keyMetric = dict["keyMetric"] as? String,
-                  let keyMetricLabel = dict["keyMetricLabel"] as? String else {
-                return nil
-            }
-            return TrainingSessionSummary(
-                id: id,
-                discipline: discipline,
-                date: Date(timeIntervalSince1970: timestamp),
-                duration: duration,
-                keyMetric: keyMetric,
-                keyMetricLabel: keyMetricLabel
-            )
-        }
-    }
-
-    private func handleTrendsUpdate(_ message: [String: Any]) {
-        self.trends = TrainingTrends(
-            periodLabel: message["periodLabel"] as? String ?? "This Week",
-            sessionCount: message["sessionCount"] as? Int ?? 0,
-            totalDuration: message["totalDuration"] as? TimeInterval ?? 0,
-            ridingCount: message["ridingCount"] as? Int ?? 0,
-            runningCount: message["runningCount"] as? Int ?? 0,
-            swimmingCount: message["swimmingCount"] as? Int ?? 0,
-            shootingCount: message["shootingCount"] as? Int ?? 0,
-            comparedToPrevious: message["comparedToPrevious"] as? Double ?? 0
-        )
-    }
-
-    private func handleWorkloadUpdate(_ message: [String: Any]) {
-        let recommendationString = message["recommendation"] as? String ?? "ready"
-        let recommendation = WorkloadData.WorkloadRecommendation(rawValue: recommendationString) ?? .ready
-
-        self.workload = WorkloadData(
-            sessionsThisWeek: message["sessionsThisWeek"] as? Int ?? 0,
-            targetSessionsPerWeek: message["targetSessionsPerWeek"] as? Int ?? 4,
-            totalDurationThisWeek: message["totalDurationThisWeek"] as? TimeInterval ?? 0,
-            restDays: message["restDays"] as? Int ?? 0,
-            consecutiveTrainingDays: message["consecutiveTrainingDays"] as? Int ?? 0,
-            recommendation: recommendation
-        )
-    }
+    // Insights/trends/workload handlers removed — Watch views deleted (#309)
 
     // MARK: - Formatted Values
 

@@ -2,7 +2,8 @@
 //  ContentView.swift
 //  TetraTrack Watch App
 //
-//  Main watch app view - Glanceable insights dashboard with autonomous session support
+//  Five discipline pages — swipe vertically to choose, tap to start.
+//  When a workout is active, shows the discipline-specific control view.
 //
 
 import SwiftUI
@@ -15,54 +16,22 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Show discipline-specific view when workout is running
-            if workoutManager.isWorkoutActive && !workoutManager.isCompanionMode {
-                switch workoutManager.activityType {
-                case .riding:
-                    RideControlView()
-                case .running, .walking:
-                    EmptyView() // Running/walking use native Apple Watch workouts
-                case .swimming:
-                    EmptyView() // Swimming uses native Apple Watch workouts
-                case .shooting:
-                    ShootingControlView()
-                case .none:
-                    EmptyView()
-                }
-            } else if connectivityService.hasActiveSession {
-                // iPhone is driving the session — show companion summary
-                WatchHomeView()
+            if workoutManager.isWorkoutActive {
+                // Active workout — show discipline control view
+                activeWorkoutView
             } else {
-                // Main dashboard with tabbed pages
+                // Idle — five discipline pages
                 TabView(selection: $selectedTab) {
-                    // Page 0: Start Session (autonomous)
-                    WatchStartSessionView()
-                        .tag(0)
-
-                    // Page 1: Home/Summary
-                    WatchHomeView()
-                        .tag(1)
-
-                    // Page 2: Recent sessions
-                    WatchInsightsView()
-                        .tag(2)
-
-                    // Page 3: Trends
-                    WatchTrendsView()
-                        .tag(3)
-
-                    // Page 4: Workload
-                    WatchWorkloadView()
-                        .tag(4)
-
-                    // Page 5: Diagnostics
-                    WatchDiagnosticsView()
-                        .tag(5)
+                    ridingPage.tag(0)
+                    runningPage.tag(1)
+                    swimmingPage.tag(2)
+                    walkingPage.tag(3)
+                    shootingPage.tag(4)
                 }
                 .tabViewStyle(.verticalPage)
             }
 
-            // Fall detection alert overlay (kept for safety)
+            // Fall detection alert overlay
             if fallDetectionManager.fallDetected {
                 WatchFallAlertView(fallManager: fallDetectionManager)
                     .transition(.opacity)
@@ -70,9 +39,59 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: fallDetectionManager.fallDetected)
         .animation(.easeInOut(duration: 0.3), value: workoutManager.isWorkoutActive)
-        .animation(.easeInOut(duration: 0.3), value: connectivityService.hasActiveSession)
     }
 
+    // MARK: - Active Workout View
+
+    @ViewBuilder
+    private var activeWorkoutView: some View {
+        switch workoutManager.activityType {
+        case .riding:
+            RideControlView()
+        case .running:
+            RunControlView()
+        case .walking:
+            WalkControlView()
+        case .swimming:
+            SwimControlView()
+        case .shooting:
+            ShootingControlView()
+        case .none:
+            ProgressView("Starting...")
+        }
+    }
+
+    // MARK: - Discipline Pages
+
+    private var ridingPage: some View {
+        NavigationStack {
+            RideTypePickerView()
+        }
+    }
+
+    private var runningPage: some View {
+        NavigationStack {
+            RunControlView()
+        }
+    }
+
+    private var swimmingPage: some View {
+        NavigationStack {
+            SwimControlView()
+        }
+    }
+
+    private var walkingPage: some View {
+        NavigationStack {
+            WalkControlView()
+        }
+    }
+
+    private var shootingPage: some View {
+        NavigationStack {
+            ShootingControlView()
+        }
+    }
 }
 
 #Preview {
