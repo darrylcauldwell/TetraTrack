@@ -15,7 +15,7 @@ struct PoleworkLibraryView: View {
 
     @State private var searchText = ""
     @State private var selectedCategory: PoleworkCategory?
-    @State private var selectedDifficulty: PoleworkDifficulty?
+    // Difficulty filter removed
     @State private var selectedHorse: Horse?
     @State private var showHorsePicker = false
     @State private var hasInitialized = false
@@ -34,9 +34,7 @@ struct PoleworkLibraryView: View {
             result = result.filter { $0.category == category }
         }
 
-        if let difficulty = selectedDifficulty {
-            result = result.filter { $0.difficulty == difficulty }
-        }
+        // Difficulty filter removed
 
         if !searchText.isEmpty {
             result = result.filter {
@@ -49,9 +47,7 @@ struct PoleworkLibraryView: View {
             if $0.category.sortOrder != $1.category.sortOrder {
                 return $0.category.sortOrder < $1.category.sortOrder
             }
-            if $0.difficulty.sortOrder != $1.difficulty.sortOrder {
-                return $0.difficulty.sortOrder < $1.difficulty.sortOrder
-            }
+            // Sort by name only (difficulty removed)
             return $0.name < $1.name
         }
     }
@@ -178,25 +174,8 @@ struct PoleworkLibraryView: View {
                     )
                 }
 
-                // Difficulty filter
-                Menu {
-                    Button("All Levels") {
-                        selectedDifficulty = nil
-                    }
-                    ForEach(PoleworkDifficulty.allCases) { level in
-                        Button(level.displayName) {
-                            selectedDifficulty = level
-                        }
-                    }
-                } label: {
-                    PoleworkFilterChip(
-                        title: selectedDifficulty?.displayName ?? "Level",
-                        isActive: selectedDifficulty != nil
-                    )
-                }
-
-                // Clear filters
-                if selectedCategory != nil || selectedDifficulty != nil {
+                // Clear filter
+                if selectedCategory != nil {
                     Button(action: clearFilters) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -412,7 +391,6 @@ struct PoleworkLibraryView: View {
 
     private func clearFilters() {
         selectedCategory = nil
-        selectedDifficulty = nil
     }
 
     private func initializeBuiltInExercisesIfNeeded() {
@@ -478,14 +456,6 @@ struct PoleworkExerciseRow: View {
                     .foregroundStyle(.orange)
 
                 HStack(spacing: 4) {
-                    Text(exercise.difficulty.displayName)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(difficultyColor.opacity(0.2))
-                        .foregroundStyle(difficultyColor)
-                        .clipShape(Capsule())
-
                     if exercise.isRaised {
                         Text("Raised")
                             .font(.caption2)
