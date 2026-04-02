@@ -25,7 +25,6 @@ struct DisciplinesView: View {
                     trainingDrillsSection
                     scoreTargetsSection
                     exerciseLibrarySection
-                    poleLayoutsSection
                     liveSharingSection
                     sessionHistorySection
                 }
@@ -89,15 +88,8 @@ struct DisciplinesView: View {
     }
 
     private var exerciseLibrarySection: some View {
-        NavigationLink(destination: FlatworkLibraryView()) {
-            DisciplineCard(title: "Exercise Library", subtitle: "Arena exercises and schooling figures", icon: "book.fill", color: .indigo)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var poleLayoutsSection: some View {
-        NavigationLink(destination: PoleworkLibraryView()) {
-            DisciplineCard(title: "Pole Layouts", subtitle: "Polework exercises and stride distances", icon: "arrow.left.and.right", color: .green)
+        NavigationLink(destination: ExerciseLibraryView()) {
+            DisciplineCard(title: "Exercise Library", subtitle: "Flatwork exercises and polework layouts", icon: "book.fill", color: .indigo)
         }
         .buttonStyle(.plain)
     }
