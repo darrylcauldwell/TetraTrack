@@ -37,26 +37,38 @@ struct FlatworkLibraryView: View {
 
     var body: some View {
         List {
-            // Category filter pills
+            // Category filter
             Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                HStack {
+                    Menu {
+                        Button("All Categories") { selectedCategory = nil }
+                        Divider()
                         ForEach(FlatworkCategory.allCases) { category in
                             Button {
-                                selectedCategory = selectedCategory == category ? nil : category
+                                selectedCategory = category
                             } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: category.icon)
-                                    Text(category.displayName)
-                                }
-                                .font(.caption)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(selectedCategory == category ? AppColors.primary : Color(.systemGray5))
-                                .foregroundStyle(selectedCategory == category ? .white : .primary)
-                                .clipShape(Capsule())
+                                Label(category.displayName, systemImage: category.icon)
                             }
-                            .buttonStyle(.plain)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: selectedCategory?.icon ?? "square.grid.2x2")
+                            Text(selectedCategory?.displayName ?? "Category")
+                                .font(.subheadline)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(selectedCategory != nil ? AppColors.primary : Color(.systemGray5))
+                        .foregroundStyle(selectedCategory != nil ? .white : .primary)
+                        .clipShape(Capsule())
+                    }
+
+                    if selectedCategory != nil {
+                        Button { selectedCategory = nil } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
