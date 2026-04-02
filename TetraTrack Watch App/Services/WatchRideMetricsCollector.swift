@@ -95,11 +95,6 @@ final class WatchRideMetricsCollector {
     private(set) var haltCount: Int = 0
     private(set) var isCollecting: Bool = false
 
-    // MARK: - Manual Override
-
-    func incrementJumps() { jumpCount += 1 }
-    func decrementJumps() { if jumpCount > 0 { jumpCount -= 1 } }
-
     // MARK: - Private State
 
     private var rideType: WatchRideType = .ride

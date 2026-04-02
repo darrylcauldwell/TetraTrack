@@ -127,7 +127,7 @@ struct RideControlView: View {
 
     private func showjumpingLayout(collector: WatchRideMetricsCollector?) -> some View {
         VStack(spacing: 8) {
-            // Jump count — hero metric
+            // Jump count — hero metric (fully autonomous detection)
             Text("\(collector?.jumpCount ?? 0)")
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .foregroundStyle(WatchAppColors.riding)
@@ -135,26 +135,10 @@ struct RideControlView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            // Manual +/- buttons
-            HStack(spacing: 20) {
-                Button {
-                    collector?.decrementJumps()
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    collector?.incrementJumps()
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.green)
-                }
-                .buttonStyle(.plain)
-            }
+            // Timer
+            Text(workoutManager.formattedElapsedTime)
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
 
             Divider().padding(.vertical, 2)
 
