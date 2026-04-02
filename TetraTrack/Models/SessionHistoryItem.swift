@@ -31,6 +31,7 @@ struct SessionHistoryItem: Identifiable, Hashable {
     var runningSession: RunningSession?
     var swimmingSession: SwimmingSession?
     var shootingSession: ShootingSession?
+    var drillSession: UnifiedDrillSession?
     var externalWorkout: ExternalWorkout?
 
     init(ride: Ride) {
@@ -85,6 +86,19 @@ struct SessionHistoryItem: Identifiable, Hashable {
         self.shootingSession = shootingSession
     }
 
+    init(drillSession: UnifiedDrillSession) {
+        self.id = drillSession.id
+        self.discipline = .drills
+        self.date = drillSession.startDate
+        self.name = drillSession.drillType.displayName
+        self.duration = drillSession.duration
+        self.primaryMetric = String(format: "%.0f", drillSession.score)
+        self.secondaryMetric = drillSession.drillType.primaryDiscipline.displayName
+        self.isExternal = false
+        self.externalSourceName = nil
+        self.drillSession = drillSession
+    }
+
     init(externalWorkout: ExternalWorkout) {
         self.id = externalWorkout.id
         // Map external activity type to closest discipline
@@ -129,6 +143,7 @@ extension SessionHistoryItem {
         runs: [RunningSession] = [],
         swims: [SwimmingSession] = [],
         shoots: [ShootingSession] = [],
+        drills: [UnifiedDrillSession] = [],
         externals: [ExternalWorkout] = [],
         discipline: TrainingDiscipline? = nil,
         includeExternal: Bool = false
@@ -150,6 +165,9 @@ extension SessionHistoryItem {
         }
         if discipline == nil || discipline == .shooting {
             items += shoots.map { SessionHistoryItem(shootingSession: $0) }
+        }
+        if discipline == nil || discipline == .drills {
+            items += drills.map { SessionHistoryItem(drillSession: $0) }
         }
         if includeExternal {
             let externalItems = externals.map { SessionHistoryItem(externalWorkout: $0) }

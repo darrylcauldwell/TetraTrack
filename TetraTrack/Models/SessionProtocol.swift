@@ -182,6 +182,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
     case walking = "Walking"
     case swimming = "Swimming"
     case shooting = "Shooting"
+    case drills = "Drills"
 
     var id: String { rawValue }
 
@@ -194,6 +195,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
         case .walking: return "figure.walk"
         case .swimming: return "figure.pool.swim"
         case .shooting: return "target"
+        case .drills: return "figure.strengthtraining.traditional"
         }
     }
 
@@ -204,6 +206,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
         case .walking: return .teal
         case .swimming: return .blue
         case .shooting: return .orange
+        case .drills: return .purple
         }
     }
 
@@ -212,6 +215,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
         case .riding, .running, .walking: return "km"
         case .swimming: return "m"
         case .shooting: return "points"
+        case .drills: return "score"
         }
     }
 
@@ -219,7 +223,7 @@ enum TrainingDiscipline: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .riding, .running, .walking: return "/km"
         case .swimming: return "/100m"
-        case .shooting: return ""
+        case .shooting, .drills: return ""
         }
     }
 

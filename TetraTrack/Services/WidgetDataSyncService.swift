@@ -182,6 +182,8 @@ final class WidgetDataSyncService {
                 sessionType = .swim
             case .shooting:
                 sessionType = .shoot
+            case .drills:
+                sessionType = .run
             }
             return WidgetSessionData(
                 id: item.id,

@@ -26,6 +26,7 @@ struct SessionHistoryView: View {
     @Query(sort: \RunningSession.startDate, order: .reverse) private var runningSessions: [RunningSession]
     @Query(sort: \SwimmingSession.startDate, order: .reverse) private var swimmingSessions: [SwimmingSession]
     @Query(sort: \ShootingSession.startDate, order: .reverse) private var shootingSessions: [ShootingSession]
+    @Query(sort: \UnifiedDrillSession.startDate, order: .reverse) private var drillSessions: [UnifiedDrillSession]
 
     @State private var selectedDiscipline: DisciplineFilter = .all
     @State private var selectedTab: HistoryTab = .sessions
@@ -66,6 +67,7 @@ struct SessionHistoryView: View {
         case running = "Running"
         case swimming = "Swimming"
         case shooting = "Shooting"
+        case drills = "Drills"
 
         var icon: String {
             switch self {
@@ -74,6 +76,7 @@ struct SessionHistoryView: View {
             case .running: return "figure.run"
             case .swimming: return "figure.pool.swim"
             case .shooting: return "target"
+            case .drills: return "figure.strengthtraining.traditional"
             }
         }
 
@@ -84,6 +87,7 @@ struct SessionHistoryView: View {
             case .running: return TrainingDiscipline.running.color
             case .swimming: return TrainingDiscipline.swimming.color
             case .shooting: return TrainingDiscipline.shooting.color
+            case .drills: return TrainingDiscipline.drills.color
             }
         }
 
@@ -94,6 +98,7 @@ struct SessionHistoryView: View {
             case .running: return .running
             case .swimming: return .swimming
             case .shooting: return .shooting
+            case .drills: return .drills
             }
         }
     }
@@ -104,6 +109,7 @@ struct SessionHistoryView: View {
             runs: runningSessions,
             swims: swimmingSessions,
             shoots: shootingSessions,
+            drills: drillSessions,
             externals: externalWorkoutService.workouts,
             discipline: selectedDiscipline.trainingDiscipline,
             includeExternal: showExternalWorkouts
@@ -331,6 +337,10 @@ struct SessionHistoryView: View {
                 if let session = item.shootingSession {
                     ShootingSessionDetailView(session: session)
                 }
+            case .drills:
+                if let session = item.drillSession {
+                    DrillSessionDetailView(session: session)
+                }
             }
         }
     }
@@ -445,6 +455,10 @@ struct SessionHistoryView: View {
             case .shooting:
                 if let session = item.shootingSession {
                     ShootingSessionDetailView(session: session)
+                }
+            case .drills:
+                if let session = item.drillSession {
+                    DrillSessionDetailView(session: session)
                 }
             }
         }

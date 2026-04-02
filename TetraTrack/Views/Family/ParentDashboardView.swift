@@ -774,6 +774,8 @@ struct ArtifactDetailView: View {
             if let data = artifact.getShootingData() {
                 ShootingDetailCard(data: data)
             }
+        case .drills:
+            EmptyView()
         }
     }
 

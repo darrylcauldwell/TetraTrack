@@ -376,6 +376,8 @@ final class ArtifactStatisticsService {
                 return "\(data.totalScore)/\(data.maxPossibleScore) • \(data.shotCount) shots"
             }
             return "\(artifact.sessionType)"
+        case .drills:
+            return "Training drill"
         }
     }
 
@@ -634,6 +636,7 @@ extension ArtifactStatisticsService {
                     case .running, .walking: return .run
                     case .swimming: return .swim
                     case .shooting: return .shoot
+                    case .drills: return .run // Map drills to generic type for widget
                     }
                 }()
 
@@ -670,6 +673,7 @@ extension ArtifactStatisticsService {
                     case .running, .walking: return .run
                     case .swimming: return .swim
                     case .shooting: return .shoot
+                    case .drills: return .run // Map drills to generic type for widget
                     }
                 }()
 
