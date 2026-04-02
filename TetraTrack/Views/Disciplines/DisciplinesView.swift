@@ -67,6 +67,8 @@ struct DisciplinesView: View {
     }
 
     @State private var showingPracticeScoring = false
+    @State private var showingPracticeHistory = false
+    @State private var practiceHistoryFilter: DateFilterOption?
     @State private var showingCompetitionScoring = false
 
     private var practiceScoring: some View {
@@ -76,15 +78,42 @@ struct DisciplinesView: View {
         .buttonStyle(.plain)
         .fullScreenCover(isPresented: $showingPracticeScoring) {
             NavigationStack {
-                FreePracticeView(onEnd: { showingPracticeScoring = false })
-                    .navigationTitle("Practice Scoring")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { showingPracticeScoring = false }
+                FreePracticeView(
+                    onEnd: { showingPracticeScoring = false },
+                    onAnalysisComplete: {
+                        showingPracticeScoring = false
+                        practiceHistoryFilter = .today
+                        Task {
+                            try? await Task.sleep(for: .seconds(0.3))
+                            showingPracticeHistory = true
+                        }
+                    },
+                    onNavigateToHistory: { filter in
+                        showingPracticeScoring = false
+                        practiceHistoryFilter = filter
+                        Task {
+                            try? await Task.sleep(for: .seconds(0.3))
+                            showingPracticeHistory = true
                         }
                     }
+                )
+                .navigationTitle("Practice Scoring")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { showingPracticeScoring = false }
+                    }
+                }
             }
+        }
+        .fullScreenCover(isPresented: $showingPracticeHistory) {
+            ShootingHistoryAggregateView(
+                onDismiss: {
+                    showingPracticeHistory = false
+                    practiceHistoryFilter = nil
+                },
+                initialDateFilter: practiceHistoryFilter
+            )
         }
     }
 
