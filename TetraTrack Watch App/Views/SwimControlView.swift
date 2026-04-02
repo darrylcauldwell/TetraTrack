@@ -59,9 +59,8 @@ struct SwimControlView: View {
     // MARK: - Active Swim View
 
     private var activeSwimView: some View {
-        ZStack(alignment: .bottom) {
+        SessionPager(disciplineIcon: "figure.pool.swim", disciplineColor: WatchAppColors.swimming, disciplineName: "Swim") {
             VStack(spacing: 8) {
-                // Lap count — hero metric
                 Text("\(workoutManager.lapCount)")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .foregroundStyle(WatchAppColors.swimming)
@@ -69,38 +68,19 @@ struct SwimControlView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                // Timer
                 Text(workoutManager.formattedElapsedTime)
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
 
                 Divider().padding(.vertical, 4)
 
-                // Metrics grid
                 HStack(spacing: 12) {
                     WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
-
-                    WatchMetricCell(
-                        value: "\(workoutManager.strokeCount)",
-                        unit: "strokes"
-                    )
-
-                    WatchMetricCell(
-                        value: workoutManager.formattedSwimmingDistance,
-                        unit: "dist"
-                    )
+                    WatchMetricCell(value: "\(workoutManager.strokeCount)", unit: "strokes")
+                    WatchMetricCell(value: workoutManager.formattedSwimmingDistance, unit: "dist")
                 }
-
-                Spacer()
             }
             .padding()
-            .padding(.bottom, 62)
-
-            WatchFloatingControlPanel(
-                disciplineIcon: "figure.pool.swim",
-                disciplineColor: WatchAppColors.swimming,
-                disciplineName: "Swim"
-            )
         }
     }
 }

@@ -78,7 +78,7 @@ struct ShootingControlView: View {
     // MARK: - Active Shooting View
 
     private var activeShootingView: some View {
-        ZStack(alignment: .bottom) {
+        SessionPager(disciplineIcon: "target", disciplineColor: WatchAppColors.shooting, disciplineName: "Shooting") {
             VStack(spacing: 6) {
                 // Hero: Steadiness + HR side by side
                 HStack(spacing: 16) {
@@ -145,18 +145,9 @@ struct ShootingControlView: View {
                 Text(workoutManager.formattedElapsedTime)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
-
-                Spacer()
             }
             .padding(.horizontal)
             .padding(.top, 8)
-            .padding(.bottom, 62)
-
-            WatchFloatingControlPanel(
-                disciplineIcon: "target",
-                disciplineColor: WatchAppColors.shooting,
-                disciplineName: "Session"
-            )
         }
     }
 

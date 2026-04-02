@@ -54,9 +54,8 @@ struct WalkControlView: View {
     // MARK: - Active Walk View
 
     private var activeWalkView: some View {
-        ZStack(alignment: .bottom) {
+        SessionPager(disciplineIcon: "figure.walk", disciplineColor: WatchAppColors.walking, disciplineName: "Walk") {
             VStack(spacing: 8) {
-                // SPM — hero metric
                 Text("\(workoutManager.walkingCadence)")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .foregroundStyle(WatchAppColors.walking)
@@ -64,38 +63,19 @@ struct WalkControlView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                // Timer
                 Text(workoutManager.formattedElapsedTime)
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
 
                 Divider().padding(.vertical, 4)
 
-                // Metrics grid
                 HStack(spacing: 12) {
                     WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
-
-                    WatchMetricCell(
-                        value: workoutManager.formattedDistance,
-                        unit: "dist"
-                    )
-
-                    WatchMetricCell(
-                        value: String(format: "%.0f", workoutManager.elevationGain),
-                        unit: "m gain"
-                    )
+                    WatchMetricCell(value: workoutManager.formattedDistance, unit: "dist")
+                    WatchMetricCell(value: String(format: "%.0f", workoutManager.elevationGain), unit: "m gain")
                 }
-
-                Spacer()
             }
             .padding()
-            .padding(.bottom, 62)
-
-            WatchFloatingControlPanel(
-                disciplineIcon: "figure.walk",
-                disciplineColor: WatchAppColors.walking,
-                disciplineName: "Walk"
-            )
         }
     }
 }

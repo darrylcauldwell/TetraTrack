@@ -2,72 +2,35 @@
 //  WatchFloatingControlPanel.swift
 //  TetraTrack Watch App
 //
-//  Apple Workout-style floating glass control panel.
-//  Shared by all active session views — timer + pause/stop controls.
+//  Apple Workout-style swipe-left control page.
+//  Wraps discipline metrics as page 1, controls as page 2.
 //
 
 import SwiftUI
 
-struct WatchFloatingControlPanel: View {
+/// Wraps session content with swipe-left controls (Apple Workout pattern).
+/// Usage: `SessionPager(icon:color:name:) { metricsContent }`
+struct SessionPager<Content: View>: View {
     let disciplineIcon: String
     let disciplineColor: Color
     let disciplineName: String
+    @ViewBuilder let content: () -> Content
 
     @Environment(WorkoutManager.self) private var workoutManager
+    @State private var selectedPage: Int = 0
     @State private var showingStopConfirmation = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Discipline icon
-            Image(systemName: disciplineIcon)
-                .font(.caption)
-                .foregroundStyle(disciplineColor)
-                .frame(width: 16)
+        TabView(selection: $selectedPage) {
+            // Page 0: Session metrics
+            content()
+                .tag(0)
 
-            // Timer — CRITICAL: always from WorkoutManager, never connectivityService
-            Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 15, weight: .bold, design: .monospaced))
-                .monospacedDigit()
-                .foregroundStyle(workoutManager.isPaused ? .secondary : WatchAppColors.warning)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            Spacer()
-
-            // Pause/Resume
-            Button {
-                if workoutManager.isPaused {
-                    workoutManager.resumeWorkout()
-                } else {
-                    workoutManager.pauseWorkout()
-                }
-            } label: {
-                Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: WatchDesignTokens.TapTarget.minimum,
-                           height: WatchDesignTokens.TapTarget.minimum)
-                    .background(Circle().fill(.orange))
-            }
-            .buttonStyle(.plain)
-
-            // Stop
-            Button {
-                showingStopConfirmation = true
-            } label: {
-                Image(systemName: "stop.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: WatchDesignTokens.TapTarget.minimum,
-                           height: WatchDesignTokens.TapTarget.minimum)
-                    .background(Circle().fill(WatchAppColors.error))
-            }
-            .buttonStyle(.plain)
+            // Page 1: Controls (swipe left to access)
+            controlsPage
+                .tag(1)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .watchGlassPanel()
-        .padding(.horizontal, 4)
+        .tabViewStyle(.page)
         .confirmationDialog("End \(disciplineName)?", isPresented: $showingStopConfirmation) {
             Button("Save \(disciplineName)") {
                 Task {
@@ -78,6 +41,54 @@ struct WatchFloatingControlPanel: View {
                 Task { await workoutManager.discardWorkout() }
             }
             Button("Continue", role: .cancel) {}
+        }
+    }
+
+    private var controlsPage: some View {
+        VStack(spacing: 16) {
+            // Discipline header
+            HStack(spacing: 6) {
+                Image(systemName: disciplineIcon)
+                    .foregroundStyle(disciplineColor)
+                Text(disciplineName)
+                    .font(.headline)
+            }
+
+            // Timer
+            Text(workoutManager.formattedElapsedTime)
+                .font(.system(size: 28, weight: .bold, design: .monospaced))
+                .monospacedDigit()
+                .foregroundStyle(workoutManager.isPaused ? .secondary : .primary)
+
+            // Pause/Resume + Stop buttons
+            HStack(spacing: 20) {
+                Button {
+                    if workoutManager.isPaused {
+                        workoutManager.resumeWorkout()
+                    } else {
+                        workoutManager.pauseWorkout()
+                    }
+                    selectedPage = 0
+                } label: {
+                    Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(.orange))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showingStopConfirmation = true
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(WatchAppColors.error))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }

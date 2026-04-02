@@ -30,7 +30,7 @@ struct RideControlView: View {
         let collector = workoutManager.rideMetricsCollector
         let rideType = workoutManager.currentRideType ?? .ride
 
-        ZStack(alignment: .bottom) {
+        SessionPager(disciplineIcon: rideType.icon, disciplineColor: WatchAppColors.riding, disciplineName: rideType.rawValue) {
             VStack(spacing: 8) {
                 switch rideType {
                 case .ride:
@@ -40,17 +40,8 @@ struct RideControlView: View {
                 case .showjumping:
                     showjumpingLayout(collector: collector)
                 }
-
-                Spacer()
             }
             .padding()
-            .padding(.bottom, 62)
-
-            WatchFloatingControlPanel(
-                disciplineIcon: rideType.icon,
-                disciplineColor: WatchAppColors.riding,
-                disciplineName: rideType.rawValue
-            )
         }
     }
 

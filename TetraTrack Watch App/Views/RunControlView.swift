@@ -54,9 +54,8 @@ struct RunControlView: View {
     // MARK: - Active Run View
 
     private var activeRunView: some View {
-        ZStack(alignment: .bottom) {
+        SessionPager(disciplineIcon: "figure.run", disciplineColor: WatchAppColors.running, disciplineName: "Run") {
             VStack(spacing: 8) {
-                // Pace per 400m — hero metric
                 Text(workoutManager.formattedPace400m)
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .foregroundStyle(WatchAppColors.running)
@@ -64,38 +63,19 @@ struct RunControlView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                // Timer
                 Text(workoutManager.formattedElapsedTime)
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
 
                 Divider().padding(.vertical, 4)
 
-                // Metrics grid
                 HStack(spacing: 12) {
                     WatchHeartRateZoneBadge(heartRate: workoutManager.currentHeartRate)
-
-                    WatchMetricCell(
-                        value: workoutManager.formattedDistance,
-                        unit: "dist"
-                    )
-
-                    WatchMetricCell(
-                        value: "\(workoutManager.runningCadence)",
-                        unit: "spm"
-                    )
+                    WatchMetricCell(value: workoutManager.formattedDistance, unit: "dist")
+                    WatchMetricCell(value: "\(workoutManager.runningCadence)", unit: "spm")
                 }
-
-                Spacer()
             }
             .padding()
-            .padding(.bottom, 62)
-
-            WatchFloatingControlPanel(
-                disciplineIcon: "figure.run",
-                disciplineColor: WatchAppColors.running,
-                disciplineName: "Run"
-            )
         }
     }
 }
