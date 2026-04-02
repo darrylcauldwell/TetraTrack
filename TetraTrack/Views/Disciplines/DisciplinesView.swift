@@ -22,7 +22,8 @@ struct DisciplinesView: View {
 
                     competitionsSection
                     trainingDrillsSection
-                    scoreTargetsSection
+                    practiceScoring
+                    competitionScoring
                     exerciseLibrarySection
                     liveSharingSection
                     sessionHistorySection
@@ -65,21 +66,41 @@ struct DisciplinesView: View {
         .buttonStyle(.plain)
     }
 
-    @State private var showingScoreTargets = false
+    @State private var showingPracticeScoring = false
+    @State private var showingCompetitionScoring = false
 
-    private var scoreTargetsSection: some View {
-        Button { showingScoreTargets = true } label: {
-            DisciplineCard(title: "Score Targets", subtitle: "Scan and score shooting targets", icon: "camera.viewfinder", color: AppColors.shooting)
+    private var practiceScoring: some View {
+        Button { showingPracticeScoring = true } label: {
+            DisciplineCard(title: "Practice Scoring", subtitle: "Scan and mark any number of holes", icon: "target", color: .blue)
         }
         .buttonStyle(.plain)
-        .fullScreenCover(isPresented: $showingScoreTargets) {
+        .fullScreenCover(isPresented: $showingPracticeScoring) {
             NavigationStack {
-                ShootingPracticeView()
-                    .navigationTitle("Score Targets")
+                FreePracticeView(onEnd: { showingPracticeScoring = false })
+                    .navigationTitle("Practice Scoring")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { showingScoreTargets = false }
+                            Button("Close") { showingPracticeScoring = false }
+                        }
+                    }
+            }
+        }
+    }
+
+    private var competitionScoring: some View {
+        Button { showingCompetitionScoring = true } label: {
+            DisciplineCard(title: "Competition Scoring", subtitle: "5 holes per card, 2 cards", icon: "camera.viewfinder", color: AppColors.shooting)
+        }
+        .buttonStyle(.plain)
+        .fullScreenCover(isPresented: $showingCompetitionScoring) {
+            NavigationStack {
+                ShootingPracticeView()
+                    .navigationTitle("Competition Scoring")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showingCompetitionScoring = false }
                         }
                     }
             }
