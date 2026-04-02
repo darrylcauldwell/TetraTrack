@@ -56,25 +56,8 @@ struct UnifiedTrainingView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Drills")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showCoaching = true
-                    } label: {
-                        Image(systemName: "brain.head.profile")
-                    }
-                }
-            }
             .fullScreenCover(item: $selectedDrill) { drill in
                 DrillViewFactory.view(for: drill, modelContext: modelContext)
-            }
-            .sheet(isPresented: $showCoaching) {
-                NavigationStack {
-                    UnifiedCoachingDashboardView()
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(.ultraThinMaterial)
             }
             // Drill history moved to Session History, training calendar removed (#310)
             .sheet(isPresented: $showCompetitionSimulation) {

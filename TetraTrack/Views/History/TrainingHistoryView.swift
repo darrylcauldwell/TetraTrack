@@ -51,12 +51,16 @@ struct SessionHistoryView: View {
 
     enum HistoryTab: String, CaseIterable {
         case sessions = "Sessions"
-        case insights = "Session Insights"
+        case insights = "Insights"
+        case load = "Load"
+        case coaching = "Coaching"
 
         var icon: String {
             switch self {
             case .sessions: return "list.bullet"
             case .insights: return "chart.line.uptrend.xyaxis"
+            case .load: return "chart.bar.fill"
+            case .coaching: return "brain.head.profile"
             }
         }
     }
@@ -189,9 +193,10 @@ struct SessionHistoryView: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                if selectedTab == .sessions {
+                switch selectedTab {
+                case .sessions:
                     iPadSessionsList
-                } else {
+                case .insights:
                     SessionInsightsView(
                         rides: rides,
                         runningSessions: runningSessions,
@@ -199,6 +204,10 @@ struct SessionHistoryView: View {
                         shootingSessions: shootingSessions,
                         externalWorkouts: externalWorkoutService.workouts
                     )
+                case .load:
+                    TrainingLoadDashboardView()
+                case .coaching:
+                    UnifiedCoachingDashboardView()
                 }
             }
             .navigationTitle("Session History")
@@ -360,15 +369,20 @@ struct SessionHistoryView: View {
             .padding(.horizontal)
             .padding(.top)
 
-            if selectedTab == .sessions {
+            switch selectedTab {
+            case .sessions:
                 sessionsView
-            } else {
+            case .insights:
                 SessionInsightsView(
                     rides: rides,
                     runningSessions: runningSessions,
                     swimmingSessions: swimmingSessions,
                     shootingSessions: shootingSessions
                 )
+            case .load:
+                TrainingLoadDashboardView()
+            case .coaching:
+                UnifiedCoachingDashboardView()
             }
         }
     }

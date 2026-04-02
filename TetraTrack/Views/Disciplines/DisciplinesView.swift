@@ -21,7 +21,6 @@ struct DisciplinesView: View {
                     }
 
                     competitionsSection
-                    trainingLoadSection
                     trainingDrillsSection
                     scoreTargetsSection
                     exerciseLibrarySection
