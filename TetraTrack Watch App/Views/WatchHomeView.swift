@@ -12,10 +12,15 @@ struct WatchHomeView: View {
     @Environment(WatchConnectivityService.self) private var connectivityService
     @State private var sessionStore = WatchSessionStore.shared
 
+    @Environment(WorkoutManager.self) private var workoutManager
+
     var body: some View {
         Group {
-            if connectivityService.hasActiveSession {
-                // Full-screen active session view
+            if workoutManager.isWorkoutActive {
+                // Autonomous Watch-primary workout — show discipline-specific view
+                autonomousWorkoutView
+            } else if connectivityService.hasActiveSession {
+                // Legacy iPhone-companion session view
                 activeSessionFullScreen
             } else {
                 // Normal summary view when idle
@@ -25,6 +30,26 @@ struct WatchHomeView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
             }
+        }
+    }
+
+    // MARK: - Autonomous Workout View
+
+    @ViewBuilder
+    private var autonomousWorkoutView: some View {
+        switch workoutManager.activityType {
+        case .riding:
+            RideControlView()
+        case .running:
+            RunControlView()
+        case .walking:
+            WalkControlView()
+        case .swimming:
+            SwimControlView()
+        case .shooting:
+            ShootingControlView()
+        case .none:
+            ProgressView("Starting...")
         }
     }
 
