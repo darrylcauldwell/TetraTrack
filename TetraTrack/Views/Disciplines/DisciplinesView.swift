@@ -61,7 +61,7 @@ struct DisciplinesView: View {
 
     private var trainingDrillsSection: some View {
         NavigationLink(destination: UnifiedTrainingView()) {
-            DisciplineCard(title: "Training Drills", subtitle: "Riding, shooting, and fitness drills", icon: "figure.run.circle", color: .blue)
+            DisciplineCard(title: "Training", subtitle: "Riding, shooting, and fitness drills", icon: "figure.run.circle", color: .blue)
         }
         .buttonStyle(.plain)
     }
@@ -89,7 +89,7 @@ struct DisciplinesView: View {
 
     private var exerciseLibrarySection: some View {
         NavigationLink(destination: ExerciseLibraryView()) {
-            DisciplineCard(title: "Exercise Library", subtitle: "Flatwork exercises and polework layouts", icon: "book.fill", color: .indigo)
+            DisciplineCard(title: "Schooling", subtitle: "Flatwork, polework, and groundwork", icon: "book.fill", color: .indigo)
         }
         .buttonStyle(.plain)
     }

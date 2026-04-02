@@ -35,7 +35,7 @@ struct ExerciseLibraryView: View {
                 GroundworkLibraryView()
             }
         }
-        .navigationTitle("Exercise Library")
+        .navigationTitle("Schooling")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
