@@ -20,13 +20,13 @@ struct DisciplinesView: View {
                         iPadWelcomeBanner
                     }
 
-                    // MARK: - Competitions
                     competitionsSection
-
-                    // MARK: - Training
-                    trainingSection
-
-                    // MARK: - Session History
+                    trainingLoadSection
+                    trainingDrillsSection
+                    scoreTargetsSection
+                    exerciseLibrarySection
+                    poleLayoutsSection
+                    liveSharingSection
                     sessionHistorySection
                 }
                 .adaptivePadding(horizontalSizeClass)
@@ -44,44 +44,74 @@ struct DisciplinesView: View {
         }
     }
 
-    // MARK: - Competitions Section
+    // MARK: - Cards
 
     private var competitionsSection: some View {
         NavigationLink(destination: CompetitionHubView()) {
-            DisciplineCard(
-                title: "Competitions",
-                subtitle: "Calendar, competition day & tasks",
-                icon: "calendar",
-                color: AppColors.purple
-            )
+            DisciplineCard(title: "Competitions", subtitle: "Calendar, competition day & tasks", icon: "calendar", color: AppColors.purple)
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Training
-
-    private var trainingSection: some View {
-        NavigationLink(destination: TrainingHubView()) {
-            DisciplineCard(
-                title: "Training",
-                subtitle: "Training load and drills",
-                icon: "figure.run.circle",
-                color: AppColors.cardOrange
-            )
+    private var trainingLoadSection: some View {
+        NavigationLink(destination: TrainingLoadDashboardView()) {
+            DisciplineCard(title: "Training Load", subtitle: "Weekly volume and recovery trends", icon: "chart.bar.fill", color: AppColors.cardOrange)
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Session History
+    private var trainingDrillsSection: some View {
+        NavigationLink(destination: UnifiedTrainingView()) {
+            DisciplineCard(title: "Training Drills", subtitle: "Riding, shooting, and fitness drills", icon: "figure.run.circle", color: .blue)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @State private var showingScoreTargets = false
+
+    private var scoreTargetsSection: some View {
+        Button { showingScoreTargets = true } label: {
+            DisciplineCard(title: "Score Targets", subtitle: "Scan and score shooting targets", icon: "camera.viewfinder", color: AppColors.shooting)
+        }
+        .buttonStyle(.plain)
+        .fullScreenCover(isPresented: $showingScoreTargets) {
+            NavigationStack {
+                ShootingPracticeView()
+                    .navigationTitle("Score Targets")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showingScoreTargets = false }
+                        }
+                    }
+            }
+        }
+    }
+
+    private var exerciseLibrarySection: some View {
+        NavigationLink(destination: FlatworkLibraryView()) {
+            DisciplineCard(title: "Exercise Library", subtitle: "Arena exercises and schooling figures", icon: "book.fill", color: .indigo)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var poleLayoutsSection: some View {
+        NavigationLink(destination: PoleworkLibraryView()) {
+            DisciplineCard(title: "Pole Layouts", subtitle: "Polework exercises and stride distances", icon: "arrow.left.and.right", color: .green)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var liveSharingSection: some View {
+        NavigationLink(destination: FamilyView()) {
+            DisciplineCard(title: "Live Sharing", subtitle: "Share location with family", icon: "location.fill.viewfinder", color: .cyan)
+        }
+        .buttonStyle(.plain)
+    }
 
     private var sessionHistorySection: some View {
         NavigationLink(destination: SessionHistoryView()) {
-            DisciplineCard(
-                title: "Session History",
-                subtitle: "Sessions and session insights",
-                icon: "clock.arrow.circlepath",
-                color: AppColors.neutralGray
-            )
+            DisciplineCard(title: "Session History", subtitle: "Sessions and session insights", icon: "clock.arrow.circlepath", color: AppColors.neutralGray)
         }
         .buttonStyle(.plain)
     }
