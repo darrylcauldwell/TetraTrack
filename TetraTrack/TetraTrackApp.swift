@@ -311,11 +311,6 @@ struct TetraTrackApp: App {
         guard !isConfigured else { return }
         // SessionTracker configuration removed — all sessions Watch-primary (#309)
 
-        // Migrate legacy drill sessions to UnifiedDrillSession
-        Task {
-            await DataMigrationService.runMigrationIfNeeded(context: sharedModelContainer.mainContext)
-        }
-
         // Auto-generate screenshot data when launched in screenshot mode
         if Self.isScreenshotMode {
             ScreenshotDataGenerator.generateScreenshotData(in: sharedModelContainer.mainContext)
