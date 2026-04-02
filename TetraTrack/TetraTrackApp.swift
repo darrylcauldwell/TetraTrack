@@ -67,8 +67,7 @@ struct TetraTrackApp: App {
             FlatworkExercise.self,
             PoleworkExercise.self,
             TrainingStreak.self,
-            ScheduledWorkout.self,
-            TrainingWeekFocus.self,
+            // ScheduledWorkout and TrainingWeekFocus removed — training calendar deleted (#310)
             RidingDrillSession.self,   // SCHEMA-ONLY: CloudKit backward compat
             ShootingDrillSession.self, // SCHEMA-ONLY: CloudKit backward compat
             LocationPoint.self,        // SCHEMA-ONLY: CloudKit backward compat

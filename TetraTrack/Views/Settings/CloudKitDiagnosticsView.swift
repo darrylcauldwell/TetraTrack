@@ -34,7 +34,7 @@ struct CloudKitDiagnosticsView: View {
         "CD_RunningSession", "CD_RunningSplit", "CD_SwimmingSession",
         "CD_ShootingSession", "CD_Horse", "CD_Competition", "CD_CompetitionTask",
         "CD_FlatworkExercise", "CD_PoleworkExercise", "CD_SkillDomainScore",
-        "CD_ScheduledWorkout", "CD_TrainingWeekFocus", "CD_TrainingStreak",
+        "CD_TrainingStreak",
         "CD_UnifiedDrillSession", "CD_SharingRelationship", "CD_TrainingArtifact",
         "CD_LinkedRiderRecord", "CD_LocationPoint", "CD_RunningLocationPoint",
         "CD_SwimmingLocationPoint", "CD_SharedCompetition",

@@ -15,8 +15,7 @@ struct UnifiedTrainingView: View {
     @State private var selectedDiscipline: TrainingDiscipline?
     @State private var selectedDrill: UnifiedDrillType?
     @State private var showCoaching = false
-    @State private var showDrillHistory = false
-    @State private var showTrainingWeek = false
+    // showDrillHistory and showTrainingWeek removed (#310)
     @State private var showCompetitionSimulation = false
     @State private var showChallenges = false
 
@@ -60,23 +59,9 @@ struct UnifiedTrainingView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showTrainingWeek = true
-                    } label: {
-                        Image(systemName: "calendar")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
                         showCoaching = true
                     } label: {
                         Image(systemName: "brain.head.profile")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showDrillHistory = true
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
                     }
                 }
             }
@@ -91,19 +76,7 @@ struct UnifiedTrainingView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(.ultraThinMaterial)
             }
-            .sheet(isPresented: $showDrillHistory) {
-                NavigationStack {
-                    UnifiedDrillHistoryView()
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(.ultraThinMaterial)
-            }
-            .sheet(isPresented: $showTrainingWeek) {
-                NavigationStack {
-                    TrainingWeekView()
-                }
-            }
+            // Drill history moved to Session History, training calendar removed (#310)
             .sheet(isPresented: $showCompetitionSimulation) {
                 CompetitionSimulationView()
             }
@@ -750,122 +723,7 @@ private struct UnifiedTrendRow: View {
     }
 }
 
-// MARK: - Drill History View
-
-struct UnifiedDrillHistoryView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Query(sort: \UnifiedDrillSession.startDate, order: .reverse) private var unifiedSessions: [UnifiedDrillSession]
-
-    private var allDrillSessions: [DrillHistoryItem] {
-        unifiedSessions.map { DrillHistoryItem(unifiedSession: $0) }
-    }
-
-    var body: some View {
-        Group {
-            if allDrillSessions.isEmpty {
-                ContentUnavailableView(
-                    "No Drill History",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("Complete some drills to see your history here")
-                )
-            } else {
-                List {
-                    ForEach(allDrillSessions) { item in
-                        DrillHistoryRow(item: item)
-                    }
-                }
-            }
-        }
-        .navigationTitle("Drill History")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") { dismiss() }
-            }
-        }
-    }
-}
-
-/// Unified item for drill history display
-private struct DrillHistoryItem: Identifiable {
-    let id: UUID
-    let name: String
-    let date: Date
-    let duration: TimeInterval
-    let score: Double
-    let icon: String
-    let color: Color
-    let category: String
-
-    init(unifiedSession: UnifiedDrillSession) {
-        self.id = unifiedSession.id
-        self.name = unifiedSession.name
-        self.date = unifiedSession.startDate
-        self.duration = unifiedSession.duration
-        self.score = unifiedSession.score
-        self.icon = unifiedSession.drillType.icon
-        self.color = unifiedSession.drillType.color
-        self.category = unifiedSession.drillType.primaryCategory.displayName
-    }
-
-    var formattedScore: String {
-        "\(Int(score))%"
-    }
-
-    var formattedDuration: String {
-        duration.formattedDuration
-    }
-}
-
-/// Row view for drill history items
-private struct DrillHistoryRow: View {
-    let item: DrillHistoryItem
-
-    var body: some View {
-        HStack {
-            ZStack {
-                Circle()
-                    .fill(item.color.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                Image(systemName: item.icon)
-                    .foregroundStyle(item.color)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
-                    .font(.subheadline.weight(.medium))
-                HStack(spacing: 8) {
-                    Text(item.category)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(item.color.opacity(0.15))
-                        .foregroundStyle(item.color)
-                        .clipShape(Capsule())
-                    Text(item.date.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(item.formattedScore)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(scoreColor(item.score))
-                Text(item.formattedDuration)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func scoreColor(_ score: Double) -> Color {
-        if score >= 80 { return .green }
-        if score >= 60 { return .orange }
-        return .red
-    }
-}
+// Drill history and drill history components removed — now in Session History (#310)
 
 // MARK: - Training Insights View (Standalone)
 
