@@ -235,24 +235,7 @@ struct GroundworkLibraryView: View {
                     }
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(GroundworkDifficulty.allCases) { difficulty in
-                            Button {
-                                selectedDifficulty = selectedDifficulty == difficulty ? nil : difficulty
-                            } label: {
-                                Text(difficulty.rawValue)
-                                    .font(.caption)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(selectedDifficulty == difficulty ? difficulty.color : Color(.systemGray5))
-                                    .foregroundStyle(selectedDifficulty == difficulty ? .white : .primary)
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+                // Difficulty filter removed
             }
 
             // Exercises
@@ -283,16 +266,9 @@ private struct GroundworkExerciseRow: View {
                         Text(exercise.name)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
-                        HStack(spacing: 6) {
-                            Text(exercise.category.rawValue)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text("·")
-                                .foregroundStyle(.secondary)
-                            Text(exercise.difficulty.rawValue)
-                                .font(.caption2)
-                                .foregroundStyle(exercise.difficulty.color)
-                        }
+                        Text(exercise.category.rawValue)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
