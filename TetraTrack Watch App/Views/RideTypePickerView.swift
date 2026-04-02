@@ -2,22 +2,23 @@
 //  RideTypePickerView.swift
 //  TetraTrack Watch App
 //
-//  Ride type selection for autonomous Watch rides
+//  Ride type selection for autonomous Watch rides.
+//  Starts the workout then navigates to RideControlView.
 //
 
 import SwiftUI
 
 struct RideTypePickerView: View {
     @Environment(WorkoutManager.self) private var workoutManager
-    @State private var selectedType: WatchRideType?
+    @State private var showRideControl = false
 
     var body: some View {
         VStack(spacing: 6) {
             ForEach(WatchRideType.allCases) { type in
                 Button {
-                    selectedType = type
                     Task {
                         await workoutManager.startAutonomousRide(type: type)
+                        showRideControl = true
                     }
                 } label: {
                     HStack {
@@ -46,6 +47,10 @@ struct RideTypePickerView: View {
         }
         .padding(.horizontal, 8)
         .navigationTitle("Ride Type")
+        .navigationDestination(isPresented: $showRideControl) {
+            RideControlView()
+                .navigationBarBackButtonHidden(true)
+        }
     }
 }
 

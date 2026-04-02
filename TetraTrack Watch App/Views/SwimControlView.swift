@@ -18,6 +18,7 @@ struct SwimControlView: View {
                 startSwimView
             }
         }
+        .navigationBarBackButtonHidden(workoutManager.isWorkoutActive)
     }
 
     // MARK: - Start Swim View

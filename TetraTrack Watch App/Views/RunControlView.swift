@@ -18,6 +18,7 @@ struct RunControlView: View {
                 startRunView
             }
         }
+        .navigationBarBackButtonHidden(workoutManager.isWorkoutActive)
     }
 
     // MARK: - Start Run View
