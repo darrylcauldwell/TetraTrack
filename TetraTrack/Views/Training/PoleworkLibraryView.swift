@@ -20,6 +20,7 @@ struct PoleworkLibraryView: View {
     @State private var showHorsePicker = false
     @State private var hasInitialized = false
     @State private var showingAddExercise = false
+    @State private var selectedExercise: PoleworkExercise?
     @State private var exerciseToEdit: PoleworkExercise?
 
     /// Derived horse size from selected horse, or .average if no horse selected
@@ -54,31 +55,79 @@ struct PoleworkLibraryView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Horse Size Selector Bar
-                horseSizeBar
+            List {
+                // Category + Horse filter row
+                Section {
+                    HStack {
+                        // Category menu (left)
+                        Menu {
+                            Button("All Categories") { selectedCategory = nil }
+                            Divider()
+                            ForEach(PoleworkCategory.allCases) { category in
+                                Button {
+                                    selectedCategory = category
+                                } label: {
+                                    Label(category.displayName, systemImage: category.icon)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: selectedCategory?.icon ?? "square.grid.2x2")
+                                Text(selectedCategory?.displayName ?? "Category")
+                                    .font(.subheadline)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selectedCategory != nil ? Color.orange : Color(.systemGray5))
+                            .foregroundStyle(selectedCategory != nil ? .white : .primary)
+                            .clipShape(Capsule())
+                        }
 
-                // Filters
-                filterBar
+                        if selectedCategory != nil {
+                            Button { selectedCategory = nil } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
 
-                // Exercise list
-                exerciseList
+                        Spacer()
+
+                        // Horse selector (right)
+                        Button { showHorsePicker = true } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "figure.equestrian.sports")
+                                    .foregroundStyle(.orange)
+                                Text(selectedHorse?.name ?? "Average")
+                                    .font(.subheadline)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selectedHorse != nil ? Color.orange.opacity(0.15) : Color(.systemGray5))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Exercise rows
+                ForEach(filteredExercises) { exercise in
+                    PoleworkExerciseRow(exercise: exercise, horseSize: currentHorseSize)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectedExercise = exercise }
+                }
             }
             .navigationTitle("Polework Exercises")
             .searchable(text: $searchText, prompt: "Search exercises")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAddExercise = true
                     } label: {
                         Image(systemName: "plus")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showHorsePicker = true
-                    } label: {
-                        Label("Horse", systemImage: "figure.equestrian.sports")
                     }
                 }
             }
@@ -87,6 +136,13 @@ struct PoleworkLibraryView: View {
             }
             .sheet(isPresented: $showingAddExercise) {
                 PoleworkExerciseEditorView()
+            }
+            .sheet(item: $selectedExercise) { exercise in
+                PoleworkExerciseDetailView(
+                    exercise: exercise,
+                    horse: selectedHorse,
+                    onEdit: { exerciseToEdit = $0 }
+                )
             }
             .sheet(item: $exerciseToEdit) { exercise in
                 PoleworkExerciseEditorView(exercise: exercise)
