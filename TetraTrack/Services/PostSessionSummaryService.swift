@@ -460,14 +460,5 @@ final class PostSessionSummaryService {
 
     // MARK: - Audio Readback
 
-    /// Read the session summary aloud via AirPods
-    func readSummaryAloud(_ summary: SessionSummary, brief: Bool = false) {
-        let audioCoach = AudioCoachManager.shared
-
-        if brief {
-            audioCoach.announceSessionSummary(summary.briefNarrative)
-        } else {
-            audioCoach.announceSessionSummary(summary.narrativeText)
-        }
-    }
+    // readSummaryAloud removed — voice coaching deleted (#309)
 }

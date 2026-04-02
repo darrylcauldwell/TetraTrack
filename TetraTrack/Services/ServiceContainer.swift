@@ -17,7 +17,6 @@ final class ServiceContainer {
     static let shared = ServiceContainer()
 
     // Services (using protocols for testability)
-    let audioCoach: AudioCoaching
     let weatherService: WeatherFetching
     let familySharing: FamilySharing
     let unifiedSharing: UnifiedSharingCoordinator
@@ -26,24 +25,21 @@ final class ServiceContainer {
 
     /// Initialize with default (production) implementations
     private init() {
-        self.audioCoach = AudioCoachManager.shared
         self.weatherService = WeatherService.shared
         self.unifiedSharing = UnifiedSharingCoordinator.shared
-        self.familySharing = UnifiedSharingCoordinator.shared  // Use unified coordinator
+        self.familySharing = UnifiedSharingCoordinator.shared
         self.fallDetection = FallDetectionManager.shared
         self.watchConnectivity = WatchConnectivityManager.shared
     }
 
     /// Initialize with custom implementations (for testing)
     init(
-        audioCoach: AudioCoaching,
         weatherService: WeatherFetching,
         familySharing: FamilySharing,
         unifiedSharing: UnifiedSharingCoordinator? = nil,
         fallDetection: FallDetecting,
         watchConnectivity: WatchConnecting
     ) {
-        self.audioCoach = audioCoach
         self.weatherService = weatherService
         self.familySharing = familySharing
         self.unifiedSharing = unifiedSharing ?? UnifiedSharingCoordinator.shared
@@ -53,10 +49,6 @@ final class ServiceContainer {
 }
 
 // MARK: - Environment Keys
-
-private struct AudioCoachKey: EnvironmentKey {
-    static let defaultValue: AudioCoaching = AudioCoachManager.shared
-}
 
 private struct WeatherServiceKey: EnvironmentKey {
     static let defaultValue: WeatherFetching = WeatherService.shared
@@ -81,11 +73,6 @@ private struct WatchConnectivityKey: EnvironmentKey {
 // MARK: - Environment Values Extension
 
 extension EnvironmentValues {
-    var audioCoach: AudioCoaching {
-        get { self[AudioCoachKey.self] }
-        set { self[AudioCoachKey.self] = newValue }
-    }
-
     var weatherService: WeatherFetching {
         get { self[WeatherServiceKey.self] }
         set { self[WeatherServiceKey.self] = newValue }
@@ -110,16 +97,13 @@ extension EnvironmentValues {
         get { self[WatchConnectivityKey.self] }
         set { self[WatchConnectivityKey.self] = newValue }
     }
-
 }
 
 // MARK: - View Modifier for Injecting Test Services
 
 extension View {
-    /// Inject custom services for testing or previews
     func withServices(_ container: ServiceContainer) -> some View {
         self
-            .environment(\.audioCoach, container.audioCoach)
             .environment(\.weatherService, container.weatherService)
             .environment(\.familySharing, container.familySharing)
             .environment(\.unifiedSharing, container.unifiedSharing)

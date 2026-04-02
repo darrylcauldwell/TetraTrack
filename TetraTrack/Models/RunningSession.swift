@@ -648,9 +648,7 @@ struct RunningCoachingSummary: Codable, Sendable {
     var intervalPerformance: [IntervalPerformanceRecord] = []
     var announcementCount: Int = 0
 
-    var coachingLevel: RunningCoachingLevel? {
-        RunningCoachingLevel(rawValue: coachingLevelRaw)
-    }
+    // coachingLevel removed — voice coaching deleted (#309)
 }
 
 struct PBCheckpointRecord: Codable, Identifiable, Sendable {

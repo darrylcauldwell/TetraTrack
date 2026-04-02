@@ -13,10 +13,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case profile = "Rider Profile"
     case health = "Apple Health"
     case watch = "Apple Watch"
-    case coaching = "Voice Coaching"
     case training = "Training"
-    case maps = "Offline Maps"
-    case shooting = "Shooting Development"
     case sharing = "Live Sharing"
     case data = "Data Management"
     case diagnostics = "Diagnostics"
@@ -30,10 +27,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .profile: return "person.circle.fill"
         case .health: return "heart.fill"
         case .watch: return "applewatch"
-        case .coaching: return "speaker.wave.3.fill"
         case .training: return "timer"
-        case .maps: return "map.fill"
-        case .shooting: return "brain"
         case .sharing: return "location.fill.viewfinder"
         case .data: return "externaldrive.fill"
         case .diagnostics: return "stethoscope"
@@ -47,10 +41,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .profile: return AppColors.primary
         case .health: return .red
         case .watch: return AppColors.primary
-        case .coaching: return AppColors.primary
         case .training: return AppColors.primary
-        case .maps: return AppColors.primary
-        case .shooting: return .purple
         case .sharing: return .cyan
         case .data: return .red
         case .diagnostics: return .orange
@@ -258,14 +249,8 @@ struct SettingsView: View {
                     healthContent
                 case .watch:
                     watchContent
-                case .coaching:
-                    coachingContent
                 case .training:
                     trainingContent
-                case .maps:
-                    mapsContent
-                case .shooting:
-                    shootingContent
                 case .sharing:
                     sharingContent
                 case .data:
@@ -509,28 +494,6 @@ struct SettingsView: View {
                     Text("Apple Watch")
                 }
 
-                // Audio Coaching Section
-                Section("Voice Coaching") {
-                    NavigationLink(destination: AudioCoachingView()) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "speaker.wave.3.fill")
-                                .font(.title2)
-                                .foregroundStyle(AppColors.primary)
-                                .frame(width: 32)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Voice Coaching")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-
-                                Text("Spoken cues for gaits, milestones, and intervals")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
                 // Training Section
                 Section("Training") {
                     NavigationLink(destination: FlatworkLibraryView()) {
@@ -572,67 +535,7 @@ struct SettingsView: View {
                     }
                 }
 
-                // Offline Maps Section
-                Section("Offline Maps") {
-                    HStack(spacing: 12) {
-                        Image(systemName: "map.fill")
-                            .font(.title2)
-                            .foregroundStyle(AppColors.primary)
-                            .frame(width: 32)
-
-                        Text("Prepare for No Signal Areas")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-
-                    Text("Many riding trails have limited or no mobile coverage. Download your planned riding area in Apple Maps before you start to ensure the map displays correctly during your ride.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("How to download offline maps:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-
-                        OfflineMapStep(number: 1, text: "Open the Apple Maps app")
-                        OfflineMapStep(number: 2, text: "Tap your profile picture (bottom right)")
-                        OfflineMapStep(number: 3, text: "Select \"Offline Maps\"")
-                        OfflineMapStep(number: 4, text: "Tap \"Download New Map\"")
-                        OfflineMapStep(number: 5, text: "Navigate to your riding area and adjust the region")
-                        OfflineMapStep(number: 6, text: "Tap \"Download\"")
-                    }
-
-                    Button(action: openAppleMaps) {
-                        Label("Open Apple Maps", systemImage: "arrow.up.forward.app")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                }
-
-                // Route Planning Data Section - temporarily disabled
-                // Will be re-enabled when route planning feature is complete
-
-                // Shooting ML Development Section
-                Section("Shooting Development") {
-                    NavigationLink(destination: MLTrainingDashboardView()) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "brain")
-                                .font(.title2)
-                                .foregroundStyle(.purple)
-                                .frame(width: 32)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("ML Training Data")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-
-                                Text("View collection progress for hole detection")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
+                // Offline Maps, Shooting ML sections removed (#309)
 
                 Section("Sharing") {
                     NavigationLink(destination: FamilyView()) {
@@ -1076,22 +979,7 @@ struct SettingsView: View {
         }
     }
 
-    private var coachingContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            NavigationLink(destination: AudioCoachingView()) {
-                SettingsRowContent(
-                    icon: "speaker.wave.3.fill",
-                    iconColor: AppColors.primary,
-                    title: "Voice Coaching",
-                    subtitle: "Spoken cues for gaits, milestones, and intervals"
-                )
-            }
-            .buttonStyle(.plain)
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
+    // coachingContent removed (#309)
 
     private var trainingContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -1123,70 +1011,7 @@ struct SettingsView: View {
         }
     }
 
-    private var mapsContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(spacing: 12) {
-                Image(systemName: "map.fill")
-                    .font(.title2)
-                    .foregroundStyle(AppColors.primary)
-                    .frame(width: 32)
-
-                Text("Prepare for No Signal Areas")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            Text("Many riding trails have limited or no mobile coverage. Download your planned riding area in Apple Maps before you start to ensure the map displays correctly during your ride.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding()
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("How to download offline maps:")
-                    .font(.caption)
-                    .fontWeight(.medium)
-
-                OfflineMapStep(number: 1, text: "Open the Apple Maps app")
-                OfflineMapStep(number: 2, text: "Tap your profile picture (bottom right)")
-                OfflineMapStep(number: 3, text: "Select \"Offline Maps\"")
-                OfflineMapStep(number: 4, text: "Tap \"Download New Map\"")
-                OfflineMapStep(number: 5, text: "Navigate to your riding area and adjust the region")
-                OfflineMapStep(number: 6, text: "Tap \"Download\"")
-            }
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            Button(action: openAppleMaps) {
-                Label("Open Apple Maps", systemImage: "arrow.up.forward.app")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-
-    private var shootingContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            NavigationLink(destination: MLTrainingDashboardView()) {
-                SettingsRowContent(
-                    icon: "brain",
-                    iconColor: .purple,
-                    title: "ML Training Data",
-                    subtitle: "View collection progress for hole detection"
-                )
-            }
-            .buttonStyle(.plain)
-            .padding()
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
+    // mapsContent, shootingContent removed (#309)
 
     private var dataManagementContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {

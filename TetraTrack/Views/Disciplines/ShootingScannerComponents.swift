@@ -50,7 +50,7 @@ struct TargetScannerView: View {
     @State private var useAutoDetection = false  // User preference
 
     // ML Training Data Collection
-    @State private var markingEvents: [HoleMarkingEvent] = []
+    // markingEvents removed — ML training deleted (#309)
     @State private var sessionStartTime: Date = Date()
     @State private var lastActionTime: Date = Date()
     @State private var retakeCount: Int = 0
@@ -338,7 +338,7 @@ struct TargetScannerView: View {
                     detectedTargetCenter = nil
                     detectedTargetSize = nil
                     aiCoachingInsights = nil
-                    markingEvents = []
+                    // markingEvents reset removed (#309)
                     lastActionTime = Date()
                     showingReview = false
                 }
@@ -765,18 +765,10 @@ struct TargetScannerView: View {
         )
         detectedHoles.append(newHole)
 
-        // Record ML training event
-        let now = Date()
-        let event = HoleMarkingEvent(
-            action: .add,
-            holeId: newHole.id,
-            position: CodablePoint(position),
-            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
-            zoomLevel: currentZoomLevel,
-            sequenceNumber: markingEvents.count + 1,
-            totalHolesAtTime: detectedHoles.count
+        // ML training event recording removed (#309)
+        let now = Date(
         )
-        markingEvents.append(event)
+        // markingEvents removed (#309)
         lastActionTime = now
 
         // Sort by score
@@ -796,21 +788,7 @@ struct TargetScannerView: View {
         // Calculate drag distance for ML training
         let dragDistance = hypot(newPosition.x - oldPosition.x, newPosition.y - oldPosition.y)
 
-        // Record ML training event
-        let now = Date()
-        let event = HoleMarkingEvent(
-            action: .move,
-            holeId: id,
-            position: CodablePoint(newPosition),
-            previousPosition: CodablePoint(oldPosition),
-            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
-            dragDistance: dragDistance,
-            zoomLevel: currentZoomLevel,
-            sequenceNumber: markingEvents.count + 1,
-            totalHolesAtTime: detectedHoles.count
-        )
-        markingEvents.append(event)
-        lastActionTime = now
+        lastActionTime = Date()
 
         detectedHoles[index].position = newPosition
         detectedHoles[index].score = newScore
@@ -822,19 +800,7 @@ struct TargetScannerView: View {
     private func deleteHole(id: UUID) {
         guard let hole = detectedHoles.first(where: { $0.id == id }) else { return }
 
-        // Record ML training event
-        let now = Date()
-        let event = HoleMarkingEvent(
-            action: .delete,
-            holeId: id,
-            position: CodablePoint(hole.position),
-            timeSinceLastAction: now.timeIntervalSince(lastActionTime),
-            zoomLevel: currentZoomLevel,
-            sequenceNumber: markingEvents.count + 1,
-            totalHolesAtTime: detectedHoles.count - 1
-        )
-        markingEvents.append(event)
-        lastActionTime = now
+        lastActionTime = Date()
 
         detectedHoles.removeAll { $0.id == id }
     }
@@ -861,60 +827,7 @@ struct TargetScannerView: View {
         modelContext.insert(analysis)
         try? modelContext.save()
 
-        // Save ML training data
-        saveMLTrainingData()
-    }
-
-    /// Save comprehensive ML training data for future model development
-    private func saveMLTrainingData() {
-        guard let image = capturedImage else { return }
-
-        Task {
-            // Determine target region for each hole
-            let isLeftBlack = true // Default assumption, could be computed from image
-
-            // Convert to HoleAnnotations with full metadata
-            let annotations = detectedHoles.map { hole -> HoleAnnotation in
-                let region = MLTrainingDataService.shared.determineTargetRegion(
-                    position: hole.position,
-                    isLeftBlack: isLeftBlack
-                )
-
-                return HoleAnnotation(
-                    id: hole.id,
-                    position: hole.position,
-                    estimatedDiameter: hole.radius * 2,
-                    targetRegion: region,
-                    score: hole.score,
-                    confidence: hole.confidence,
-                    source: .manualAdd,
-                    wasAutoDetected: false,
-                    wasUserCorrected: false
-                )
-            }
-
-            // Create capture metadata
-            let originalSize = rawCapturedImage?.size ?? image.size
-            let metadata = CaptureMetadata.capture(
-                originalSize: originalSize,
-                croppedSize: image.size,
-                sessionDuration: Date().timeIntervalSince(sessionStartTime),
-                retakeCount: retakeCount
-            )
-
-            // Save training capture
-            do {
-                _ = try await MLTrainingDataService.shared.saveTrainingCapture(
-                    image: image,
-                    annotations: annotations,
-                    markingEvents: markingEvents,
-                    metadata: metadata,
-                    targetType: .tetrathlon
-                )
-            } catch {
-                // ML training data save failed silently
-            }
-        }
+        // ML training data collection removed (#309)
     }
 
     private func calculateScore(for position: CGPoint, center: CGPoint, size: CGSize) -> Int {

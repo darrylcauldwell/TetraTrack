@@ -48,7 +48,7 @@ final class VoiceNotesService: NSObject {
     private var airPodsEnabled = true
 
     // Audio feedback
-    private let audioCoach = AudioCoachManager.shared
+    // audioCoach removed — voice coaching deleted (#309)
 
     // MARK: - Initialization
 
@@ -210,7 +210,7 @@ final class VoiceNotesService: NSObject {
             onRecordingStateChanged?(true)
 
             // Audio feedback
-            audioCoach.announce("Recording")
+            // audioCoach.announce("Recording")
 
             // Start silence detection
             startSilenceDetection()
@@ -257,9 +257,9 @@ final class VoiceNotesService: NSObject {
         let finalText = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !finalText.isEmpty {
             onTranscriptionComplete?(finalText)
-            audioCoach.announce("Note saved")
+            // audioCoach.announce("Note saved")
         } else {
-            audioCoach.announce("No note recorded")
+            // audioCoach.announce("No note recorded")
         }
     }
 

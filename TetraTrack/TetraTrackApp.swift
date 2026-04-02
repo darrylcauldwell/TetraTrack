@@ -206,9 +206,7 @@ struct TetraTrackApp: App {
             .task { await handleInitialSetup() }
             .modifier(SiriNotificationModifier(
                 onStartRide: handleStartRide,
-                onAnnounceStatus: announceCurrentStatus,
-                onSetAudio: setAudioCoaching,
-                onToggleAudio: toggleAudioCoaching
+                onAnnounceStatus: announceCurrentStatus
             ))
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(from: oldPhase, to: newPhase)
@@ -274,7 +272,7 @@ struct TetraTrackApp: App {
 
         switch newPhase {
         case .background:
-            AudioCoachManager.shared.stopSpeaking()
+            // Audio coaching removed (#309)
 
             // Suspend family location refresh loop to prevent battery drain
             if !Self.isUITesting, !Self.isUnitTesting {
@@ -284,7 +282,7 @@ struct TetraTrackApp: App {
             Log.app.info("App entered background")
 
         case .inactive:
-            AudioCoachManager.shared.stopSpeaking()
+            break
 
         case .active:
             guard !Self.isUITesting, !Self.isUnitTesting else { break }
@@ -446,36 +444,10 @@ struct TetraTrackApp: App {
         }
     }
 
-    private func announceCurrentStatus() {
-        let audioCoach = AudioCoachManager.shared
-        let fallDetectionActive = FallDetectionManager.shared.isMonitoring
-
-        audioCoach.announce("Start a workout from Apple Watch to begin tracking.")
-    }
-
-    private func setAudioCoaching(enabled: Bool) {
-        let audioCoach = AudioCoachManager.shared
-        audioCoach.isEnabled = enabled
-        audioCoach.saveSettings()
-
-        // Announce the change (temporarily enable to speak this message)
-        if !enabled {
-            audioCoach.isEnabled = true
-            audioCoach.announce("Audio coaching disabled")
-            // Disable after announcement plays
-            Task {
-                try? await Task.sleep(for: .seconds(2.0))
-                audioCoach.isEnabled = false
-            }
-        } else {
-            audioCoach.announce("Audio coaching enabled")
-        }
-    }
-
-    private func toggleAudioCoaching() {
-        let audioCoach = AudioCoachManager.shared
-        setAudioCoaching(enabled: !audioCoach.isEnabled)
-    }
+    // Voice coaching functions removed (#309)
+    private func announceCurrentStatus() {}
+    private func setAudioCoaching(enabled: Bool) {}
+    private func toggleAudioCoaching() {}
 
     private func handleStartRide(notification: Notification) {
         // Riding is now Watch-primary — iPhone no longer starts ride sessions
@@ -574,8 +546,6 @@ struct TetraTrackApp: App {
 private struct SiriNotificationModifier: ViewModifier {
     var onStartRide: (Notification) -> Void
     var onAnnounceStatus: () -> Void
-    var onSetAudio: (Bool) -> Void
-    var onToggleAudio: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -584,15 +554,6 @@ private struct SiriNotificationModifier: ViewModifier {
             }
             .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
                 onAnnounceStatus()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .enableAudioFromSiri)) { _ in
-                onSetAudio(true)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .disableAudioFromSiri)) { _ in
-                onSetAudio(false)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleAudioFromSiri)) { _ in
-                onToggleAudio()
             }
     }
 }

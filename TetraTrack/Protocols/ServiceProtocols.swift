@@ -8,30 +8,7 @@ import Foundation
 import CoreLocation
 import SwiftData
 
-// MARK: - Audio Coach Protocol
-
-/// Protocol for voice coaching services during rides
-protocol AudioCoaching: AnyObject {
-    var isEnabled: Bool { get set }
-    var volume: Float { get set }
-
-    func startSession()
-    func endSession(distance: Double, duration: TimeInterval)
-    func announce(_ message: String)
-    func stopSpeaking()
-
-    func activateAudioSession()
-    func deactivateAudioSession()
-
-    func processGaitChange(from oldGait: GaitType, to newGait: GaitType)
-    func processDistance(_ distance: Double)
-    func processTime(_ elapsed: TimeInterval)
-    func processHeartRateZone(_ zone: HeartRateZone)
-
-    func announceSessionSummary(_ narrative: String)
-    func processSafetyStatus(elapsedTime: TimeInterval, fallDetectionActive: Bool)
-    func resetSafetyStatus()
-}
+// AudioCoaching protocol removed — voice coaching deleted (#309)
 
 // MARK: - Weather Service Protocol
 

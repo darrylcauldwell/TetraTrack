@@ -110,56 +110,7 @@ struct GetTrackingStatusIntent: AppIntent {
     }
 }
 
-// MARK: - Enable Audio Coaching Intent
-
-struct EnableAudioCoachingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Enable Audio Coaching"
-    static var description = IntentDescription("Turn on audio coaching announcements in TetraTrack")
-
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        await MainActor.run {
-            NotificationCenter.default.post(name: .enableAudioFromSiri, object: nil)
-        }
-
-        return .result(dialog: "Audio coaching enabled. You'll hear announcements for distance, gait changes, and more.")
-    }
-}
-
-// MARK: - Disable Audio Coaching Intent
-
-struct DisableAudioCoachingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Disable Audio Coaching"
-    static var description = IntentDescription("Turn off audio coaching announcements in TetraTrack")
-
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        await MainActor.run {
-            NotificationCenter.default.post(name: .disableAudioFromSiri, object: nil)
-        }
-
-        return .result(dialog: "Audio coaching disabled. Announcements are now muted.")
-    }
-}
-
-// MARK: - Toggle Audio Coaching Intent
-
-struct ToggleAudioCoachingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Toggle Audio Coaching"
-    static var description = IntentDescription("Toggle audio coaching on or off in TetraTrack")
-
-    static var openAppWhenRun: Bool = false
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        await MainActor.run {
-            NotificationCenter.default.post(name: .toggleAudioFromSiri, object: nil)
-        }
-
-        return .result(dialog: "Toggling audio coaching.")
-    }
-}
+// Audio coaching intents removed (#309)
 
 // MARK: - Ride Type Entity
 
@@ -258,18 +209,7 @@ struct TetraTrackShortcuts: AppShortcutsProvider {
             systemImageName: "checkmark.shield.fill"
         )
 
-        // Audio coaching control (toggle includes enable/disable phrases)
-        AppShortcut(
-            intent: ToggleAudioCoachingIntent(),
-            phrases: [
-                "Toggle audio in \(.applicationName)",
-                "Mute announcements in \(.applicationName)",
-                "Stop talking in \(.applicationName)",
-                "Enable audio in \(.applicationName)"
-            ],
-            shortTitle: "Toggle Audio",
-            systemImageName: "speaker.wave.2.fill"
-        )
+        // Audio coaching shortcut removed (#309)
 
         // Intelligent queries
         AppShortcut(
@@ -326,7 +266,5 @@ extension Notification.Name {
     static let getStatusFromSiri = Notification.Name("getStatusFromSiri")
 
     // Audio coaching control
-    static let enableAudioFromSiri = Notification.Name("enableAudioFromSiri")
-    static let disableAudioFromSiri = Notification.Name("disableAudioFromSiri")
-    static let toggleAudioFromSiri = Notification.Name("toggleAudioFromSiri")
+    // Audio coaching notification names removed (#309)
 }
