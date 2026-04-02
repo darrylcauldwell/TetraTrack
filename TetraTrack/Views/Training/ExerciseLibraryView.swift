@@ -13,6 +13,7 @@ struct ExerciseLibraryView: View {
     enum ExerciseTab: String, CaseIterable {
         case flatwork = "Flatwork"
         case polework = "Polework"
+        case groundwork = "Groundwork"
     }
 
     var body: some View {
@@ -30,6 +31,8 @@ struct ExerciseLibraryView: View {
                 FlatworkLibraryView()
             case .polework:
                 PoleworkLibraryView()
+            case .groundwork:
+                GroundworkLibraryView()
             }
         }
         .navigationTitle("Exercise Library")
