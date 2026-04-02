@@ -10,6 +10,7 @@ import SwiftData
 
 struct ShootingView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showingFreePracticeGuide = false
     @State private var showingCompetitionPractice = false
     @State private var showingHistory = false
     @State private var showingSettings = false
@@ -22,7 +23,7 @@ struct ShootingView: View {
                 icon: "target",
                 color: .blue,
                 requiresCapture: false,
-                action: { /* Watch-only — no iPhone action needed */ }
+                action: { showingFreePracticeGuide = true }
             ),
             DisciplineMenuItem(
                 title: "Competition Practice",
@@ -77,6 +78,29 @@ struct ShootingView: View {
                             }
                         }
                 }
+            }
+            .sheet(isPresented: $showingFreePracticeGuide) {
+                NavigationStack {
+                    WatchSessionGuideView(
+                        discipline: "Shooting",
+                        icon: "target",
+                        color: .red,
+                        description: "Free practice shooting session",
+                        metrics: [
+                            (icon: "scope", name: "Steadiness", detail: "Real-time hold steadiness gauge"),
+                            (icon: "heart.fill", name: "Heart Rate", detail: "Live HR monitoring"),
+                            (icon: "target", name: "Shot Count", detail: "Automatic shot detection from Watch IMU"),
+                            (icon: "chart.line.uptrend.xyaxis", name: "Form Trend", detail: "Improving, stable, or degrading")
+                        ]
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showingFreePracticeGuide = false }
+                        }
+                    }
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingSettings) {
                 ShootingSettingsView()

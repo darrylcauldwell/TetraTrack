@@ -67,10 +67,40 @@ struct DisciplinesView: View {
             }
             .buttonStyle(.plain)
 
+            NavigationLink(destination: RunningGuideView()) {
+                DisciplineCard(
+                    title: "Running",
+                    subtitle: "min/400m pace tracking",
+                    icon: "figure.run",
+                    color: AppColors.running
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(destination: SwimmingGuideView()) {
+                DisciplineCard(
+                    title: "Swimming",
+                    subtitle: "Lap and stroke counting",
+                    icon: "figure.pool.swim",
+                    color: AppColors.swimming
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink(destination: WalkingGuideView()) {
+                DisciplineCard(
+                    title: "Walking",
+                    subtitle: "Steps per minute tracking",
+                    icon: "figure.walk",
+                    color: AppColors.walking
+                )
+            }
+            .buttonStyle(.plain)
+
             NavigationLink(destination: ShootingView()) {
                 DisciplineCard(
                     title: "Shooting",
-                    subtitle: "Record a shooting session",
+                    subtitle: "Steadiness and target scoring",
                     icon: "target",
                     color: AppColors.shooting
                 )
