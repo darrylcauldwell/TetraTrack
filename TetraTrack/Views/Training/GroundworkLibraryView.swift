@@ -189,6 +189,7 @@ extension GroundworkExercise {
 struct GroundworkLibraryView: View {
     @State private var searchText = ""
     @State private var selectedCategory: GroundworkCategory?
+    @State private var selectedExercise: GroundworkExercise?
     @State private var selectedDifficulty: GroundworkDifficulty?
 
     private var filteredExercises: [GroundworkExercise] {
@@ -251,7 +252,12 @@ struct GroundworkLibraryView: View {
             // Exercises
             ForEach(filteredExercises) { exercise in
                 GroundworkExerciseRow(exercise: exercise)
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedExercise = exercise }
             }
+        }
+        .sheet(item: $selectedExercise) { exercise in
+            GroundworkExerciseDetailView(exercise: exercise)
         }
         .searchable(text: $searchText, prompt: "Search exercises")
     }
@@ -261,45 +267,96 @@ struct GroundworkLibraryView: View {
 
 private struct GroundworkExerciseRow: View {
     let exercise: GroundworkExercise
-    @State private var isExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { isExpanded.toggle() }
-            } label: {
-                HStack {
-                    Image(systemName: exercise.category.icon)
-                        .foregroundStyle(.green)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(exercise.name)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.primary)
-                        Text(exercise.category.rawValue)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.2))
+                    .frame(width: 44, height: 44)
+                Image(systemName: exercise.category.icon)
+                    .foregroundStyle(.green)
             }
-            .buttonStyle(.plain)
 
-            if isExpanded {
-                Text(exercise.description)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(exercise.name)
+                    .font(.headline)
+                Text(exercise.category.rawValue)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
 
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                    Text(exercise.benefits)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+// MARK: - Detail View
+
+struct GroundworkExerciseDetailView: View {
+    let exercise: GroundworkExercise
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.2))
+                                .frame(width: 64, height: 64)
+                            Image(systemName: exercise.category.icon)
+                                .font(.title2)
+                                .foregroundStyle(.green)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(exercise.name)
+                                .font(.title2.bold())
+                            Text(exercise.category.rawValue)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Divider()
+
+                    // Description
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Description")
+                            .font(.headline)
+                        Text(exercise.description)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Benefits
+                    if !exercise.benefits.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Benefits")
+                                .font(.headline)
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "star.fill")
+                                    .foregroundStyle(.orange)
+                                Text(exercise.benefits)
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(exercise.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
                 }
             }
         }

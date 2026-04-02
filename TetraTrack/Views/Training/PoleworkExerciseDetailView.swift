@@ -120,15 +120,6 @@ struct PoleworkExerciseDetailView: View {
                     .foregroundStyle(.blue)
                     .clipShape(Capsule())
 
-                // Difficulty badge
-                Text(exercise.difficulty.displayName)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(difficultyColor.opacity(0.1))
-                    .foregroundStyle(difficultyColor)
-                    .clipShape(Capsule())
-
                 Spacer()
             }
 

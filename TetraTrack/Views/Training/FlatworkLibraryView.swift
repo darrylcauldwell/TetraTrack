@@ -130,60 +130,41 @@ struct FlatworkLibraryView: View {
 
 struct FlatworkExerciseRow: View {
     let exercise: FlatworkExercise
-    @State private var isExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { isExpanded.toggle() }
-            } label: {
-                HStack {
-                    Image(systemName: exercise.category.icon)
-                        .foregroundStyle(AppColors.primary)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(exercise.name)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                            if !exercise.isBuiltIn {
-                                Text("Custom")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.purple.opacity(0.15))
-                                    .foregroundStyle(.purple)
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        Text(exercise.category.displayName)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(exercise.isBuiltIn ? AppColors.primary.opacity(0.2) : Color.purple.opacity(0.2))
+                    .frame(width: 44, height: 44)
+                Image(systemName: exercise.category.icon)
+                    .foregroundStyle(exercise.isBuiltIn ? AppColors.primary : .purple)
             }
-            .buttonStyle(.plain)
 
-            if isExpanded {
-                Text(exercise.exerciseDescription)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(exercise.name)
+                        .font(.headline)
+                    if !exercise.isBuiltIn {
+                        Text("Custom")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.15))
+                            .foregroundStyle(.purple)
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(exercise.category.displayName)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                if !exercise.benefits.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                        Text(exercise.benefits.joined(separator: ", "))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
     }
 }
