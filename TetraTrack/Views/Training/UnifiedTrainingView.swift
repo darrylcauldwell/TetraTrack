@@ -135,28 +135,42 @@ struct UnifiedTrainingView: View {
     // MARK: - Discipline Picker
 
     private var disciplinePicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                // "All" chip
-                DrillDisciplineChip(
-                    name: "All",
-                    icon: "square.grid.2x2",
-                    chipColor: .mint,
-                    isSelected: selectedDiscipline == nil,
-                    onTap: { selectedDiscipline = nil }
-                )
+        HStack {
+            Menu {
+                Button("All Disciplines") { selectedDiscipline = nil }
+                Divider()
                 ForEach(TrainingDiscipline.drillDisciplines) { discipline in
-                    DrillDisciplineChip(
-                        name: discipline.displayName,
-                        icon: discipline.icon,
-                        chipColor: discipline.color,
-                        isSelected: selectedDiscipline == discipline,
-                        onTap: { selectedDiscipline = discipline }
-                    )
+                    Button {
+                        selectedDiscipline = discipline
+                    } label: {
+                        Label(discipline.displayName, systemImage: discipline.icon)
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: selectedDiscipline?.icon ?? "square.grid.2x2")
+                    Text(selectedDiscipline?.displayName ?? "All Disciplines")
+                        .font(.subheadline)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(selectedDiscipline != nil ? (selectedDiscipline?.color ?? .mint) : Color(.systemGray5))
+                .foregroundStyle(selectedDiscipline != nil ? .white : .primary)
+                .clipShape(Capsule())
+            }
+
+            if selectedDiscipline != nil {
+                Button { selectedDiscipline = nil } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 4)
+
+            Spacer()
         }
+        .padding(.horizontal, 4)
     }
 
     // MARK: - Categories for Selected Discipline
