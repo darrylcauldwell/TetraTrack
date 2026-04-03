@@ -484,7 +484,7 @@ struct CompetitionDayView: View {
         switch discipline {
         case .shooting:
             guard let score = competition.shootingScore else { return nil }
-            return "\(score / 10)/100"
+            return "\(score)/1000"
         case .swimming:
             guard let distance = competition.swimmingDistance, distance > 0 else { return nil }
             return "\(Int(distance))m"

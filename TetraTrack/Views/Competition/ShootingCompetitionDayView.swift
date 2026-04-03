@@ -213,10 +213,10 @@ struct ShootingCompetitionDayView: View {
                 Text("Score Recorded")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text("\(score / 10)")
+                Text("\(score)")
                     .font(.system(size: 60, weight: .bold, design: .rounded))
                     .foregroundStyle(.orange)
-                Text("out of 100")
+                Text("out of 1000")
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
