@@ -492,7 +492,7 @@ final class WorkoutManager: NSObject {
         guard isWorkoutActive, activityType == .riding else { return }
 
         // Stop ride metrics collector
-        var rideSummary = rideMetricsCollector?.stop()
+        let rideSummary = rideMetricsCollector?.stop()
 
         // Stop all tracking
         locationManager.stopTracking()

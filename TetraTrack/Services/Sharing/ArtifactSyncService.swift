@@ -132,7 +132,7 @@ final class ArtifactSyncService {
     func saveArtifact(_ artifact: TrainingArtifact) async {
         #if targetEnvironment(simulator)
         return // CloudKit not available on simulator
-        #endif
+        #else
         do {
             try await ensureZoneExists()
             guard let zoneID = familyZoneID else { return }
@@ -166,6 +166,7 @@ final class ArtifactSyncService {
                 artifact: artifact
             )
         }
+        #endif
     }
 
     /// Delete an artifact from CloudKit

@@ -786,7 +786,7 @@ struct TargetScannerView: View {
         let newScore = calculateScore(for: newPosition, center: targetCenter, size: targetSize)
 
         // Calculate drag distance for ML training
-        let dragDistance = hypot(newPosition.x - oldPosition.x, newPosition.y - oldPosition.y)
+        _ = hypot(newPosition.x - oldPosition.x, newPosition.y - oldPosition.y)
 
         lastActionTime = Date()
 
@@ -798,7 +798,7 @@ struct TargetScannerView: View {
     }
 
     private func deleteHole(id: UUID) {
-        guard let hole = detectedHoles.first(where: { $0.id == id }) else { return }
+        guard detectedHoles.contains(where: { $0.id == id }) else { return }
 
         lastActionTime = Date()
 

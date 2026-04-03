@@ -179,8 +179,7 @@ final class WorkoutInsightsGenerator {
         var insights: [WorkoutInsight] = []
         let bpms = samples.map(\.bpm)
 
-        guard let avgHR = bpms.isEmpty ? nil : bpms.reduce(0, +) / Double(bpms.count),
-              let maxHR = bpms.max() else { return insights }
+        guard let maxHR = bpms.max(), !bpms.isEmpty else { return insights }
 
         // HR variability during workout (effort distribution)
         let hrRange = maxHR - (bpms.min() ?? 0)
