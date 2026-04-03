@@ -564,17 +564,7 @@ struct CompetitionDetailView: View {
                         .padding(.horizontal)
                     }
 
-                    // Showjumping Classes & Results (only for showjumping competitions)
-                    if competition.competitionType == .showJumping {
-                        ShowjumpingResultsView(competition: competition)
-                            .padding(.horizontal)
-                    }
-
-                    // Dressage Classes & Results (only for dressage competitions)
-                    if competition.competitionType == .dressage {
-                        DressageResultsView(competition: competition)
-                            .padding(.horizontal)
-                    }
+                    // Showjumping/Dressage class management removed (#312)
 
                     // Weather conditions (for completed competitions with weather data)
                     if competition.isCompleted, let weather = competition.weather {
@@ -592,21 +582,7 @@ struct CompetitionDetailView: View {
                                 syncEntryTaskCompletion(isEntered: isEntered)
                             }
 
-                            if competition.stableDeadline != nil {
-                                Toggle(isOn: $competition.isStableBooked) {
-                                    Label("Stable Booked", systemImage: competition.isStableBooked ? "bed.double.fill" : "bed.double")
-                                }
-                                .onChange(of: competition.isStableBooked) { _, isBooked in
-                                    syncStableTaskCompletion(isBooked: isBooked)
-                                }
-                            }
-
-                            Toggle(isOn: $competition.isTravelPlanned) {
-                                Label("Travel Planned", systemImage: competition.isTravelPlanned ? "car.fill" : "car")
-                            }
-                            .onChange(of: competition.isTravelPlanned) { _, isPlanned in
-                                syncTravelTaskCompletion(isPlanned: isPlanned)
-                            }
+                            // Stable booking and travel planning toggles removed (#312)
                         }
                         .padding()
                         .background(AppColors.cardBackground)
@@ -614,14 +590,7 @@ struct CompetitionDetailView: View {
                         .padding(.horizontal)
                     }
 
-                    // Calendar Sync
-                    CalendarSyncButton(
-                        competition: competition,
-                        isInProgress: $calendarSyncInProgress,
-                        showingAlert: $showingCalendarSyncAlert,
-                        alertMessage: $calendarSyncMessage
-                    )
-                    .padding(.horizontal)
+                    // Calendar sync removed (#312)
 
                     // Notes
                     if !competition.notes.isEmpty {
@@ -1159,112 +1128,7 @@ struct CompetitionEditView: View {
                         .textInputAutocapitalization(.never)
                 }
 
-                // Showjumping Classes Section (only for Show Jumping competitions)
-                if competitionType == .showJumping {
-                    Section {
-                        ForEach(showjumpingClasses) { classEntry in
-                            ShowjumpingClassEditRow(
-                                classEntry: classEntry,
-                                onUpdate: { updated in
-                                    if let index = showjumpingClasses.firstIndex(where: { $0.id == updated.id }) {
-                                        showjumpingClasses[index] = updated
-                                    }
-                                },
-                                onDelete: {
-                                    showjumpingClasses.removeAll { $0.id == classEntry.id }
-                                }
-                            )
-                        }
-
-                        // Add new class
-                        HStack {
-                            TextField("Add class (e.g., 90cm)", text: $newClassName)
-                            Button {
-                                guard !newClassName.isEmpty else { return }
-                                showjumpingClasses.append(ShowjumpingClass(name: newClassName))
-                                newClassName = ""
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(AppColors.primary)
-                            }
-                            .disabled(newClassName.isEmpty)
-                        }
-
-                        // Quick add buttons
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(ShowjumpingHeight.allCases, id: \.self) { height in
-                                    Button(height.displayName) {
-                                        // Only add if not already present
-                                        if !showjumpingClasses.contains(where: { $0.name == height.displayName }) {
-                                            showjumpingClasses.append(ShowjumpingClass(name: height.displayName))
-                                        }
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                    .disabled(showjumpingClasses.contains { $0.name == height.displayName })
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("Classes to Enter")
-                    } footer: {
-                        Text("Add the showjumping classes you plan to enter. You can record results for each class after the competition.")
-                    }
-                }
-
-                // Dressage Classes Section (only for Dressage competitions)
-                if competitionType == .dressage {
-                    Section {
-                        ForEach(dressageClasses) { classEntry in
-                            DressageClassEditRow(
-                                classEntry: classEntry,
-                                onUpdate: { updated in
-                                    if let index = dressageClasses.firstIndex(where: { $0.id == updated.id }) {
-                                        dressageClasses[index] = updated
-                                    }
-                                },
-                                onDelete: {
-                                    dressageClasses.removeAll { $0.id == classEntry.id }
-                                }
-                            )
-                        }
-
-                        // Add new class
-                        HStack {
-                            TextField("Add test (e.g., Prelim 12)", text: $newDressageTest)
-                            Button {
-                                guard !newDressageTest.isEmpty else { return }
-                                dressageClasses.append(DressageClass(testName: newDressageTest))
-                                newDressageTest = ""
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(AppColors.primary)
-                            }
-                            .disabled(newDressageTest.isEmpty)
-                        }
-
-                        // Quick add buttons
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(DressageTest.allCases, id: \.self) { test in
-                                    Button(test.displayName) {
-                                        if !dressageClasses.contains(where: { $0.testName == test.displayName }) {
-                                            dressageClasses.append(DressageClass(testName: test.displayName))
-                                        }
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                                    .disabled(dressageClasses.contains { $0.testName == test.displayName })
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("Tests to Enter")
-                    } footer: {
-                        Text("Add the dressage tests you plan to ride. You can record scores and percentages after the competition.")
-                    }
-                }
+                // Showjumping/Dressage class sections removed (#312)
 
                 // Tetrathlon Start Times (only for tetrathlon/triathlon competitions)
                 if competitionType == .tetrathlon || competitionType == .triathlon {
