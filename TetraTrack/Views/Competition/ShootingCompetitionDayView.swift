@@ -22,18 +22,19 @@ struct ShootingCompetitionDayView: View {
         case scan
     }
 
+    /// Manual score input as tetrathlon points (0-1000, multiples of 10)
     private var manualScore: Int? {
-        guard let value = Int(manualScoreText), value >= 0, value <= 100 else { return nil }
-        // Round to nearest even
-        return (value / 2) * 2
+        guard let value = Int(manualScoreText), value >= 0, value <= 1000 else { return nil }
+        // Round to nearest 10 (tetrathlon scoring)
+        return (value / 10) * 10
     }
 
     private var calculatedPoints: Double? {
         if let existing = competition.shootingScore {
-            return PonyClubScoringService.calculateShootingPoints(rawScore: existing)
+            return Double(existing)
         }
         guard let score = manualScore else { return nil }
-        return PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)
+        return Double(score)
     }
 
     var body: some View {
@@ -72,8 +73,9 @@ struct ShootingCompetitionDayView: View {
                         showingScanView = false
                     },
                     onComplete: { totalScore in
-                        competition.shootingScore = totalScore * 10
-                        competition.shootingPoints = PonyClubScoringService.calculateShootingPoints(rawScore: totalScore * 10)
+                        let tetrathlonPoints = totalScore * 10
+                        competition.shootingScore = tetrathlonPoints
+                        competition.shootingPoints = Double(tetrathlonPoints)
                         checkAutoCompletion()
                     }
                 )
@@ -169,7 +171,7 @@ struct ShootingCompetitionDayView: View {
                         .background(AppColors.elevatedSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    Text("/ 100")
+                    Text("/ 1000")
                         .font(.title2)
                         .foregroundStyle(.secondary)
                 }
@@ -257,8 +259,8 @@ struct ShootingCompetitionDayView: View {
 
     private func saveManualScore() {
         guard let score = manualScore else { return }
-        competition.shootingScore = score * 10
-        competition.shootingPoints = PonyClubScoringService.calculateShootingPoints(rawScore: score * 10)
+        competition.shootingScore = score
+        competition.shootingPoints = Double(score)
         checkAutoCompletion()
     }
 
