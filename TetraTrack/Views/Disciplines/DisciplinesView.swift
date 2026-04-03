@@ -23,7 +23,7 @@ struct DisciplinesView: View {
                     competitionsSection
                     trainingDrillsSection
                     practiceScoring
-                    competitionScoring
+                    // Competition scoring removed — covered by Competition Day (#312)
                     exerciseLibrarySection
                     liveSharingSection
                     sessionHistorySection
