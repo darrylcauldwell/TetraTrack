@@ -17,15 +17,7 @@ struct ExerciseLibraryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
-                ForEach(ExerciseTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding()
-
+        Group {
             switch selectedTab {
             case .flatwork:
                 FlatworkLibraryView()
@@ -37,5 +29,34 @@ struct ExerciseLibraryView: View {
         }
         .navigationTitle("Schooling")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(ExerciseTab.allCases, id: \.self) { tab in
+                        Button {
+                            selectedTab = tab
+                        } label: {
+                            if tab == selectedTab {
+                                Label(tab.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(tab.rawValue)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedTab.rawValue)
+                            .font(.subheadline)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemGray5))
+                    .foregroundStyle(.primary)
+                    .clipShape(Capsule())
+                }
+            }
+        }
     }
 }
