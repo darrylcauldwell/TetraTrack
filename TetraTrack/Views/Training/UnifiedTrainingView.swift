@@ -15,6 +15,7 @@ struct UnifiedTrainingView: View {
     @State private var selectedDiscipline: TrainingDiscipline?
     @State private var selectedDrill: UnifiedDrillType?
     @State private var showingPracticeScoring = false
+    @State private var showingRunningWarmup = false
     @State private var showingPracticeHistory = false
     @State private var practiceHistoryFilter: DateFilterOption?
 
@@ -38,6 +39,32 @@ struct UnifiedTrainingView: View {
                                     .font(.headline)
                                     .foregroundStyle(.primary)
                                 Text("Scan, mark, and analyse")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+
+                    // Running Warmup
+                    Button { showingRunningWarmup = true } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "figure.run")
+                                .font(.title2)
+                                .foregroundStyle(.orange)
+                                .frame(width: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Running Warmup")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text("1500m pre-race warmup plan")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -118,6 +145,9 @@ struct UnifiedTrainingView: View {
                     },
                     initialDateFilter: practiceHistoryFilter
                 )
+            }
+            .sheet(isPresented: $showingRunningWarmup) {
+                RunningWarmupView()
             }
             .sheetBackground()
         }
