@@ -537,35 +537,61 @@ struct SessionHistoryRow: View {
     var body: some View {
         if let drill = item.drillSession {
             drillRow(drill)
+        } else if let ride = item.ride {
+            rideRow(ride)
+        } else if let run = item.runningSession {
+            runRow(run)
+        } else if let swim = item.swimmingSession {
+            swimRow(swim)
+        } else if let shoot = item.shootingSession {
+            shootingRow(shoot)
+        } else if let external = item.externalWorkout {
+            externalRow(external)
         } else {
-            standardRow
+            fallbackRow
         }
     }
 
-    // MARK: - Drill Row (colour-coded, rich)
+    // MARK: - Shared Row Layout
 
-    private func drillRow(_ drill: UnifiedDrillSession) -> some View {
+    private func sessionRow(
+        icon: String,
+        color: Color,
+        title: String,
+        badge: String? = nil,
+        heroMetric: String,
+        heroLabel: String,
+        secondaryMetric: String? = nil
+    ) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(drillScoreColor(drill.score).opacity(0.2))
+                    .fill(color.opacity(0.2))
                     .frame(width: 44, height: 44)
-                Image(systemName: drill.drillType.icon)
+                Image(systemName: icon)
                     .font(.title3)
-                    .foregroundStyle(drillScoreColor(drill.score))
+                    .foregroundStyle(color)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(drill.drillType.displayName)
+                Text(title)
                     .font(.headline)
 
-                Text(drill.drillType.primaryDiscipline.displayName)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(drillScoreColor(drill.score).opacity(0.15))
-                    .foregroundStyle(drillScoreColor(drill.score))
-                    .clipShape(Capsule())
+                if let badge {
+                    Text(badge)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(color.opacity(0.15))
+                        .foregroundStyle(color)
+                        .clipShape(Capsule())
+                }
+
+                if let secondary = secondaryMetric {
+                    Text(secondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Text(item.formattedDate)
                     .font(.caption)
@@ -575,15 +601,29 @@ struct SessionHistoryRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.0f%%", drill.score))
+                Text(heroMetric)
                     .font(.title3.bold())
-                    .foregroundStyle(drillScoreColor(drill.score))
-                Text(item.formattedDuration)
+                    .foregroundStyle(color)
+                Text(heroLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Drill Row
+
+    private func drillRow(_ drill: UnifiedDrillSession) -> some View {
+        let color = drillScoreColor(drill.score)
+        return sessionRow(
+            icon: drill.drillType.icon,
+            color: color,
+            title: drill.drillType.displayName,
+            badge: drill.drillType.primaryDiscipline.displayName,
+            heroMetric: String(format: "%.0f%%", drill.score),
+            heroLabel: item.formattedDuration
+        )
     }
 
     private func drillScoreColor(_ score: Double) -> Color {
@@ -592,61 +632,141 @@ struct SessionHistoryRow: View {
         return .red
     }
 
-    // MARK: - Standard Row (non-drill sessions)
+    // MARK: - Ride Row
 
-    private var standardRow: some View {
+    private func rideRow(_ ride: Ride) -> some View {
+        let rideIcon: String = switch ride.rideType {
+        case .dressage: "music.note.list"
+        case .showjumping: "arrow.up.forward"
+        default: "figure.equestrian.sports"
+        }
+        return sessionRow(
+            icon: rideIcon,
+            color: AppColors.riding,
+            title: item.name,
+            badge: ride.horse?.name,
+            heroMetric: ride.formattedDistance,
+            heroLabel: item.formattedDuration
+        )
+    }
+
+    // MARK: - Run / Walk Row
+
+    private func runRow(_ run: RunningSession) -> some View {
+        let isWalk = run.isWalking
+        return sessionRow(
+            icon: isWalk ? "figure.walk" : "figure.run",
+            color: isWalk ? .teal : AppColors.running,
+            title: item.name,
+            badge: run.formattedPace.isEmpty ? nil : run.formattedPace,
+            heroMetric: run.formattedDistance,
+            heroLabel: item.formattedDuration,
+            secondaryMetric: run.averageCadence > 0 ? "\(Int(run.averageCadence)) spm" : nil
+        )
+    }
+
+    // MARK: - Swim Row
+
+    private func swimRow(_ swim: SwimmingSession) -> some View {
+        sessionRow(
+            icon: "figure.pool.swim",
+            color: AppColors.swimming,
+            title: item.name,
+            badge: swim.lapCount > 0 ? "\(swim.lapCount) laps" : nil,
+            heroMetric: swim.formattedDistance,
+            heroLabel: item.formattedDuration,
+            secondaryMetric: swim.averageSwolf > 0 ? "SWOLF \(Int(swim.averageSwolf))" : nil
+        )
+    }
+
+    // MARK: - Shooting Row
+
+    private func shootingRow(_ shoot: ShootingSession) -> some View {
+        let scoreColor = shootingScoreColor(shoot.totalScore, max: shoot.maxPossibleScore)
+        return sessionRow(
+            icon: "target",
+            color: scoreColor,
+            title: item.name,
+            badge: "\((shoot.ends ?? []).count) ends",
+            heroMetric: "\(shoot.totalScore)",
+            heroLabel: "/\(shoot.maxPossibleScore)",
+            secondaryMetric: shoot.averageHoldSteadiness > 0 ? String(format: "%.0f%% steady", shoot.averageHoldSteadiness * 100) : nil
+        )
+    }
+
+    private func shootingScoreColor(_ score: Int, max: Int) -> Color {
+        guard max > 0 else { return AppColors.shooting }
+        let pct = Double(score) / Double(max)
+        if pct >= 0.8 { return .green }
+        if pct >= 0.6 { return .orange }
+        return AppColors.shooting
+    }
+
+    // MARK: - External Workout Row
+
+    private func externalRow(_ external: ExternalWorkout) -> some View {
         HStack(spacing: 12) {
             ZStack(alignment: .bottomTrailing) {
-                Image(systemName: item.isExternal ? (item.externalWorkout?.activityIcon ?? item.discipline.icon) : item.discipline.icon)
-                    .font(.title2)
-                    .foregroundStyle(item.isExternal ? .blue : item.discipline.color)
-                    .frame(width: 32)
-
-                if item.isExternal {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white)
-                        .background(Circle().fill(.blue).frame(width: 12, height: 12))
-                        .offset(x: 4, y: 4)
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.2))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: external.activityIcon ?? item.discipline.icon)
+                        .font(.title3)
+                        .foregroundStyle(.blue)
                 }
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.blue)
+                    .background(Circle().fill(AppColors.cardBackground).frame(width: 14, height: 14))
+                    .offset(x: 2, y: 2)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(item.name)
                         .font(.headline)
-
-                    if item.isExternal, let source = item.externalSourceName {
+                    if !external.sourceName.isEmpty {
+                        let source = external.sourceName
                         Text(source)
                             .font(.caption2)
-                            .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(.blue.opacity(0.7)))
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundStyle(.blue)
+                            .clipShape(Capsule())
                     }
                 }
-
-                HStack(spacing: 12) {
-                    if !item.primaryMetric.isEmpty {
-                        Label(item.primaryMetric, systemImage: "ruler")
-                    }
-                    Label(item.formattedDuration, systemImage: "clock")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-                if let secondary = item.secondaryMetric, !item.isExternal {
-                    Text(secondary)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-
                 Text(item.formattedDate)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(external.formattedDistance ?? external.formattedCalories ?? "--")
+                    .font(.title3.bold())
+                    .foregroundStyle(.blue)
+                Text(item.formattedDuration)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Fallback Row
+
+    private var fallbackRow: some View {
+        sessionRow(
+            icon: item.discipline.icon,
+            color: item.discipline.color,
+            title: item.name,
+            heroMetric: item.primaryMetric,
+            heroLabel: item.formattedDuration,
+            secondaryMetric: item.secondaryMetric
+        )
     }
 }
 
