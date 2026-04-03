@@ -20,11 +20,11 @@ struct DisciplinesView: View {
                         iPadWelcomeBanner
                     }
 
-                    competitionsSection
                     trainingDrillsSection
                     exerciseLibrarySection
-                    liveSharingSection
+                    competitionsSection
                     sessionHistorySection
+                    liveSharingSection
                 }
                 .adaptivePadding(horizontalSizeClass)
                 .padding(.top, Spacing.md)
