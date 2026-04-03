@@ -13,6 +13,9 @@ struct RunningStopwatchView: View {
     @Bindable var competition: Competition
     let onDismiss: () -> Void
 
+    enum EntryMode { case choose, stopwatch, manual }
+    @State private var entryMode: EntryMode = .choose
+
     // Timer state
     @State private var isRunning = false
     @State private var hasFinished = false
@@ -20,8 +23,12 @@ struct RunningStopwatchView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var timer: Timer?
 
+    // Manual entry
+    @State private var manualMinutes: String = ""
+    @State private var manualSeconds: String = ""
+
     // Lap splits
-    @State private var lapTimes: [TimeInterval] = []  // Cumulative times at each lap press
+    @State private var lapTimes: [TimeInterval] = []
     @State private var showResetConfirmation = false
 
     private var runDistance: Double {
@@ -59,28 +66,26 @@ struct RunningStopwatchView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Info header
-                    infoHeader
-
-                    // Timer display
-                    timerDisplay
-
-                    if !hasFinished {
-                        // Controls
-                        controlButtons
+                    // Check for existing result
+                    if let time = competition.runningTime, time > 0 {
+                        existingResultView(time: time)
                     } else {
-                        // Results
-                        resultsSection
-                    }
-
-                    // Lap splits
-                    if !lapTimes.isEmpty {
-                        lapSplitsSection
-                    }
-
-                    // Pace chart
-                    if lapSplits.count >= 2 {
-                        paceChartSection
+                        switch entryMode {
+                        case .choose:
+                            chooseEntryMode
+                        case .stopwatch:
+                            infoHeader
+                            timerDisplay
+                            if !hasFinished {
+                                controlButtons
+                            } else {
+                                resultsSection
+                            }
+                            if !lapTimes.isEmpty { lapSplitsSection }
+                            if lapSplits.count >= 2 { paceChartSection }
+                        case .manual:
+                            manualEntryView
+                        }
                     }
 
                     Spacer(minLength: 40)
@@ -420,6 +425,152 @@ struct RunningStopwatchView: View {
         competition.runningPoints = nil
         competition.runningStartTime = nil
         competition.runningSplitTimes = []
+    }
+
+    // MARK: - Choose Entry Mode
+
+    private var chooseEntryMode: some View {
+        VStack(spacing: 16) {
+            infoHeader
+
+            Button { entryMode = .stopwatch } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "stopwatch").font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Use Stopwatch").font(.headline)
+                        Text("Time the run live").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(.white)
+                .padding()
+                .background(Color.green)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Button { entryMode = .manual } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "keyboard").font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enter Time Manually").font(.headline)
+                        Text("Type in the published time").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(.primary)
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Manual Entry
+
+    private var manualEntryView: some View {
+        VStack(spacing: 20) {
+            Button { entryMode = .choose } label: {
+                HStack { Image(systemName: "chevron.left"); Text("Back") }
+                    .font(.subheadline).foregroundStyle(AppColors.primary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 12) {
+                Text("Running Time").font(.headline)
+
+                HStack(spacing: 8) {
+                    TextField("MM", text: $manualMinutes)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .frame(width: 80)
+                        .padding()
+                        .background(AppColors.elevatedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    Text(":").font(.system(size: 48, weight: .bold)).foregroundStyle(.secondary)
+
+                    TextField("SS", text: $manualSeconds)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .frame(width: 80)
+                        .padding()
+                        .background(AppColors.elevatedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                if let time = manualTimeInSeconds {
+                    let points = PonyClubScoringService.calculateRunningPoints(
+                        timeInSeconds: time,
+                        ageCategory: competition.level.scoringCategory,
+                        gender: competition.level.scoringGender
+                    )
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.0f", points)).font(.title.bold()).foregroundStyle(AppColors.primary)
+                        Text("points").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button { saveManualTime() } label: {
+                Label("Save Score", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).frame(height: 50)
+                    .background(manualTimeInSeconds != nil ? Color.green : Color.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(manualTimeInSeconds == nil)
+        }
+    }
+
+    private var manualTimeInSeconds: TimeInterval? {
+        guard let mins = Int(manualMinutes), let secs = Int(manualSeconds),
+              mins >= 0, secs >= 0, secs < 60, (mins + secs) > 0 else { return nil }
+        return TimeInterval(mins * 60 + secs)
+    }
+
+    private func saveManualTime() {
+        guard let time = manualTimeInSeconds else { return }
+        competition.runningTime = time
+        let points = PonyClubScoringService.calculateRunningPoints(
+            timeInSeconds: time,
+            ageCategory: competition.level.scoringCategory,
+            gender: competition.level.scoringGender
+        )
+        competition.runningPoints = points
+        checkAutoCompletion()
+    }
+
+    // MARK: - Existing Result
+
+    private func existingResultView(time: TimeInterval) -> some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
+                Text("Time Recorded").font(.subheadline).foregroundStyle(.secondary)
+                Text(PonyClubScoringService.formatTime(time))
+                    .font(.system(size: 60, weight: .bold, design: .rounded))
+                    .foregroundStyle(.green)
+            }
+            if let points = competition.runningPoints {
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", points)).font(.title.bold()).foregroundStyle(AppColors.primary)
+                    Text("points").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Button {
+                competition.runningTime = nil
+                competition.runningPoints = nil
+                entryMode = .choose
+            } label: {
+                Text("Re-enter").font(.subheadline).foregroundStyle(.orange)
+            }
+        }
     }
 
     private func saveResults() {

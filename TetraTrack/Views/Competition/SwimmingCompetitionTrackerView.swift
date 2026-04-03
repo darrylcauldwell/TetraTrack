@@ -13,6 +13,14 @@ struct SwimmingCompetitionTrackerView: View {
     @Bindable var competition: Competition
     let onDismiss: () -> Void
 
+    enum EntryMode { case choose, tracker, manual }
+    @State private var entryMode: EntryMode = .choose
+
+    // Manual entry
+    @State private var manualLengths: String = ""
+    @State private var manualExtraMeters: String = ""
+    @State private var manualPoolLength: Double = 25
+
     // Timer state
     @State private var isRunning = false
     @State private var hasFinished = false
@@ -52,18 +60,25 @@ struct SwimmingCompetitionTrackerView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    infoHeader
-
-                    if !hasFinished {
-                        countdownDisplay
-                        lengthCounter
-                        controlButtons
+                    if let distance = competition.swimmingDistance, distance > 0 {
+                        existingSwimResultView(distance: distance)
                     } else {
-                        resultsSection
-                    }
-
-                    if splitTimes.count >= 2 {
-                        splitChartSection
+                        switch entryMode {
+                        case .choose:
+                            chooseSwimEntryMode
+                        case .tracker:
+                            infoHeader
+                            if !hasFinished {
+                                countdownDisplay
+                                lengthCounter
+                                controlButtons
+                            } else {
+                                resultsSection
+                            }
+                            if splitTimes.count >= 2 { splitChartSection }
+                        case .manual:
+                            manualSwimEntryView
+                        }
                     }
 
                     Spacer(minLength: 40)
@@ -529,6 +544,186 @@ struct SwimmingCompetitionTrackerView: View {
         competition.swimStartTime = nil
         competition.swimmingPoints = nil
         competition.swimmingSplitTimes = []
+    }
+
+    // MARK: - Choose Entry Mode
+
+    private var chooseSwimEntryMode: some View {
+        VStack(spacing: 16) {
+            infoHeader
+
+            Button { entryMode = .tracker } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "stopwatch").font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Use Lap Counter").font(.headline)
+                        Text("Count lengths live poolside").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(.white)
+                .padding()
+                .background(Color.cyan)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Button { entryMode = .manual } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "keyboard").font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enter Result Manually").font(.headline)
+                        Text("Type in published distance").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(.primary)
+                .padding()
+                .background(AppColors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Manual Swim Entry
+
+    private var manualSwimEntryView: some View {
+        VStack(spacing: 20) {
+            Button { entryMode = .choose } label: {
+                HStack { Image(systemName: "chevron.left"); Text("Back") }
+                    .font(.subheadline).foregroundStyle(AppColors.primary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 16) {
+                Text("Swimming Distance").font(.headline)
+
+                // Pool length picker
+                HStack {
+                    Text("Pool Length")
+                        .font(.subheadline)
+                    Spacer()
+                    Picker("Pool", selection: $manualPoolLength) {
+                        Text("20m").tag(20.0)
+                        Text("25m").tag(25.0)
+                        Text("33m").tag(33.0)
+                        Text("50m").tag(50.0)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                }
+
+                // Lengths input
+                HStack(spacing: 12) {
+                    TextField("0", text: $manualLengths)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .frame(width: 100)
+                        .padding()
+                        .background(AppColors.elevatedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    Text("lengths")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Extra metres
+                HStack(spacing: 12) {
+                    TextField("0", text: $manualExtraMeters)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .frame(width: 80)
+                        .padding()
+                        .background(AppColors.elevatedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    Text("extra metres")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Calculated distance + points
+                if let distance = manualSwimDistance {
+                    VStack(spacing: 8) {
+                        Text("\(Int(distance))m total")
+                            .font(.title2.bold())
+                            .foregroundStyle(.cyan)
+
+                        let swimPoints = PonyClubScoringService.calculateSwimmingPoints(
+                            distanceMeters: distance,
+                            ageCategory: competition.level.scoringCategory,
+                            gender: competition.level.scoringGender
+                        )
+                        VStack(spacing: 2) {
+                                Text(String(format: "%.0f", swimPoints)).font(.title.bold()).foregroundStyle(AppColors.primary)
+                                Text("points").font(.caption).foregroundStyle(.secondary)
+                            }
+                    }
+                }
+            }
+            .padding()
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button { saveManualSwim() } label: {
+                Label("Save Score", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).frame(height: 50)
+                    .background(manualSwimDistance != nil ? Color.cyan : Color.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(manualSwimDistance == nil)
+        }
+    }
+
+    private var manualSwimDistance: Double? {
+        let lengths = Int(manualLengths) ?? 0
+        let extra = Int(manualExtraMeters) ?? 0
+        let total = Double(lengths) * manualPoolLength + Double(extra)
+        return total > 0 ? total : nil
+    }
+
+    private func saveManualSwim() {
+        guard let distance = manualSwimDistance else { return }
+        competition.swimmingDistance = distance
+        competition.swimmingTime = swimDuration
+        let points = PonyClubScoringService.calculateSwimmingPoints(
+            distanceMeters: distance,
+            ageCategory: competition.level.scoringCategory,
+            gender: competition.level.scoringGender
+        )
+        competition.swimmingPoints = points
+        checkAutoCompletion()
+    }
+
+    // MARK: - Existing Result
+
+    private func existingSwimResultView(distance: Double) -> some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
+                Text("Distance Recorded").font(.subheadline).foregroundStyle(.secondary)
+                Text("\(Int(distance))m")
+                    .font(.system(size: 60, weight: .bold, design: .rounded))
+                    .foregroundStyle(.cyan)
+            }
+            if let points = competition.swimmingPoints {
+                VStack(spacing: 2) {
+                    Text(String(format: "%.0f", points)).font(.title.bold()).foregroundStyle(AppColors.primary)
+                    Text("points").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Button {
+                competition.swimmingDistance = nil
+                competition.swimmingPoints = nil
+                entryMode = .choose
+            } label: {
+                Text("Re-enter").font(.subheadline).foregroundStyle(.orange)
+            }
+        }
     }
 
     private func saveResults() {
