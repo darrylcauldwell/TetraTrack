@@ -27,10 +27,9 @@ struct ExerciseLibraryView: View {
                 GroundworkLibraryView()
             }
         }
-        .navigationTitle("Schooling")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .principal) {
                 Menu {
                     ForEach(ExerciseTab.allCases, id: \.self) { tab in
                         Button {
