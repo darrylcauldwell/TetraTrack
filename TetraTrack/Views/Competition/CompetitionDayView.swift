@@ -105,8 +105,7 @@ struct CompetitionDayView: View {
                         // Health data sections for completed disciplines
                         healthDataSections
 
-                        // Simple task checklist
-                        taskChecklist(competition)
+                        // Prep checklist removed (#312)
                     }
                 }
             }
@@ -414,31 +413,7 @@ struct CompetitionDayView: View {
 
     // MARK: - Task Checklist
 
-    @ViewBuilder
-    private func taskChecklist(_ competition: Competition) -> some View {
-        if let tasks = competition.tasks, !tasks.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Prep Checklist")
-                    .font(.headline)
-
-                VStack(spacing: 0) {
-                    ForEach(tasks) { task in
-                        HStack {
-                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(task.isCompleted ? .green : .secondary)
-                                .onTapGesture { task.isCompleted.toggle() }
-                            Text(task.title)
-                                .strikethrough(task.isCompleted)
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                    }
-                }
-                .background(AppColors.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-        }
-    }
+    // taskChecklist removed (#312)
 
     // MARK: - Helpers
 
