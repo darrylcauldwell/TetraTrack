@@ -11,7 +11,6 @@ import SwiftData
 struct StirrupPressureDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
 
     @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
@@ -24,7 +23,6 @@ struct StirrupPressureDrillView: View {
     @State private var pitchHistory: [Double] = []
     @State private var optimalPitchRange: ClosedRange<Double> = -0.15...(-0.05) // Slight forward lean = heels down
 
-    private var streak: TrainingStreak? { streaks.first }
 
     var body: some View {
         GeometryReader { geometry in
@@ -485,14 +483,6 @@ struct StirrupPressureDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
 
         try? modelContext.save()
 
@@ -503,5 +493,5 @@ struct StirrupPressureDrillView: View {
 
 #Preview {
     StirrupPressureDrillView()
-        .modelContainer(for: TrainingStreak.self, inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

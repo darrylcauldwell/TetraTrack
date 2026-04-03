@@ -14,8 +14,6 @@ import SwiftData
 struct CoreStabilityDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
-
     // Use unified motion analyzer for physics-based metrics
     @State private var motionAnalyzer = DrillMotionAnalyzer()
 
@@ -29,10 +27,6 @@ struct CoreStabilityDrillView: View {
     @State private var targetDuration: TimeInterval = 30
     @State private var timer: Timer?
     @State private var results: [StabilityResult] = []
-
-    private var streak: TrainingStreak? {
-        streaks.first
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -425,15 +419,6 @@ struct CoreStabilityDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
-
         try? modelContext.save()
 
         let generator = UINotificationFeedbackGenerator()
@@ -445,5 +430,5 @@ struct CoreStabilityDrillView: View {
 
 #Preview {
     CoreStabilityDrillView()
-        .modelContainer(for: [TrainingStreak.self, UnifiedDrillSession.self], inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

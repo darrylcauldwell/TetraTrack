@@ -11,7 +11,6 @@ import SwiftData
 struct HeelPositionDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
     @State private var motionAnalyzer = DrillMotionAnalyzer()
 
     @State private var isRunning = false
@@ -21,10 +20,6 @@ struct HeelPositionDrillView: View {
     @State private var targetDuration: TimeInterval = 30
     @State private var timer: Timer?
     @State private var results: [StabilityResult] = []
-
-    private var streak: TrainingStreak? {
-        streaks.first
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -347,15 +342,6 @@ struct HeelPositionDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
-
         try? modelContext.save()
 
         // Haptic feedback
@@ -374,5 +360,5 @@ struct StabilityResult {
 
 #Preview {
     HeelPositionDrillView()
-        .modelContainer(for: TrainingStreak.self, inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

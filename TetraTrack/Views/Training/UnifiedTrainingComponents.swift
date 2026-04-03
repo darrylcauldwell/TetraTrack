@@ -8,114 +8,7 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - Unified Streak Banner
-
-struct UnifiedStreakBanner: View {
-    let sessions: [UnifiedDrillSession]
-
-    private var currentStreak: Int {
-        calculateStreak(from: sessions.map(\.startDate))
-    }
-
-    private var totalSessions: Int {
-        sessions.count
-    }
-
-    private var thisWeekCount: Int {
-        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return sessions.filter { $0.startDate >= weekAgo }.count
-    }
-
-    var body: some View {
-        HStack(spacing: 16) {
-            // Streak
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(.orange)
-                    Text("\(currentStreak)")
-                        .font(.title2.bold())
-                }
-                Text("Day Streak")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-
-            Divider()
-                .frame(height: 40)
-
-            // This Week
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(.blue)
-                    Text("\(thisWeekCount)")
-                        .font(.title2.bold())
-                }
-                Text("This Week")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-
-            Divider()
-                .frame(height: 40)
-
-            // Total
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("\(totalSessions)")
-                        .font(.title2.bold())
-                }
-                Text("Total Drills")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding()
-        .background(AppColors.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func calculateStreak(from dates: [Date]) -> Int {
-        guard !dates.isEmpty else { return 0 }
-
-        let calendar = Calendar.current
-        let sortedDates = dates.sorted(by: >)  // Most recent first
-
-        // Get unique days
-        var uniqueDays = Set<DateComponents>()
-        for date in sortedDates {
-            let components = calendar.dateComponents([.year, .month, .day], from: date)
-            uniqueDays.insert(components)
-        }
-
-        let today = calendar.dateComponents([.year, .month, .day], from: Date())
-        let yesterday = calendar.dateComponents([.year, .month, .day], from: calendar.date(byAdding: .day, value: -1, to: Date())!)
-
-        // Must have drilled today or yesterday to have active streak
-        guard uniqueDays.contains(today) || uniqueDays.contains(yesterday) else { return 0 }
-
-        var streak = 0
-        var checkDate = today
-
-        while uniqueDays.contains(checkDate) {
-            streak += 1
-            if let date = calendar.date(from: checkDate),
-               let previousDate = calendar.date(byAdding: .day, value: -1, to: date) {
-                checkDate = calendar.dateComponents([.year, .month, .day], from: previousDate)
-            } else {
-                break
-            }
-        }
-
-        return streak
-    }
-}
+// UnifiedStreakBanner removed (#312)
 
 // MARK: - Movement Pattern Transfer Card
 
@@ -463,7 +356,7 @@ extension UnifiedDrillType {
 #Preview {
     ScrollView {
         VStack(spacing: 16) {
-            UnifiedStreakBanner(sessions: [])
+            // UnifiedStreakBanner removed (#312)
 
             EmptyTrainingState(discipline: nil)
 

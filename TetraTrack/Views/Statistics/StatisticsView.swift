@@ -12,7 +12,6 @@ import Charts
 struct StatisticsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \Ride.startDate, order: .reverse) private var rides: [Ride]
-    @Query private var streaks: [TrainingStreak]
     @State private var selectedPeriod: StatisticsPeriod = .allTime
     @State private var aiNarrative: StatisticsNarrative?
     @State private var isLoadingNarrative = false
@@ -23,9 +22,6 @@ struct StatisticsView: View {
     @State private var weeklyTrends: [WeeklyTrendPoint] = []
     @State private var lastRideCount: Int = 0
 
-    private var streak: TrainingStreak? {
-        streaks.first
-    }
 
     private func refreshStatistics() {
         statistics = StatisticsManager.calculateStatistics(from: rides, period: selectedPeriod)
@@ -123,9 +119,6 @@ struct StatisticsView: View {
                 // Personal Records
                 PersonalRecordsView(statistics: statistics)
 
-                // Training Streaks
-                StreakStatsView(streak: streak, totalRides: statistics.totalRides)
-
                 // Gait Analysis
                 GaitAnalysisView(statistics: statistics)
 
@@ -172,9 +165,6 @@ struct StatisticsView: View {
 
             // Personal Records
             PersonalRecordsView(statistics: statistics)
-
-            // Training Streaks
-            StreakStatsView(streak: streak, totalRides: statistics.totalRides)
 
             // Gait Analysis
             GaitAnalysisView(statistics: statistics)
@@ -248,5 +238,5 @@ struct StatisticsView: View {
 
 #Preview {
     StatisticsView()
-        .modelContainer(for: [Ride.self, GPSPoint.self, GaitSegment.self, TrainingStreak.self], inMemory: true)
+        .modelContainer(for: [Ride.self, GPSPoint.self, GaitSegment.self], inMemory: true)
 }

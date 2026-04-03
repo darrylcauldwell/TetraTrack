@@ -12,7 +12,6 @@ import SwiftData
 struct MountedBreathingDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
 
     @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
@@ -28,7 +27,6 @@ struct MountedBreathingDrillView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var timerStartDate: Date?
 
-    private var streak: TrainingStreak? { streaks.first }
 
     enum BreathPhase: String, CaseIterable {
         case instructions = "Instructions"
@@ -668,14 +666,6 @@ struct MountedBreathingDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update training streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
 
         try? modelContext.save()
 
@@ -702,5 +692,5 @@ struct MountedBreathingDrillView: View {
 
 #Preview {
     MountedBreathingDrillView()
-        .modelContainer(for: [TrainingStreak.self, UnifiedDrillSession.self], inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

@@ -30,8 +30,6 @@ struct UnifiedTrainingView: View {
                     // Discipline Filter
                     disciplinePicker
 
-                    // Streak banner removed (#312)
-
                     // Special Training Modes
                     specialTrainingSection
 

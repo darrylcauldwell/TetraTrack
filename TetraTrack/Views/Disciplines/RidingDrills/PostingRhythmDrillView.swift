@@ -12,7 +12,6 @@ import AVFoundation
 struct PostingRhythmDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
 
     @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
@@ -30,7 +29,6 @@ struct PostingRhythmDrillView: View {
     @State private var timingAccuracy: [Double] = []
     @State private var audioPlayer: AVAudioPlayer?
 
-    private var streak: TrainingStreak? { streaks.first }
 
     var body: some View {
         GeometryReader { geometry in
@@ -511,14 +509,6 @@ struct PostingRhythmDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
 
         try? modelContext.save()
 
@@ -529,5 +519,5 @@ struct PostingRhythmDrillView: View {
 
 #Preview {
     PostingRhythmDrillView()
-        .modelContainer(for: TrainingStreak.self, inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

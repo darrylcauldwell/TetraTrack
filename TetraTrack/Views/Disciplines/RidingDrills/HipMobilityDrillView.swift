@@ -11,7 +11,6 @@ import SwiftData
 struct HipMobilityDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
 
     @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
@@ -24,7 +23,6 @@ struct HipMobilityDrillView: View {
     @State private var hipPath: [CGPoint] = []
     @State private var circleDirection: CircleDirection = .clockwise
 
-    private var streak: TrainingStreak? { streaks.first }
 
     enum CircleDirection: String, CaseIterable {
         case clockwise = "Clockwise"
@@ -422,14 +420,6 @@ struct HipMobilityDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        // Update streak
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
 
         try? modelContext.save()
 
@@ -440,5 +430,5 @@ struct HipMobilityDrillView: View {
 
 #Preview {
     HipMobilityDrillView()
-        .modelContainer(for: TrainingStreak.self, inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }

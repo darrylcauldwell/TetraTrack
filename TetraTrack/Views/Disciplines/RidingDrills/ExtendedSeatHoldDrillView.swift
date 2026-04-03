@@ -12,7 +12,6 @@ import SwiftData
 struct ExtendedSeatHoldDrillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var streaks: [TrainingStreak]
 
     @State private var motionAnalyzer = DrillMotionAnalyzer()
     @State private var cueSystem = RealTimeCueSystem()
@@ -25,7 +24,6 @@ struct ExtendedSeatHoldDrillView: View {
     @State private var stabilityHistory: [Double] = []
     @State private var checkpoints: [(time: TimeInterval, score: Double)] = []
 
-    private var streak: TrainingStreak? { streaks.first }
 
     var body: some View {
         GeometryReader { geometry in
@@ -492,13 +490,6 @@ struct ExtendedSeatHoldDrillView: View {
             modelContext.insert(skillScore)
         }
 
-        if let streak = streak {
-            streak.recordActivity()
-        } else {
-            let newStreak = TrainingStreak()
-            newStreak.recordActivity()
-            modelContext.insert(newStreak)
-        }
 
         try? modelContext.save()
 
@@ -524,5 +515,5 @@ struct ExtendedSeatHoldDrillView: View {
 
 #Preview {
     ExtendedSeatHoldDrillView()
-        .modelContainer(for: [TrainingStreak.self, UnifiedDrillSession.self], inMemory: true)
+        .modelContainer(for: UnifiedDrillSession.self, inMemory: true)
 }
