@@ -203,10 +203,6 @@ struct TetraTrackApp: App {
             .viewContext(viewContext)
             .onAppear(perform: handleAppear)
             .task { await handleInitialSetup() }
-            .modifier(SiriNotificationModifier(
-                onStartRide: handleStartRide,
-                onAnnounceStatus: announceCurrentStatus
-            ))
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(from: oldPhase, to: newPhase)
             }
@@ -428,16 +424,6 @@ struct TetraTrackApp: App {
 
     // indexUpcomingCompetitions removed — Siri Shortcuts deleted (#312)
 
-    // Voice coaching functions removed (#309)
-    private func announceCurrentStatus() {}
-    private func setAudioCoaching(enabled: Bool) {}
-    private func toggleAudioCoaching() {}
-
-    private func handleStartRide(notification: Notification) {
-        // Riding is now Watch-primary — iPhone no longer starts ride sessions
-        Log.app.info("Ride start request received but riding is Watch-primary")
-    }
-
     private func handleIncomingURL(_ url: URL) {
         Log.app.info("handleIncomingURL called: \(url)")
 
@@ -527,17 +513,3 @@ struct TetraTrackApp: App {
 /// Extracts Siri .onReceive handlers into a ViewModifier to reduce type-checker
 /// complexity in the main App body.
 // Siri session control removed — all disciplines are Watch-primary (#309)
-private struct SiriNotificationModifier: ViewModifier {
-    var onStartRide: (Notification) -> Void
-    var onAnnounceStatus: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onReceive(NotificationCenter.default.publisher(for: .startRideFromSiri)) { notification in
-                onStartRide(notification)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .getStatusFromSiri)) { _ in
-                onAnnounceStatus()
-            }
-    }
-}
