@@ -11,7 +11,7 @@ import SwiftData
 // MARK: - Shooting Session Context
 
 /// Session context for tracking pressure effects on performance
-enum ShootingSessionContext: String, Codable, CaseIterable {
+nonisolated enum ShootingSessionContext: String, Codable, CaseIterable {
     case freePractice = "Free Practice"
     case competitionTraining = "Competition Training"
     case competition = "Competition"
@@ -400,7 +400,7 @@ final class Shot {
 
 // MARK: - Target Types
 
-enum ShootingTargetType: String, Codable, CaseIterable {
+nonisolated enum ShootingTargetType: String, Codable, CaseIterable {
     case olympic = "Olympic (10-ring)"
     case field = "Field Target"
     case compound = "Compound"
@@ -440,7 +440,7 @@ enum ShootingTargetType: String, Codable, CaseIterable {
 
 // MARK: - Wind Direction
 
-enum WindDirection: String, Codable, CaseIterable {
+nonisolated enum WindDirection: String, Codable, CaseIterable {
     case north = "N"
     case northEast = "NE"
     case east = "E"
@@ -479,7 +479,7 @@ enum WindDirection: String, Codable, CaseIterable {
 
 // MARK: - Scoring Calculator
 
-struct ShootingScoreCalculator {
+nonisolated struct ShootingScoreCalculator {
     let targetType: ShootingTargetType
 
     /// Calculate ring/zone from position on target
@@ -543,7 +543,7 @@ struct ShootingScoreCalculator {
     }
 }
 
-struct ScoreBreakdown {
+nonisolated struct ScoreBreakdown {
     let totalScore: Int
     let maxPossible: Int
     let xCount: Int
@@ -862,7 +862,7 @@ final class TargetScanAnalysis {
 
 // MARK: - Codable Validation Warning (for JSON storage)
 
-private struct CodableValidationWarning: Codable {
+private nonisolated struct CodableValidationWarning: Codable {
     let code: String
     let message: String
     let field: String?
@@ -884,7 +884,7 @@ private struct CodableValidationWarning: Codable {
 
 // MARK: - Enhanced Scan Shot (for JSON storage)
 
-struct ScanShot: Codable, Identifiable {
+nonisolated struct ScanShot: Codable, Identifiable {
     var id: UUID = UUID()
     var positionX: Double
     var positionY: Double
@@ -908,7 +908,7 @@ struct ScanShot: Codable, Identifiable {
     // Algorithm tracking
     var algorithmVersion: Int?
 
-    nonisolated init(positionX: Double, positionY: Double, score: Int, confidence: Double = 1.0) {
+    init(positionX: Double, positionY: Double, score: Int, confidence: Double = 1.0) {
         self.positionX = positionX
         self.positionY = positionY
         self.score = score
@@ -916,7 +916,7 @@ struct ScanShot: Codable, Identifiable {
     }
 
     /// Enhanced initializer with normalized position
-    nonisolated init(
+    init(
         normalizedPosition: NormalizedTargetPosition,
         score: Int,
         confidence: Double,
@@ -949,7 +949,7 @@ struct ScanShot: Codable, Identifiable {
         )
     }
 
-    nonisolated var detectionMethod: DetectionMethod {
+    var detectionMethod: DetectionMethod {
         get {
             guard let raw = detectionMethodRaw else { return .userPlaced }
             return DetectionMethod(rawValue: raw) ?? .userPlaced
@@ -965,7 +965,7 @@ struct ScanShot: Codable, Identifiable {
     }
 
     /// Mark as user confirmed
-    nonisolated mutating func markUserConfirmed() {
+    mutating func markUserConfirmed() {
         wasUserConfirmed = true
         userConfirmedAt = Date()
     }
@@ -990,13 +990,13 @@ struct ScanShot: Codable, Identifiable {
 
 // MARK: - Protocol Conformances for Analysis
 
-extension ScanShot: ShotForAnalysis {}
+nonisolated extension ScanShot: ShotForAnalysis {}
 
-extension ScanShot: ValidatableShot {}
+nonisolated extension ScanShot: ValidatableShot {}
 
 // MARK: - Grouping Quality
 
-enum GroupingQuality: String, Codable, CaseIterable {
+nonisolated enum GroupingQuality: String, Codable, CaseIterable {
     case excellent
     case good
     case fair

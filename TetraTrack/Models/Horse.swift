@@ -284,11 +284,11 @@ final class Horse {
     @Transient private var _cachedPhoto: UIImage??
 
     // Relationship to rides - optional for CloudKit
-    @Relationship(inverse: \Ride.horse)
+    @Relationship
     var rides: [Ride]? = []
 
     // Relationship to competitions
-    @Relationship(inverse: \Competition.horse)
+    @Relationship
     var competitions: [Competition]? = []
 
     init() {}

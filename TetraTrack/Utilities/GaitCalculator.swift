@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Gait Time Data
 
 /// Protocol for types that track gait times
-protocol GaitTimeTracking {
+nonisolated protocol GaitTimeTracking {
     var totalWalkTime: TimeInterval { get }
     var totalTrotTime: TimeInterval { get }
     var totalCanterTime: TimeInterval { get }

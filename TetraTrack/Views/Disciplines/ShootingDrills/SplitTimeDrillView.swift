@@ -379,9 +379,10 @@ struct SplitTimeDrillView: View {
 
     private func checkTargetAcquisition() {
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            nonisolated(unsafe) let t = timer
             MainActor.assumeIsolated {
                 guard isRunning, currentTarget < totalTargets else {
-                    timer.invalidate()
+                    t.invalidate()
                     return
                 }
 
@@ -419,7 +420,7 @@ struct SplitTimeDrillView: View {
                         successGenerator.notificationOccurred(.success)
 
                         if currentTarget >= totalTargets {
-                            timer.invalidate()
+                            t.invalidate()
                             endDrill()
                         }
 

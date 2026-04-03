@@ -265,21 +265,23 @@ final class WatchFallDetectionManager {
 
     private func startCountdown() {
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
 
-            self.countdownSeconds -= 1
-            self.onCountdownTick?(self.countdownSeconds)
+                self.countdownSeconds -= 1
+                self.onCountdownTick?(self.countdownSeconds)
 
-            // Haptic feedback
-            if self.countdownSeconds <= 10 {
-                HapticManager.shared.playCountdownUrgentHaptic()
-            } else {
-                HapticManager.shared.playCountdownTickHaptic()
-            }
+                // Haptic feedback
+                if self.countdownSeconds <= 10 {
+                    HapticManager.shared.playCountdownUrgentHaptic()
+                } else {
+                    HapticManager.shared.playCountdownTickHaptic()
+                }
 
-            if self.countdownSeconds <= 0 {
-                self.stopCountdown()
-                self.triggerEmergencyAlert()
+                if self.countdownSeconds <= 0 {
+                    self.stopCountdown()
+                    self.triggerEmergencyAlert()
+                }
             }
         }
     }
@@ -287,21 +289,23 @@ final class WatchFallDetectionManager {
     /// Display-only countdown for synced state from iPhone
     private func startLocalCountdownDisplay() {
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
 
-            self.countdownSeconds -= 1
-            self.onCountdownTick?(self.countdownSeconds)
+                self.countdownSeconds -= 1
+                self.onCountdownTick?(self.countdownSeconds)
 
-            // Haptic feedback
-            if self.countdownSeconds <= 10 {
-                HapticManager.shared.playCountdownUrgentHaptic()
-            } else {
-                HapticManager.shared.playCountdownTickHaptic()
-            }
+                // Haptic feedback
+                if self.countdownSeconds <= 10 {
+                    HapticManager.shared.playCountdownUrgentHaptic()
+                } else {
+                    HapticManager.shared.playCountdownTickHaptic()
+                }
 
-            // Don't trigger emergency here - iPhone handles it
-            if self.countdownSeconds <= 0 {
-                self.stopCountdown()
+                // Don't trigger emergency here - iPhone handles it
+                if self.countdownSeconds <= 0 {
+                    self.stopCountdown()
+                }
             }
         }
     }

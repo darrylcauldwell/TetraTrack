@@ -110,7 +110,7 @@ final class WalkingRoute {
 
 // MARK: - Walking Route Trend
 
-struct WalkingRouteTrend: Codable, Identifiable, Sendable {
+nonisolated struct WalkingRouteTrend: Codable, Identifiable, Sendable {
     var id: Date { date }
     let date: Date
     let durationSeconds: Double
@@ -122,7 +122,7 @@ struct WalkingRouteTrend: Codable, Identifiable, Sendable {
 
 // MARK: - Walking Route Comparison
 
-struct WalkingRouteComparison: Codable, Sendable {
+nonisolated struct WalkingRouteComparison: Codable, Sendable {
     let routeId: UUID
     let routeName: String
     let attemptNumber: Int

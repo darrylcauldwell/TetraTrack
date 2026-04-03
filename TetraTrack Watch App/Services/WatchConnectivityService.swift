@@ -841,8 +841,9 @@ extension WatchConnectivityService: WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         Log.watch.debug("didReceiveMessage called")
+        nonisolated(unsafe) let payload = message
         Task { @MainActor in
-            self.handleReceivedMessage(message)
+            self.handleReceivedMessage(payload)
         }
     }
 
@@ -854,8 +855,9 @@ extension WatchConnectivityService: WCSessionDelegate {
         Log.watch.debug("didReceiveMessage (with reply) called")
         // Reply immediately — replyHandler must be called synchronously
         replyHandler(["status": "received"])
+        nonisolated(unsafe) let payload = message
         Task { @MainActor in
-            self.handleReceivedMessage(message)
+            self.handleReceivedMessage(payload)
         }
     }
 
@@ -868,8 +870,9 @@ extension WatchConnectivityService: WCSessionDelegate {
             Log.watch.error("TT: didReceiveApplicationContext command=\(cmd, privacy: .public) transport=applicationContext")
         }
         Log.watch.debug("didReceiveApplicationContext called with keys: \(keys)")
+        nonisolated(unsafe) let payload = applicationContext
         Task { @MainActor in
-            self.handleReceivedMessage(applicationContext)
+            self.handleReceivedMessage(payload)
         }
     }
 
@@ -879,8 +882,9 @@ extension WatchConnectivityService: WCSessionDelegate {
             Log.watch.error("TT: didReceiveUserInfo command=\(cmd, privacy: .public) transport=transferUserInfo")
         }
         Log.watch.error("TT: didReceiveUserInfo called with keys: \(keys, privacy: .public)")
+        nonisolated(unsafe) let payload = userInfo
         Task { @MainActor in
-            self.handleReceivedMessage(userInfo)
+            self.handleReceivedMessage(payload)
         }
     }
 }

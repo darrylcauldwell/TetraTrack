@@ -18,7 +18,7 @@ import os
 // MARK: - Sync Status
 
 /// Represents the current state of CloudKit synchronization
-enum CloudSyncStatus: Equatable {
+nonisolated enum CloudSyncStatus: Equatable {
     case syncing
     case synced
     case error(String)

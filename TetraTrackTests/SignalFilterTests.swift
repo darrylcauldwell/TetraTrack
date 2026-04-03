@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct SignalFilterTests {
+@MainActor struct SignalFilterTests {
 
     // MARK: - SignalFilter Tests
 

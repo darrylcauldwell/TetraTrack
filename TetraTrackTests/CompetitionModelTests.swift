@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct CompetitionModelTests {
+@MainActor struct CompetitionModelTests {
 
     // MARK: - Basic Properties
 

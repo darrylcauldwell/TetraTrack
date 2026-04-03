@@ -8,7 +8,7 @@
 import SwiftUI
 
 /// Unified drill types across all disciplines (30 total)
-enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
+nonisolated enum UnifiedDrillType: String, CaseIterable, Codable, Identifiable {
     // MARK: - Riding Drills (10)
     case heelPosition = "Heel Position"
     case coreStability = "Core Stability"

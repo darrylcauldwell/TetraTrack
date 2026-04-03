@@ -336,12 +336,13 @@ struct RecoilControlDrillView: View {
     private func checkStableAndShoot() {
         // Wait until stable, then trigger recoil
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+            nonisolated(unsafe) let t = timer
             Task { @MainActor in
                 let isStable = sqrt(pow(motionAnalyzer.relativePitch, 2) + pow(motionAnalyzer.relativeRoll, 2)) < 0.08
 
                 if isStable && self.waitingForStable {
                     self.waitingForStable = false
-                    timer.invalidate()
+                    t.invalidate()
 
                     // Random delay before "shot"
                     try? await Task.sleep(for: .milliseconds(Int.random(in: 500...2000)))
@@ -373,11 +374,11 @@ struct RecoilControlDrillView: View {
 
     private func checkRecovery() {
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            nonisolated(unsafe) let t = timer
             Task { @MainActor in
                 let distance = sqrt(pow(motionAnalyzer.relativePitch, 2) + pow(motionAnalyzer.relativeRoll, 2))
 
                 if distance < 0.08 && self.showRecoil {
-                    // Recovered!
                     if let startTime = self.recoilStartTime {
                         let recoveryTime = Date().timeIntervalSince(startTime)
                         self.recoveryTimes.append(recoveryTime)
@@ -385,12 +386,11 @@ struct RecoilControlDrillView: View {
 
                     self.showRecoil = false
                     self.isRecovered = true
-                    timer.invalidate()
+                    t.invalidate()
 
                     let successGenerator = UINotificationFeedbackGenerator()
                     successGenerator.notificationOccurred(.success)
 
-                    // Setup next round
                     try? await Task.sleep(for: .milliseconds(500))
                     self.waitingForStable = true
                     self.isRecovered = false
@@ -402,7 +402,7 @@ struct RecoilControlDrillView: View {
                    Date().timeIntervalSince(startTime) > 2.0 && self.showRecoil {
                     self.recoveryTimes.append(2.0)
                     self.showRecoil = false
-                    timer.invalidate()
+                    t.invalidate()
 
                     try? await Task.sleep(for: .milliseconds(300))
                     self.waitingForStable = true

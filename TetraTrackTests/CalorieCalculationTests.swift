@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct CalorieCalculationTests {
+@MainActor struct CalorieCalculationTests {
 
     // MARK: - Riding MET Values
 

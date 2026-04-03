@@ -76,12 +76,12 @@ enum CloudKitSchema {
 
 // MARK: - Record Type Definition
 
-struct RecordTypeDefinition {
+nonisolated struct RecordTypeDefinition {
     let name: String
     let fields: [FieldDefinition]
 }
 
-struct FieldDefinition {
+nonisolated struct FieldDefinition {
     let name: String
     let type: FieldType
 
@@ -344,7 +344,7 @@ actor CloudKitSchemaInitializer {
 
 // MARK: - Result Types
 
-struct SchemaInitializationResult {
+nonisolated struct SchemaInitializationResult {
     let success: Bool
     let errors: [String]
     let recordTypesCreated: [String]
@@ -359,7 +359,7 @@ struct SchemaInitializationResult {
     }
 }
 
-struct SchemaValidationResult {
+nonisolated struct SchemaValidationResult {
     let isValid: Bool
     let validRecordTypes: [String]
     let invalidRecordTypes: [String]

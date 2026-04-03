@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct SwimmingSessionTests {
+@MainActor struct SwimmingSessionTests {
 
     // MARK: - Basic Properties
 

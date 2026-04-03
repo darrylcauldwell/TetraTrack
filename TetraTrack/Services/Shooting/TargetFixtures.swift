@@ -12,7 +12,7 @@ import UIKit
 // MARK: - Target Fixture
 
 /// A test fixture image with known metadata
-struct TargetFixture: Identifiable {
+nonisolated struct TargetFixture: Identifiable {
     let id: String
     let name: String
     let category: FixtureCategory
@@ -71,7 +71,7 @@ struct TargetFixture: Identifiable {
 // MARK: - Fixture Metadata
 
 /// Rich metadata for a test fixture
-struct TargetFixtureMetadata: Codable, Equatable {
+nonisolated struct TargetFixtureMetadata: Codable, Equatable {
     /// Target type in the fixture
     let targetType: String  // "tetrathlon" or "olympicPistol"
 
@@ -152,7 +152,7 @@ struct TargetFixtureMetadata: Codable, Equatable {
 // MARK: - Golden Master Shot
 
 /// A known shot position for golden master testing
-struct GoldenMasterShot: Codable, Equatable, Identifiable {
+nonisolated struct GoldenMasterShot: Codable, Equatable, Identifiable {
     var id: String { "\(normalizedX)_\(normalizedY)" }
 
     /// Normalized target X coordinate (-1 to +1)
@@ -183,7 +183,7 @@ struct GoldenMasterShot: Codable, Equatable, Identifiable {
 // MARK: - Expected Pattern Analysis
 
 /// Expected pattern analysis results for golden master testing
-struct ExpectedPatternAnalysis: Codable, Equatable {
+nonisolated struct ExpectedPatternAnalysis: Codable, Equatable {
     /// Expected MPI (normalized coordinates)
     let mpiX: Double
     let mpiY: Double
@@ -225,7 +225,7 @@ struct ExpectedPatternAnalysis: Codable, Equatable {
 // MARK: - Expected Quality
 
 /// Expected image quality metrics
-struct ExpectedQuality: Codable, Equatable {
+nonisolated struct ExpectedQuality: Codable, Equatable {
     let minSharpness: Double
     let minContrast: Double
     let expectedExposure: String  // "good", "underexposed", "overexposed"
@@ -240,8 +240,8 @@ struct ExpectedQuality: Codable, Equatable {
 // MARK: - Fixture Registry
 
 /// Registry of all available test fixtures
-final class TargetFixtureRegistry {
-    static let shared = TargetFixtureRegistry()
+nonisolated final class TargetFixtureRegistry {
+    nonisolated(unsafe) static let shared = TargetFixtureRegistry()
 
     private var fixtures: [String: TargetFixture] = [:]
     private var fixturesByCategory: [TargetFixture.FixtureCategory: [TargetFixture]] = [:]

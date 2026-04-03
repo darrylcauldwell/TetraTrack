@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct DressageMovement: Codable, Identifiable {
+nonisolated struct DressageMovement: Codable, Identifiable {
     var id: Int { number }
     var number: Int
     var marker: String
@@ -16,14 +16,14 @@ struct DressageMovement: Codable, Identifiable {
     var coefficient: Int = 1
 }
 
-struct DressageMovementScore: Codable, Identifiable {
+nonisolated struct DressageMovementScore: Codable, Identifiable {
     var id: Int { movementNumber }
     var movementNumber: Int
     var score: Int?  // 0-10, nil if not scored
     var notes: String = ""
 }
 
-struct DressageTestExecution: Codable {
+nonisolated struct DressageTestExecution: Codable {
     var testName: String
     var movementScores: [DressageMovementScore]
     var totalScore: Double {

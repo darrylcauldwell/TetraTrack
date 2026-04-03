@@ -82,7 +82,7 @@ final class LinkedRiderRecord {
 
 /// Represents a rider whose location you can view (they've shared with you)
 /// This struct is used for in-memory operations with live session data.
-struct LinkedRider: Identifiable, Codable, Equatable {
+nonisolated struct LinkedRider: Identifiable, Codable, Equatable {
     let id: UUID
     let riderID: String  // CloudKit user ID
     var name: String

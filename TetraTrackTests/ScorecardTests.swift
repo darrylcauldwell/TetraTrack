@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct ScorecardTests {
+@MainActor struct ScorecardTests {
 
     // MARK: - Swimming Score Tests
 

@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Horse Size Categories
 
-enum HorseSize: String, Codable, CaseIterable, Identifiable {
+nonisolated enum HorseSize: String, Codable, CaseIterable, Identifiable {
     case small = "small"           // Under 14.2hh (ponies)
     case medium = "medium"         // 14.2-15.2hh
     case average = "average"       // 15.2-16.2hh (most common)
@@ -63,7 +63,7 @@ enum HorseSize: String, Codable, CaseIterable, Identifiable {
 
 // MARK: - Pole Exercise Type
 
-enum PoleExerciseType: String, Codable, CaseIterable, Identifiable {
+nonisolated enum PoleExerciseType: String, Codable, CaseIterable, Identifiable {
     case walkPoles = "walkPoles"
     case trotPoles = "trotPoles"
     case canterPoles = "canterPoles"
@@ -110,7 +110,7 @@ enum PoleExerciseType: String, Codable, CaseIterable, Identifiable {
 
 // MARK: - Pole Stride Calculator
 
-struct PoleStrideCalculator {
+nonisolated struct PoleStrideCalculator {
 
     // MARK: - Base Distances (for average 15.2-16.2hh horse) in metres
 
@@ -229,7 +229,7 @@ struct PoleStrideCalculator {
 
 // MARK: - Grid Elements
 
-enum GridElement: String, Codable, CaseIterable {
+nonisolated enum GridElement: String, Codable, CaseIterable {
     case pole = "pole"
     case fence = "fence"
     case bounce = "bounce"
@@ -249,7 +249,7 @@ enum GridElement: String, Codable, CaseIterable {
 
 // MARK: - Quick Reference Card
 
-struct QuickReferenceCard {
+nonisolated struct QuickReferenceCard {
     let horseSize: HorseSize
     let walkPoles: (metres: String, feet: String)
     let trotPoles: (metres: String, feet: String)
@@ -261,7 +261,7 @@ struct QuickReferenceCard {
 
 // MARK: - Pole Layout Configuration
 
-struct PoleLayoutConfig: Codable {
+nonisolated struct PoleLayoutConfig: Codable {
     let numberOfPoles: Int
     let exerciseType: PoleExerciseType
     let isRaised: Bool

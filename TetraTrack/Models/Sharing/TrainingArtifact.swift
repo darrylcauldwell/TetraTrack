@@ -34,7 +34,7 @@ enum PrivacyLevel: String, Codable {
 /// CloudKit-compatible training artifact for all disciplines.
 /// Stored in child's private database FamilyData zone, shared with parent via CKShare.
 @Model
-final class TrainingArtifact {
+final class TrainingArtifact: @unchecked Sendable {
     // MARK: Identity
     var id: UUID = UUID()
     var sourceSessionID: String = ""  // UUID string of source Ride/RunningSession/etc for deduplication
@@ -147,12 +147,12 @@ final class TrainingArtifact {
 
     // MARK: - Formatted Properties
 
-    var formattedDistance: String {
+    nonisolated var formattedDistance: String {
         guard let d = distance else { return "--" }
         return d.formattedDistance
     }
 
-    var formattedDuration: String {
+    nonisolated var formattedDuration: String {
         duration.formattedDuration
     }
 

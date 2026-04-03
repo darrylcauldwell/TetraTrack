@@ -13,7 +13,7 @@ import os
 
 @Observable
 final class NotificationManager: NSObject {
-    static nonisolated let shared = NotificationManager()
+    @MainActor static let shared = NotificationManager()
 
     var isAuthorized: Bool = false
     var pendingAlerts: [SafetyAlert] = []

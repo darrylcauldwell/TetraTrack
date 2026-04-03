@@ -39,8 +39,9 @@ final class AddressSearchCompleter: NSObject, MKLocalSearchCompleterDelegate {
     // MARK: - MKLocalSearchCompleterDelegate
 
     nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        nonisolated(unsafe) let searchResults = completer.results
         Task { @MainActor in
-            self.results = completer.results
+            self.results = searchResults
             self.isSearching = false
         }
     }

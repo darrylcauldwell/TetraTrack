@@ -10,7 +10,7 @@ import SwiftData
 
 // MARK: - Competition Todo
 
-struct CompetitionTodo: Codable, Identifiable {
+nonisolated struct CompetitionTodo: Codable, Identifiable {
     var id: UUID = UUID()
     var title: String
     var isCompleted: Bool = false
@@ -26,7 +26,7 @@ struct CompetitionTodo: Codable, Identifiable {
 // MARK: - Showjumping Class
 
 /// Represents a class/round at a showjumping competition
-struct ShowjumpingClass: Codable, Identifiable {
+nonisolated struct ShowjumpingClass: Codable, Identifiable {
     var id: UUID = UUID()
     var name: String  // e.g., "90cm", "1m Open", "1.10m Championship"
     var entryStatus: EntryStatus = .planning
@@ -150,7 +150,7 @@ enum ShowjumpingHeight: String, CaseIterable {
 // MARK: - Dressage Class
 
 /// Represents a class at a dressage competition
-struct DressageClass: Codable, Identifiable {
+nonisolated struct DressageClass: Codable, Identifiable {
     var id: UUID = UUID()
     var testName: String  // e.g., "Prelim 12", "Novice 27", "Elementary 49"
     var className: String = ""  // Optional class name/description

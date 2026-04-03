@@ -11,7 +11,7 @@ import Foundation
 
 // MARK: - InviteStatus Tests
 
-struct InviteStatusTests {
+@MainActor struct InviteStatusTests {
 
     @Test func allCasesExist() {
         let cases: [InviteStatus] = [.notSent, .pending, .accepted]
@@ -47,7 +47,7 @@ struct InviteStatusTests {
 
 // MARK: - LinkedRider Tests
 
-struct LinkedRiderTests {
+@MainActor struct LinkedRiderTests {
 
     @Test func initialization() {
         let rider = LinkedRider(riderID: "user123", name: "Jane Smith")

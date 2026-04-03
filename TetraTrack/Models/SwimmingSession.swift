@@ -333,7 +333,7 @@ final class SwimmingInterval {
 
 // MARK: - Swimming Stroke
 
-enum SwimmingStroke: String, Codable, CaseIterable {
+nonisolated enum SwimmingStroke: String, Codable, CaseIterable {
     case freestyle = "Freestyle"
     case backstroke = "Backstroke"
     case breaststroke = "Breaststroke"
@@ -366,7 +366,7 @@ enum SwimmingStroke: String, Codable, CaseIterable {
 
 // MARK: - Pool Mode
 
-enum SwimmingPoolMode: String, Codable, CaseIterable {
+nonisolated enum SwimmingPoolMode: String, Codable, CaseIterable {
     case pool = "Pool"
     case openWater = "Open Water"
 
@@ -380,7 +380,7 @@ enum SwimmingPoolMode: String, Codable, CaseIterable {
 
 // MARK: - Pace Zones
 
-enum SwimmingPaceZone: Int, CaseIterable {
+nonisolated enum SwimmingPaceZone: Int, CaseIterable {
     case recovery = 1
     case endurance = 2
     case tempo = 3
@@ -434,7 +434,7 @@ enum SwimmingPaceZone: Int, CaseIterable {
 
 // MARK: - 3-Minute Test Protocol
 
-struct ThreeMinuteSwimTest {
+nonisolated struct ThreeMinuteSwimTest {
     let testDate: Date
     let distance: Double // meters swum in 3 minutes
     let strokeCount: Int
@@ -553,8 +553,8 @@ extension SwimmingSession {
 
 // MARK: - Swimming Personal Bests (legacy — kept for Settings display)
 
-struct SwimmingPersonalBests {
-    static var shared = SwimmingPersonalBests()
+nonisolated struct SwimmingPersonalBests {
+    nonisolated(unsafe) static var shared = SwimmingPersonalBests()
 
     private let store = NSUbiquitousKeyValueStore.default
 

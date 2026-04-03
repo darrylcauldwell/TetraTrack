@@ -114,7 +114,7 @@ final class UnifiedSharingCoordinator {
     // MARK: - Initialization
 
     private init() {
-        self.safetyAlertService = SafetyAlertService()
+        self.safetyAlertService = SafetyAlertService(notificationManager: NotificationManager.shared)
         // CloudKit-dependent services (including accountService) are created lazily
         // in setup() to avoid calling CKContainer.default() during init — that throws
         // an ObjC CKException in simulators without CloudKit entitlements, crashing

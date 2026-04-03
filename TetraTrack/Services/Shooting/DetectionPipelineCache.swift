@@ -617,7 +617,7 @@ actor StagedPipelineExecutor {
 
 // MARK: - Pipeline Execution Result
 
-struct PipelineExecutionResult {
+nonisolated struct PipelineExecutionResult {
     let candidates: [DetectedHoleCandidate]
     let quality: ImageQualityAssessment
     let timing: [String: TimeInterval]

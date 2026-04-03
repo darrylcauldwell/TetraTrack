@@ -31,7 +31,7 @@ enum PoleLayout: String, Codable, CaseIterable {
 
 // MARK: - Pole Spacing Calculator
 
-struct PoleSpacingCalculator {
+nonisolated struct PoleSpacingCalculator {
     /// Base pole spacings for a 15hh horse (in meters)
     static let walkSpacing: Double = 0.75  // 75cm
     static let trotSpacing: Double = 1.30  // 1.3m

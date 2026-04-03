@@ -18,7 +18,7 @@ import CoreGraphics
 
 /// Represents a stadium shape (running track / discorectangle)
 /// Consists of two semicircles of radius R connected by straight vertical lines of height H
-struct StadiumGeometry {
+nonisolated struct StadiumGeometry {
     /// Radius of the semicircles at top and bottom
     let semicircleRadius: Double
 
@@ -121,7 +121,7 @@ struct StadiumGeometry {
 
 /// Physical dimensions of tetrathlon air pistol target
 /// Based on UIPM specifications with STADIUM (running track) shaped rings
-struct TetrathlonTargetGeometry {
+nonisolated struct TetrathlonTargetGeometry {
 
     // MARK: - Physical Dimensions
 
@@ -317,7 +317,7 @@ struct TetrathlonTargetGeometry {
 // MARK: - Olympic Target Geometry (Circular - unchanged)
 
 /// Physical dimensions of Olympic 10m air pistol target
-struct OlympicPistolTargetGeometry {
+nonisolated struct OlympicPistolTargetGeometry {
 
     /// Target diameter (mm)
     nonisolated static let targetDiameter: Double = 155.5
@@ -370,7 +370,7 @@ struct OlympicPistolTargetGeometry {
 // MARK: - Target Type Enum
 
 /// Supported target types with their geometry
-enum ShootingTargetGeometryType: String, Codable, CaseIterable {
+nonisolated enum ShootingTargetGeometryType: String, Codable, CaseIterable {
     case tetrathlon
     case olympicPistol
 
@@ -435,7 +435,7 @@ enum ShootingTargetGeometryType: String, Codable, CaseIterable {
 // MARK: - Scoring Ring Model
 
 /// Model for a scoring ring (for visualization)
-struct ScoringRing: Identifiable {
+nonisolated struct ScoringRing: Identifiable {
     let id = UUID()
     let score: Int
     let normalizedRadius: Double

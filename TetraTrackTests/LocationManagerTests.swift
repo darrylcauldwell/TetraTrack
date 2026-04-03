@@ -12,7 +12,7 @@ import CoreLocation
 
 // MARK: - CircularBuffer Tests
 
-struct CircularBufferTests {
+@MainActor struct CircularBufferTests {
 
     @Test func initializationWithCapacity() {
         let buffer = CircularBuffer<Int>(capacity: 10)

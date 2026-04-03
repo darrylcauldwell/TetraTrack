@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct RunnerBiomechanicsTests {
+@MainActor struct RunnerBiomechanicsTests {
 
     // MARK: - Default Values
 

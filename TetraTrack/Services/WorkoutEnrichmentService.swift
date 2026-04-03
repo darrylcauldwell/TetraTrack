@@ -140,7 +140,7 @@ final class WorkoutEnrichmentService {
         }
 
         // Respiration, SpO2, and fitness indicators — fetch for all workout types
-        let commonPredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        nonisolated(unsafe) let commonPredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         async let respirationTask = fetchAverageQuantity(.respiratoryRate, predicate: commonPredicate, unit: HKUnit.count().unitDivided(by: .minute()))
         async let spo2Task = fetchAverageQuantity(.oxygenSaturation, predicate: commonPredicate, unit: .percent())
         async let caloriesTask = fetchSumQuantity(.activeEnergyBurned, predicate: commonPredicate, unit: .kilocalorie())

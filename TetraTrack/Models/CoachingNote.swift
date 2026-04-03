@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct CoachingNote: Codable, Identifiable {
+nonisolated struct CoachingNote: Codable, Identifiable {
     var id: UUID = UUID()
     var timestamp: Date
     var text: String

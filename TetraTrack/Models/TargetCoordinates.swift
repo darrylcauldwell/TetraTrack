@@ -13,7 +13,7 @@ import CoreGraphics
 
 /// Version tracking for coordinate system semantics
 /// Increment when coordinate interpretation changes
-struct CoordinateSystemVersion: Codable, Equatable {
+nonisolated struct CoordinateSystemVersion: Codable, Equatable {
     nonisolated static let current = CoordinateSystemVersion(major: 1, minor: 0)
 
     let major: Int
@@ -31,7 +31,7 @@ struct CoordinateSystemVersion: Codable, Equatable {
 /// X-axis: Positive = right, Negative = left
 /// Y-axis: Positive = up, Negative = down
 /// Units: Normalized target radius (-1 to +1 for shots at target edge)
-struct NormalizedTargetPosition: Codable, Equatable, Hashable {
+nonisolated struct NormalizedTargetPosition: Codable, Equatable, Hashable {
     let x: Double  // -1.0 (left edge) to +1.0 (right edge)
     let y: Double  // -1.0 (bottom) to +1.0 (top)
 

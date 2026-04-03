@@ -71,18 +71,20 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 /// Subclass that routes localizedString lookups through the
 /// language bundle selected by LocalizationManager.
 /// Installed once via `object_setClass(Bundle.main, ...)`.
-private class OverriddenBundle: Bundle, @unchecked Sendable {
+nonisolated private class OverriddenBundle: Bundle, @unchecked Sendable {
     override func localizedString(
         forKey key: String,
         value: String?,
         table tableName: String?
     ) -> String {
-        let selected = LocalizationManager.shared.bundle
-        // Avoid infinite recursion when selected IS Bundle.main
-        guard selected !== Bundle.main else {
-            return super.localizedString(forKey: key, value: value, table: tableName)
+        MainActor.assumeIsolated {
+            let selected = LocalizationManager.shared.bundle
+            // Avoid infinite recursion when selected IS Bundle.main
+            guard selected !== Bundle.main else {
+                return super.localizedString(forKey: key, value: value, table: tableName)
+            }
+            return selected.localizedString(forKey: key, value: value, table: tableName)
         }
-        return selected.localizedString(forKey: key, value: value, table: tableName)
     }
 }
 

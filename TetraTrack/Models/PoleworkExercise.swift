@@ -160,7 +160,7 @@ final class PoleworkExercise {
 
 // MARK: - Polework Difficulty
 
-enum PoleworkDifficulty: String, Codable, CaseIterable, Identifiable {
+nonisolated enum PoleworkDifficulty: String, Codable, CaseIterable, Identifiable {
     case beginner = "beginner"
     case intermediate = "intermediate"
     case advanced = "advanced"
@@ -194,7 +194,7 @@ enum PoleworkDifficulty: String, Codable, CaseIterable, Identifiable {
 
 // MARK: - Polework Category
 
-enum PoleworkCategory: String, Codable, CaseIterable, Identifiable {
+nonisolated enum PoleworkCategory: String, Codable, CaseIterable, Identifiable {
     case groundPoles = "groundPoles"
     case raisedPoles = "raisedPoles"
     case cavaletti = "cavaletti"

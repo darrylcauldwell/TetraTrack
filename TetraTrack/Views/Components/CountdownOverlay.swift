@@ -84,7 +84,7 @@ struct CountdownOverlay: View {
                 timer.invalidate()
                 countdownTimer = nil
                 // Brief delay then complete
-                Task {
+                Task { @MainActor in
                     try? await Task.sleep(for: .seconds(0.3))
                     onComplete()
                 }

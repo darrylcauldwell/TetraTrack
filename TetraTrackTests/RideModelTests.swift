@@ -252,7 +252,7 @@ struct RideModelTests {
 
 // MARK: - Ride Type Tests
 
-struct RideTypeTests {
+@MainActor struct RideTypeTests {
 
     @Test func rideTypeRawValues() {
         #expect(RideType.hack.rawValue == "Hack")
@@ -281,7 +281,7 @@ struct RideTypeTests {
 
 // MARK: - Gait Type Tests
 
-struct GaitTypeTests {
+@MainActor struct GaitTypeTests {
 
     @Test(.disabled("Pre-existing failure")) func gaitTypeRawValues() {
         #expect(GaitType.stationary.rawValue == "stationary")

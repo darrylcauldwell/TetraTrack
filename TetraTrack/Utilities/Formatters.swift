@@ -11,7 +11,7 @@ import Foundation
 
 extension TimeInterval {
     /// Format as "HH:MM:SS" or "MM:SS" for display
-    var formattedDuration: String {
+    nonisolated var formattedDuration: String {
         let hours = Int(self) / 3600
         let minutes = (Int(self) % 3600) / 60
         let seconds = Int(self) % 60
@@ -23,7 +23,7 @@ extension TimeInterval {
     }
 
     /// Format as "M:SS.t" with tenths for lap times
-    var formattedLapTime: String {
+    nonisolated var formattedLapTime: String {
         let minutes = Int(self) / 60
         let seconds = Int(self) % 60
         let tenths = Int((self.truncatingRemainder(dividingBy: 1)) * 10)
@@ -31,21 +31,21 @@ extension TimeInterval {
     }
 
     /// Format as pace "M:SS/km" for running/swimming
-    var formattedPace: String {
+    nonisolated var formattedPace: String {
         let minutes = Int(self) / 60
         let seconds = Int(self) % 60
         return String(format: "%d:%02d/km", minutes, seconds)
     }
 
     /// Format as pace "M:SS/100m" for swimming
-    var formattedSwimPace: String {
+    nonisolated var formattedSwimPace: String {
         let minutes = Int(self) / 60
         let seconds = Int(self) % 60
         return String(format: "%d:%02d/100m", minutes, seconds)
     }
 
     /// Format for speech output (audio coach)
-    var spokenDuration: String {
+    nonisolated var spokenDuration: String {
         let hours = Int(self) / 3600
         let minutes = (Int(self) % 3600) / 60
         let seconds = Int(self) % 60
@@ -60,7 +60,7 @@ extension TimeInterval {
     }
 
     /// Format pace for speech output
-    var spokenPace: String {
+    nonisolated var spokenPace: String {
         let minutes = Int(self) / 60
         let seconds = Int(self) % 60
 
@@ -74,7 +74,7 @@ extension TimeInterval {
     }
 
     /// Format lap time for speech output
-    var spokenLapTime: String {
+    nonisolated var spokenLapTime: String {
         let minutes = Int(self) / 60
         let seconds = Int(self) % 60
         let tenths = Int((self.truncatingRemainder(dividingBy: 1)) * 10)
@@ -94,7 +94,7 @@ extension TimeInterval {
 
 extension Double {
     /// Format meters as "X.XX km" or "X m" for display
-    var formattedDistance: String {
+    nonisolated var formattedDistance: String {
         if self >= 1000 {
             return String(format: "%.2f km", self / 1000)
         }
@@ -102,7 +102,7 @@ extension Double {
     }
 
     /// Format meters as short distance "X.X km" or "X m"
-    var formattedDistanceShort: String {
+    nonisolated var formattedDistanceShort: String {
         if self >= 1000 {
             return String(format: "%.1f km", self / 1000)
         }
@@ -110,7 +110,7 @@ extension Double {
     }
 
     /// Format for speech output
-    var spokenDistance: String {
+    nonisolated var spokenDistance: String {
         if self >= 1000 {
             let km = self / 1000
             if km == floor(km) {
@@ -122,13 +122,13 @@ extension Double {
     }
 
     /// Format m/s as "X.X km/h" for speed display
-    var formattedSpeed: String {
+    nonisolated var formattedSpeed: String {
         let kmh = self * 3.6
         return String(format: "%.1f km/h", kmh)
     }
 
     /// Format elevation in meters
-    var formattedElevation: String {
+    nonisolated var formattedElevation: String {
         if abs(self) >= 1000 {
             return String(format: "%.2f km", self / 1000)
         }
@@ -140,14 +140,14 @@ extension Double {
 
 extension Int {
     /// Format meters as distance
-    var formattedDistance: String {
+    nonisolated var formattedDistance: String {
         Double(self).formattedDistance
     }
 }
 
 // MARK: - Formatting Utilities
 
-enum Formatters {
+nonisolated enum Formatters {
     // MARK: - Duration
 
     /// Format seconds as duration string
@@ -230,7 +230,7 @@ enum Formatters {
     // MARK: - Date/Time Cached Formatters
 
     /// Cached date formatter for medium date style
-    private static let mediumDateFormatter: DateFormatter = {
+    private nonisolated static let mediumDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
@@ -238,7 +238,7 @@ enum Formatters {
     }()
 
     /// Cached date/time formatter for medium date + short time
-    private static let mediumDateTimeFormatter: DateFormatter = {
+    private nonisolated static let mediumDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
@@ -246,28 +246,28 @@ enum Formatters {
     }()
 
     /// Cached relative date formatter
-    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+    nonisolated(unsafe) private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter
     }()
 
     /// Cached formatter for "MMM d" (e.g., "Jan 15") - used for week labels
-    private static let shortMonthDayFormatter: DateFormatter = {
+    private nonisolated static let shortMonthDayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         return formatter
     }()
 
     /// Cached formatter for "MMM yyyy" (e.g., "Jan 2026") - used for month labels
-    private static let monthYearFormatter: DateFormatter = {
+    private nonisolated static let monthYearFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM yyyy"
         return formatter
     }()
 
     /// Cached formatter for "EEEE d MMMM" (e.g., "Monday 15 January") - used for ride names
-    private static let fullDayMonthFormatter: DateFormatter = {
+    private nonisolated static let fullDayMonthFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE d MMMM"
         return formatter
@@ -300,7 +300,7 @@ enum Formatters {
     }
 
     /// Format date with time
-    static func dateTime(_ date: Date) -> String {
+    nonisolated static func dateTime(_ date: Date) -> String {
         mediumDateTimeFormatter.string(from: date)
     }
 
@@ -320,7 +320,7 @@ enum Formatters {
     }
 
     /// Format as "EEEE d MMMM" (e.g., "Monday 15 January") for full day display
-    static func fullDayMonth(_ date: Date) -> String {
+    nonisolated static func fullDayMonth(_ date: Date) -> String {
         fullDayMonthFormatter.string(from: date)
     }
 

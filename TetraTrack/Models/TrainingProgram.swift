@@ -186,7 +186,7 @@ final class ProgramSession {
 
 // MARK: - Supporting Codable Types
 
-struct ProgramWeek: Codable, Identifiable, Sendable {
+nonisolated struct ProgramWeek: Codable, Identifiable, Sendable {
     var id: Int { weekNumber }
     let weekNumber: Int
     let theme: String
@@ -194,7 +194,7 @@ struct ProgramWeek: Codable, Identifiable, Sendable {
     let weeklyTargetTSS: Double
 }
 
-struct ProgramSessionDefinition: Codable, Identifiable, Sendable {
+nonisolated struct ProgramSessionDefinition: Codable, Identifiable, Sendable {
     let id: UUID
     let sessionNumber: Int
     let name: String
@@ -210,7 +210,7 @@ struct ProgramSessionDefinition: Codable, Identifiable, Sendable {
     }
 }
 
-struct ProgramInterval: Codable, Identifiable, Sendable {
+nonisolated struct ProgramInterval: Codable, Identifiable, Sendable {
     let id: UUID
     let phase: IntervalPhase
     let durationSeconds: Double
@@ -239,7 +239,7 @@ struct ProgramInterval: Codable, Identifiable, Sendable {
     }
 }
 
-enum IntervalPhase: String, Codable, Sendable {
+nonisolated enum IntervalPhase: String, Codable, Sendable {
     case warmup = "warmup"
     case walk = "walk"
     case run = "run"
@@ -266,7 +266,7 @@ enum IntervalPhase: String, Codable, Sendable {
 
 // MARK: - Enums
 
-enum TrainingProgramType: String, Codable, CaseIterable, Identifiable {
+nonisolated enum TrainingProgramType: String, Codable, CaseIterable, Identifiable {
     case c25k = "c25k"
     case c210k = "c210k"
     case c2half = "c2half"
@@ -320,7 +320,7 @@ enum TrainingProgramType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum ProgramStatus: String, Codable, CaseIterable {
+nonisolated enum ProgramStatus: String, Codable, CaseIterable {
     case active = "active"
     case paused = "paused"
     case completed = "completed"
@@ -340,7 +340,7 @@ enum ProgramStatus: String, Codable, CaseIterable {
     }
 }
 
-enum ProgramSessionStatus: String, Codable, CaseIterable {
+nonisolated enum ProgramSessionStatus: String, Codable, CaseIterable {
     case upcoming = "upcoming"
     case completed = "completed"
     case skipped = "skipped"

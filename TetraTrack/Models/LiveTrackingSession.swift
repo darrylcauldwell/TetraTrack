@@ -9,7 +9,7 @@ import CoreLocation
 import os
 
 /// A point on the route with gait information for colored polyline display
-struct RoutePoint: Codable {
+nonisolated struct RoutePoint: Codable {
     var latitude: Double
     var longitude: Double
     var gait: String
@@ -27,7 +27,7 @@ struct RoutePoint: Codable {
 /// Represents an active ride session being shared with family members
 /// This is stored in a CloudKit shared zone for real-time family tracking
 @Model
-final class LiveTrackingSession {
+final class LiveTrackingSession: @unchecked Sendable {
     var id: UUID = UUID()
     var riderName: String = ""
     var riderID: String = ""  // iCloud user record ID
@@ -321,7 +321,7 @@ final class LiveTrackingSession {
 }
 
 /// A segment of the route with associated gait type for colour-coding
-struct GaitRouteSegment: Identifiable {
+nonisolated struct GaitRouteSegment: Identifiable {
     let id = UUID()
     let coordinates: [CLLocationCoordinate2D]
     let gaitType: GaitType

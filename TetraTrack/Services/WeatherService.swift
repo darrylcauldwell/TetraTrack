@@ -12,7 +12,7 @@ import Observation
 import os
 
 /// Weather conditions captured during an outdoor session
-struct WeatherConditions: Codable, Equatable, Sendable {
+nonisolated struct WeatherConditions: Codable, Equatable, Sendable {
     let timestamp: Date
     let temperature: Double  // Celsius
     let feelsLike: Double  // Celsius
@@ -399,7 +399,7 @@ final class WeatherService: WeatherFetching {
     // MARK: - Private Helpers
 
     /// Execute an async operation with a timeout
-    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    private func withTimeout<T: Sendable>(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> T) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
                 try await operation()

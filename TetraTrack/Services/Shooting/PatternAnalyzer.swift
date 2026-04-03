@@ -12,7 +12,7 @@ import CoreGraphics
 // MARK: - Pattern Analysis Result
 
 /// Comprehensive shot pattern analysis result
-struct PatternAnalysis: Codable, Equatable, Sendable {
+nonisolated struct PatternAnalysis: Codable, Equatable, Sendable {
     /// Mean Point of Impact (normalized coordinates)
     let mpi: NormalizedTargetPosition
 
@@ -137,7 +137,7 @@ struct PatternAnalysis: Codable, Equatable, Sendable {
 // MARK: - Directional Bias
 
 /// Analysis of systematic directional errors
-struct DirectionalBias: Codable, Equatable {
+nonisolated struct DirectionalBias: Codable, Equatable {
     /// Horizontal bias (-1 = left, +1 = right)
     let horizontalBias: Double
 
@@ -237,7 +237,7 @@ struct DirectionalBias: Codable, Equatable {
 // MARK: - Pattern Analyzer
 
 /// Analyzes shot patterns for statistical metrics and coaching insights
-struct PatternAnalyzer {
+nonisolated struct PatternAnalyzer {
 
     /// Minimum shots required for meaningful analysis
     static let minimumShotsForAnalysis = 3
@@ -377,7 +377,7 @@ struct PatternAnalyzer {
 // MARK: - Shot Protocol for Analysis
 
 /// Protocol for shots that can be analyzed
-protocol ShotForAnalysis {
+nonisolated protocol ShotForAnalysis {
     var normalizedPosition: NormalizedTargetPosition { get }
 }
 

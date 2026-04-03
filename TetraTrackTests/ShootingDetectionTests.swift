@@ -13,7 +13,7 @@ import UIKit
 
 // MARK: - Golden Master Test Infrastructure
 
-struct ShootingDetectionTests {
+@MainActor struct ShootingDetectionTests {
 
     // MARK: - Position Matching Tests
 
@@ -508,7 +508,7 @@ private struct TestShot: ShotForAnalysis {
 
 // MARK: - Golden Master Comparison Tests
 
-struct GoldenMasterComparisonTests {
+@MainActor struct GoldenMasterComparisonTests {
 
     @Test func compareDetectedPositionsWithGoldenMaster() {
         // This test structure validates detected positions against golden master
@@ -644,7 +644,7 @@ struct GoldenMasterComparisonTests {
 
 // MARK: - Batch Processing Tests
 
-struct BatchProcessingTests {
+@MainActor struct BatchProcessingTests {
 
     @Test func batchProcessorHandlesEmptyList() async {
         let processor = BatchPipelineProcessor()
@@ -687,7 +687,7 @@ struct BatchProcessingTests {
 
 // MARK: - Fixture Validation Tests
 
-struct FixtureValidationTests {
+@MainActor struct FixtureValidationTests {
 
     @Test func allFixturesHaveValidMetadata() {
         let registry = TargetFixtureRegistry.shared

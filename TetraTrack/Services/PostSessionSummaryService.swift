@@ -9,7 +9,7 @@
 import Foundation
 
 /// Post-session AI summary with praise and improvement opportunities
-struct SessionSummary: Codable {
+nonisolated struct SessionSummary: Codable {
     let generatedAt: Date
     let headline: String
     let praise: [String]

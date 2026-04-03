@@ -8,7 +8,7 @@ import Foundation
 
 // MARK: - Running Phase
 
-enum RunningPhase: String, Codable, CaseIterable, Identifiable {
+nonisolated enum RunningPhase: String, Codable, CaseIterable, Identifiable {
     case walking = "Walking"
     case jogging = "Jogging"
     case running = "Running"
@@ -76,7 +76,7 @@ protocol PhonePlacementConfigurable {
 // MARK: - Running Phase Breakdown
 
 /// Time spent in each running phase during a session
-struct RunningPhaseBreakdown: Codable {
+nonisolated struct RunningPhaseBreakdown: Codable {
     var walkingSeconds: TimeInterval = 0
     var joggingSeconds: TimeInterval = 0
     var runningSeconds: TimeInterval = 0

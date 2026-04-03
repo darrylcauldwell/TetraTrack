@@ -11,29 +11,27 @@ import os
 /// Centralized logging for TetraTrack watchOS app
 /// Usage: Log.watch.debug("Message") or Log.health.error("Error message")
 enum Log {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "TetraTrack.watchOS"
-
     /// Watch connectivity logging
-    static let watch = Logger(subsystem: subsystem, category: "Watch")
+    nonisolated static let watch = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Watch")
 
     /// HealthKit related logging
-    static let health = Logger(subsystem: subsystem, category: "Health")
+    nonisolated static let health = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Health")
 
     /// Location and motion logging
-    static let location = Logger(subsystem: subsystem, category: "Location")
+    nonisolated static let location = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Location")
 
     /// Workout/tracking logging
-    static let tracking = Logger(subsystem: subsystem, category: "Tracking")
+    nonisolated static let tracking = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Tracking")
 
     /// Session sync logging
-    static let sync = Logger(subsystem: subsystem, category: "Sync")
+    nonisolated static let sync = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Sync")
 
     /// Session storage logging
-    static let storage = Logger(subsystem: subsystem, category: "Storage")
+    nonisolated static let storage = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Storage")
 
     /// General app logging
-    static let app = Logger(subsystem: subsystem, category: "App")
+    nonisolated static let app = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "App")
 
     /// Safety/fall detection logging
-    static let safety = Logger(subsystem: subsystem, category: "Safety")
+    nonisolated static let safety = Logger(subsystem: "dev.dreamfold.TetraTrack.watchkitapp", category: "Safety")
 }

@@ -12,7 +12,7 @@ import SwiftUI
 
 /// Protocol defining common properties and methods for all training sessions
 /// Note: @Model classes already conform to Identifiable via the macro
-protocol TrainingSessionProtocol {
+nonisolated protocol TrainingSessionProtocol {
     var id: UUID { get }
     var startDate: Date { get set }
     var endDate: Date? { get set }
@@ -54,7 +54,7 @@ extension TrainingSessionProtocol {
 // MARK: - Pace-Based Session Protocol
 
 /// Protocol for sessions that track pace (Running, Swimming)
-protocol PaceBasedSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol PaceBasedSessionProtocol: TrainingSessionProtocol {
     var averagePace: TimeInterval { get }
     var formattedPace: String { get }
 }
@@ -68,7 +68,7 @@ extension PaceBasedSessionProtocol {
 // MARK: - Speed-Based Session Protocol
 
 /// Protocol for sessions that track speed
-protocol SpeedBasedSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol SpeedBasedSessionProtocol: TrainingSessionProtocol {
     var averageSpeed: Double { get }
     var formattedSpeed: String { get }
 }
@@ -82,7 +82,7 @@ extension SpeedBasedSessionProtocol {
 // MARK: - Elevation Session Protocol
 
 /// Protocol for sessions that track elevation
-protocol ElevationSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol ElevationSessionProtocol: TrainingSessionProtocol {
     var totalAscent: Double { get }
     var totalDescent: Double { get }
 }
@@ -104,7 +104,7 @@ extension ElevationSessionProtocol {
 // MARK: - Heart Rate Session Protocol
 
 /// Protocol for sessions that track heart rate
-protocol HeartRateSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol HeartRateSessionProtocol: TrainingSessionProtocol {
     var averageHeartRate: Int { get }
     var maxHeartRate: Int { get }
 }
@@ -122,7 +122,7 @@ extension HeartRateSessionProtocol {
 // MARK: - Cadence Session Protocol
 
 /// Protocol for sessions that track cadence/steps
-protocol CadenceSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol CadenceSessionProtocol: TrainingSessionProtocol {
     var averageCadence: Int { get }
     var maxCadence: Int { get }
 }
@@ -136,7 +136,7 @@ extension CadenceSessionProtocol {
 // MARK: - Split-Based Session Protocol
 
 /// Protocol for sessions with splits/laps
-protocol SplitBasedSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol SplitBasedSessionProtocol: TrainingSessionProtocol {
     associatedtype SplitType
     var splits: [SplitType] { get }
 }
@@ -144,7 +144,7 @@ protocol SplitBasedSessionProtocol: TrainingSessionProtocol {
 // MARK: - Interval Session Protocol
 
 /// Protocol for sessions with intervals
-protocol IntervalSessionProtocol: TrainingSessionProtocol {
+nonisolated protocol IntervalSessionProtocol: TrainingSessionProtocol {
     associatedtype IntervalType
     var intervals: [IntervalType] { get }
 }

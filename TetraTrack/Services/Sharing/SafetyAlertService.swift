@@ -55,7 +55,7 @@ actor SafetyAlertService {
 
     // MARK: Initialization
 
-    init(notificationManager: NotificationManager = .shared) {
+    init(notificationManager: NotificationManager) {
         self.notificationManager = notificationManager
     }
 

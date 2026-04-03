@@ -157,7 +157,7 @@ enum FlatworkCategory: String, Codable, CaseIterable, Identifiable {
 
 // MARK: - Flatwork Gait
 
-enum FlatworkGait: String, Codable, CaseIterable, Identifiable {
+nonisolated enum FlatworkGait: String, Codable, CaseIterable, Identifiable {
     case walk = "walk"
     case trot = "trot"
     case canter = "canter"

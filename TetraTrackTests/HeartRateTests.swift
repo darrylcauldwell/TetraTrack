@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import TetraTrack
 
-struct HeartRateTests {
+@MainActor struct HeartRateTests {
 
     // MARK: - Heart Rate Zone Tests
 

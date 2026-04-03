@@ -12,7 +12,7 @@ import CoreGraphics
 // MARK: - Validation Result
 
 /// Result of validating a shot or scan
-struct ValidationResult: Equatable {
+nonisolated struct ValidationResult: Equatable {
     let isValid: Bool
     let warnings: [ValidationWarning]
     let errors: [ValidationError]
@@ -38,7 +38,7 @@ struct ValidationResult: Equatable {
 }
 
 /// A non-fatal validation warning
-struct ValidationWarning: Equatable, Identifiable {
+nonisolated struct ValidationWarning: Equatable, Identifiable {
     let id: UUID
     let code: WarningCode
     let message: String
@@ -65,7 +65,7 @@ struct ValidationWarning: Equatable, Identifiable {
 }
 
 /// A fatal validation error
-struct ValidationError: Equatable, Identifiable, Error {
+nonisolated struct ValidationError: Equatable, Identifiable, Error {
     let id: UUID
     let code: ErrorCode
     let message: String
@@ -94,7 +94,7 @@ struct ValidationError: Equatable, Identifiable, Error {
 // MARK: - Shot Validator
 
 /// Validates individual shots and collections
-struct ShotValidator {
+nonisolated struct ShotValidator {
 
     /// Validate a single shot position
     static func validateShot(
@@ -312,7 +312,7 @@ struct ShotValidator {
 // MARK: - Validatable Shot Protocol
 
 /// Protocol for shots that can be validated
-protocol ValidatableShot {
+nonisolated protocol ValidatableShot {
     var normalizedPosition: NormalizedTargetPosition { get }
     var score: Int { get }
     var confidence: Double { get }

@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Movement pattern categories - the foundation of cross-discipline training
 /// "You're not training sports. You're training movement patterns."
-enum MovementCategory: String, CaseIterable, Codable, Identifiable {
+nonisolated enum MovementCategory: String, CaseIterable, Codable, Identifiable {
     case stability = "Stability"
     case balance = "Balance"
     case mobility = "Mobility"

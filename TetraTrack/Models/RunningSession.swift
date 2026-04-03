@@ -616,7 +616,7 @@ final class RunningSplit {
 
 // MARK: - Running Form Sample
 
-struct RunningFormSample: Codable, Identifiable, Sendable {
+nonisolated struct RunningFormSample: Codable, Identifiable, Sendable {
     public let id: UUID
     public let timestamp: Date
     public let cadence: Int       // spm
@@ -640,7 +640,7 @@ struct RunningFormSample: Codable, Identifiable, Sendable {
 
 // MARK: - Running Coaching Summary
 
-struct RunningCoachingSummary: Codable, Sendable {
+nonisolated struct RunningCoachingSummary: Codable, Sendable {
     var coachingLevelRaw: String = "full"
     var pbCheckpoints: [PBCheckpointRecord] = []
     var pbResult: PBResultRecord?
@@ -651,7 +651,7 @@ struct RunningCoachingSummary: Codable, Sendable {
     // coachingLevel removed — voice coaching deleted (#309)
 }
 
-struct PBCheckpointRecord: Codable, Identifiable, Sendable {
+nonisolated struct PBCheckpointRecord: Codable, Identifiable, Sendable {
     var id = UUID()
     var distanceFraction: Double     // 0.17, 0.33, 0.5, 0.67, 0.83
     var distanceMeters: Double
@@ -661,13 +661,13 @@ struct PBCheckpointRecord: Codable, Identifiable, Sendable {
     var delta: TimeInterval { currentTime - expectedTime }
 }
 
-struct PBResultRecord: Codable, Sendable {
+nonisolated struct PBResultRecord: Codable, Sendable {
     var finalTime: TimeInterval
     var pbTime: TimeInterval
     var isNewPB: Bool
 }
 
-struct PacerGapSnapshot: Codable, Identifiable, Sendable {
+nonisolated struct PacerGapSnapshot: Codable, Identifiable, Sendable {
     var id = UUID()
     var elapsedTime: TimeInterval
     var gapSeconds: TimeInterval
@@ -675,7 +675,7 @@ struct PacerGapSnapshot: Codable, Identifiable, Sendable {
     var isAhead: Bool
 }
 
-struct IntervalPerformanceRecord: Codable, Identifiable, Sendable {
+nonisolated struct IntervalPerformanceRecord: Codable, Identifiable, Sendable {
     var id = UUID()
     var intervalIndex: Int
     var phaseRaw: String             // "work", "rest", "warmup", "cooldown"
@@ -742,7 +742,7 @@ extension RunningSession {
 
 // MARK: - Running Session Type
 
-enum RunningSessionType: String, Codable, CaseIterable {
+nonisolated enum RunningSessionType: String, Codable, CaseIterable {
     case easy = "Easy Run"
     case tempo = "Tempo Run"
     case intervals = "Intervals"
@@ -791,7 +791,7 @@ enum RunningSessionType: String, Codable, CaseIterable {
 
 // MARK: - Running Mode
 
-enum RunningMode: String, Codable, CaseIterable {
+nonisolated enum RunningMode: String, Codable, CaseIterable {
     case outdoor = "Outdoor GPS"
     case track = "Track"
     case treadmill = "Treadmill"
@@ -813,7 +813,7 @@ enum RunningMode: String, Codable, CaseIterable {
 
 // MARK: - Pace Zones
 
-enum RunningPaceZone: Int, CaseIterable {
+nonisolated enum RunningPaceZone: Int, CaseIterable {
     case recovery = 1
     case easy = 2
     case aerobic = 3
@@ -876,7 +876,7 @@ enum RunningPaceZone: Int, CaseIterable {
 
 // MARK: - Race Predictor
 
-struct RacePredictor {
+nonisolated struct RacePredictor {
     let recentTimeTrial: TimeTrialResult
 
     /// Predict race time using Riegel formula
@@ -927,7 +927,7 @@ struct RacePredictor {
     }
 }
 
-struct TimeTrialResult {
+nonisolated struct TimeTrialResult {
     let distance: Double // meters
     let time: TimeInterval
     let date: Date
@@ -941,7 +941,7 @@ struct TimeTrialResult {
     }
 }
 
-struct RacePrediction: Identifiable {
+nonisolated struct RacePrediction: Identifiable {
     let id = UUID()
     let raceName: String
     let distance: Double
@@ -959,7 +959,7 @@ struct RacePrediction: Identifiable {
 
 // MARK: - 1500m Time Trial
 
-struct FifteenHundredTimeTrial {
+nonisolated struct FifteenHundredTimeTrial {
     let time: TimeInterval
     let date: Date
     let splits: [TimeInterval] // 300m or 400m splits
@@ -1118,7 +1118,7 @@ extension RunningSession {
 
 /// Result from segment PB analysis on a completed run.
 /// SegmentPBAnalyzer has been removed — this struct remains for decoding legacy segmentPBData.
-struct SegmentPBResult: Codable, Identifiable, Sendable {
+nonisolated struct SegmentPBResult: Codable, Identifiable, Sendable {
     var id: UUID = UUID()
     let segmentName: String
     let distance: Double          // meters
@@ -1139,8 +1139,8 @@ struct SegmentPBResult: Codable, Identifiable, Sendable {
 /// Pace preset for virtual pacer (legacy — VirtualPacer removed, kept for RunningComponents display)
 /// Running personal bests stored in iCloud KV store.
 /// Kept for Settings display — no longer updated by running capture.
-struct RunningPersonalBests {
-    static var shared = RunningPersonalBests()
+nonisolated struct RunningPersonalBests {
+    nonisolated(unsafe) static var shared = RunningPersonalBests()
 
     private let store = NSUbiquitousKeyValueStore.default
 
@@ -1226,7 +1226,7 @@ struct RunningPersonalBests {
     }
 }
 
-struct PacePreset: Identifiable, Sendable {
+nonisolated struct PacePreset: Identifiable, Sendable {
     let id = UUID()
     let name: String
     let pacePerKm: TimeInterval // seconds per km
