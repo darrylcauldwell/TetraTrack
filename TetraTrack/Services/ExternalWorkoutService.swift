@@ -52,10 +52,10 @@ final class ExternalWorkoutService {
             return
         }
 
-        // Filter out TetraTrack's own workouts by bundle ID and UUID cross-reference
+        // Include all workouts — Watch-primary architecture means TetraTrack Watch
+        // workouts are the primary source and should appear in Session History.
+        // Only filter out workouts that already have a linked SwiftData record (by UUID).
         let externalOnly = hkWorkouts.filter { workout in
-            let bundleId = workout.sourceRevision.source.bundleIdentifier
-            if bundleId.hasPrefix(Self.tetraTrackBundlePrefix) { return false }
             if knownUUIDs.contains(workout.uuid.uuidString) { return false }
             return true
         }
