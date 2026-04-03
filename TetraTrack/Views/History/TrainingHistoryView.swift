@@ -146,11 +146,40 @@ struct SessionHistoryView: View {
                 iPhoneLayout
             }
         }
-        .navigationTitle("Training History")
+        .navigationTitle("Session History")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let dismissAction = onDismiss {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismissAction() }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(HistoryTab.allCases, id: \.self) { tab in
+                        Button {
+                            selectedTab = tab
+                        } label: {
+                            if tab == selectedTab {
+                                Label(tab.rawValue, systemImage: "checkmark")
+                            } else {
+                                Label(tab.rawValue, systemImage: tab.icon)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: selectedTab.icon)
+                        Text(selectedTab.rawValue)
+                            .font(.subheadline)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemGray5))
+                    .foregroundStyle(.primary)
+                    .clipShape(Capsule())
                 }
             }
         }
@@ -183,16 +212,6 @@ struct SessionHistoryView: View {
     private var iPadLayout: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                // Tab picker in sidebar
-                Picker("View", selection: $selectedTab) {
-                    ForEach(HistoryTab.allCases, id: \.self) { tab in
-                        Label(tab.rawValue, systemImage: tab.icon)
-                            .tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-
                 switch selectedTab {
                 case .sessions:
                     iPadSessionsList
@@ -210,7 +229,6 @@ struct SessionHistoryView: View {
                     UnifiedCoachingDashboardView()
                 }
             }
-            .navigationTitle("Session History")
         } detail: {
             if selectedTab == .sessions {
                 if let item = selectedItem {
@@ -358,17 +376,6 @@ struct SessionHistoryView: View {
 
     private var iPhoneLayout: some View {
         VStack(spacing: 0) {
-            // Tab picker for Sessions vs Session Insights
-            Picker("View", selection: $selectedTab) {
-                ForEach(HistoryTab.allCases, id: \.self) { tab in
-                    Label(tab.rawValue, systemImage: tab.icon)
-                        .tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.top)
-
             switch selectedTab {
             case .sessions:
                 sessionsView
