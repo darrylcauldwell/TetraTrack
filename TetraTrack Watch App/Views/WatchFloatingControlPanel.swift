@@ -18,6 +18,7 @@ struct SessionPager<Content: View>: View {
 
     @Environment(WorkoutManager.self) private var workoutManager
     @State private var selectedPage: Int = 0
+    @State private var showingStopConfirmation = false
 
     var body: some View {
         TabView(selection: $selectedPage) {
@@ -30,10 +31,21 @@ struct SessionPager<Content: View>: View {
                 .tag(1)
         }
         .tabViewStyle(.page)
+        .confirmationDialog("End \(disciplineName)?", isPresented: $showingStopConfirmation) {
+            Button("Save \(disciplineName)") {
+                Task {
+                    await workoutManager.stopWorkout()
+                }
+            }
+            Button("Discard", role: .destructive) {
+                Task { await workoutManager.discardWorkout() }
+            }
+            Button("Continue", role: .cancel) {}
+        }
     }
 
     private var controlsPage: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             // Discipline header
             HStack(spacing: 6) {
                 Image(systemName: disciplineIcon)
@@ -44,56 +56,39 @@ struct SessionPager<Content: View>: View {
 
             // Timer
             Text(workoutManager.formattedElapsedTime)
-                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .font(.system(size: 28, weight: .bold, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(workoutManager.isPaused ? .secondary : .primary)
 
-            // Pause/Resume
-            Button {
-                if workoutManager.isPaused {
-                    workoutManager.resumeWorkout()
-                } else {
-                    workoutManager.pauseWorkout()
-                }
-                selectedPage = 0
-            } label: {
-                Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .frame(width: 50, height: 50)
-                    .background(Circle().fill(.orange))
-            }
-            .buttonStyle(.plain)
-
-            // Save + Discard buttons (direct, no confirmation dialog)
-            HStack(spacing: 16) {
+            // Pause/Resume + Stop buttons
+            HStack(spacing: 20) {
                 Button {
-                    Task { await workoutManager.stopWorkout() }
+                    if workoutManager.isPaused {
+                        workoutManager.resumeWorkout()
+                    } else {
+                        workoutManager.pauseWorkout()
+                    }
+                    selectedPage = 0
                 } label: {
-                    Text("Save")
-                        .font(.caption.bold())
+                    Image(systemName: workoutManager.isPaused ? "play.fill" : "pause.fill")
+                        .font(.title2)
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background(Color.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(.orange))
                 }
                 .buttonStyle(.plain)
 
-                Button(role: .destructive) {
-                    Task { await workoutManager.discardWorkout() }
+                Button {
+                    showingStopConfirmation = true
                 } label: {
-                    Text("Discard")
-                        .font(.caption.bold())
+                    Image(systemName: "stop.fill")
+                        .font(.title2)
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background(WatchAppColors.error)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(width: 60, height: 60)
+                        .background(Circle().fill(WatchAppColors.error))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
         }
     }
 }
