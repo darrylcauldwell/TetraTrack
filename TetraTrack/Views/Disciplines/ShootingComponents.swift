@@ -1766,7 +1766,7 @@ private struct ShootingPhotoThumbnail: View {
         }
 
         let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
+        options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
 
         let size = CGSize(width: 240, height: 240)
