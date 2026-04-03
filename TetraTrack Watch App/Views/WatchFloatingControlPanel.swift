@@ -19,6 +19,11 @@ struct SessionPager<Content: View>: View {
     @Environment(WorkoutManager.self) private var workoutManager
     @State private var selectedPage: Int = 0
     @State private var showingStopConfirmation = false
+    @State private var pendingAction: SessionAction?
+
+    enum SessionAction {
+        case save, discard
+    }
 
     var body: some View {
         TabView(selection: $selectedPage) {
@@ -33,14 +38,24 @@ struct SessionPager<Content: View>: View {
         .tabViewStyle(.page)
         .confirmationDialog("End \(disciplineName)?", isPresented: $showingStopConfirmation) {
             Button("Save \(disciplineName)") {
-                Task {
-                    await workoutManager.stopWorkout()
-                }
+                pendingAction = .save
             }
             Button("Discard", role: .destructive) {
-                Task { await workoutManager.discardWorkout() }
+                pendingAction = .discard
             }
             Button("Continue", role: .cancel) {}
+        }
+        .onChange(of: pendingAction) { _, action in
+            guard let action else { return }
+            pendingAction = nil
+            Task {
+                switch action {
+                case .save:
+                    await workoutManager.stopWorkout()
+                case .discard:
+                    await workoutManager.discardWorkout()
+                }
+            }
         }
     }
 
