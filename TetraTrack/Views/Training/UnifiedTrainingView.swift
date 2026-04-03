@@ -26,7 +26,7 @@ struct UnifiedTrainingView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Practice Scoring
+                    // Shot Analysis
                     Button { showingPracticeScoring = true } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "target")
@@ -34,10 +34,10 @@ struct UnifiedTrainingView: View {
                                 .foregroundStyle(.blue)
                                 .frame(width: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Practice Scoring")
+                                Text("Shot Analysis")
                                     .font(.headline)
                                     .foregroundStyle(.primary)
-                                Text("Scan and mark targets")
+                                Text("Scan, mark, and analyse")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
