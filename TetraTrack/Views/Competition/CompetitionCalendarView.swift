@@ -11,30 +11,25 @@ import WidgetKit
 
 // MARK: - Calendar Event
 
+// Simplified — deadline events removed (#312)
 enum CalendarEvent: Identifiable {
     case competition(Competition)
-    case entryDeadline(Competition)
-    case stableDeadline(Competition)
 
     var id: String {
         switch self {
         case .competition(let c): return "comp-\(c.id)"
-        case .entryDeadline(let c): return "deadline-\(c.id)"
-        case .stableDeadline(let c): return "stable-\(c.id)"
         }
     }
 
     var date: Date {
         switch self {
         case .competition(let c): return c.date
-        case .entryDeadline(let c): return c.entryDeadline ?? c.date
-        case .stableDeadline(let c): return c.stableDeadline ?? c.date
         }
     }
 
     var competition: Competition {
         switch self {
-        case .competition(let c), .entryDeadline(let c), .stableDeadline(let c): return c
+        case .competition(let c): return c
         }
     }
 
@@ -126,31 +121,7 @@ struct CompetitionCalendarView: View {
                 result.append(compEvent)
             }
 
-            // Add entry deadline event if deadline exists
-            if competition.entryDeadline != nil {
-                let deadlineEvent = CalendarEvent.entryDeadline(competition)
-                switch viewMode {
-                case .upcoming:
-                    if deadlineEvent.isUpcoming { result.append(deadlineEvent) }
-                case .past:
-                    if deadlineEvent.isPast { result.append(deadlineEvent) }
-                case .all:
-                    result.append(deadlineEvent)
-                }
-            }
-
-            // Add stable deadline event if deadline exists
-            if competition.stableDeadline != nil {
-                let stableEvent = CalendarEvent.stableDeadline(competition)
-                switch viewMode {
-                case .upcoming:
-                    if stableEvent.isUpcoming { result.append(stableEvent) }
-                case .past:
-                    if stableEvent.isPast { result.append(stableEvent) }
-                case .all:
-                    result.append(stableEvent)
-                }
-            }
+            // Deadline events removed (#312)
         }
 
         // Sort based on view mode
@@ -410,23 +381,10 @@ struct CompetitionCalendarView: View {
                 } else {
                     LazyVStack(spacing: 12) {
                         ForEach(filteredEvents) { event in
-                            switch event {
-                            case .competition(let competition):
-                                CompetitionRowView(competition: competition)
-                                    .onTapGesture {
-                                        selectedCompetition = competition
-                                    }
-                            case .entryDeadline(let competition):
-                                EntryDeadlineRowView(competition: competition)
-                                    .onTapGesture {
-                                        selectedCompetition = competition
-                                    }
-                            case .stableDeadline(let competition):
-                                StableDeadlineRowView(competition: competition)
-                                    .onTapGesture {
-                                        selectedCompetition = competition
-                                    }
-                            }
+                            CompetitionRowView(competition: event.competition)
+                                .onTapGesture {
+                                    selectedCompetition = event.competition
+                                }
                         }
                     }
                     .padding(.horizontal)

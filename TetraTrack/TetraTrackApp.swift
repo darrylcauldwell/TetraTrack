@@ -294,7 +294,7 @@ struct TetraTrackApp: App {
             UnifiedSharingCoordinator.shared.resumeWatchingForForeground()
 
             // Re-index competitions for Maps and Siri Suggestions
-            indexUpcomingCompetitions()
+            // indexUpcomingCompetitions removed (#312)
 
             Log.app.info("App became active - restored download state and re-indexed competitions")
 
@@ -355,8 +355,7 @@ struct TetraTrackApp: App {
         SwimmingPersonalBests.migrateFromUserDefaults()
         ShootingPersonalBests.migrateFromUserDefaults()
 
-        // Index upcoming competitions for Maps and Siri Suggestions
-        indexUpcomingCompetitions()
+        // Competition indexing removed (#312)
 
         isConfigured = true
 
@@ -427,21 +426,7 @@ struct TetraTrackApp: App {
         }
     }
 
-    private func indexUpcomingCompetitions() {
-        let context = sharedModelContainer.mainContext
-        let now = Date()
-        let descriptor = FetchDescriptor<Competition>(
-            predicate: #Predicate<Competition> { $0.isEntered && $0.date > now },
-            sortBy: [SortDescriptor(\.date)]
-        )
-
-        do {
-            let competitions = try context.fetch(descriptor)
-            CompetitionUserActivityService.shared.indexUpcomingCompetitions(competitions)
-        } catch {
-            Log.app.error("Failed to fetch competitions for indexing: \(error)")
-        }
-    }
+    // indexUpcomingCompetitions removed — Siri Shortcuts deleted (#312)
 
     // Voice coaching functions removed (#309)
     private func announceCurrentStatus() {}

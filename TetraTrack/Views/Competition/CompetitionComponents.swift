@@ -752,11 +752,7 @@ struct CompetitionDetailView: View {
                     }
                     .padding(.horizontal)
 
-                    // Preparation tasks (SwiftData-backed) - only show for upcoming competitions
-                    if !competition.isPast {
-                        CompetitionTasksSection(competition: competition)
-                            .padding(.horizontal)
-                    }
+                    // Prep tasks removed (#312)
 
                     // Delete button
                     Button(role: .destructive) {
@@ -784,24 +780,7 @@ struct CompetitionDetailView: View {
                 CompetitionScorecardView(competition: competition)
             }
             .sheet(isPresented: $showingMediaEditor) {
-                CompetitionMediaEditorView(competition: competition)
-            }
-            .sheet(item: $selectedVideo) { video in
-                VideoPlayerView(asset: video)
-            }
-            .task {
-                await loadMedia()
-            }
-            .onAppear {
-                // Donate user activity for Maps and Siri Suggestions
-                let activity = CompetitionUserActivityService.shared.createActivity(for: competition)
-                activity.becomeCurrent()
-                userActivity = activity
-            }
-            .onDisappear {
-                // Resign activity when leaving the view
-                userActivity?.resignCurrent()
-                userActivity = nil
+                // Media editor, video player, Siri activity removed (#312)
             }
             .confirmationDialog("Delete Competition", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
