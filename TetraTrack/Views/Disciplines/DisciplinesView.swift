@@ -22,8 +22,6 @@ struct DisciplinesView: View {
 
                     competitionsSection
                     trainingDrillsSection
-                    practiceScoring
-                    // Competition scoring removed — covered by Competition Day (#312)
                     exerciseLibrarySection
                     liveSharingSection
                     sessionHistorySection
@@ -64,76 +62,6 @@ struct DisciplinesView: View {
             DisciplineCard(title: "Training", subtitle: "Riding, shooting, and fitness drills", icon: "figure.run.circle", color: .blue)
         }
         .buttonStyle(.plain)
-    }
-
-    @State private var showingPracticeScoring = false
-    @State private var showingPracticeHistory = false
-    @State private var practiceHistoryFilter: DateFilterOption?
-    @State private var showingCompetitionScoring = false
-
-    private var practiceScoring: some View {
-        Button { showingPracticeScoring = true } label: {
-            DisciplineCard(title: "Practice Scoring", subtitle: "Scan and mark any number of holes", icon: "target", color: .blue)
-        }
-        .buttonStyle(.plain)
-        .fullScreenCover(isPresented: $showingPracticeScoring) {
-            NavigationStack {
-                FreePracticeView(
-                    onEnd: { showingPracticeScoring = false },
-                    onAnalysisComplete: {
-                        showingPracticeScoring = false
-                        practiceHistoryFilter = .today
-                        Task {
-                            try? await Task.sleep(for: .seconds(0.3))
-                            showingPracticeHistory = true
-                        }
-                    },
-                    onNavigateToHistory: { filter in
-                        showingPracticeScoring = false
-                        practiceHistoryFilter = filter
-                        Task {
-                            try? await Task.sleep(for: .seconds(0.3))
-                            showingPracticeHistory = true
-                        }
-                    }
-                )
-                .navigationTitle("Practice Scoring")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") { showingPracticeScoring = false }
-                    }
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showingPracticeHistory) {
-            ShootingHistoryAggregateView(
-                onDismiss: {
-                    showingPracticeHistory = false
-                    practiceHistoryFilter = nil
-                },
-                initialDateFilter: practiceHistoryFilter
-            )
-        }
-    }
-
-    private var competitionScoring: some View {
-        Button { showingCompetitionScoring = true } label: {
-            DisciplineCard(title: "Competition Scoring", subtitle: "5 holes per card, 2 cards", icon: "camera.viewfinder", color: AppColors.shooting)
-        }
-        .buttonStyle(.plain)
-        .fullScreenCover(isPresented: $showingCompetitionScoring) {
-            NavigationStack {
-                ShootingPracticeView()
-                    .navigationTitle("Competition Scoring")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { showingCompetitionScoring = false }
-                        }
-                    }
-            }
-        }
     }
 
     private var exerciseLibrarySection: some View {

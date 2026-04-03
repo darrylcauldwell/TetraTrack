@@ -14,6 +14,9 @@ struct UnifiedTrainingView: View {
 
     @State private var selectedDiscipline: TrainingDiscipline?
     @State private var selectedDrill: UnifiedDrillType?
+    @State private var showingPracticeScoring = false
+    @State private var showingPracticeHistory = false
+    @State private var practiceHistoryFilter: DateFilterOption?
 
     init(initialDiscipline: TrainingDiscipline? = nil) {
         _selectedDiscipline = State(initialValue: initialDiscipline)
@@ -23,6 +26,32 @@ struct UnifiedTrainingView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Practice Scoring
+                    Button { showingPracticeScoring = true } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "target")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
+                                .frame(width: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Practice Scoring")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text("Scan and mark targets")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding()
+                        .background(AppColors.cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+
                     // Drill Categories
                     ForEach(categoriesForDiscipline) { category in
                         let drills = UnifiedDrillType.drills(for: selectedDiscipline, in: category)
@@ -50,6 +79,45 @@ struct UnifiedTrainingView: View {
             }
             .fullScreenCover(item: $selectedDrill) { drill in
                 DrillViewFactory.view(for: drill, modelContext: modelContext)
+            }
+            .fullScreenCover(isPresented: $showingPracticeScoring) {
+                NavigationStack {
+                    FreePracticeView(
+                        onEnd: { showingPracticeScoring = false },
+                        onAnalysisComplete: {
+                            showingPracticeScoring = false
+                            practiceHistoryFilter = .today
+                            Task {
+                                try? await Task.sleep(for: .seconds(0.3))
+                                showingPracticeHistory = true
+                            }
+                        },
+                        onNavigateToHistory: { filter in
+                            showingPracticeScoring = false
+                            practiceHistoryFilter = filter
+                            Task {
+                                try? await Task.sleep(for: .seconds(0.3))
+                                showingPracticeHistory = true
+                            }
+                        }
+                    )
+                    .navigationTitle("Practice Scoring")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showingPracticeScoring = false }
+                        }
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showingPracticeHistory) {
+                ShootingHistoryAggregateView(
+                    onDismiss: {
+                        showingPracticeHistory = false
+                        practiceHistoryFilter = nil
+                    },
+                    initialDateFilter: practiceHistoryFilter
+                )
             }
             .sheetBackground()
         }
