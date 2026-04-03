@@ -1,41 +1,44 @@
-Your horse just spooked at a plastic bag. Again. But don't worry — TetraTrack was still tracking your involuntary canter transition.
+Your horse just spooked at a plastic bag. Again. But don't worry — TetraTrack was still recording on your wrist.
 
 Welcome to the only training app that actually gets tetrathlon and eventing. We know you're not just a runner who occasionally sits on a horse, or a swimmer who dabbles in target practice. You're gloriously, chaotically multi-talented — and finally, there's an app for that.
 
-AUTOMATIC GAIT DETECTION (AKA MAGIC)
+APPLE WATCH FIRST
 
-TetraTrack knows when you're walking, trotting, cantering, or executing an unplanned gallop toward the gate. No buttons to press. No "was that a canter or a very enthusiastic trot?" debates. Just ride, and watch your route paint itself in gorgeous gait-coloured glory.
+Start every session from your wrist. Riding, running, swimming, walking, shooting — tap and go. Big buttons for gloved fingers, live heart rate, discipline-specific metrics. No phone fishing required.
 
-Secretly favouring your left rein? We'll notice. Spending 90% of your "canter fitness session" in walk? The numbers don't lie. But we won't judge — much.
+Your iPhone is the brains of the operation — enriching every session with detailed metrics, insights, route maps, and coaching after you're done. Watch captures, iPhone reviews.
 
-YOUR AI COACH (WHO NEVER GETS TIRED OF YOUR QUESTIONS)
+FIVE DISCIPLINES, ONE SLIGHTLY OBSESSIVE APP
 
-Powered by Apple Intelligence, TetraTrack analyses every session and actually tells you something useful:
+RIDING — Start from Watch with ride, dressage, or showjumping modes. iPhone enriches with HR zones, route, elevation, and weather. Annotate with horse, scores, and notes. Manage multiple horses with profiles and training histories.
 
-"Lovely balanced session today! Your rhythm scores are up 15% this week. Maybe add some walk breaks next time — your heart rate was working harder than your horse."
+RUNNING — Pace and cadence tracked live on Watch. iPhone shows splits, HR analysis, and session insights. Pre-race 1500m warmup plan included.
 
-Ask anything: "Show me rides where I worked on collection" or "Why am I always slower on Mondays?" It's like having a coach in your pocket, minus the shouting.
+SWIMMING — Lap count and stroke detection on Watch. iPhone reviews pace, SWOLF, and lap-by-lap breakdowns.
 
-FOUR DISCIPLINES, ONE SLIGHTLY OBSESSIVE APP
+WALKING — Steps per minute and distance on Watch. iPhone enriches with route and heart rate data.
 
-• RIDING — GPS tracking, gait detection, balance analysis, lead detection, rider symmetry, elevation profiles, and yes, we'll find photos you took mid-hack
-• RUNNING — 1500m time trials with virtual pacer (race your ghost!), intervals, treadmill mode for hamster wheel days, and AirPods coaching that reminds you to stop hunching
-• SWIMMING — 3-minute test simulation, automatic stroke counting via Apple Watch, SWOLF scores to obsess over, and lap-by-lap breakdowns
-• SHOOTING — Competition cards, stance stability tracking (your Watch knows when you're wobbling), dry fire drills, and AI pattern analysis that's surprisingly honest
+SHOOTING — Steadiness and heart rate tracked live on Watch. Scan targets with iPhone camera for shot analysis — mark holes, see heatmaps, track groupings.
 
-FAMILY SAFETY (KEEP MUM HAPPY)
+TRAINING DRILLS
 
-Riding alone doesn't mean being alone. Share your live location so family can see exactly where you are, what gait you're in, and panic slightly less.
+Off-horse and off-range drills to build the movement patterns that transfer across all disciplines. Core stability, balance board, posting rhythm, hip mobility, steady hold, dry fire, reaction training, and more. Real-time motion feedback scores your form as you go.
 
-Fall detection uses a clever 2-phase system — we check for impact, then check if you're still moving. Apple Watch heart rate helps too. If you don't respond, we alert your trusted contacts with your GPS location. Safety first, dramatic dismounts second.
+SCHOOLING LIBRARY
 
-APPLE WATCH: BIG BUTTONS FOR GLOVED FINGERS
+Flatwork, polework, and groundwork exercises with step-by-step instructions. Category-organised, searchable, and always available — no internet needed.
 
-We made the buttons huge. Like, comically large. Because we've tried tapping tiny icons in winter gloves and it's not fun. Heart rate zones, gait breakdown, session stats — all on your wrist without fishing your phone out of your pocket.
+COMPETITION SEASON
 
-COMPETITION READY
+Track your Pony Club calendar with countdown timers and competition day scoring. Record riding penalties, shooting points, running times, and swimming distances all in one place.
 
-Track your entire Pony Club season with countdown timers, task checklists (pack the hairnets!), and competition results. Manage multiple horses with profiles, training histories, and smart workload recommendations so you know who's ready to work and who needs a spa day.
+LIVE SHARING (KEEP MUM HAPPY)
+
+Riding alone doesn't mean being alone. Share your live location so family can see exactly where you are and panic slightly less.
+
+SESSION HISTORY
+
+Every session — Watch workouts, drills, and external activities — in one colour-coded timeline. Discipline-specific metrics, coaching insights, and training load trends.
 
 PRIVACY FIRST
 
@@ -43,6 +46,6 @@ Your data stays on your devices. Apple Intelligence processes locally. We're not
 
 ---
 
-Requires iOS 26+. Apple Watch features require watchOS 26+. Apple Intelligence features require iPhone 15 Pro or later.
+Requires iOS 26+. Apple Watch required for session capture (watchOS 26+). Apple Intelligence features require iPhone 15 Pro or later.
 
 Train. Track. Triumph. (Try not to spook at the plastic bags.)

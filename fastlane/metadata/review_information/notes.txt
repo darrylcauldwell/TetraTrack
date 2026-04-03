@@ -1,19 +1,21 @@
-TetraTrack is a multi-discipline training app for tetrathlon and eventing athletes.
+TetraTrack is a multi-discipline training app for tetrathlon and eventing athletes. Apple Watch is the primary session capture device — iPhone is for review, annotation, and training.
 
-LOCATION PERMISSION: The app requests location access to record GPS routes during riding, running, and open water swimming sessions. Background location is used so tracking continues when the screen locks during active exercise sessions. The app uses CLBackgroundActivitySession (iOS 17+) for fitness tracking.
+LOCATION PERMISSION: Used to record GPS routes during Watch workouts and for live location sharing with family. Background location enables tracking when the screen locks during active exercise.
 
-HEALTHKIT: Used to save workouts to Apple Health and read heart rate data from Apple Watch during sessions.
+HEALTHKIT: Watch saves workouts to Apple Health. iPhone reads heart rate, route, and activity metrics for post-session enrichment and insights.
 
-CAMERA: Used to scan shooting target cards and detect shot holes for scoring.
+CAMERA: Used to scan shooting targets and mark shot holes for analysis.
 
-MICROPHONE: Used for hands-free voice notes during training sessions (e.g. while riding).
+MICROPHONE: Used for voice notes during training sessions.
 
-APPLE WATCH: The Watch companion app provides glove-friendly controls for starting/stopping sessions, viewing live stats, and heart rate monitoring.
+APPLE WATCH: Required for session capture. All five disciplines (riding, running, swimming, walking, shooting) start and record on Watch.
 
 To test the app:
-1. Grant location permission when prompted
-2. Tap any discipline (Riding, Running, Swimming, Shooting) from the home screen
-3. For Riding: Select a horse, tap the green Start button to begin GPS tracking
-4. For Running: Choose between outdoor run, treadmill, or time trial
-5. For Swimming: Choose pool or open water mode
-6. Settings > Generate Screenshot Data creates sample data for browsing features
+1. Grant permissions when prompted
+2. Home screen shows: Training, Schooling, Competitions, Session History, Live Sharing
+3. Training: Browse drills by discipline, start a drill for real-time motion feedback
+4. Training > Shot Analysis: Scan a shooting target with camera, mark holes
+5. Schooling: Browse flatwork, polework, and groundwork exercises
+6. Competitions: View calendar, record competition day scores
+7. Session History: View completed Watch workouts and drill sessions
+8. On Apple Watch: Swipe between 5 discipline pages, tap to start a session

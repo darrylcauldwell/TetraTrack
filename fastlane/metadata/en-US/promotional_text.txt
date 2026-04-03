@@ -1,1 +1,1 @@
-Finally! An app that knows the difference between a canter and an "enthusiastic trot". AI coaching, gait detection, fall alerts. Your horse approves. Probably.
+The tetrathlon training app built for Apple Watch. Five disciplines, training drills, schooling exercises, competition tracking. Your horse approves. Probably.
