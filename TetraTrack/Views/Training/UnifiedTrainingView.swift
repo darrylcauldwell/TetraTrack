@@ -14,10 +14,6 @@ struct UnifiedTrainingView: View {
 
     @State private var selectedDiscipline: TrainingDiscipline?
     @State private var selectedDrill: UnifiedDrillType?
-    @State private var showCoaching = false
-    // showDrillHistory and showTrainingWeek removed (#310)
-    @State private var showCompetitionSimulation = false
-    @State private var showChallenges = false
 
     init(initialDiscipline: TrainingDiscipline? = nil) {
         _selectedDiscipline = State(initialValue: initialDiscipline)
@@ -27,13 +23,7 @@ struct UnifiedTrainingView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Discipline Filter
-                    disciplinePicker
-
-                    // Special Training Modes
-                    specialTrainingSection
-
-                    // Drill Categories (Cross-discipline insights now in Coaching view)
+                    // Drill Categories
                     ForEach(categoriesForDiscipline) { category in
                         let drills = UnifiedDrillType.drills(for: selectedDiscipline, in: category)
                         if !drills.isEmpty {
@@ -52,122 +42,46 @@ struct UnifiedTrainingView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Drills")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    disciplinePicker
+                }
+            }
             .fullScreenCover(item: $selectedDrill) { drill in
                 DrillViewFactory.view(for: drill, modelContext: modelContext)
             }
-            // Drill history moved to Session History, training calendar removed (#310)
-            .sheet(isPresented: $showCompetitionSimulation) {
-                CompetitionSimulationView()
-            }
-            .sheet(isPresented: $showChallenges) {
-                CrossDisciplineChallengeView()
-            }
             .sheetBackground()
-        }
-    }
-
-    // MARK: - Special Training Section
-
-    private var specialTrainingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Training Modes")
-                .font(.headline)
-                .padding(.horizontal, 4)
-
-            HStack(spacing: 12) {
-                // Competition Simulation
-                Button {
-                    showCompetitionSimulation = true
-                } label: {
-                    VStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.yellow.opacity(0.2))
-                                .frame(width: 50, height: 50)
-                            Image(systemName: "flag.checkered")
-                                .font(.title2)
-                                .foregroundStyle(.yellow)
-                        }
-                        Text("Competition\nSimulation")
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.primary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(AppColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
-
-                // Cross-Discipline Challenges
-                Button {
-                    showChallenges = true
-                } label: {
-                    VStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.purple.opacity(0.2))
-                                .frame(width: 50, height: 50)
-                            Image(systemName: "trophy.fill")
-                                .font(.title2)
-                                .foregroundStyle(.purple)
-                        }
-                        Text("Cross-Discipline\nChallenges")
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.primary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(AppColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
     // MARK: - Discipline Picker
 
     private var disciplinePicker: some View {
-        HStack {
-            Menu {
-                Button("All Disciplines") { selectedDiscipline = nil }
-                Divider()
-                ForEach(TrainingDiscipline.drillDisciplines) { discipline in
-                    Button {
-                        selectedDiscipline = discipline
-                    } label: {
-                        Label(discipline.displayName, systemImage: discipline.icon)
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: selectedDiscipline?.icon ?? "square.grid.2x2")
-                    Text(selectedDiscipline?.displayName ?? "All Disciplines")
-                        .font(.subheadline)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(selectedDiscipline != nil ? (selectedDiscipline?.color ?? .mint) : Color(.systemGray5))
-                .foregroundStyle(selectedDiscipline != nil ? .white : .primary)
-                .clipShape(Capsule())
-            }
-
-            if selectedDiscipline != nil {
-                Button { selectedDiscipline = nil } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+        Menu {
+            Button("All Disciplines") { selectedDiscipline = nil }
+            Divider()
+            ForEach(TrainingDiscipline.drillDisciplines) { discipline in
+                Button {
+                    selectedDiscipline = discipline
+                } label: {
+                    Label(discipline.displayName, systemImage: discipline.icon)
                 }
             }
-
-            Spacer()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: selectedDiscipline?.icon ?? "square.grid.2x2")
+                Text(selectedDiscipline?.displayName ?? "All Disciplines")
+                    .font(.subheadline)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(selectedDiscipline != nil ? (selectedDiscipline?.color ?? .mint) : Color(.systemGray5))
+            .foregroundStyle(selectedDiscipline != nil ? .white : .primary)
+            .clipShape(Capsule())
         }
-        .padding(.horizontal, 4)
     }
 
     // MARK: - Categories for Selected Discipline
