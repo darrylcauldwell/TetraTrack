@@ -146,7 +146,6 @@ struct SessionHistoryView: View {
                 iPhoneLayout
             }
         }
-        .navigationTitle("Session History")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let dismissAction = onDismiss {
@@ -154,33 +153,11 @@ struct SessionHistoryView: View {
                     Button("Close") { dismissAction() }
                 }
             }
+            ToolbarItem(placement: .topBarLeading) {
+                disciplineFilterMenu
+            }
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    ForEach(HistoryTab.allCases, id: \.self) { tab in
-                        Button {
-                            selectedTab = tab
-                        } label: {
-                            if tab == selectedTab {
-                                Label(tab.rawValue, systemImage: "checkmark")
-                            } else {
-                                Label(tab.rawValue, systemImage: tab.icon)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: selectedTab.icon)
-                        Text(selectedTab.rawValue)
-                            .font(.subheadline)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemGray5))
-                    .foregroundStyle(.primary)
-                    .clipShape(Capsule())
-                }
+                tabPickerMenu
             }
         }
         .onAppear {
@@ -394,41 +371,70 @@ struct SessionHistoryView: View {
         }
     }
 
+    // MARK: - Toolbar Menus
+
+    private var disciplineFilterMenu: some View {
+        Menu {
+            ForEach(DisciplineFilter.allCases, id: \.self) { filter in
+                Button {
+                    selectedDiscipline = filter
+                } label: {
+                    if filter == selectedDiscipline {
+                        Label(filter.rawValue, systemImage: "checkmark")
+                    } else {
+                        Label(filter.rawValue, systemImage: filter.icon)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: selectedDiscipline.icon)
+                Text(selectedDiscipline.rawValue)
+                    .font(.subheadline)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(selectedDiscipline != .all ? selectedDiscipline.color : Color(.systemGray5))
+            .foregroundStyle(selectedDiscipline != .all ? .white : .primary)
+            .clipShape(Capsule())
+        }
+    }
+
+    private var tabPickerMenu: some View {
+        Menu {
+            ForEach(HistoryTab.allCases, id: \.self) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    if tab == selectedTab {
+                        Label(tab.rawValue, systemImage: "checkmark")
+                    } else {
+                        Label(tab.rawValue, systemImage: tab.icon)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: selectedTab.icon)
+                Text(selectedTab.rawValue)
+                    .font(.subheadline)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color(.systemGray5))
+            .foregroundStyle(.primary)
+            .clipShape(Capsule())
+        }
+    }
+
     // MARK: - Sessions View
 
     private var sessionsView: some View {
         VStack(spacing: 0) {
-            // Discipline filter dropdown
-            HStack {
-                Menu {
-                    ForEach(DisciplineFilter.allCases, id: \.self) { filter in
-                        Button {
-                            selectedDiscipline = filter
-                        } label: {
-                            Label(filter.rawValue, systemImage: filter.icon)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: selectedDiscipline.icon)
-                            .foregroundStyle(selectedDiscipline.color)
-                        Text(selectedDiscipline.rawValue)
-                            .fontWeight(.medium)
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(AppColors.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-            }
-            .padding()
-
             // Show shooting history button when Shooting is selected
             if selectedDiscipline == .shooting {
                 shootingHistoryButton
