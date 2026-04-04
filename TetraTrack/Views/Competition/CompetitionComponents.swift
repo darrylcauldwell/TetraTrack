@@ -1787,7 +1787,7 @@ struct CompetitionTodoListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
-            Button(action: { withAnimation { isExpanded.toggle() } }) {
+            Button(action: { withAnimation { isExpanded.toggle() } }, label: {
                 HStack {
                     Image(systemName: "checklist")
                         .foregroundStyle(AppColors.primary)
@@ -1810,7 +1810,7 @@ struct CompetitionTodoListView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
+            })
             .buttonStyle(.plain)
 
             if isExpanded {

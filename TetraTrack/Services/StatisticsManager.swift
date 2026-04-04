@@ -312,7 +312,7 @@ final class StatisticsManager {
 
         for i in 0..<weeks {
             if let weekStart = calendar.date(byAdding: .weekOfYear, value: -i, to: now) {
-                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart))!)
+                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart)) ?? weekStart)
                 weekIndexMap[startOfWeek] = weeklyData.count
                 weeklyData.append(WeeklyDataPoint(weekStart: startOfWeek))
             }
@@ -320,7 +320,7 @@ final class StatisticsManager {
 
         // Fill in ride data using O(1) dictionary lookup
         for ride in rides {
-            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate))!)
+            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate)) ?? ride.startDate)
 
             if let index = weekIndexMap[rideWeekStart] {
                 weeklyData[index].rideCount += 1
@@ -343,8 +343,8 @@ final class StatisticsManager {
         for i in 0..<months {
             guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
             let monthName = formatter.string(from: monthDate)
-            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
-            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate)) ?? monthDate
+            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? monthStart
 
             let monthRides = rides.filter { $0.startDate >= monthStart && $0.startDate < monthEnd }
             let totalDistance = monthRides.reduce(0) { $0 + $1.totalDistance }
@@ -365,14 +365,14 @@ final class StatisticsManager {
         var weeklyData: [WeeklyTrendPoint] = []
         for i in 0..<weeks {
             if let weekStart = calendar.date(byAdding: .weekOfYear, value: -i, to: now) {
-                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart))!)
+                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart)) ?? weekStart)
                 weeklyData.append(WeeklyTrendPoint(weekStart: startOfWeek))
             }
         }
 
         // Fill in ride data
         for ride in rides {
-            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate))!)
+            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate)) ?? ride.startDate)
 
             if let index = weeklyData.firstIndex(where: { $0.weekStart == rideWeekStart }) {
                 weeklyData[index].rideCount += 1
@@ -411,8 +411,8 @@ final class StatisticsManager {
 
         for i in 0..<months {
             guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
-            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
-            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate)) ?? monthDate
+            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? monthStart
 
             let monthRides = rides.filter { $0.startDate >= monthStart && $0.startDate < monthEnd }
 

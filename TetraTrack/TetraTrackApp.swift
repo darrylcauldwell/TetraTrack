@@ -510,6 +510,4 @@ struct TetraTrackApp: App {
 
 // MARK: - Siri Notification Modifier
 
-/// Extracts Siri .onReceive handlers into a ViewModifier to reduce type-checker
-/// complexity in the main App body.
 // Siri session control removed — all disciplines are Watch-primary (#309)

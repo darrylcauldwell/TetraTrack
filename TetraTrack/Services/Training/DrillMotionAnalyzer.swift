@@ -515,13 +515,17 @@ final class DrillMotionAnalyzer {
 
         realPart.withUnsafeMutableBufferPointer { realPtr in
             imagPart.withUnsafeMutableBufferPointer { imagPtr in
+                // Safe: withUnsafeMutableBufferPointer guarantees non-nil baseAddress for non-empty arrays
+                // swiftlint:disable force_unwrapping
                 var splitComplex = DSPDoubleSplitComplex(
                     realp: realPtr.baseAddress!,
                     imagp: imagPtr.baseAddress!
                 )
+                // swiftlint:enable force_unwrapping
 
                 // Convert signal to split complex format
                 signal.withUnsafeBufferPointer { signalPtr in
+                    // swiftlint:disable:next force_unwrapping
                     signalPtr.baseAddress!.withMemoryRebound(to: DSPDoubleComplex.self, capacity: n / 2) { complexPtr in
                         vDSP_ctozD(complexPtr, 2, &splitComplex, 1, vDSP_Length(n / 2))
                     }
@@ -532,6 +536,8 @@ final class DrillMotionAnalyzer {
 
                 // Calculate power spectrum (magnitude squared)
                 powerSpectrum.withUnsafeMutableBufferPointer { spectrumPtr in
+                    // Safe: non-empty array guarantees non-nil baseAddress
+                    // swiftlint:disable:next force_unwrapping
                     vDSP_zvmagsD(&splitComplex, 1, spectrumPtr.baseAddress!, 1, vDSP_Length(n / 2))
                 }
             }

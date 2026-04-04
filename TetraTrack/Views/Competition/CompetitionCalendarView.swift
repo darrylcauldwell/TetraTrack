@@ -194,9 +194,9 @@ struct CompetitionCalendarView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: { showingAddCompetition = true }) {
+                        Button(action: { showingAddCompetition = true }, label: {
                             Image(systemName: "plus")
-                        }
+                        })
                         .accessibilityLabel("Add competition")
                         .accessibilityHint("Create a new competition entry")
                     }
@@ -278,9 +278,9 @@ struct CompetitionCalendarView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: { showingAddCompetition = true }) {
+                        Button(action: { showingAddCompetition = true }, label: {
                             Image(systemName: "plus")
-                        }
+                        })
                         .accessibilityLabel("Add competition")
                         .accessibilityHint("Create a new competition entry")
                     }

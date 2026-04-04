@@ -733,7 +733,7 @@ final class AIDataCollector {
             percentMax = (hr / maxHR) * 100
             reserve = hr - restingHR
 
-            switch percentMax! {
+            switch percentMax ?? 0 {
             case 0..<60: zone = 1
             case 60..<70: zone = 2
             case 70..<80: zone = 3

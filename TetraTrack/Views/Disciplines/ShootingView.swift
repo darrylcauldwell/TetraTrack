@@ -52,9 +52,9 @@ struct ShootingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { showingSettings = true }) {
+                Button(action: { showingSettings = true }, label: {
                     Image(systemName: "gearshape")
-                }
+                })
             }
         }
             .fullScreenCover(isPresented: $showingHistory) {

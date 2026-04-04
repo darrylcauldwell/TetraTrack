@@ -137,7 +137,7 @@ struct RiderProfileView: View {
                     }
                 } else {
                     // Editable when Apple Health not connected
-                    Button(action: { showingWeightPicker = true }) {
+                    Button(action: { showingWeightPicker = true }, label: {
                         HStack {
                             Image(systemName: "scalemass")
                                 .foregroundStyle(AppColors.primary)
@@ -150,7 +150,7 @@ struct RiderProfileView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    }
+                    })
                     .foregroundStyle(.primary)
                 }
 
@@ -168,7 +168,7 @@ struct RiderProfileView: View {
                     }
                 } else {
                     // Editable when Apple Health not connected
-                    Button(action: { showingHeightPicker = true }) {
+                    Button(action: { showingHeightPicker = true }, label: {
                         HStack {
                             Image(systemName: "ruler")
                                 .foregroundStyle(AppColors.primary)
@@ -181,7 +181,7 @@ struct RiderProfileView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    }
+                    })
                     .foregroundStyle(.primary)
                 }
 
@@ -230,7 +230,7 @@ struct RiderProfileView: View {
                 }
 
                 // Date of Birth
-                Button(action: { showingDatePicker = true }) {
+                Button(action: { showingDatePicker = true }, label: {
                     HStack {
                         Label("Date of Birth", systemImage: "calendar")
                         Spacer()
@@ -245,7 +245,7 @@ struct RiderProfileView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
-                }
+                })
                 .foregroundStyle(.primary)
 
                 // Age (calculated)

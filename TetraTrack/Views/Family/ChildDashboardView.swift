@@ -63,9 +63,9 @@ struct ChildDashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingFriendManagement = true }) {
+                    Button(action: { showingFriendManagement = true }, label: {
                         Image(systemName: "person.2")
-                    }
+                    })
                 }
             }
             .task {
@@ -515,9 +515,9 @@ struct FriendManagementView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingAddFriend = true }) {
+                    Button(action: { showingAddFriend = true }, label: {
                         Image(systemName: "plus")
-                    }
+                    })
                 }
             }
             .sheet(isPresented: $showingAddFriend) {

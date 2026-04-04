@@ -138,13 +138,13 @@ final class DrillAudioManager {
     func encouragePerformance(stability: Double) {
         let message: String
         if stability >= 90 {
-            message = ["Perfect!", "Excellent stability!", "Outstanding!"].randomElement()!
+            message = ["Perfect!", "Excellent stability!", "Outstanding!"].randomElement() ?? "Perfect!"
         } else if stability >= 70 {
-            message = ["Good!", "Keep it up!", "Nice work!"].randomElement()!
+            message = ["Good!", "Keep it up!", "Nice work!"].randomElement() ?? "Good!"
         } else if stability >= 50 {
-            message = ["Focus!", "Steady now.", "Stay with it."].randomElement()!
+            message = ["Focus!", "Steady now.", "Stay with it."].randomElement() ?? "Focus!"
         } else {
-            message = ["Reset position.", "Regain control.", "Center yourself."].randomElement()!
+            message = ["Reset position.", "Regain control.", "Center yourself."].randomElement() ?? "Reset position."
         }
         speak(message)
     }

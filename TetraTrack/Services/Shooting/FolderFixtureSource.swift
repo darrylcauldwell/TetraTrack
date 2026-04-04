@@ -98,7 +98,7 @@ final class FolderFixtureSource: TargetImageSource {
                 perspectiveSkew: folderMeta.perspectiveSkew ?? 0,
                 lightingCondition: lightingCondition,
                 expectedHoleCount: folderMeta.expectedHoleCount ?? 0,
-                goldenMasterShots: folderMeta.goldenMasterShots ?? [],
+                goldenReferenceShots: folderMeta.goldenReferenceShots ?? [],
                 expectedAnalysis: folderMeta.expectedAnalysis,
                 expectedQuality: nil,
                 description: folderMeta.description ?? image.filename,
@@ -363,8 +363,8 @@ struct ImageMetadata: Codable {
     /// Difficulty rating 1-5
     let difficulty: Int?
 
-    /// Golden master hole positions
-    let goldenMasterShots: [GoldenMasterShot]?
+    /// Golden reference hole positions
+    let goldenReferenceShots: [GoldenReferenceShot]?
 
     /// Expected pattern analysis results
     let expectedAnalysis: ExpectedPatternAnalysis?
@@ -430,7 +430,7 @@ struct FolderMetadataWriter {
                 perspectiveSkew: nil,
                 lightingCondition: nil,
                 difficulty: nil,
-                goldenMasterShots: nil,
+                goldenReferenceShots: nil,
                 expectedAnalysis: nil,
                 qualityAssessment: nil,
                 notes: nil
@@ -490,7 +490,7 @@ struct FolderMetadataWriter {
             perspectiveSkew: nil,
             lightingCondition: nil,
             difficulty: nil,
-            goldenMasterShots: nil,
+            goldenReferenceShots: nil,
             expectedAnalysis: nil,
             qualityAssessment: nil,
             notes: nil
@@ -507,7 +507,7 @@ struct FolderMetadataWriter {
             perspectiveSkew: imageMetadata.perspectiveSkew,
             lightingCondition: imageMetadata.lightingCondition,
             difficulty: imageMetadata.difficulty,
-            goldenMasterShots: imageMetadata.goldenMasterShots,
+            goldenReferenceShots: imageMetadata.goldenReferenceShots,
             expectedAnalysis: imageMetadata.expectedAnalysis,
             qualityAssessment: assessment,
             notes: imageMetadata.notes

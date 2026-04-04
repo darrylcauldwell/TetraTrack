@@ -97,7 +97,7 @@ struct ShootingPracticeView: View {
                 .glassCard(material: .thin, cornerRadius: 12, padding: 0)
 
                 // Submit button
-                Button(action: { showingResults = true }) {
+                Button(action: { showingResults = true }, label: {
                     Text("Submit Scores")
                         .font(.headline)
                         .foregroundStyle(.white)
@@ -105,7 +105,7 @@ struct ShootingPracticeView: View {
                         .frame(minHeight: 60)
                         .background(allScoresEntered ? contextColor : Color.gray)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+                })
                 .disabled(!allScoresEntered)
 
                 Spacer(minLength: 100)
@@ -264,7 +264,7 @@ struct ShootingPracticeView: View {
 
             Spacer()
 
-            Button(action: { saveAndDismiss() }) {
+            Button(action: { saveAndDismiss() }, label: {
                 Label("Save & Finish", systemImage: "checkmark.circle.fill")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
@@ -272,7 +272,7 @@ struct ShootingPracticeView: View {
                     .frame(minHeight: 60)
                     .background(.green)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
+            })
             .padding(.horizontal, 40)
         }
     }

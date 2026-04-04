@@ -582,7 +582,8 @@ struct InputSanitizer {
         guard !validScores.isEmpty else { return 0 }
 
         // Clamp to range
-        let clamped = max(validScores.min()!, min(validScores.max()!, score))
+        guard let minScore = validScores.min(), let maxScore = validScores.max() else { return 0 }
+        let clamped = max(minScore, min(maxScore, score))
 
         // Find nearest valid score
         return validScores.min(by: { abs($0 - clamped) < abs($1 - clamped) }) ?? 0

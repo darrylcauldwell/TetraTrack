@@ -1631,7 +1631,7 @@ struct TargetAnalysisResultView: View {
 
 #Preview {
     TargetMarkingView(
-        image: UIImage(systemName: "circle.fill")!,
+        image: UIImage(systemName: "circle.fill") ?? UIImage(),
         onComplete: { },
         onCancel: { }
     )

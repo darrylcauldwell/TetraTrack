@@ -179,14 +179,14 @@ enum HorseStatisticsManager {
         var weeklyData: [WeeklyHorseData] = []
         for i in 0..<weeks {
             if let weekStart = calendar.date(byAdding: .weekOfYear, value: -i, to: now) {
-                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart))!)
+                let startOfWeek = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart)) ?? weekStart)
                 weeklyData.append(WeeklyHorseData(weekStart: startOfWeek))
             }
         }
 
         // Fill in ride data
         for ride in rides {
-            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate))!)
+            let rideWeekStart = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: ride.startDate)) ?? ride.startDate)
 
             if let index = weeklyData.firstIndex(where: { $0.weekStart == rideWeekStart }) {
                 weeklyData[index].rideCount += 1

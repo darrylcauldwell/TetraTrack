@@ -52,7 +52,7 @@ struct LiveTrackingMapView: View {
                 // Bottom controls
                 HStack(spacing: 16) {
                     // Toggle route visibility
-                    Button(action: { showRouteOverlay.toggle() }) {
+                    Button(action: { showRouteOverlay.toggle() }, label: {
                         VStack(spacing: 4) {
                             Image(systemName: showRouteOverlay ? "point.topleft.down.to.point.bottomright.curvepath.fill" : "point.topleft.down.to.point.bottomright.curvepath")
                                 .font(.title2)
@@ -62,7 +62,7 @@ struct LiveTrackingMapView: View {
                         .padding()
                         .background(AppColors.cardBackground)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
+                    })
                     .accessibleButton(
                         showRouteOverlay ? "Hide route" : "Show route",
                         hint: "Toggle gait-colored route visibility on the map"

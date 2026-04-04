@@ -214,7 +214,8 @@ actor StagedPipelineExecutor {
         if let cached = await cache.getPreprocessing(for: imageHash) {
             preprocessing = cached
         } else {
-            preprocessing = await preprocess(image.cgImage!)
+            let cgImage = await MainActor.run { image.cgImage }! // swiftlint:disable:this force_unwrapping
+            preprocessing = await preprocess(cgImage)
             await cache.cachePreprocessing(preprocessing, for: imageHash)
         }
         timing["preprocessing"] = Date().timeIntervalSince(preprocessStart)
@@ -225,7 +226,8 @@ actor StagedPipelineExecutor {
         if let cached = await cache.getContours(for: imageHash) {
             contours = cached
         } else {
-            contours = try await detectContours(in: image.cgImage!)
+            let cgImage = await MainActor.run { image.cgImage }! // swiftlint:disable:this force_unwrapping
+            contours = try await detectContours(in: cgImage)
             await cache.cacheContours(contours, for: imageHash)
         }
         timing["contours"] = Date().timeIntervalSince(contourStart)

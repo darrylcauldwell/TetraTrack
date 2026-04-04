@@ -908,9 +908,9 @@ struct ContactRow: View {
                 contact.reminderCount += 1
                 sharingCoordinator.repository?.update(contact)
             }
-        }) {
+        }, content: {
             ShareSheet(items: [contact.generateInviteMessage(isReminder: contact.inviteStatus == .pending)])
-        }
+        })
         .alert("Unable to Generate Invite Link", isPresented: $showingShareError) {
             Button("OK") { }
         } message: {

@@ -1236,7 +1236,7 @@ struct EnrichedWorkoutDetailView: View {
                 return idealRange ? 85 : (stride > 0.6 ? 65 : 45)
             }
             // Fallback: use split consistency as proxy for balanced running
-            if !enrichment!.splits.isEmpty { return computeSplitConsistencyScore() }
+            if !(enrichment?.splits.isEmpty ?? true) { return computeSplitConsistencyScore() }
             return 0
         }()
         cards.append(PillarCardData(

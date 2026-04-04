@@ -2,7 +2,7 @@
 //  ShootingDetectionTests.swift
 //  TetraTrackTests
 //
-//  Golden master tests for shooting target detection pipeline.
+//  Golden reference tests for shooting target detection pipeline.
 //  Validates detection accuracy against curated fixture images.
 //
 
@@ -11,15 +11,15 @@ import Foundation
 import UIKit
 @testable import TetraTrack
 
-// MARK: - Golden Master Test Infrastructure
+// MARK: - Golden Reference Test Infrastructure
 
 @MainActor struct ShootingDetectionTests {
 
     // MARK: - Position Matching Tests
 
-    @Test func goldenMasterShotMatching() {
+    @Test func goldenReferenceShotMatching() {
         // Test that position matching works correctly
-        let shot = GoldenMasterShot(x: 0.1, y: 0.2, score: 8, tolerance: 0.05)
+        let shot = GoldenReferenceShot(x: 0.1, y: 0.2, score: 8, tolerance: 0.05)
         let detectedPosition = NormalizedTargetPosition(x: 0.12, y: 0.18)
 
         let distance = sqrt(
@@ -30,8 +30,8 @@ import UIKit
         #expect(distance <= shot.matchTolerance)
     }
 
-    @Test func goldenMasterShotNotMatching() {
-        let shot = GoldenMasterShot(x: 0.1, y: 0.2, score: 8, tolerance: 0.05)
+    @Test func goldenReferenceShotNotMatching() {
+        let shot = GoldenReferenceShot(x: 0.1, y: 0.2, score: 8, tolerance: 0.05)
         let detectedPosition = NormalizedTargetPosition(x: 0.3, y: 0.4)
 
         let distance = sqrt(
@@ -151,9 +151,9 @@ import UIKit
         let registry = TargetFixtureRegistry.shared
 
         for fixture in registry.allFixtures {
-            // Golden master shot count should match expected hole count
-            if !fixture.metadata.goldenMasterShots.isEmpty {
-                #expect(fixture.metadata.goldenMasterShots.count == fixture.metadata.expectedHoleCount,
+            // Golden reference shot count should match expected hole count
+            if !fixture.metadata.goldenReferenceShots.isEmpty {
+                #expect(fixture.metadata.goldenReferenceShots.count == fixture.metadata.expectedHoleCount,
                        "Fixture \(fixture.name): golden shots count mismatch")
             }
 
@@ -506,16 +506,16 @@ private struct TestShot: ShotForAnalysis {
     }
 }
 
-// MARK: - Golden Master Comparison Tests
+// MARK: - Golden Reference Comparison Tests
 
-@MainActor struct GoldenMasterComparisonTests {
+@MainActor struct GoldenReferenceComparisonTests {
 
-    @Test func compareDetectedPositionsWithGoldenMaster() {
-        // This test structure validates detected positions against golden master
+    @Test func compareDetectedPositionsWithGoldenReference() {
+        // This test structure validates detected positions against golden reference
         let goldenShots = [
-            GoldenMasterShot(x: 0.02, y: 0.03, score: 10),
-            GoldenMasterShot(x: -0.01, y: -0.02, score: 10),
-            GoldenMasterShot(x: 0.05, y: -0.01, score: 10)
+            GoldenReferenceShot(x: 0.02, y: 0.03, score: 10),
+            GoldenReferenceShot(x: -0.01, y: -0.02, score: 10),
+            GoldenReferenceShot(x: 0.05, y: -0.01, score: 10)
         ]
 
         // Simulated detected positions (slightly off from golden)
@@ -538,8 +538,8 @@ private struct TestShot: ShotForAnalysis {
 
     @Test func detectUnmatchedGoldenShots() {
         let goldenShots = [
-            GoldenMasterShot(x: 0.0, y: 0.0, score: 10),
-            GoldenMasterShot(x: 0.5, y: 0.5, score: 6)  // This one not detected
+            GoldenReferenceShot(x: 0.0, y: 0.0, score: 10),
+            GoldenReferenceShot(x: 0.5, y: 0.5, score: 6)  // This one not detected
         ]
 
         let detectedPositions = [
@@ -557,7 +557,7 @@ private struct TestShot: ShotForAnalysis {
 
     @Test func detectFalsePositives() {
         let goldenShots = [
-            GoldenMasterShot(x: 0.0, y: 0.0, score: 10)
+            GoldenReferenceShot(x: 0.0, y: 0.0, score: 10)
         ]
 
         let detectedPositions = [
@@ -601,12 +601,12 @@ private struct TestShot: ShotForAnalysis {
     private struct MatchResult {
         let matchedCount: Int
         let unmatchedDetected: [NormalizedTargetPosition]
-        let unmatchedGolden: [GoldenMasterShot]
+        let unmatchedGolden: [GoldenReferenceShot]
     }
 
     private func matchDetectedToGolden(
         detected: [NormalizedTargetPosition],
-        golden: [GoldenMasterShot]
+        golden: [GoldenReferenceShot]
     ) -> MatchResult {
         var remainingGolden = golden
         var unmatchedDetected: [NormalizedTargetPosition] = []
@@ -698,7 +698,7 @@ private struct TestShot: ShotForAnalysis {
                    "Invalid target type for fixture: \(fixture.name)")
 
             // Golden shots should have valid scores
-            for shot in fixture.metadata.goldenMasterShots {
+            for shot in fixture.metadata.goldenReferenceShots {
                 #expect((0...10).contains(shot.expectedScore),
                        "Invalid score in fixture: \(fixture.name)")
                 #expect(shot.matchTolerance > 0,
@@ -717,7 +717,7 @@ private struct TestShot: ShotForAnalysis {
         let registry = TargetFixtureRegistry.shared
         let idealFixtures = registry.fixtures(in: .idealConditions)
 
-        for fixture in idealFixtures where fixture.metadata.goldenMasterShots.count >= 3 {
+        for fixture in idealFixtures where fixture.metadata.goldenReferenceShots.count >= 3 {
             // Ideal fixtures should have expected analysis for validation
             #expect(fixture.metadata.expectedAnalysis != nil,
                    "Ideal fixture '\(fixture.name)' should have expectedAnalysis")

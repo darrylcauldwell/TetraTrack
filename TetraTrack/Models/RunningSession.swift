@@ -398,17 +398,17 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
         let grade = totalDistance > 0 ? (totalAscent - totalDescent) / totalDistance : 0
 
         // Rolling resistance cost
-        let Cr: Double = 0.98 // metabolic cost of running (J/kg/m)
-        let rollingPower = Cr * bodyMass * speed
+        let metabolicCost: Double = 0.98 // metabolic cost of running (J/kg/m)
+        let rollingPower = metabolicCost * bodyMass * speed
 
         // Grade resistance
         let gradePower = bodyMass * g * grade * speed
 
         // Air resistance (simplified)
-        let Cd: Double = 0.9  // drag coefficient
-        let A: Double = 0.45  // frontal area m^2
+        let dragCoefficient: Double = 0.9  // drag coefficient
+        let frontalArea: Double = 0.45  // frontal area m^2
         let rho: Double = 1.225 // air density kg/m^3
-        let aeroPower = 0.5 * Cd * A * rho * pow(speed, 3)
+        let aeroPower = 0.5 * dragCoefficient * frontalArea * rho * pow(speed, 3)
 
         return max(0, rollingPower + gradePower + aeroPower)
     }

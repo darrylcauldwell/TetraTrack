@@ -222,10 +222,10 @@ struct NotesSection: View {
                         Button(action: {
                             editedNotes = notes
                             isEditing = true
-                        }) {
+                        }, label: {
                             Image(systemName: "pencil")
                                 .font(.subheadline)
-                        }
+                        })
 
                         Button(action: onDelete) {
                             Image(systemName: "trash")

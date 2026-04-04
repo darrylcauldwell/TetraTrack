@@ -108,7 +108,7 @@ struct HorseEditView: View {
                 // Details
                 Section("Details") {
                     // Date of Birth
-                    Button(action: { showingDatePicker = true }) {
+                    Button(action: { showingDatePicker = true }, label: {
                         HStack(spacing: 12) {
                             Image(systemName: "calendar")
                                 .frame(width: 24)
@@ -127,11 +127,11 @@ struct HorseEditView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    }
+                    })
                     .foregroundStyle(.primary)
 
                     // Weight
-                    Button(action: { showingWeightPicker = true }) {
+                    Button(action: { showingWeightPicker = true }, label: {
                         HStack(spacing: 12) {
                             Image(systemName: "scalemass")
                                 .frame(width: 24)
@@ -150,11 +150,11 @@ struct HorseEditView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    }
+                    })
                     .foregroundStyle(.primary)
 
                     // Height
-                    Button(action: { showingHeightPicker = true }) {
+                    Button(action: { showingHeightPicker = true }, label: {
                         HStack(spacing: 12) {
                             Image(systemName: "ruler")
                                 .frame(width: 24)
@@ -173,7 +173,7 @@ struct HorseEditView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    }
+                    })
                     .foregroundStyle(.primary)
                 }
 

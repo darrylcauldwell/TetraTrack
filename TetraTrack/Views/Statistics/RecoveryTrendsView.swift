@@ -185,9 +185,9 @@ struct RecoveryTrendsView: View {
             }
             .navigationTitle("Recovery Trends")
             .toolbar {
-                Button(action: { showingAddEntry = true }) {
+                Button(action: { showingAddEntry = true }, label: {
                     Image(systemName: "plus")
-                }
+                })
             }
             .sheet(isPresented: $showingAddEntry) {
                 NavigationStack {

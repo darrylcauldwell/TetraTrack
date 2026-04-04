@@ -23,7 +23,7 @@ struct HorseSelectionView: View {
 
             if horses.isEmpty {
                 // No horses configured - show + button to add
-                Button(action: { showingSettings = true }) {
+                Button(action: { showingSettings = true }, label: {
                     HStack(spacing: 12) {
                         ZStack {
                             Circle()
@@ -45,7 +45,7 @@ struct HorseSelectionView: View {
                         }
                     }
                     .padding(.vertical, 8)
-                }
+                })
                 .buttonStyle(.plain)
             } else {
                 // Show all configured horses

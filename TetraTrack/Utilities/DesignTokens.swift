@@ -563,7 +563,7 @@ extension View {
     ///   - unit: The unit of measurement
     ///   - context: Optional additional context (e.g., "Distance")
     func accessibleValue(_ value: String, unit: String, context: String? = nil) -> some View {
-        let label = context != nil ? "\(context!): \(value) \(unit)" : "\(value) \(unit)"
+        let label = context.map { "\($0): \(value) \(unit)" } ?? "\(value) \(unit)"
         return self.accessibilityLabel(label)
     }
 

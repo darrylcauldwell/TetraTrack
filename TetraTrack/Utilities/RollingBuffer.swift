@@ -48,6 +48,8 @@ struct RollingBuffer<T> {
         let start = isFull ? head : 0
         for i in 0..<_count {
             let index = (start + i) % capacity
+            // Safe: index is within 0..<_count, and all slots in that range are populated
+            // swiftlint:disable:next force_unwrapping
             result.append(storage[index]!)
         }
         return result
@@ -57,6 +59,8 @@ struct RollingBuffer<T> {
     subscript(index: Int) -> T {
         let start = isFull ? head : 0
         let actualIndex = (start + index) % capacity
+        // Safe: caller is responsible for valid index within 0..<count
+        // swiftlint:disable:next force_unwrapping
         return storage[actualIndex]!
     }
 }
@@ -71,6 +75,8 @@ extension RollingBuffer where T: BinaryFloatingPoint {
         let start = isFull ? head : 0
         for i in 0..<_count {
             let index = (start + i) % capacity
+            // Safe: index is within populated range
+            // swiftlint:disable:next force_unwrapping
             total += storage[index]!
         }
         return total / T(_count)
@@ -82,6 +88,8 @@ extension RollingBuffer where T: BinaryFloatingPoint {
         let start = isFull ? head : 0
         for i in 0..<_count {
             let index = (start + i) % capacity
+            // Safe: index is within populated range
+            // swiftlint:disable:next force_unwrapping
             total += storage[index]!
         }
         return total
@@ -95,6 +103,8 @@ extension RollingBuffer where T: BinaryFloatingPoint {
         let start = isFull ? head : 0
         for i in 0..<_count {
             let index = (start + i) % capacity
+            // Safe: index is within populated range
+            // swiftlint:disable:next force_unwrapping
             let diff = storage[index]! - avg
             total += diff * diff
         }
@@ -165,6 +175,8 @@ struct TimestampedRollingBuffer<T> {
         let start = (_count < capacity) ? 0 : head
         for i in 0..<_count {
             let index = (start + i) % capacity
+            // Safe: index is within 0..<_count, and all slots in that range are populated
+            // swiftlint:disable:next force_unwrapping
             result.append(storage[index]!)
         }
         return result
@@ -175,6 +187,8 @@ struct TimestampedRollingBuffer<T> {
     subscript(index: Int) -> (timestamp: Date, value: T) {
         let start = (_count < capacity) ? 0 : head
         let actualIndex = (start + index) % capacity
+        // Safe: caller is responsible for valid index within 0..<count
+        // swiftlint:disable:next force_unwrapping
         return storage[actualIndex]!
     }
 }

@@ -58,7 +58,7 @@ final class RecoveryAnalyzer {
         self.secondsSinceRideEnd = 0
 
         currentSession = RecoverySession(
-            rideEndTime: rideEndTime!,
+            rideEndTime: rideEndTime ?? Date(),
             peakHeartRate: peakHeartRate,
             restingHeartRate: restingHeartRate
         )

@@ -38,7 +38,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private func buildRootTemplate() -> CPListTemplate {
         let context = ModelContext(TetraTrackApp.sharedModelContainer)
         let today = Calendar.current.startOfDay(for: Date())
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
 
         // Fetch today's competition
         var todayDescriptor = FetchDescriptor<Competition>(

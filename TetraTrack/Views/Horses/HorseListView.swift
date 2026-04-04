@@ -36,9 +36,9 @@ struct HorseListView: View {
                 .navigationTitle("Horses")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Button(action: { showingAddHorse = true }) {
+                        Button(action: { showingAddHorse = true }, label: {
                             Image(systemName: "plus")
-                        }
+                        })
                         .accessibilityLabel("Add horse")
                         .accessibilityHint("Create a new horse profile")
                     }
@@ -86,9 +86,9 @@ struct HorseListView: View {
                 .navigationTitle("Horses")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Button(action: { showingAddHorse = true }) {
+                        Button(action: { showingAddHorse = true }, label: {
                             Image(systemName: "plus")
-                        }
+                        })
                         .accessibilityLabel("Add horse")
                         .accessibilityHint("Create a new horse profile")
                     }

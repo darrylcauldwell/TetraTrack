@@ -406,10 +406,10 @@ struct PhotoDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(action: { dismiss() }) {
+                    Button(action: { dismiss() }, label: {
                         Image(systemName: "xmark")
                             .foregroundStyle(.white)
-                    }
+                    })
                 }
 
                 ToolbarItem(placement: .bottomBar) {

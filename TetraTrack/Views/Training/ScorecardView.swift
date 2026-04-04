@@ -281,7 +281,7 @@ struct ScoreButtons: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(1...5, id: \.self) { score in
-                Button(action: { value = score }) {
+                Button(action: { value = score }, label: {
                     Text("\(score)")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -289,7 +289,7 @@ struct ScoreButtons: View {
                         .background(value == score ? buttonColor(score) : AppColors.elevatedSurface)
                         .foregroundStyle(value == score ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
+                })
                 .buttonStyle(.plain)
             }
         }

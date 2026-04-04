@@ -218,12 +218,12 @@ enum ShootingSensorAnalyzer {
 
         if averageHeartRate > 0 {
             let hrScore: Double
-            if averageHeartRate <= 70 { hrScore = 100 }
-            else if averageHeartRate <= 80 { hrScore = 90 }
-            else if averageHeartRate <= 90 { hrScore = 75 }
-            else if averageHeartRate <= 100 { hrScore = 55 }
-            else if averageHeartRate <= 120 { hrScore = 35 }
-            else { hrScore = 15 }
+            if averageHeartRate <= 70 { hrScore = 100
+            } else if averageHeartRate <= 80 { hrScore = 90
+            } else if averageHeartRate <= 90 { hrScore = 75
+            } else if averageHeartRate <= 100 { hrScore = 55
+            } else if averageHeartRate <= 120 { hrScore = 35
+            } else { hrScore = 15 }
             total += hrScore * 0.25
             weight += 0.25
         }
@@ -241,11 +241,11 @@ enum ShootingSensorAnalyzer {
 
         if averageBreathingRate > 0 {
             let breathingScore: Double
-            if averageBreathingRate <= 10 { breathingScore = 100 }
-            else if averageBreathingRate <= 14 { breathingScore = 85 }
-            else if averageBreathingRate <= 18 { breathingScore = 60 }
-            else if averageBreathingRate <= 22 { breathingScore = 35 }
-            else { breathingScore = 15 }
+            if averageBreathingRate <= 10 { breathingScore = 100
+            } else if averageBreathingRate <= 14 { breathingScore = 85
+            } else if averageBreathingRate <= 18 { breathingScore = 60
+            } else if averageBreathingRate <= 22 { breathingScore = 35
+            } else { breathingScore = 15 }
             total += breathingScore * 0.25
             weight += 0.25
         }

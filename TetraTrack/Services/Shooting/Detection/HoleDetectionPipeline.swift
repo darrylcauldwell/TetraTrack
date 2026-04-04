@@ -651,32 +651,32 @@ actor HoleDetectionPipeline {
             } else {
                 intensityScore = sigmoid(features.intensityDelta * 8)   // Light on black = good
             }
-            score += weights["intensityDelta"]! * intensityScore
+            score += (weights["intensityDelta"] ?? 0) * intensityScore
 
             // Contrast ratio
-            score += weights["contrastRatio"]! * sigmoid(features.contrastRatio - 1.5)
+            score += (weights["contrastRatio"] ?? 0) * sigmoid(features.contrastRatio - 1.5)
 
             // Edge features
-            score += weights["edgeClosure"]! * features.edgeClosure
-            score += weights["edgeStrength"]! * features.edgeStrength
+            score += (weights["edgeClosure"] ?? 0) * features.edgeClosure
+            score += (weights["edgeStrength"] ?? 0) * features.edgeStrength
 
             // Shape features
-            score += weights["compactness"]! * features.compactness
-            score += weights["sizeConformance"]! * features.sizeConformance
+            score += (weights["compactness"] ?? 0) * features.compactness
+            score += (weights["sizeConformance"] ?? 0) * features.sizeConformance
 
             // Signal count bonus
             let signalScore = min(1.0, Double(features.signalCount) / 3.0)
-            score += weights["signalCount"]! * signalScore
+            score += (weights["signalCount"] ?? 0) * signalScore
 
             // Isolation
-            score += weights["isolation"]! * min(1.0, features.isolation)
+            score += (weights["isolation"] ?? 0) * min(1.0, features.isolation)
 
             // Ring proximity (slight bonus for being on target)
             let proximityScore = features.ringProximity < 0.8 ? 1.0 : 0.5
-            score += weights["ringProximity"]! * proximityScore
+            score += (weights["ringProximity"] ?? 0) * proximityScore
 
             // Region bonus
-            score += weights["regionBonus"]!
+            score += weights["regionBonus"] ?? 0
 
             // Apply penalties
             if features.aspectRatio > 2.0 {

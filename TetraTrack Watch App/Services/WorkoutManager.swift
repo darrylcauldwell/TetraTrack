@@ -193,6 +193,7 @@ final class WorkoutManager: NSObject {
         let dataSource = builder.dataSource as? HKLiveWorkoutDataSource
         let collectedTypes = dataSource?.typesToCollect.map { $0.identifier }.joined(separator: ",") ?? "none"
         let hasHR = dataSource?.typesToCollect.contains(HKQuantityType(.heartRate)) ?? false
+        // swiftlint:disable:next line_length
         Log.tracking.error("TT: startWorkoutFromiPhone — delegate=\(hasDelegate, privacy: .public) dataSource=\(hasDataSource, privacy: .public) typesToCollect=[\(collectedTypes, privacy: .public)] hasHR=\(hasHR, privacy: .public)")
         // prepare() transitions to .prepared state, required before startActivity.
         session.prepare()

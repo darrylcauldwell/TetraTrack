@@ -359,7 +359,7 @@ actor SafetyAlertService {
         }
 
         let contacts = await provider()
-        let emergencyContacts = contacts.filter { $0.phoneNumber != nil && !$0.phoneNumber!.isEmpty }
+        let emergencyContacts = contacts.filter { !($0.phoneNumber ?? "").isEmpty }
 
         guard !emergencyContacts.isEmpty else {
             Log.family.warning("No emergency contacts with phone numbers for SMS fallback")

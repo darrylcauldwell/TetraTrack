@@ -97,7 +97,7 @@ nonisolated struct TargetFixtureMetadata: Codable, Equatable {
     let expectedHoleCount: Int
 
     /// Golden master shot positions (normalized target coordinates)
-    let goldenMasterShots: [GoldenMasterShot]
+    let goldenReferenceShots: [GoldenReferenceShot]
 
     /// Expected pattern analysis results
     let expectedAnalysis: ExpectedPatternAnalysis?
@@ -149,10 +149,10 @@ nonisolated struct TargetFixtureMetadata: Codable, Equatable {
     }
 }
 
-// MARK: - Golden Master Shot
+// MARK: - Golden Reference Shot
 
-/// A known shot position for golden master testing
-nonisolated struct GoldenMasterShot: Codable, Equatable, Identifiable {
+/// A known shot position for golden reference testing
+nonisolated struct GoldenReferenceShot: Codable, Equatable, Identifiable {
     var id: String { "\(normalizedX)_\(normalizedY)" }
 
     /// Normalized target X coordinate (-1 to +1)
@@ -182,7 +182,7 @@ nonisolated struct GoldenMasterShot: Codable, Equatable, Identifiable {
 
 // MARK: - Expected Pattern Analysis
 
-/// Expected pattern analysis results for golden master testing
+/// Expected pattern analysis results for golden reference testing
 nonisolated struct ExpectedPatternAnalysis: Codable, Equatable {
     /// Expected MPI (normalized coordinates)
     let mpiX: Double
@@ -328,12 +328,12 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 5,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.02, y: 0.03, score: 10),
-                    GoldenMasterShot(x: -0.01, y: -0.02, score: 10),
-                    GoldenMasterShot(x: 0.05, y: -0.01, score: 10),
-                    GoldenMasterShot(x: -0.03, y: 0.04, score: 10),
-                    GoldenMasterShot(x: 0.01, y: 0.01, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.02, y: 0.03, score: 10),
+                    GoldenReferenceShot(x: -0.01, y: -0.02, score: 10),
+                    GoldenReferenceShot(x: 0.05, y: -0.01, score: 10),
+                    GoldenReferenceShot(x: -0.03, y: 0.04, score: 10),
+                    GoldenReferenceShot(x: 0.01, y: 0.01, score: 10)
                 ],
                 expectedAnalysis: ExpectedPatternAnalysis(
                     mpiX: 0.008,
@@ -363,15 +363,15 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 8,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.15, y: 0.2, score: 8),
-                    GoldenMasterShot(x: -0.1, y: -0.15, score: 8),
-                    GoldenMasterShot(x: 0.25, y: -0.1, score: 6),
-                    GoldenMasterShot(x: -0.2, y: 0.25, score: 6),
-                    GoldenMasterShot(x: 0.05, y: 0.08, score: 10),
-                    GoldenMasterShot(x: -0.08, y: -0.05, score: 10),
-                    GoldenMasterShot(x: 0.3, y: 0.35, score: 4),
-                    GoldenMasterShot(x: -0.25, y: -0.3, score: 4)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.15, y: 0.2, score: 8),
+                    GoldenReferenceShot(x: -0.1, y: -0.15, score: 8),
+                    GoldenReferenceShot(x: 0.25, y: -0.1, score: 6),
+                    GoldenReferenceShot(x: -0.2, y: 0.25, score: 6),
+                    GoldenReferenceShot(x: 0.05, y: 0.08, score: 10),
+                    GoldenReferenceShot(x: -0.08, y: -0.05, score: 10),
+                    GoldenReferenceShot(x: 0.3, y: 0.35, score: 4),
+                    GoldenReferenceShot(x: -0.25, y: -0.3, score: 4)
                 ],
                 expectedAnalysis: ExpectedPatternAnalysis(
                     mpiX: 0.015,
@@ -403,12 +403,12 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .shadows,
                 expectedHoleCount: 5,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.1, y: 0.1, score: 8),
-                    GoldenMasterShot(x: -0.05, y: 0.05, score: 10),
-                    GoldenMasterShot(x: 0.08, y: -0.08, score: 10),
-                    GoldenMasterShot(x: -0.15, y: -0.12, score: 8),
-                    GoldenMasterShot(x: 0.0, y: 0.02, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.1, y: 0.1, score: 8),
+                    GoldenReferenceShot(x: -0.05, y: 0.05, score: 10),
+                    GoldenReferenceShot(x: 0.08, y: -0.08, score: 10),
+                    GoldenReferenceShot(x: -0.15, y: -0.12, score: 8),
+                    GoldenReferenceShot(x: 0.0, y: 0.02, score: 10)
                 ],
                 expectedAnalysis: ExpectedPatternAnalysis(
                     mpiX: -0.004,
@@ -438,13 +438,13 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .uneven,
                 expectedHoleCount: 6,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.05, y: 0.1, score: 10),
-                    GoldenMasterShot(x: -0.1, y: 0.08, score: 8),
-                    GoldenMasterShot(x: 0.12, y: -0.05, score: 8),
-                    GoldenMasterShot(x: -0.08, y: -0.1, score: 8),
-                    GoldenMasterShot(x: 0.03, y: 0.02, score: 10),
-                    GoldenMasterShot(x: -0.02, y: -0.03, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.05, y: 0.1, score: 10),
+                    GoldenReferenceShot(x: -0.1, y: 0.08, score: 8),
+                    GoldenReferenceShot(x: 0.12, y: -0.05, score: 8),
+                    GoldenReferenceShot(x: -0.08, y: -0.1, score: 8),
+                    GoldenReferenceShot(x: 0.03, y: 0.02, score: 10),
+                    GoldenReferenceShot(x: -0.02, y: -0.03, score: 10)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(minSharpness: 0.3, minContrast: 0.18),
@@ -471,12 +471,12 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 5,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.05, y: 0.05, score: 10),
-                    GoldenMasterShot(x: -0.08, y: 0.1, score: 8),
-                    GoldenMasterShot(x: 0.1, y: -0.05, score: 8),
-                    GoldenMasterShot(x: -0.02, y: -0.08, score: 10),
-                    GoldenMasterShot(x: 0.03, y: 0.0, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.05, y: 0.05, score: 10),
+                    GoldenReferenceShot(x: -0.08, y: 0.1, score: 8),
+                    GoldenReferenceShot(x: 0.1, y: -0.05, score: 8),
+                    GoldenReferenceShot(x: -0.02, y: -0.08, score: 10),
+                    GoldenReferenceShot(x: 0.03, y: 0.0, score: 10)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
@@ -501,12 +501,12 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0.15,
                 lightingCondition: .ideal,
                 expectedHoleCount: 5,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.02, y: 0.05, score: 10),
-                    GoldenMasterShot(x: -0.05, y: 0.08, score: 10),
-                    GoldenMasterShot(x: 0.08, y: -0.02, score: 10),
-                    GoldenMasterShot(x: -0.03, y: -0.05, score: 10),
-                    GoldenMasterShot(x: 0.01, y: 0.01, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.02, y: 0.05, score: 10),
+                    GoldenReferenceShot(x: -0.05, y: 0.08, score: 10),
+                    GoldenReferenceShot(x: 0.08, y: -0.02, score: 10),
+                    GoldenReferenceShot(x: -0.03, y: -0.05, score: 10),
+                    GoldenReferenceShot(x: 0.01, y: 0.01, score: 10)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
@@ -533,12 +533,12 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 5,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.02, y: 0.02, score: 10),
-                    GoldenMasterShot(x: 0.04, y: 0.03, score: 10, tolerance: 0.03),  // Overlapping
-                    GoldenMasterShot(x: -0.1, y: 0.15, score: 8),
-                    GoldenMasterShot(x: 0.12, y: -0.08, score: 8),
-                    GoldenMasterShot(x: -0.05, y: -0.1, score: 8)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.02, y: 0.02, score: 10),
+                    GoldenReferenceShot(x: 0.04, y: 0.03, score: 10, tolerance: 0.03),  // Overlapping
+                    GoldenReferenceShot(x: -0.1, y: 0.15, score: 8),
+                    GoldenReferenceShot(x: 0.12, y: -0.08, score: 8),
+                    GoldenReferenceShot(x: -0.05, y: -0.1, score: 8)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
@@ -563,11 +563,11 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 4,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.08, y: 0.1, score: 8, tolerance: 0.06),  // Torn
-                    GoldenMasterShot(x: -0.05, y: -0.05, score: 10),
-                    GoldenMasterShot(x: 0.15, y: -0.12, score: 8),
-                    GoldenMasterShot(x: -0.1, y: 0.08, score: 8)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.08, y: 0.1, score: 8, tolerance: 0.06),  // Torn
+                    GoldenReferenceShot(x: -0.05, y: -0.05, score: 10),
+                    GoldenReferenceShot(x: 0.15, y: -0.12, score: 8),
+                    GoldenReferenceShot(x: -0.1, y: 0.08, score: 8)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
@@ -594,7 +594,7 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 0,
-                goldenMasterShots: [],
+                goldenReferenceShots: [],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
                 description: "Clean target with no holes",
@@ -618,10 +618,10 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 3,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 1.2, y: 0.5, score: 0),
-                    GoldenMasterShot(x: -1.1, y: -0.3, score: 0),
-                    GoldenMasterShot(x: 0.8, y: 1.3, score: 0)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 1.2, y: 0.5, score: 0),
+                    GoldenReferenceShot(x: -1.1, y: -0.3, score: 0),
+                    GoldenReferenceShot(x: 0.8, y: 1.3, score: 0)
                 ],
                 expectedAnalysis: nil,
                 expectedQuality: ExpectedQuality(),
@@ -646,8 +646,8 @@ nonisolated final class TargetFixtureRegistry {
                 perspectiveSkew: 0,
                 lightingCondition: .ideal,
                 expectedHoleCount: 1,
-                goldenMasterShots: [
-                    GoldenMasterShot(x: 0.05, y: -0.03, score: 10)
+                goldenReferenceShots: [
+                    GoldenReferenceShot(x: 0.05, y: -0.03, score: 10)
                 ],
                 expectedAnalysis: nil,  // Can't compute spread with 1 shot
                 expectedQuality: ExpectedQuality(),

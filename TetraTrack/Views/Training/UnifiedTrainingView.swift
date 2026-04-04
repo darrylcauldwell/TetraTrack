@@ -1344,7 +1344,7 @@ struct TrainingInsightsView: View {
 
         let strongest = disciplineCounts.max(by: { $0.1 < $1.1 })?.0 ?? "Riding"
         let weakest = disciplineCounts.filter { $0.1 > 0 }.min(by: { $0.1 < $1.1 })?.0 ??
-                      disciplineCounts.filter { $0.1 == 0 }.first?.0 ?? "Swimming"
+                      disciplineCounts.first(where: { $0.1 == 0 })?.0 ?? "Swimming"
 
         let trend = totalSessions >= 5 ? "improving" : "maintaining"
 
@@ -1645,7 +1645,7 @@ private struct AIInsightsCard: View {
 
         let strongest = disciplineCounts.max(by: { $0.1 < $1.1 })?.0 ?? "Riding"
         let weakest = disciplineCounts.filter { $0.1 > 0 }.min(by: { $0.1 < $1.1 })?.0 ??
-                      disciplineCounts.filter { $0.1 == 0 }.first?.0 ?? "Swimming"
+                      disciplineCounts.first(where: { $0.1 == 0 })?.0 ?? "Swimming"
 
         let trend = totalSessions >= 5 ? "improving" : "maintaining"
 

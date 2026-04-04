@@ -146,7 +146,7 @@ final class GPXExporter {
     ) -> URL? {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: startDate)
-        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate))!
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) ?? endDate
 
         let filteredRides = rides.filter { ride in
             ride.startDate >= start && ride.startDate < end

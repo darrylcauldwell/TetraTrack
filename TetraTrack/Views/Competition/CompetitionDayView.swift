@@ -23,7 +23,7 @@ struct CompetitionDayView: View {
         // First try today's competitions
         let todayComps = allCompetitions.filter {
             calendar.isDateInToday($0.date) ||
-            (($0.endDate != nil) && $0.date <= Date() && $0.endDate! >= today)
+            ($0.date <= Date() && ($0.endDate ?? $0.date) >= today)
         }
         if !todayComps.isEmpty { return todayComps }
 
@@ -447,9 +447,9 @@ struct CompetitionDayView: View {
         case .shooting:
             return competition.shootingScore != nil ? .done : .pending
         case .swimming:
-            return competition.swimmingDistance != nil && competition.swimmingDistance! > 0 ? .done : .pending
+            return (competition.swimmingDistance ?? 0) > 0 ? .done : .pending
         case .running:
-            return competition.runningTime != nil && competition.runningTime! > 0 ? .done : .pending
+            return (competition.runningTime ?? 0) > 0 ? .done : .pending
         case .riding:
             return competition.ridingScore != nil ? .done : .pending
         }

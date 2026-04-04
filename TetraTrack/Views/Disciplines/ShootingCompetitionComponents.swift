@@ -127,14 +127,14 @@ struct ShootingCompetitionView: View {
                         } else {
                             dismiss()
                         }
-                    }) {
+                    }, label: {
                         Image(systemName: "xmark")
                             .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
                             .frame(width: 36, height: 36)
                             .background(AppColors.cardBackground)
                             .clipShape(Circle())
-                    }
+                    })
                 }
                 .padding(.horizontal)
 
@@ -194,7 +194,7 @@ struct ShootingCompetitionView: View {
                 }
 
                 // Submit button - enabled when all scores entered
-                Button(action: { showingResults = true }) {
+                Button(action: { showingResults = true }, label: {
                     Text("Submit Scores")
                         .font(.headline)
                         .foregroundStyle(.white)
@@ -202,7 +202,7 @@ struct ShootingCompetitionView: View {
                         .padding()
                         .background(allScoresEntered ? contextColor : Color.gray)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+                })
                 .disabled(!allScoresEntered)
 
                 Spacer(minLength: 40)
@@ -361,7 +361,7 @@ struct ShootingCompetitionView: View {
             Spacer()
 
             // Save button
-            Button(action: { saveCompetitionSession() }) {
+            Button(action: { saveCompetitionSession() }, label: {
                 Label("Save & Finish", systemImage: "checkmark.circle.fill")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
@@ -369,7 +369,7 @@ struct ShootingCompetitionView: View {
                     .padding()
                     .background(.green)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
+            })
             .padding(.horizontal, 40)
         }
     }

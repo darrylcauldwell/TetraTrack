@@ -384,10 +384,12 @@ final class ShotPatternAnalyzer {
 
             if allNormalizedShots.count >= Thresholds.minimumShots {
                 aggregateCluster = performClustering(allNormalizedShots)
-                aggregateAnalysis = generateAnalysis(
-                    cluster: aggregateCluster!,
-                    isAggregate: true
-                )
+                if let cluster = aggregateCluster {
+                    aggregateAnalysis = generateAnalysis(
+                        cluster: cluster,
+                        isAggregate: true
+                    )
+                }
             }
         }
 

@@ -651,7 +651,7 @@ final class HealthKitManager {
 
         // Look for sleep data from the past 24 hours
         let now = Date()
-        let yesterday = Calendar.current.date(byAdding: .hour, value: -24, to: now)!
+        let yesterday = Calendar.current.date(byAdding: .hour, value: -24, to: now) ?? now
         let predicate = HKQuery.predicateForSamples(withStart: yesterday, end: now, options: .strictStartDate)
 
         let descriptor = HKSampleQueryDescriptor<HKCategorySample>(
@@ -711,7 +711,7 @@ final class HealthKitManager {
         guard isAvailable else { return [:] }
 
         let rhrType = HKQuantityType(.restingHeartRate)
-        let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
 
         let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(

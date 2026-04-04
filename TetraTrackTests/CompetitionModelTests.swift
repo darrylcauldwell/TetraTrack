@@ -40,6 +40,7 @@ import Foundation
     // MARK: - Date Calculations
 
     @Test func competitionIsUpcoming() {
+        // swiftlint:disable:next force_unwrapping
         let futureDate = Calendar.current.date(byAdding: .day, value: 7, to: Date())!
         let competition = Competition(name: "Future Event", date: futureDate)
 
@@ -48,6 +49,7 @@ import Foundation
     }
 
     @Test func competitionIsPast() {
+        // swiftlint:disable:next force_unwrapping
         let pastDate = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
         let competition = Competition(name: "Past Event", date: pastDate)
 
@@ -56,6 +58,7 @@ import Foundation
     }
 
     @Test func competitionDaysUntil() {
+        // swiftlint:disable:next force_unwrapping
         let futureDate = Calendar.current.date(byAdding: .day, value: 5, to: Date())!
         let competition = Competition(name: "Upcoming", date: futureDate)
 
@@ -63,6 +66,7 @@ import Foundation
     }
 
     @Test func competitionCountdownTextTomorrow() {
+        // swiftlint:disable:next force_unwrapping
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
         let competition = Competition(name: "Tomorrow Event", date: tomorrow)
 
@@ -70,6 +74,7 @@ import Foundation
     }
 
     @Test func competitionCountdownTextDays() {
+        // swiftlint:disable:next force_unwrapping
         let fiveDays = Calendar.current.date(byAdding: .day, value: 5, to: Date())!
         let competition = Competition(name: "Five Days", date: fiveDays)
 
@@ -168,6 +173,7 @@ import Foundation
         let competition = Competition(name: "Test")
         competition.addTodo("Check entries")
 
+        // swiftlint:disable:next force_unwrapping
         let todoId = competition.todos.first!.id
         competition.toggleTodo(todoId)
 
@@ -180,6 +186,7 @@ import Foundation
         competition.addTodo("Task 2")
         competition.addTodo("Task 3")
 
+        // swiftlint:disable:next force_unwrapping
         let firstId = competition.todos.first!.id
         competition.toggleTodo(firstId)
 
