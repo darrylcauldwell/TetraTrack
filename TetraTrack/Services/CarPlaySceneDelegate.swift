@@ -67,6 +67,21 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         if let comp = todayComp {
             let item = competitionItem(comp, isToday: true)
             sections.append(CPListSection(items: [item], header: "Today", sectionIndexTitle: nil))
+        } else {
+            // No competition today — show helpful message
+            let nextComp = upcoming.first
+            let message: String
+            if let next = nextComp {
+                message = "Next: \(next.name.isEmpty ? "Competition" : next.name) — \(next.countdownText)"
+            } else {
+                message = "Add competitions in the TetraTrack app"
+            }
+            let noToday = CPListItem(
+                text: "No competition today",
+                detailText: message,
+                image: UIImage(systemName: "calendar.badge.clock")
+            )
+            sections.append(CPListSection(items: [noToday], header: "Today", sectionIndexTitle: nil))
         }
 
         // Upcoming section (exclude today's comp if already shown)
@@ -77,12 +92,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         if !upcomingFiltered.isEmpty {
             let items = upcomingFiltered.map { competitionItem($0, isToday: false) }
             sections.append(CPListSection(items: items, header: "Upcoming", sectionIndexTitle: nil))
-        }
-
-        // Empty state
-        if sections.isEmpty {
-            let empty = CPListItem(text: "No upcoming competitions", detailText: "Add competitions in the TetraTrack app")
-            sections.append(CPListSection(items: [empty]))
         }
 
         return CPListTemplate(title: "TetraTrack", sections: sections)
