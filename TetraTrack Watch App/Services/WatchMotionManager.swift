@@ -94,6 +94,7 @@ nonisolated private struct MotionResults {
 ///
 /// Motion updates are delivered to a serial background queue for processing.
 /// Computed results are dispatched to main for @Observable property assignment.
+@MainActor
 @Observable
 final class WatchMotionManager: NSObject {
     // MARK: - State

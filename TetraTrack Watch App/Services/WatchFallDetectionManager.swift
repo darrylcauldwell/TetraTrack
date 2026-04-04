@@ -32,6 +32,7 @@ struct WatchFallMotionSample {
     }
 }
 
+@MainActor
 @Observable
 final class WatchFallDetectionManager {
     // MARK: - State

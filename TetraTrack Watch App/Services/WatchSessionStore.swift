@@ -61,6 +61,7 @@ struct WatchSession: Codable, Identifiable {
 }
 
 /// Manages local storage of Watch sessions
+@MainActor
 @Observable
 final class WatchSessionStore {
     static let shared = WatchSessionStore()

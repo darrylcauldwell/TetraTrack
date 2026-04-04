@@ -13,6 +13,7 @@ import os
 import TetraTrackShared
 
 /// Shot cycle state machine for detecting and analyzing individual shots
+@MainActor
 @Observable
 final class ShootingShotDetector {
     // MARK: - State
