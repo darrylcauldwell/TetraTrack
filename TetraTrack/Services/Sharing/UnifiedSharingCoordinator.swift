@@ -478,8 +478,9 @@ final class UnifiedSharingCoordinator {
         do {
             guard let liveTrackingService else { return }
             let session = try await liveTrackingService.startSharingLocation(riderName: currentUserName, activityType: activityType)
+            nonisolated(unsafe) let safeSession = session
             await MainActor.run {
-                self.mySession = session
+                self.mySession = safeSession
             }
         } catch {
             Log.family.error("Failed to start sharing: \(error)")
@@ -563,6 +564,7 @@ final class UnifiedSharingCoordinator {
     func fetchFamilyLocations() async -> Bool {
         guard let liveTrackingService else { return false }
         let (sessions, fetchError) = await liveTrackingService.fetchFamilyLocationsWithError()
+        nonisolated(unsafe) let safeSessions = sessions
 
         // Track fetch failures for the refresh loop
         if let error = fetchError {
@@ -572,7 +574,7 @@ final class UnifiedSharingCoordinator {
 
         await MainActor.run {
             // Build a lookup dictionary for O(1) session access
-            let sessionsByRiderID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.riderID, $0) })
+            let sessionsByRiderID = Dictionary(uniqueKeysWithValues: safeSessions.map { ($0.riderID, $0) })
 
             // Create updated riders array (copy-on-write safe)
             var updatedRiders = linkedRiders.map { rider -> LinkedRider in
@@ -600,14 +602,14 @@ final class UnifiedSharingCoordinator {
 
             // Atomic replacement of the array
             self.linkedRiders = updatedRiders
-            self.sharedWithMe = sessions.filter { $0.isActive }
+            self.sharedWithMe = safeSessions.filter { $0.isActive }
 
             // Save linked riders atomically with the update
             self.saveLinkedRiders()
         }
 
         // Check for safety alerts
-        await safetyAlertService.checkSessions(sessions)
+        await safetyAlertService.checkSessions(safeSessions)
 
         return true
     }
@@ -785,8 +787,9 @@ final class UnifiedSharingCoordinator {
         guard let artifactShareService else {
             throw CKError(.notAuthenticated)
         }
+        nonisolated(unsafe) let safeArtifact = artifact
         return try await artifactShareService.shareArtifact(
-            artifact,
+            safeArtifact,
             with: relationship.id,
             expiresIn: expiresIn
         )

@@ -365,7 +365,9 @@ final class RealTimeCueSystem {
         // Auto-hide after delay
         cueTimer?.invalidate()
         cueTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
-            self?.hideCue()
+            MainActor.assumeIsolated {
+                self?.hideCue()
+            }
         }
     }
 

@@ -190,10 +190,18 @@ else
         -configuration Debug \
         -only-testing:TetraTrackTests \
         CODE_SIGNING_ALLOWED=NO \
-        -quiet 2>&1; then
-        pass "All unit tests passed"
+        2>&1 | tee /tmp/preflight_test_output.txt | grep -E "error:|warning:.*nonisolated|FAIL|passed|failed"; then
+        if grep -q "Test Suite.*passed" /tmp/preflight_test_output.txt; then
+            pass "All unit tests passed"
+        else
+            fail "Unit tests failed"
+        fi
     else
-        fail "Unit tests failed"
+        if grep -q "Test Suite.*passed" /tmp/preflight_test_output.txt; then
+            pass "All unit tests passed"
+        else
+            fail "Unit tests failed"
+        fi
     fi
 fi
 

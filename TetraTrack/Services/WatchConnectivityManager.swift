@@ -693,7 +693,7 @@ final class WatchConnectivityManager: NSObject, WatchConnecting {
 // MARK: - WCSessionDelegate
 
 extension WatchConnectivityManager: WCSessionDelegate {
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
@@ -703,46 +703,58 @@ extension WatchConnectivityManager: WCSessionDelegate {
             return
         }
 
-        isPaired = session.isPaired
-        isWatchAppInstalled = session.isWatchAppInstalled
-        isReachable = session.isReachable
+        let paired = session.isPaired
+        let installed = session.isWatchAppInstalled
+        let reachable = session.isReachable
+        Task { @MainActor in
+            self.isPaired = paired
+            self.isWatchAppInstalled = installed
+            self.isReachable = reachable
+        }
 
         Log.watch.info("Activated - paired: \(session.isPaired), installed: \(session.isWatchAppInstalled)")
     }
 
-    func sessionDidBecomeInactive(_ session: WCSession) {
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
         Log.watch.debug("Session became inactive")
     }
 
-    func sessionDidDeactivate(_ session: WCSession) {
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
         Log.watch.debug("Session deactivated")
-        // Reactivate for switching watches
         session.activate()
     }
 
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        isReachable = session.isReachable
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        Task { @MainActor in
+            self.isReachable = reachable
+        }
         Log.watch.info("Reachability changed: \(session.isReachable)")
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        handleReceivedMessage(message)
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        nonisolated(unsafe) let payload = message
+        Task { @MainActor in
+            self.handleReceivedMessage(payload)
+        }
     }
 
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
-        // Check for Watch session sync message
-        if let type = message["type"] as? String, type == "watchSessionSync" {
-            let success = handleWatchSessionSync(message)
-            replyHandler(["success": success])
-            return
-        }
-
-        handleReceivedMessage(message)
+        // Reply immediately — replyHandler must be called promptly
         replyHandler(["status": "received"])
+
+        nonisolated(unsafe) let payload = message
+        Task { @MainActor in
+            if let type = payload["type"] as? String, type == "watchSessionSync" {
+                self.handleWatchSessionSync(payload)
+            } else {
+                self.handleReceivedMessage(payload)
+            }
+        }
     }
 
     // MARK: - Watch Session Sync Handling
@@ -764,59 +776,60 @@ extension WatchConnectivityManager: WCSessionDelegate {
         return true
     }
 
-    func session(
+    nonisolated func session(
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
-        // Handle diagnostic breadcrumbs from Watch (sent via applicationContext
-        // because transferUserInfo queues can get poisoned by burst sends)
+        // Handle diagnostic breadcrumbs from Watch
         if let breadcrumbs = applicationContext["diagnosticBreadcrumbs"] as? [String] {
             let count = breadcrumbs.count
             Log.watch.error("TT: WATCH BREADCRUMBS (\(count, privacy: .public) entries):")
             for crumb in breadcrumbs {
                 Log.watch.error("TT: WATCH: \(crumb, privacy: .public)")
             }
-
-            // Store for UI display
             UserDefaults.standard.set(breadcrumbs, forKey: "watchDiagnosticBreadcrumbs")
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "watchDiagnosticTimestamp")
         }
 
-        // Strip diagnostic keys before forwarding — the payload may also contain
-        // HR, motion, or status data that handleReceivedMessage needs to process.
         var payload = applicationContext
         payload.removeValue(forKey: "diagnosticBreadcrumbs")
         payload.removeValue(forKey: "watchDiagnosticTimestamp")
         guard !payload.isEmpty else { return }
-        handleReceivedMessage(payload)
+        nonisolated(unsafe) let safePayload = payload
+        Task { @MainActor in
+            self.handleReceivedMessage(safePayload)
+        }
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
         // Handle diagnostic breadcrumbs from Watch (since Console.app can't see Watch logs)
         if let breadcrumb = userInfo["diagnosticBreadcrumb"] as? String {
             Log.watch.info("WATCH DIAGNOSTIC: \(breadcrumb)")
             return
         }
 
-        // Handle Watch session sync via background transfer
-        if let type = userInfo["type"] as? String, type == "watchSessionSync" {
-            handleWatchSessionSync(userInfo)
-            return
-        }
+        nonisolated(unsafe) let payload = userInfo
+        Task { @MainActor in
+            // Handle Watch session sync via background transfer
+            if let type = payload["type"] as? String, type == "watchSessionSync" {
+                self.handleWatchSessionSync(payload)
+                return
+            }
 
-        // Handle ride summary from autonomous Watch ride
-        if userInfo["tt_rideSummary"] as? Bool == true {
-            handleRideSummary(userInfo)
-            return
-        }
+            // Handle ride summary from autonomous Watch ride
+            if payload["tt_rideSummary"] as? Bool == true {
+                self.handleRideSummary(payload)
+                return
+            }
 
-        // Handle shooting summary from autonomous Watch shooting
-        if userInfo["tt_shootingSummary"] as? Bool == true {
-            handleShootingSummary(userInfo)
-            return
-        }
+            // Handle shooting summary from autonomous Watch shooting
+            if payload["tt_shootingSummary"] as? Bool == true {
+                self.handleShootingSummary(payload)
+                return
+            }
 
-        handleReceivedMessage(userInfo)
+            self.handleReceivedMessage(payload)
+        }
     }
 
     // MARK: - Ride Summary Handling
