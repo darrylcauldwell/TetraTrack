@@ -10,7 +10,6 @@ import SwiftData
 import MapKit
 import os
 
-@MainActor
 class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var interfaceController: CPInterfaceController?
 
