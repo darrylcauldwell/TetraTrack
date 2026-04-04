@@ -9,26 +9,30 @@
 import Foundation
 
 enum ScreenshotScreen: String, CaseIterable {
-    // Both iPhone & iPad
+    // Landing page
     case home
-    case rideDetail = "ride-detail"
+
+    // Training & Drills
+    case training
+    case schooling
+
+    // Competition
     case competitions
+    case competitionDay = "competition-day"
+
+    // Session History
+    case sessionHistory = "session-history"
     case sessionInsights = "session-insights"
+
+    // Horses
+    case horseProfile = "horse-profile"
+    case horseList = "horse-list"
+
+    // Live Sharing
     case liveSharing = "live-sharing"
 
-    // iPhone-only (capture views)
-    case riding
-    case horseProfile = "horse-profile"
-    case running
-    case swimming
-    case shooting
-
-    // iPad-only (review mode)
-    case trainingHistory = "training-history"
-    case competitionDetail = "competition-detail"
-    case tasks
-    case horseList = "horse-list"
-    case horseDetail = "horse-detail"
+    // Ride Detail (enriched from HealthKit)
+    case rideDetail = "ride-detail"
 
     static var isScreenshotMode: Bool {
         let args = ProcessInfo.processInfo.arguments

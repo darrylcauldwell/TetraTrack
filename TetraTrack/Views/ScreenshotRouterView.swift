@@ -18,38 +18,37 @@ struct ScreenshotRouterView: View {
 
     var body: some View {
         switch screen {
-        // Screens that own their own NavigationStack
         case .home:
             DisciplinesView()
 
-        case .liveSharing:
-            FamilyView()
-
-        // iPhone capture screens — wrapped in NavigationStack
-        case .riding:
+        case .training:
             NavigationStack {
-                RidingView()
+                UnifiedTrainingView()
             }
 
-        case .running:
-            EmptyView() // Running uses native Apple Watch workouts
-
-        case .swimming:
-            EmptyView() // Swimming uses native Apple Watch workouts
-
-        case .shooting:
+        case .schooling:
             NavigationStack {
-                ShootingView()
+                ExerciseLibraryView()
             }
 
-        // Detail screens — need NavigationStack + model data
-        case .rideDetail:
+        case .competitions:
             NavigationStack {
-                if let ride = rides.first {
-                    RideDetailView(ride: ride)
-                } else {
-                    ContentUnavailableView("No Rides", systemImage: "figure.equestrian.sports")
-                }
+                CompetitionHubView()
+            }
+
+        case .competitionDay:
+            NavigationStack {
+                CompetitionDayView()
+            }
+
+        case .sessionHistory:
+            NavigationStack {
+                SessionHistoryView()
+            }
+
+        case .sessionInsights:
+            NavigationStack {
+                SessionHistoryView(initialTab: .insights)
             }
 
         case .horseProfile:
@@ -66,43 +65,17 @@ struct ScreenshotRouterView: View {
                 HorseListView()
             }
 
-        case .horseDetail:
+        case .rideDetail:
             NavigationStack {
-                if let horse = horses.first {
-                    HorseDetailView(horse: horse)
+                if let ride = rides.first {
+                    RideDetailView(ride: ride)
                 } else {
-                    ContentUnavailableView("No Horses", systemImage: "pawprint")
+                    ContentUnavailableView("No Rides", systemImage: "figure.equestrian.sports")
                 }
             }
 
-        case .competitions:
-            NavigationStack {
-                CompetitionHubView()
-            }
-
-        case .competitionDetail:
-            NavigationStack {
-                if let competition = competitions.first {
-                    CompetitionDetailView(competition: competition)
-                } else {
-                    ContentUnavailableView("No Competitions", systemImage: "calendar")
-                }
-            }
-
-        case .tasks:
-            NavigationStack {
-                CompetitionHubView(initialTab: 2)
-            }
-
-        case .trainingHistory:
-            NavigationStack {
-                SessionHistoryView()
-            }
-
-        case .sessionInsights:
-            NavigationStack {
-                SessionHistoryView(initialTab: .insights)
-            }
+        case .liveSharing:
+            FamilyView()
         }
     }
 }
