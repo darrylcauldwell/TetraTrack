@@ -27,7 +27,7 @@ import Observation
 import os
 
 /// Motion data sample from Watch sensors
-struct WatchMotionSample: Codable {
+nonisolated struct WatchMotionSample: Codable {
     let timestamp: TimeInterval
     let accelerationX: Double
     let accelerationY: Double
@@ -65,7 +65,7 @@ enum WatchMotionMode: String, Codable {
 }
 
 /// Computed results from background motion processing, applied to @Observable properties on main.
-private struct MotionResults {
+nonisolated private struct MotionResults {
     // Shooting
     var stanceStability: Double?
     var movementMagnitude: Double?
@@ -99,15 +99,17 @@ final class WatchMotionManager: NSObject {
     // MARK: - State
 
     private(set) var isTracking: Bool = false
-    private(set) var currentMode: WatchMotionMode = .idle
+    // nonisolated(unsafe) because currentMode is read from motionQueue in processMotion switch.
+    // Written only from main thread in startTracking/stopTracking (before/after motionQueue runs).
+    nonisolated(unsafe) private(set) var currentMode: WatchMotionMode = .idle
 
-    // Shooting metrics
-    private(set) var stanceStability: Double = 0.0  // 0-100%
-    private(set) var movementMagnitude: Double = 0.0
+    // Shooting metrics — nonisolated(unsafe) because read as fallback from motionQueue
+    nonisolated(unsafe) private(set) var stanceStability: Double = 0.0  // 0-100%
+    nonisolated(unsafe) private(set) var movementMagnitude: Double = 0.0
 
-    // Swimming metrics
+    // Swimming metrics — strokeRate read from motionQueue as last-known value
     private(set) var strokeCount: Int = 0
-    private(set) var strokeRate: Double = 0.0  // strokes per minute
+    nonisolated(unsafe) private(set) var strokeRate: Double = 0.0  // strokes per minute
 
     // Running metrics
     private(set) var verticalOscillation: Double = 0.0  // cm
@@ -146,16 +148,18 @@ final class WatchMotionManager: NSObject {
         return q
     }()
 
-    // All mutable buffers below are only accessed on motionQueue.
-    private var sampleBuffer: [WatchMotionSample] = []
-    private var lastStrokeTime: Date?
-    private var strokeTimes: [TimeInterval] = []
-    private var runningPeaks: [TimeInterval] = []
-    private var lastPeakTime: TimeInterval = 0
-    private var peakDetectionThreshold: Double = 1.2  // G-force threshold
+    // All mutable buffers below are only accessed on the serial motionQueue.
+    // nonisolated(unsafe) because they are accessed from nonisolated DSP methods
+    // that run exclusively on motionQueue — thread safety is guaranteed by the serial queue.
+    nonisolated(unsafe) private var sampleBuffer: [WatchMotionSample] = []
+    nonisolated(unsafe) private var lastStrokeTime: Date?
+    nonisolated(unsafe) private var strokeTimes: [TimeInterval] = []
+    nonisolated(unsafe) private var runningPeaks: [TimeInterval] = []
+    nonisolated(unsafe) private var lastPeakTime: TimeInterval = 0
+    nonisolated(unsafe) private var peakDetectionThreshold: Double = 1.2
 
     // Cumulative stroke counter on motionQueue; synced to public strokeCount on main.
-    private var _internalStrokeCount: Int = 0
+    nonisolated(unsafe) private var _internalStrokeCount: Int = 0
 
     // Altitude tracking
     private var startAltitude: Double?
@@ -180,11 +184,11 @@ final class WatchMotionManager: NSObject {
     #endif
 
     // Breathing rate estimation
-    private var breathingSamples: [Double] = []
-    private var lastBreathingCalc: Date?
+    nonisolated(unsafe) private var breathingSamples: [Double] = []
+    nonisolated(unsafe) private var lastBreathingCalc: Date?
 
     // Tremor analysis (high-frequency motion)
-    private var tremorBuffer: [Double] = []
+    nonisolated(unsafe) private var tremorBuffer: [Double] = []
 
     // Callbacks
     var onMotionUpdate: ((WatchMotionSample) -> Void)?
@@ -305,7 +309,7 @@ final class WatchMotionManager: NSObject {
     }
 
     /// Called on motionQueue. Computes all metrics on background, then dispatches results to main.
-    private func processMotion(_ motion: CMDeviceMotion) {
+    nonisolated private func processMotion(_ motion: CMDeviceMotion) {
         let q = motion.attitude.quaternion
         let sample = WatchMotionSample(
             timestamp: motion.timestamp,
@@ -416,7 +420,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Shooting Analysis (motionQueue)
 
-    private func computeShootingMotion(_ sample: WatchMotionSample) -> (stability: Double, magnitude: Double) {
+    nonisolated private func computeShootingMotion(_ sample: WatchMotionSample) -> (stability: Double, magnitude: Double) {
         let recentSamples = Array(sampleBuffer.suffix(25))  // Last 0.5 seconds
         guard recentSamples.count >= 10 else { return (stanceStability, movementMagnitude) }
 
@@ -432,7 +436,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Swimming Analysis (motionQueue)
 
-    private func computeSwimmingMotion(_ sample: WatchMotionSample) -> (strokeCount: Int, strokeRate: Double, didDetectStroke: Bool) {
+    nonisolated private func computeSwimmingMotion(_ sample: WatchMotionSample) -> (strokeCount: Int, strokeRate: Double, didDetectStroke: Bool) {
         let lateralAccel = abs(sample.accelerationX)
         let threshold: Double = 0.8
 
@@ -473,7 +477,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Running Analysis (motionQueue)
 
-    private func computeRunningMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
+    nonisolated private func computeRunningMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
         let verticalAccel = sample.accelerationY
         let timestamp = sample.timestamp
 
@@ -523,7 +527,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Walking Analysis (motionQueue)
 
-    private func computeWalkingMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
+    nonisolated private func computeWalkingMotion(_ sample: WatchMotionSample) -> (oscillation: Double?, groundContact: Double?, cadence: Int?, didStep: Bool) {
         let verticalAccel = sample.accelerationY
         let timestamp = sample.timestamp
 
@@ -574,7 +578,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Riding Analysis (motionQueue)
 
-    private func computeRidingMotion(_ sample: WatchMotionSample) -> (postureStability: Double?, rhythmScore: Double?) {
+    nonisolated private func computeRidingMotion(_ sample: WatchMotionSample) -> (postureStability: Double?, rhythmScore: Double?) {
         let recentSamples = Array(sampleBuffer.suffix(50))
         guard recentSamples.count >= 20 else { return (nil, nil) }
 
@@ -694,7 +698,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Enhanced Motion Analysis (motionQueue)
 
-    private func computeEnhancedMetrics(_ sample: WatchMotionSample) -> (pitch: Double, roll: Double, tremor: Double?, intensity: Double?, breathing: Double?) {
+    nonisolated private func computeEnhancedMetrics(_ sample: WatchMotionSample) -> (pitch: Double, roll: Double, tremor: Double?, intensity: Double?, breathing: Double?) {
         let pitch = sample.pitch * 180.0 / .pi
         let roll = sample.roll * 180.0 / .pi
 
@@ -705,7 +709,7 @@ final class WatchMotionManager: NSObject {
         return (pitch, roll, tremor, intensity, breathing)
     }
 
-    private func calculateTremorLevel(_ sample: WatchMotionSample) -> Double? {
+    nonisolated private func calculateTremorLevel(_ sample: WatchMotionSample) -> Double? {
         let accelMag = sample.accelerationMagnitude
 
         tremorBuffer.append(accelMag)
@@ -719,7 +723,7 @@ final class WatchMotionManager: NSObject {
         return min(100, variance * 2000)
     }
 
-    private func calculateMovementIntensity(_ sample: WatchMotionSample) -> Double? {
+    nonisolated private func calculateMovementIntensity(_ sample: WatchMotionSample) -> Double? {
         let recentSamples = Array(sampleBuffer.suffix(50))
         guard recentSamples.count >= 10 else { return nil }
 
@@ -729,7 +733,7 @@ final class WatchMotionManager: NSObject {
         return min(100, (avgMagnitude + maxMagnitude) * 25)
     }
 
-    private func estimateBreathingRate(_ sample: WatchMotionSample) -> Double? {
+    nonisolated private func estimateBreathingRate(_ sample: WatchMotionSample) -> Double? {
         breathingSamples.append(sample.accelerationZ)
 
         if breathingSamples.count > 500 {
@@ -758,7 +762,7 @@ final class WatchMotionManager: NSObject {
         return min(30, max(8, rawRate))
     }
 
-    private func movingAverage(_ values: [Double], windowSize: Int) -> [Double] {
+    nonisolated private func movingAverage(_ values: [Double], windowSize: Int) -> [Double] {
         guard values.count >= windowSize else { return values }
         var result: [Double] = []
         for i in 0..<(values.count - windowSize + 1) {
@@ -771,7 +775,7 @@ final class WatchMotionManager: NSObject {
 
     // MARK: - Helpers
 
-    private func calculateVariance(_ values: [Double]) -> Double {
+    nonisolated private func calculateVariance(_ values: [Double]) -> Double {
         guard values.count > 1 else { return 0 }
         let mean = values.reduce(0, +) / Double(values.count)
         let squaredDiffs = values.map { ($0 - mean) * ($0 - mean) }
@@ -811,7 +815,7 @@ final class WatchMotionManager: NSObject {
 }
 
 /// Aggregated metrics to send to iPhone
-struct WatchMotionMetrics: Codable {
+nonisolated struct WatchMotionMetrics: Codable {
     let mode: WatchMotionMode
     let stanceStability: Double
     let movementMagnitude: Double
