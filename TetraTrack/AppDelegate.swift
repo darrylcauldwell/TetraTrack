@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CarPlay
 import CloudKit
 import os
 
@@ -36,6 +37,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         options: UIScene.ConnectionOptions
     ) -> UISceneConfiguration {
         Log.family.info("🔧 AppDelegate: configurationForConnecting called")
+
+        // Route CarPlay scenes to CarPlay delegate
+        if connectingSceneSession.role == .carTemplateApplication {
+            let config = UISceneConfiguration(name: "CarPlay", sessionRole: .carTemplateApplication)
+            config.delegateClass = CarPlaySceneDelegate.self
+            return config
+        }
 
         // Check for CloudKit share metadata in options
         if let metadata = options.cloudKitShareMetadata {

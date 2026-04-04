@@ -50,7 +50,7 @@ struct TetraTrackApp: App {
         ScreenshotScreen.isScreenshotMode
     }
 
-    var sharedModelContainer: ModelContainer = {
+    static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Ride.self,
             GPSPoint.self,
@@ -183,7 +183,7 @@ struct TetraTrackApp: App {
         WindowGroup {
             rootContentView
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(Self.sharedModelContainer)
     }
 
     @ViewBuilder
@@ -306,8 +306,8 @@ struct TetraTrackApp: App {
 
         // Auto-generate screenshot data when launched in screenshot mode
         if Self.isScreenshotMode {
-            ScreenshotDataGenerator.generateScreenshotData(in: sharedModelContainer.mainContext)
-            try? sharedModelContainer.mainContext.save()
+            ScreenshotDataGenerator.generateScreenshotData(in: Self.sharedModelContainer.mainContext)
+            try? Self.sharedModelContainer.mainContext.save()
             Log.app.info("Screenshot mode: generated demonstration data")
         }
 
@@ -326,12 +326,12 @@ struct TetraTrackApp: App {
         processPendingRideSummaries()
 
         // Sync widget data on app launch
-        WidgetDataSyncService.shared.syncAllWidgetData(context: sharedModelContainer.mainContext)
+        WidgetDataSyncService.shared.syncAllWidgetData(context: Self.sharedModelContainer.mainContext)
 
         // Route planning service removed (#307)
 
         // Configure family sharing coordinator
-        UnifiedSharingCoordinator.shared.configure(with: sharedModelContainer.mainContext)
+        UnifiedSharingCoordinator.shared.configure(with: Self.sharedModelContainer.mainContext)
 
         // Initialize CloudKit schema for family sharing (creates record types in Development mode)
         // Skip on simulator — CloudKit is not available without iCloud sign-in

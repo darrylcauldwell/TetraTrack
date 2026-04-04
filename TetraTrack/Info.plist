@@ -52,6 +52,23 @@
 	<string>TetraTrack can sync your competitions to Apple Calendar so you never miss an event.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>TetraTrack can sync your competition preparation tasks to Apple Reminders so you can track them from anywhere.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>CarPlay</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>dev.dreamfold.tetratrack.viewCompetition</string>
