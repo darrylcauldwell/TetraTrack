@@ -860,10 +860,11 @@ extension WatchMotionManager: CLLocationManagerDelegate {
 #if os(watchOS)
 @available(watchOS 10.0, *)
 extension WatchMotionManager: CMWaterSubmersionManagerDelegate {
-    func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {
+    nonisolated func manager(_ manager: CMWaterSubmersionManager, didUpdate event: CMWaterSubmersionEvent) {
+        nonisolated(unsafe) let evt = event
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            switch event.state {
+            switch evt.state {
             case .notSubmerged:
                 self.isSubmerged = false
                 self.waterDepth = 0.0
@@ -882,17 +883,18 @@ extension WatchMotionManager: CMWaterSubmersionManagerDelegate {
         }
     }
 
-    func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
+    nonisolated func manager(_ manager: CMWaterSubmersionManager, didUpdate measurement: CMWaterSubmersionMeasurement) {
+        nonisolated(unsafe) let m = measurement
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             // Update water depth from the measurement
-            if let depth = measurement.depth {
+            if let depth = m.depth {
                 self.waterDepth = depth.converted(to: .meters).value
                 Log.location.debug("Water depth: \(self.waterDepth)m")
             }
 
             // Submersion state from measurement (DepthState has shallow/deep variants)
-            switch measurement.submersionState {
+            switch m.submersionState {
             case .notSubmerged:
                 self.isSubmerged = false
             case .submergedShallow, .submergedDeep:

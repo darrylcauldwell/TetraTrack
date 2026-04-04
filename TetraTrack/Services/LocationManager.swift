@@ -173,11 +173,17 @@ final class LocationManager: NSObject {
 // MARK: - CLLocationManagerDelegate
 
 extension LocationManager: CLLocationManagerDelegate {
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            self.authorizationStatus = status
+        }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        locationError = error
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        let err = error
+        Task { @MainActor in
+            self.locationError = err
+        }
     }
 }
