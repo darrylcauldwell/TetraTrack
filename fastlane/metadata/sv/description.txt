@@ -1,48 +1,51 @@
-Din häst blev just rädd för en plastpåse. Igen. Men oroa dig inte — TetraTrack spelade ändå in din ofrivilliga galoppövergång.
+Din häst blev just skrämd av en plastpåse. Igen. Men lugn — TetraTrack spelade fortfarande in på din handled.
 
-Välkommen till den enda träningsappen som verkligen förstår fälttävlan och ridsport. Vi vet att du inte bara är en löpare som ibland sitter på en häst, eller en simmare som pysslar med målskytte. Du är härligt, kaotiskt mångsidig — och äntligen finns det en app för det.
+Välkommen till den enda träningsappen som faktiskt förstår tetrathlon och fälttävlan. Vi vet att du inte bara är en löpare som ibland sätter dig på en häst, eller en simmare som pillar lite med skytte. Du är härligt, kaotiskt mångsidig — och äntligen finns det en app för det.
 
-AUTOMATISK GÅNGARTSDETEKTERING (ÄVEN KÄND SOM MAGI)
+APPLE WATCH FÖRST
 
-TetraTrack vet när du går i skritt, trav, galopp, eller utför en oplanerad sprint mot grinden. Inga knappar att trycka på. Inga "Var det galopp eller en väldigt entusiastisk trav?"-debatter. Bara rid, och se din rutt måla sig själv i vackra gångartsfärgade linjer.
+Starta varje pass från handleden. Ridning, löpning, simning, promenad, skytte — tryck och kör. Stora knappar för fingrar i handskar, puls i realtid, disciplinspecifika mått. Ingen mobiljakt krävs.
 
-Föredrar du hemligt din vänstra tygel? Vi kommer märka det. Tillbringar du 90% av din "galoppkonditionspass" i skritt? Siffrorna ljuger inte. Men vi dömer inte — så mycket.
+Din iPhone är hjärnan bakom alltihop — berikar varje pass med detaljerad statistik, insikter, ruttkartor och coaching i efterhand. Watch fångar, iPhone analyserar.
 
-DIN AI-TRÄNARE (SOM ALDRIG TRÖTTNAR PÅ DINA FRÅGOR)
+FEM DISCIPLINER, EN LAGOM BESATT APP
 
-Driven av Apple Intelligence analyserar TetraTrack varje pass och berättar faktiskt något användbart:
+RIDNING — Starta från Watch i ritt-, dressyr- eller hoppningsläge. iPhone berikar med HR-zoner, rutt, höjdprofil och väder. Annotera med häst, poäng och anteckningar. Hantera flera hästar med profiler och träningshistorik.
 
-"Fint balanserat pass idag! Dina rytmpoäng har ökat med 15% den här veckan. Kanske lägga till några skrittpauser nästa gång — din puls arbetade hårdare än din häst."
+LÖPNING — Tempo och kadens i realtid på Watch. iPhone visar splittar, HR-analys och passinsikter. Inkluderar uppvärmningsplan för 1500m tävling.
 
-Fråga vad som helst: "Visa mig ridturer där jag jobbade med samling" eller "Varför är jag alltid långsammare på måndagar?" Det är som att ha en tränare i fickan, minus skrikandet.
+SIMNING — Längdräkning och simtagsregistrering på Watch. iPhone visar tempo, SWOLF och längd-för-längd-analys.
 
-FYRA DISCIPLINER, EN LÄTT BESATT APP
+PROMENAD — Steg per minut och distans på Watch. iPhone berikar med rutt- och pulsdata.
 
-• RIDNING — GPS-spårning, gångartsdetektering, balansanalys, galoppdetektering, ryttarsymmetri, höjdprofiler, och ja, vi hittar foton du tog under ritten
-• LÖPNING — 1500m tidsprov med virtuell pacemaker (tävla mot ditt spöke!), intervaller, löpbandsläge för hamsterhjulsdagar, och AirPods-coaching som påminner dig att sluta kuta
-• SIMNING — 3-minuters testsimulering, automatisk simtagsräkning via Apple Watch, SWOLF-poäng att älta, och längd-för-längd-uppdelningar
-• SKYTTE — Tävlingskort, ståstabilitets-spårning (din Watch vet när du vickar), torrskytte, och AI-mönsteranalys som är förvånansvärt ärlig
+SKYTTE — Stadighet och puls i realtid på Watch. Skanna tavlor med iPhone-kameran för skottanalys — markera träffar, se värmekarta, följ grupperingar.
 
-FAMILJESÄKERHET (HÅLL MAMMA GLAD)
+TRÄNINGSÖVNINGAR
 
-Att rida ensam betyder inte att vara ensam. Dela din liveposition så att familjen kan se exakt var du är, vilken gångart du rider, och oroa sig lite mindre.
+Övningar utanför sadeln och skjutbanan som bygger rörelsemönster som överförs till alla discipliner. Bålstabilitet, balansbräda, lättridningsrytm, höftrörlighet, stadigt sikte, torrträning, reaktionsträning och mer. Rörelseåterkoppling i realtid bedömer din teknik medan du kör.
 
-Falldetektering använder ett smart 2-fassystem — vi kontrollerar efter nedslag, sedan om du fortfarande rör dig. Apple Watch-puls hjälper också. Om du inte svarar, larmar vi dina betrodda kontakter med din GPS-position. Säkerhet först, dramatiska avstigningar sen.
+SKOLNINGSBIBLIOTEK
 
-APPLE WATCH: STORA KNAPPAR FÖR HANDSKKLÄDDA FINGRAR
+Banridning, bomövningar och markarbete med steg-för-steg-instruktioner. Kategoriordnat, sökbart och alltid tillgängligt — inget internet behövs.
 
-Vi gjorde knapparna enorma. Som, komiskt stora. För vi har försökt trycka på små ikoner med vinterhandskar och det är inte kul. Pulszoner, gångartsöversikt, sessionsstatistik — allt på din handled utan att fiska upp telefonen ur fickan.
+TÄVLINGSSÄSONG
 
-TÄVLINGSREDO
+Följ din Pony Club-kalender med nedräkningar och tävlingsdagsresultat. Registrera ridstraff, skyttepoäng, löptider och simdistanser på ett ställe.
 
-Följ hela din säsong med nedräkningstimers, uppgiftslistor (packa hårnäten!) och tävlingsresultat. Hantera flera hästar med profiler, träningshistorik och smarta belastningsrekommendationer så att du vet vem som är redo att jobba och vem som behöver en spa-dag.
+LIVE-DELNING (SÅ MAMMA SLAPPNAR AV)
+
+Att rida ensam behöver inte betyda att vara ensam. Dela din position i realtid så familjen ser exakt var du är och får lite mindre panik.
+
+PASSHISTORIK
+
+Varje pass — Watch-träningspass, övningar och externa aktiviteter — i en färgkodad tidslinje. Disciplinspecifika mått, coachinginsikter och träningsbelastningstrender.
 
 INTEGRITET FÖRST
 
-Din data stannar på dina enheter. Apple Intelligence bearbetar lokalt. Vi säljer inte din galoppstatistik till någon. Lovar.
+Din data stannar på dina enheter. Apple Intelligence bearbetar lokalt. Vi säljer inte din galoppstatistik till någon. Lovat.
 
 ---
 
-Kräver iOS 26+. Apple Watch-funktioner kräver watchOS 26+. Apple Intelligence-funktioner kräver iPhone 15 Pro eller senare.
+Kräver iOS 26+. Apple Watch krävs för passinspelning (watchOS 26+). Apple Intelligence-funktioner kräver iPhone 15 Pro eller senare.
 
-Träna. Spåra. Triumfera. (Försök att inte bli rädd för plastpåsarna.)
+Träna. Tracka. Triumfera. (Försök att inte bli skrämd av plastpåsarna.)

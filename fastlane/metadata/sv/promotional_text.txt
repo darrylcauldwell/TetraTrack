@@ -1,1 +1,1 @@
-Äntligen! En app som kan skilja skritt från trav. AI-coaching, gångartsdetektering, fallarm. Din häst godkänner. Förmodligen.
+Tetrathlonträningsappen byggd för Apple Watch. Fem discipliner, träningsövningar, skolningsövningar, tävlingsuppföljning. Din häst godkänner. Förmodligen.

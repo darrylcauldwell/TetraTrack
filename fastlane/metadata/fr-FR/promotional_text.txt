@@ -1,1 +1,1 @@
-Enfin ! Une app qui distingue le trot du galop "enthousiaste". Coaching IA, détection des allures, alerte chute. Votre cheval approuve. Probablement.
+L'appli tetrathlon conçue pour l'Apple Watch. Cinq disciplines, exercices, travail en carrière, suivi de compétition. Ton cheval approuve. Probablement.

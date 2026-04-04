@@ -1,48 +1,51 @@
-Votre cheval vient de s'effrayer d'un sac plastique. Encore. Mais pas d'inquiétude — TetraTrack a quand même enregistré votre transition involontaire au galop.
+Ton poney vient de faire un écart devant un sac plastique. Encore. Mais pas de panique — TetraTrack enregistrait toujours depuis ton poignet.
 
-Bienvenue dans la seule application d'entraînement qui comprend vraiment le concours complet et l'équitation. Nous savons que vous n'êtes pas juste un coureur qui monte occasionnellement à cheval, ou un nageur qui s'essaie au tir. Vous êtes glorieusement multi-talentueux — et enfin, il y a une app pour ça.
+Bienvenue dans la seule appli d'entraînement qui comprend vraiment le tetrathlon et le concours complet. On sait que tu n'es pas juste un coureur qui monte à cheval de temps en temps, ni un nageur qui s'amuse à tirer sur des cibles. Tu es glorieusement, magnifiquement polyvalent(e) — et enfin, il y a une appli pour ça.
 
-DÉTECTION AUTOMATIQUE DES ALLURES (AUSSI APPELÉE MAGIE)
+APPLE WATCH D'ABORD
 
-TetraTrack sait quand vous marchez, trottez, galopez, ou exécutez un galop non planifié vers le portail. Pas de boutons à presser. Pas de débats "C'était un galop ou un trot très enthousiaste ?". Montez simplement, et regardez votre itinéraire se dessiner dans de magnifiques couleurs d'allures.
+Lance chaque session depuis ton poignet. Équitation, course, natation, marche, tir — un tap et c'est parti. Gros boutons pour les doigts gantés, fréquence cardiaque en direct, métriques par discipline. Pas besoin de fouiller dans tes poches.
 
-Vous favorisez secrètement votre rêne gauche ? Nous le remarquerons. Vous passez 90% de votre "séance de fitness au galop" au pas ? Les chiffres ne mentent pas. Mais nous ne jugerons pas — trop.
+Ton iPhone, c'est le cerveau de l'opération — il enrichit chaque session avec des métriques détaillées, des analyses, des cartes d'itinéraire et du coaching après ta séance. La Watch capture, l'iPhone analyse.
 
-VOTRE COACH IA (QUI NE SE LASSE JAMAIS DE VOS QUESTIONS)
+CINQ DISCIPLINES, UNE APPLI (UN PEU) OBSESSIONNELLE
 
-Propulsé par Apple Intelligence, TetraTrack analyse chaque séance et vous dit vraiment quelque chose d'utile :
+ÉQUITATION — Lance depuis la Watch en mode balade, dressage ou saut d'obstacles. L'iPhone enrichit avec les zones FC, l'itinéraire, le dénivelé et la météo. Annote avec le cheval, les scores et des notes. Gère plusieurs chevaux avec leurs profils et historiques d'entraînement.
 
-"Belle séance équilibrée aujourd'hui ! Vos scores de rythme ont augmenté de 15% cette semaine. Peut-être ajouter quelques pauses au pas la prochaine fois — votre fréquence cardiaque travaillait plus dur que votre cheval."
+COURSE — Allure et cadence suivies en direct sur la Watch. L'iPhone affiche les splits, l'analyse FC et les insights de session. Plan d'échauffement 1500m pré-course inclus.
 
-Demandez n'importe quoi : "Montre-moi les sorties où j'ai travaillé le rassembler" ou "Pourquoi suis-je toujours plus lent le lundi ?" C'est comme avoir un coach dans votre poche, sans les cris.
+NATATION — Comptage des longueurs et détection des nages sur la Watch. L'iPhone analyse l'allure, le SWOLF et le détail longueur par longueur.
 
-QUATRE DISCIPLINES, UNE APP LÉGÈREMENT OBSESSIONNELLE
+MARCHE — Pas par minute et distance sur la Watch. L'iPhone enrichit avec l'itinéraire et les données de fréquence cardiaque.
 
-• ÉQUITATION — Suivi GPS, détection des allures, analyse de l'équilibre, détection du galop, symétrie du cavalier, profils d'altitude, et oui, nous trouverons les photos prises pendant la balade
-• COURSE — Chronos 1500m avec allure virtuelle (courez contre votre fantôme !), intervalles, mode tapis pour les jours roue de hamster, et coaching AirPods qui vous rappelle de ne pas vous voûter
-• NATATION — Simulation test 3 minutes, comptage automatique des mouvements via Apple Watch, scores SWOLF à analyser, et décomposition longueur par longueur
-• TIR — Cartes de compétition, suivi de stabilité posturale (votre Watch sait quand vous tremblez), exercices à sec, et analyse de motifs par IA étonnamment honnête
+TIR — Stabilité et fréquence cardiaque suivies en direct sur la Watch. Scanne tes cibles avec l'appareil photo de l'iPhone pour l'analyse des tirs — marque les impacts, visualise les cartes de chaleur, suis tes groupements.
 
-SÉCURITÉ FAMILIALE (GARDEZ MAMAN HEUREUSE)
+EXERCICES D'ENTRAÎNEMENT
 
-Monter seul ne signifie pas être seul. Partagez votre position en direct pour que la famille puisse voir exactement où vous êtes, quelle allure vous pratiquez, et paniquer un peu moins.
+Des exercices à pied et hors stand de tir pour développer les schémas moteurs qui se transfèrent à toutes les disciplines. Gainage, planche d'équilibre, rythme de trot enlevé, mobilité des hanches, tenue stable, tir à sec, entraînement réactif et plus encore. Le retour en temps réel note ta forme au fur et à mesure.
 
-La détection de chute utilise un système intelligent en 2 phases — nous vérifions l'impact, puis si vous bougez encore. La fréquence cardiaque Apple Watch aide aussi. Si vous ne répondez pas, nous alertons vos contacts de confiance avec votre position GPS. La sécurité d'abord, les descentes dramatiques ensuite.
+BIBLIOTHÈQUE DE TRAVAIL
 
-APPLE WATCH : GROS BOUTONS POUR DOIGTS GANTÉS
+Exercices de plat, barres au sol et travail à pied avec des instructions pas à pas. Classés par catégorie, recherchables et toujours disponibles — pas besoin d'internet.
 
-Nous avons fait les boutons énormes. Genre, comiquement grands. Parce que nous avons essayé de taper sur de petites icônes avec des gants d'hiver et ce n'est pas amusant. Zones de fréquence cardiaque, répartition des allures, stats de séance — tout à votre poignet sans sortir votre téléphone de votre poche.
+SAISON DE COMPÉTITION
 
-PRÊT POUR LA COMPÉTITION
+Suis ton calendrier Pony Club avec des comptes à rebours et un suivi des scores le jour J. Enregistre les pénalités d'équitation, les points de tir, les temps de course et les distances de natation au même endroit.
 
-Suivez toute votre saison avec des minuteries de compte à rebours, des checklists (n'oubliez pas le filet à cheveux !), et les résultats de compétition. Gérez plusieurs chevaux avec profils, historiques d'entraînement, et recommandations de charge intelligentes pour savoir qui est prêt à travailler et qui a besoin d'une journée spa.
+PARTAGE EN DIRECT (POUR RASSURER MAMAN)
 
-CONFIDENTIALITÉ D'ABORD
+Monter seul(e) ne veut pas dire être seul(e). Partage ta position en direct pour que ta famille sache exactement où tu es et panique un tout petit peu moins.
 
-Vos données restent sur vos appareils. Apple Intelligence traite localement. Nous ne vendons vos statistiques de galop à personne. Promis.
+HISTORIQUE DES SESSIONS
+
+Chaque session — entraînements Watch, exercices et activités externes — dans une chronologie colorée. Métriques par discipline, conseils de coaching et tendances de charge d'entraînement.
+
+VIE PRIVÉE D'ABORD
+
+Tes données restent sur tes appareils. Apple Intelligence traite tout en local. On ne vend les statistiques de ton galop à personne. Promis.
 
 ---
 
-Nécessite iOS 26+. Les fonctionnalités Apple Watch nécessitent watchOS 26+. Les fonctionnalités Apple Intelligence nécessitent iPhone 15 Pro ou plus récent.
+Nécessite iOS 26+. Apple Watch requise pour la capture de session (watchOS 26+). Les fonctionnalités Apple Intelligence nécessitent un iPhone 15 Pro ou ultérieur.
 
-Entraînez. Suivez. Triomphez. (Évitez les sacs plastiques.)
+Entraîne-toi. Mesure. Triomphe. (Et essaie de ne pas faire d'écart devant les sacs plastiques.)

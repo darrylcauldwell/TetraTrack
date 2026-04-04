@@ -1,1 +1,1 @@
-Eindelijk! Een app die stap van draf kan onderscheiden. AI-coaching, gangherkenning, valalarm. Je paard is enthousiast. Waarschijnlijk.
+De tetrathlon-trainingsapp gebouwd voor Apple Watch. Vijf disciplines, trainingsoefeningen, lesoefeningen, wedstrijdregistratie. Je paard keurt het goed. Waarschijnlijk.
