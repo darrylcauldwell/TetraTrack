@@ -194,8 +194,9 @@ final class WatchRideMetricsCollector {
 
         motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, _ in
             guard let motion else { return }
+            nonisolated(unsafe) let m = motion
             Task { @MainActor [weak self] in
-                self?.processMotion(motion)
+                self?.processMotion(m)
             }
         }
     }
