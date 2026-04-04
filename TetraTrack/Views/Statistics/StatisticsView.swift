@@ -22,7 +22,6 @@ struct StatisticsView: View {
     @State private var weeklyTrends: [WeeklyTrendPoint] = []
     @State private var lastRideCount: Int = 0
 
-
     private func refreshStatistics() {
         statistics = StatisticsManager.calculateStatistics(from: rides, period: selectedPeriod)
         // Only recalculate weekly data if rides changed (not period-dependent)

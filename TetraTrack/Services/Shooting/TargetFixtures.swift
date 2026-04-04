@@ -141,11 +141,11 @@ nonisolated struct TargetFixtureMetadata: Codable, Equatable {
     }
 
     enum LightingCondition: String, Codable {
-        case ideal = "ideal"
-        case shadows = "shadows"
-        case uneven = "uneven"
-        case overexposed = "overexposed"
-        case underexposed = "underexposed"
+        case ideal
+        case shadows
+        case uneven
+        case overexposed
+        case underexposed
     }
 }
 

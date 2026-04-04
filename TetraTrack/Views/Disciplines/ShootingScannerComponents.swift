@@ -1746,7 +1746,7 @@ struct DetectedHole: Identifiable {
     var confidence: Double
     var radius: CGFloat = 0.02 // Normalized radius
     var needsReview: Bool = false
-    var reviewReason: String? = nil
+    var reviewReason: String?
 }
 
 // MARK: - Score Edit Button

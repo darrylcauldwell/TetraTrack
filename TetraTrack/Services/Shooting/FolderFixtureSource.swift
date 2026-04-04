@@ -400,7 +400,6 @@ struct StoredQualityAssessment: Codable {
     let warnings: [String]?
 }
 
-
 // MARK: - Metadata Writer
 
 /// Utility for writing metadata.json files

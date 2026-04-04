@@ -624,7 +624,7 @@ final class ShootingHistoryService {
         let highMetrics = computeMetrics(patterns: highPressure)
 
         // Calculate percentage change in spread
-        var spreadChange: Double? = nil
+        var spreadChange: Double?
         if lowMetrics.groupRadius > 0 && highMetrics.groupRadius > 0 {
             spreadChange = ((highMetrics.groupRadius - lowMetrics.groupRadius) / lowMetrics.groupRadius) * 100
         }
@@ -670,11 +670,9 @@ struct BiasMetrics {
         let threshold = 0.03
 
         var parts: [String] = []
-        if averageMpiX < -threshold { parts.append("left") }
-        else if averageMpiX > threshold { parts.append("right") }
+        if averageMpiX < -threshold { parts.append("left") } else if averageMpiX > threshold { parts.append("right") }
 
-        if averageMpiY < -threshold { parts.append("high") }
-        else if averageMpiY > threshold { parts.append("low") }
+        if averageMpiY < -threshold { parts.append("high") } else if averageMpiY > threshold { parts.append("low") }
 
         return parts.isEmpty ? "centered" : parts.joined(separator: " & ")
     }

@@ -1604,7 +1604,7 @@ struct ScreenshotDataGenerator {
         context.insert(training)
         generateShootingHeartRateSamples(for: training, restingHR: 75, peakHR: 102, sampleCount: 20)
 
-        let scores = [[8,8,6,10,8], [10,8,8,6,8], [8,10,10,8,8], [10,8,8,10,6]]
+        let scores = [[8, 8, 6, 10, 8], [10, 8, 8, 6, 8], [8, 10, 10, 8, 8], [10, 8, 8, 10, 6]]
         for (i, scoreSet) in scores.enumerated() {
             let end = ShootingEnd(orderIndex: i)
             end.session = training
@@ -1694,7 +1694,7 @@ struct ScreenshotDataGenerator {
         context.insert(match)
         generateShootingHeartRateSamples(for: match, restingHR: 80, peakHR: 115, sampleCount: 20)
 
-        let matchScores = [[6,8,8,10,8], [10,10,8,8,10], [10,10,10,8,10], [8,6,8,10,8]]
+        let matchScores = [[6, 8, 8, 10, 8], [10, 10, 8, 8, 10], [10, 10, 10, 8, 10], [8, 6, 8, 10, 8]]
         for (i, scoreSet) in matchScores.enumerated() {
             let end = ShootingEnd(orderIndex: i)
             end.session = match
@@ -1739,7 +1739,7 @@ struct ScreenshotDataGenerator {
         context.insert(precision)
         generateShootingHeartRateSamples(for: precision, restingHR: 74, peakHR: 98, sampleCount: 18)
 
-        let precisionScores = [[8,10,10,10,8], [10,8,10,10,10], [10,10,8,10,10]]
+        let precisionScores = [[8, 10, 10, 10, 8], [10, 8, 10, 10, 10], [10, 10, 8, 10, 10]]
         for (i, scoreSet) in precisionScores.enumerated() {
             let end = ShootingEnd(orderIndex: i)
             end.session = precision
@@ -1784,7 +1784,7 @@ struct ScreenshotDataGenerator {
         context.insert(pressure)
         generateShootingHeartRateSamples(for: pressure, restingHR: 82, peakHR: 120, sampleCount: 15)
 
-        let pressureScores = [[10,8,4,8,10], [8,10,10,10,8]]  // Note the 4 - "shall not be discussed"
+        let pressureScores = [[10, 8, 4, 8, 10], [8, 10, 10, 10, 8]]  // Note the 4 - "shall not be discussed"
         for (i, scoreSet) in pressureScores.enumerated() {
             let end = ShootingEnd(orderIndex: i)
             end.session = pressure
@@ -1952,7 +1952,7 @@ struct ScreenshotDataGenerator {
 
             // Scoring ring colors and radii (outer to inner)
             let rings: [(radius: CGFloat, fill: UIColor, stroke: UIColor)] = [
-                (maxRadius,       UIColor(white: 0.85, alpha: 1), UIColor(white: 0.6, alpha: 1)),   // 2 - outer
+                (maxRadius, UIColor(white: 0.85, alpha: 1), UIColor(white: 0.6, alpha: 1)),   // 2 - outer
                 (maxRadius * 0.8, UIColor(white: 0.80, alpha: 1), UIColor(white: 0.6, alpha: 1)),   // 4
                 (maxRadius * 0.6, UIColor(red: 0.6, green: 0.75, blue: 0.9, alpha: 1), UIColor(red: 0.3, green: 0.5, blue: 0.7, alpha: 1)), // 6 - blue
                 (maxRadius * 0.4, UIColor(red: 0.9, green: 0.5, blue: 0.5, alpha: 1), UIColor(red: 0.7, green: 0.3, blue: 0.3, alpha: 1)), // 8 - red

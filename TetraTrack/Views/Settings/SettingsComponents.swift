@@ -915,4 +915,3 @@ struct ShootingPBEditorView: View {
         }
     }
 }
-

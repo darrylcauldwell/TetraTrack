@@ -42,8 +42,6 @@ struct HoleDetectionConfig {
     /// Enable local background estimation
     var useLocalBackground: Bool = true
 
-    nonisolated init() {}
-
     nonisolated static let `default` = HoleDetectionConfig()
 
     /// Calibrate configuration based on image and target

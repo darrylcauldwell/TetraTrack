@@ -34,7 +34,7 @@ struct ExercisePhotoSection: View {
             addPhotoButton
             photoCountLabel
         }
-        .onChange(of: selectedItems) { oldItems, newItems in
+        .onChange(of: selectedItems) { _, newItems in
             handlePhotoSelection(newItems)
         }
     }

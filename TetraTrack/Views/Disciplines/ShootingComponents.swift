@@ -117,7 +117,7 @@ struct ShootTypeButton: View {
     let title: String
     let icon: String
     let color: Color
-    var subtitle: String? = nil
+    var subtitle: String?
     let action: () -> Void
 
     var body: some View {
@@ -161,7 +161,7 @@ struct ShootTypeCard: View {
     let title: String
     let icon: String
     let color: Color
-    var subtitle: String? = nil
+    var subtitle: String?
     let action: () -> Void
 
     var body: some View {

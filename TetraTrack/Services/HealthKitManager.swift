@@ -917,9 +917,7 @@ struct HealthKitFitnessMetrics {
 
         // Sleep contribution
         if let sleep = lastNightSleep {
-            if sleep.totalSleepHours >= 7.5 { score += 10 }
-            else if sleep.totalSleepHours >= 6.5 { score += 5 }
-            else if sleep.totalSleepHours < 5.5 { score -= 15 }
+            if sleep.totalSleepHours >= 7.5 { score += 10 } else if sleep.totalSleepHours >= 6.5 { score += 5 } else if sleep.totalSleepHours < 5.5 { score -= 15 }
 
             // Bonus for good deep sleep
             if sleep.deepHours >= 1.0 { score += 5 }

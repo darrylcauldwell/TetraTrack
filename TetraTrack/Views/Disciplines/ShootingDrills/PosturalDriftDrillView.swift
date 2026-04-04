@@ -25,7 +25,7 @@ struct PosturalDriftDrillView: View {
     private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
@@ -484,7 +484,6 @@ struct PosturalDriftDrillView: View {
         generator.notificationOccurred(.success)
     }
 }
-
 
 #Preview {
     PosturalDriftDrillView()

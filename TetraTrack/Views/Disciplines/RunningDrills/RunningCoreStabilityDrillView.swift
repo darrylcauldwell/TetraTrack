@@ -23,7 +23,7 @@ struct RunningCoreStabilityDrillView: View {
     @State private var cueSystem = RealTimeCueSystem()
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 

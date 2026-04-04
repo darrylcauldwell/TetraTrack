@@ -10,12 +10,12 @@ import SwiftUI
 
 /// Universal skill domains that apply across all training disciplines
 enum SkillDomain: String, CaseIterable, Codable, Identifiable {
-    case stability = "stability"
-    case balance = "balance"
-    case symmetry = "symmetry"
-    case rhythm = "rhythm"
-    case endurance = "endurance"
-    case calmness = "calmness"
+    case stability
+    case balance
+    case symmetry
+    case rhythm
+    case endurance
+    case calmness
 
     var id: String { rawValue }
 

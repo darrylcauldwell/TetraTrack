@@ -1751,7 +1751,6 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         }
     }
 
-
     nonisolated private func processHeartRateStatistics(_ statistics: HKStatistics?) {
         guard let statistics = statistics else {
             Log.tracking.error("TT: processHR — statistics is nil")

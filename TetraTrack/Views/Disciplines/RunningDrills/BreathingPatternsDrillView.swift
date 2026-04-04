@@ -62,7 +62,7 @@ struct BreathingPatternsDrillView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 

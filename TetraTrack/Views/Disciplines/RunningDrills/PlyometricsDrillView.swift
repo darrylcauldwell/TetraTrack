@@ -26,7 +26,7 @@ struct PlyometricsDrillView: View {
     @State private var cueSystem = RealTimeCueSystem()
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.error.opacity(Opacity.light).ignoresSafeArea()
 
@@ -182,7 +182,7 @@ struct PlyometricsDrillView: View {
 
                 // Height markers
                 VStack {
-                    ForEach([180, 135, 90, 45], id: \.self) { height in
+                    ForEach([180, 135, 90, 45], id: \.self) { _ in
                         Rectangle()
                             .fill(Color.white)
                             .frame(width: 70, height: 2)

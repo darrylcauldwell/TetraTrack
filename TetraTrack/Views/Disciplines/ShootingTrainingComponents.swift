@@ -182,7 +182,6 @@ struct ShootingTrainingView: View {
     }
 }
 
-
 // MARK: - Training Drill Row (for List) - Glass Design
 
 struct TrainingDrillRow: View {

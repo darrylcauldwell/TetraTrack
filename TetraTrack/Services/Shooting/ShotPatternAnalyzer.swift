@@ -372,8 +372,8 @@ final class ShotPatternAnalyzer {
         )
 
         // Step 7: Aggregate history analysis (if available)
-        var aggregateAnalysis: PatternAnalysisResult? = nil
-        var aggregateCluster: ClusterAnalysis? = nil
+        var aggregateAnalysis: PatternAnalysisResult?
+        var aggregateCluster: ClusterAnalysis?
 
         if !history.isEmpty {
             // Combine all historical shots with current for aggregate clustering

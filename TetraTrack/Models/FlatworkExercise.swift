@@ -74,9 +74,9 @@ final class FlatworkExercise {
 // MARK: - Flatwork Difficulty
 
 enum FlatworkDifficulty: String, Codable, CaseIterable, Identifiable {
-    case beginner = "beginner"
-    case intermediate = "intermediate"
-    case advanced = "advanced"
+    case beginner
+    case intermediate
+    case advanced
 
     var id: String { rawValue }
 
@@ -108,13 +108,13 @@ enum FlatworkDifficulty: String, Codable, CaseIterable, Identifiable {
 // MARK: - Flatwork Category
 
 enum FlatworkCategory: String, Codable, CaseIterable, Identifiable {
-    case figures = "figures"
-    case transitions = "transitions"
-    case circles = "circles"
-    case lateral = "lateral"
-    case collection = "collection"
-    case suppleness = "suppleness"
-    case straightness = "straightness"
+    case figures
+    case transitions
+    case circles
+    case lateral
+    case collection
+    case suppleness
+    case straightness
 
     var id: String { rawValue }
 
@@ -158,9 +158,9 @@ enum FlatworkCategory: String, Codable, CaseIterable, Identifiable {
 // MARK: - Flatwork Gait
 
 nonisolated enum FlatworkGait: String, Codable, CaseIterable, Identifiable {
-    case walk = "walk"
-    case trot = "trot"
-    case canter = "canter"
+    case walk
+    case trot
+    case canter
 
     var id: String { rawValue }
 

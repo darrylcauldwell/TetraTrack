@@ -10,110 +10,110 @@ import Foundation
 // MARK: - Message Keys
 
 public enum WatchMessageKey: String {
-    case command = "command"
-    case rideState = "rideState"
-    case duration = "duration"
-    case distance = "distance"
-    case speed = "speed"
-    case gait = "gait"
-    case heartRate = "heartRate"
-    case heartRateZone = "heartRateZone"
-    case averageHeartRate = "averageHeartRate"
-    case maxHeartRate = "maxHeartRate"
-    case horseName = "horseName"
-    case rideType = "rideType"
-    case timestamp = "timestamp"
-    case voiceNoteText = "voiceNoteText"
+    case command
+    case rideState
+    case duration
+    case distance
+    case speed
+    case gait
+    case heartRate
+    case heartRateZone
+    case averageHeartRate
+    case maxHeartRate
+    case horseName
+    case rideType
+    case timestamp
+    case voiceNoteText
     // Workout configuration
-    case activityType = "activityType"
-    case locationType = "locationType"
+    case activityType
+    case locationType
     // Motion metrics
-    case motionMode = "motionMode"
-    case stanceStability = "stanceStability"
-    case strokeCount = "strokeCount"
-    case strokeRate = "strokeRate"
-    case verticalOscillation = "verticalOscillation"
-    case groundContactTime = "groundContactTime"
-    case cadence = "cadence"
+    case motionMode
+    case stanceStability
+    case strokeCount
+    case strokeRate
+    case verticalOscillation
+    case groundContactTime
+    case cadence
     // Ride discipline metrics
-    case walkPercent = "walkPercent"
-    case trotPercent = "trotPercent"
-    case canterPercent = "canterPercent"
-    case gallopPercent = "gallopPercent"
-    case leftTurnCount = "leftTurnCount"
-    case rightTurnCount = "rightTurnCount"
-    case leftReinPercent = "leftReinPercent"
-    case rightReinPercent = "rightReinPercent"
-    case leftLeadPercent = "leftLeadPercent"
-    case rightLeadPercent = "rightLeadPercent"
-    case symmetryScore = "symmetryScore"
-    case rhythmScore = "rhythmScore"
-    case optimalTime = "optimalTime"
-    case actualTime = "actualTime"
-    case timeDifference = "timeDifference"
-    case elevation = "elevation"
+    case walkPercent
+    case trotPercent
+    case canterPercent
+    case gallopPercent
+    case leftTurnCount
+    case rightTurnCount
+    case leftReinPercent
+    case rightReinPercent
+    case leftLeadPercent
+    case rightLeadPercent
+    case symmetryScore
+    case rhythmScore
+    case optimalTime
+    case actualTime
+    case timeDifference
+    case elevation
     // Fall detection
-    case fallDetected = "fallDetected"
-    case fallConfidence = "fallConfidence"
-    case fallImpactMagnitude = "fallImpactMagnitude"
-    case fallRotationMagnitude = "fallRotationMagnitude"
-    case fallCountdown = "fallCountdown"
-    case fallResponse = "fallResponse"
+    case fallDetected
+    case fallConfidence
+    case fallImpactMagnitude
+    case fallRotationMagnitude
+    case fallCountdown
+    case fallResponse
     // Enhanced sensor data (Watch -> iPhone)
-    case relativeAltitude = "relativeAltitude"
-    case altitudeChangeRate = "altitudeChangeRate"
-    case barometricPressure = "barometricPressure"
-    case isSubmerged = "isSubmerged"
-    case waterDepth = "waterDepth"
-    case oxygenSaturation = "oxygenSaturation"
-    case compassHeading = "compassHeading"
-    case breathingRate = "breathingRate"
-    case bodyTemperature = "bodyTemperature"
-    case posturePitch = "posturePitch"
-    case postureRoll = "postureRoll"
-    case tremorLevel = "tremorLevel"
-    case movementIntensity = "movementIntensity"
+    case relativeAltitude
+    case altitudeChangeRate
+    case barometricPressure
+    case isSubmerged
+    case waterDepth
+    case oxygenSaturation
+    case compassHeading
+    case breathingRate
+    case bodyTemperature
+    case posturePitch
+    case postureRoll
+    case tremorLevel
+    case movementIntensity
     // Phone running form data (iPhone -> Watch)
-    case runningPhase = "runningPhase"
-    case asymmetryIndex = "asymmetryIndex"
+    case runningPhase
+    case asymmetryIndex
     // Autonomous workout discipline
-    case discipline = "discipline"
+    case discipline
 }
 
 // MARK: - Commands
 
 public enum WatchCommand: String, Codable, Sendable {
-    case startRide = "startRide"
-    case stopRide = "stopRide"
-    case pauseRide = "pauseRide"
-    case resumeRide = "resumeRide"
-    case requestStatus = "requestStatus"
-    case heartRateUpdate = "heartRateUpdate"
-    case voiceNote = "voiceNote"
+    case startRide
+    case stopRide
+    case pauseRide
+    case resumeRide
+    case requestStatus
+    case heartRateUpdate
+    case voiceNote
     // Workout session command (iPhone → Watch: start full HKWorkoutSession for HR)
-    case startWorkout = "startWorkout"
+    case startWorkout
     // Motion commands
-    case startMotionTracking = "startMotionTracking"
-    case stopMotionTracking = "stopMotionTracking"
-    case motionUpdate = "motionUpdate"
+    case startMotionTracking
+    case stopMotionTracking
+    case motionUpdate
     // Fall detection commands
-    case fallDetected = "fallDetected"        // Watch -> iPhone: fall detected
-    case fallConfirmedOK = "fallConfirmedOK"  // Watch -> iPhone: user confirmed OK
-    case fallEmergency = "fallEmergency"      // Watch -> iPhone: emergency requested
-    case syncFallState = "syncFallState"      // iPhone -> Watch: sync fall state
+    case fallDetected        // Watch -> iPhone: fall detected
+    case fallConfirmedOK     // Watch -> iPhone: user confirmed OK
+    case fallEmergency       // Watch -> iPhone: emergency requested
+    case syncFallState       // iPhone -> Watch: sync fall state
     // Haptic commands (iPhone -> Watch)
-    case hapticMilestone = "hapticMilestone"  // Minute marker during timed test
-    case hapticComplete = "hapticComplete"    // Timed test complete
-    case hapticUrgent = "hapticUrgent"        // Final countdown (last 10s)
-    case hapticRestStart = "hapticRestStart"  // Interval rest begins
-    case hapticRestEnd = "hapticRestEnd"      // Interval rest ends (go!)
+    case hapticMilestone     // Minute marker during timed test
+    case hapticComplete      // Timed test complete
+    case hapticUrgent        // Final countdown (last 10s)
+    case hapticRestStart     // Interval rest begins
+    case hapticRestEnd       // Interval rest ends (go!)
 }
 
 // MARK: - Fall Response
 
 public enum FallResponse: String, Codable, Sendable {
-    case confirmedOK = "confirmedOK"
-    case emergency = "emergency"
+    case confirmedOK
+    case emergency
 }
 
 // MARK: - Motion Mode

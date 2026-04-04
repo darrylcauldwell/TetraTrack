@@ -39,8 +39,6 @@ struct EnhancedScannerConfig {
 
     /// Detection configuration
     var detectionConfig: HoleDetectionConfig = HoleDetectionConfig()
-
-    nonisolated init() {}
 }
 
 // MARK: - Scanner State

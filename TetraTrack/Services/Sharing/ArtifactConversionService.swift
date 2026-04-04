@@ -76,7 +76,6 @@ final class ArtifactConversionService {
         return artifact
     }
 
-
     // MARK: - Running Session Conversion
 
     /// Convert a completed RunningSession into a TrainingArtifact
@@ -121,7 +120,6 @@ final class ArtifactConversionService {
         return artifact
     }
 
-
     // MARK: - Swimming Session Conversion
 
     /// Convert a completed SwimmingSession into a TrainingArtifact
@@ -152,7 +150,6 @@ final class ArtifactConversionService {
 
         return artifact
     }
-
 
     // MARK: - Shooting Session Conversion
 
@@ -187,7 +184,6 @@ final class ArtifactConversionService {
 
         return artifact
     }
-
 
     // MARK: - Unified Artifact Creation
 

@@ -23,9 +23,8 @@ struct StirrupPressureDrillView: View {
     @State private var pitchHistory: [Double] = []
     @State private var optimalPitchRange: ClosedRange<Double> = -0.15...(-0.05) // Slight forward lean = heels down
 
-
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
@@ -482,7 +481,6 @@ struct StirrupPressureDrillView: View {
         for skillScore in skillScores {
             modelContext.insert(skillScore)
         }
-
 
         try? modelContext.save()
 

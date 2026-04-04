@@ -612,7 +612,7 @@ struct LeadStatRow: View {
 
 struct ScoreBadge: View {
     let score: Double
-    var label: String? = nil
+    var label: String?
 
     private var color: Color {
         switch score {
@@ -712,7 +712,7 @@ struct RideElevationProfileChart: View {
 
             if elevationProfile.count >= 2 {
                 Chart {
-                    ForEach(Array(elevationProfile.enumerated()), id: \.offset) { index, point in
+                    ForEach(Array(elevationProfile.enumerated()), id: \.offset) { _, point in
                         AreaMark(
                             x: .value("Distance", point.distance),
                             y: .value("Altitude", point.altitude)

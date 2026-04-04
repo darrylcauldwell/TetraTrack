@@ -16,7 +16,6 @@ struct HorseSelectionView: View {
     @State private var showingSettings = false
 
     var body: some View {
-        let _ = Log.ui.debug("HorseSelectionView body rendering, horses count: \(horses.count)")
         VStack(alignment: .leading, spacing: 12) {
             Text("Horse")
                 .font(.subheadline)

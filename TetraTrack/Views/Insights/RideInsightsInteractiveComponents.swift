@@ -414,7 +414,7 @@ struct HeartRatePacingBars: View {
     let rideStartDate: Date
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             Canvas { context, size in
                 guard !samples.isEmpty, rideDuration > 0 else { return }
 

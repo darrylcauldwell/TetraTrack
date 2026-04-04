@@ -14,8 +14,8 @@ import SwiftUI
 /// Status of share invitation
 enum InviteStatus: String, Codable, Equatable {
     case notSent = "not_sent"
-    case pending = "pending"
-    case accepted = "accepted"
+    case pending
+    case accepted
 
     var displayText: String {
         switch self {
@@ -434,10 +434,10 @@ final class SharingRelationship {
     }
 
     enum AlertType: String, CustomStringConvertible {
-        case sessionCompleted = "sessionCompleted"
-        case liveTracking = "liveTracking"
-        case competitionReminder = "competitionReminder"
-        case safety = "safety"
+        case sessionCompleted
+        case liveTracking
+        case competitionReminder
+        case safety
 
         var description: String { rawValue }
     }

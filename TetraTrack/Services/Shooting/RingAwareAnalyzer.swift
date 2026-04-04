@@ -828,4 +828,3 @@ final class RingAwareAnalyzer {
         )
     }
 }
-

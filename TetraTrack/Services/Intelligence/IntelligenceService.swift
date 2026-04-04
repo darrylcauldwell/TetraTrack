@@ -950,11 +950,9 @@ private extension IntelligenceService {
             let previousAvg = previousSwims.isEmpty ? 0.0 : previousSwims.reduce(0.0) { $0 + $1.averageSwolf } / Double(previousSwims.count)
             // Lower SWOLF is better, so invert the trend logic
             let label: String
-            if previousAvg <= 0 { label = "insufficient data" }
-            else {
+            if previousAvg <= 0 { label = "insufficient data" } else {
                 let change = (currentAvg - previousAvg) / previousAvg * 100
-                if abs(change) < 5 { label = "stable" }
-                else { label = change < 0 ? "improving" : "declining" }
+                if abs(change) < 5 { label = "stable" } else { label = change < 0 ? "improving" : "declining" }
             }
             lines.append("- Swimming SWOLF: \(String(format: "%.1f", currentAvg)) → \(previousSwims.isEmpty ? "N/A" : String(format: "%.1f", previousAvg)) (\(label))")
         }
@@ -984,11 +982,9 @@ private extension IntelligenceService {
             let previousAvgHR = previousHRs.isEmpty ? 0.0 : Double(previousHRs.reduce(0, +)) / Double(previousHRs.count)
             // Rising HR at same effort = declining fitness, so invert
             let label: String
-            if previousAvgHR <= 0 { label = "insufficient data" }
-            else {
+            if previousAvgHR <= 0 { label = "insufficient data" } else {
                 let change = (currentAvgHR - previousAvgHR) / previousAvgHR * 100
-                if abs(change) < 5 { label = "stable" }
-                else { label = change < 0 ? "improving" : "rising (possible fatigue)" }
+                if abs(change) < 5 { label = "stable" } else { label = change < 0 ? "improving" : "rising (possible fatigue)" }
             }
             lines.append("- Overall HR trend: \(String(format: "%.0f", currentAvgHR)) bpm → \(previousHRs.isEmpty ? "N/A" : String(format: "%.0f bpm", previousAvgHR)) (\(label))")
         }
@@ -1054,11 +1050,9 @@ private extension IntelligenceService {
         let recentAvg = recentWeeks.isEmpty ? 0.0 : Double(recentWeeks.reduce(0, +)) / Double(recentWeeks.count)
         let olderAvg = olderWeeks.isEmpty ? 0.0 : Double(olderWeeks.reduce(0, +)) / Double(olderWeeks.count)
         let volumeTrend: String
-        if olderAvg <= 0 { volumeTrend = "insufficient history" }
-        else {
+        if olderAvg <= 0 { volumeTrend = "insufficient history" } else {
             let change = (recentAvg - olderAvg) / olderAvg * 100
-            if abs(change) < 15 { volumeTrend = "stable" }
-            else { volumeTrend = change > 0 ? "increasing" : "decreasing" }
+            if abs(change) < 15 { volumeTrend = "stable" } else { volumeTrend = change > 0 ? "increasing" : "decreasing" }
         }
         let weeklyBreakdown = weeklyVolume.enumerated().map { "\($0.offset + 1)w ago: \($0.element)" }.joined(separator: ", ")
 

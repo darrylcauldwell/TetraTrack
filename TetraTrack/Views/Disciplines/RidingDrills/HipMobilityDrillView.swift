@@ -23,14 +23,13 @@ struct HipMobilityDrillView: View {
     @State private var hipPath: [CGPoint] = []
     @State private var circleDirection: CircleDirection = .clockwise
 
-
     enum CircleDirection: String, CaseIterable {
         case clockwise = "Clockwise"
         case counterClockwise = "Counter-Clockwise"
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.pink.opacity(Opacity.light).ignoresSafeArea()
 
@@ -419,7 +418,6 @@ struct HipMobilityDrillView: View {
         for skillScore in skillScores {
             modelContext.insert(skillScore)
         }
-
 
         try? modelContext.save()
 

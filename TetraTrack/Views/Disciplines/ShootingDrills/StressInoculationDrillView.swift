@@ -31,7 +31,7 @@ struct StressInoculationDrillView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 phaseBackground.ignoresSafeArea()
 
@@ -497,7 +497,6 @@ struct StressInoculationDrillView: View {
         generator.notificationOccurred(.success)
     }
 }
-
 
 #Preview {
     StressInoculationDrillView()

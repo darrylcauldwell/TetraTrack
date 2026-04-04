@@ -26,7 +26,7 @@ struct BalanceDrillView: View {
     private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.drillBalance.opacity(Opacity.light).ignoresSafeArea()
 
@@ -49,7 +49,6 @@ struct BalanceDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && !isRunning {
@@ -369,4 +368,3 @@ struct BalanceResult {
     let timestamp: TimeInterval
     let stability: Double
 }
-

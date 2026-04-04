@@ -29,9 +29,8 @@ struct PostingRhythmDrillView: View {
     @State private var timingAccuracy: [Double] = []
     @State private var audioPlayer: AVAudioPlayer?
 
-
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
@@ -214,7 +213,7 @@ struct PostingRhythmDrillView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                GeometryReader { geo in
+                GeometryReader { _ in
                     ZStack {
                         // Track
                         RoundedRectangle(cornerRadius: 8)
@@ -508,7 +507,6 @@ struct PostingRhythmDrillView: View {
         for skillScore in skillScores {
             modelContext.insert(skillScore)
         }
-
 
         try? modelContext.save()
 

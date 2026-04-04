@@ -267,8 +267,6 @@ struct HoleDetectionConfiguration: Sendable {
     var enableOverlapDetection: Bool = true
     var enableDiagnostics: Bool = true
 
-    nonisolated init() {}
-
     nonisolated static var `default`: HoleDetectionConfiguration {
         HoleDetectionConfiguration()
     }

@@ -137,4 +137,3 @@ protocol DrillSessionProtocol {
     var startDate: Date { get }
     var score: Double { get }
 }
-

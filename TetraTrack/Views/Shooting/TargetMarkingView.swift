@@ -109,7 +109,7 @@ struct TargetMarkingView: View {
     let onComplete: () -> Void
     let onCancel: () -> Void
     var sessionType: ShootingSessionType = .freePractice
-    var onCompleteWithScores: (([Int], UUID) -> Void)? = nil
+    var onCompleteWithScores: (([Int], UUID) -> Void)?
 
     // Marking state
     @State private var holes: [MarkedHole] = []

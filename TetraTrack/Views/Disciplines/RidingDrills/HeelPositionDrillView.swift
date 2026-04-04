@@ -22,7 +22,7 @@ struct HeelPositionDrillView: View {
     @State private var results: [StabilityResult] = []
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
@@ -45,7 +45,6 @@ struct HeelPositionDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && !isRunning {
@@ -356,7 +355,6 @@ struct StabilityResult {
     let timestamp: TimeInterval
     let stability: Double
 }
-
 
 #Preview {
     HeelPositionDrillView()

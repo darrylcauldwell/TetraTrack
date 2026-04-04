@@ -177,7 +177,7 @@ final class DrillMotionAnalyzer {
         resetBuffers()
 
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
             guard let motion = motion, let self = self else { return }
             self.processMotion(motion)
         }

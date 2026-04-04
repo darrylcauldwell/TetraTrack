@@ -35,9 +35,9 @@ struct TransferableImage: Transferable {
 
 struct ShootingCompetitionView: View {
     /// When provided, runs in standalone mode (competition day): starts its own session
-    var standaloneContext: ShootingSessionContext? = nil
-    var onEnd: ((Int) -> Void)? = nil
-    var onComplete: ((Int) -> Void)? = nil
+    var standaloneContext: ShootingSessionContext?
+    var onEnd: ((Int) -> Void)?
+    var onComplete: ((Int) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -809,8 +809,8 @@ struct CardScanFlowView: View {
 struct FreePracticeView: View {
     var sessionContext: ShootingSessionContext = .freePractice
     let onEnd: () -> Void
-    var onAnalysisComplete: (() -> Void)? = nil  // Called when analysis is saved
-    var onNavigateToHistory: ((DateFilterOption) -> Void)? = nil  // Navigate to history with pre-selected filter
+    var onAnalysisComplete: (() -> Void)?  // Called when analysis is saved
+    var onNavigateToHistory: ((DateFilterOption) -> Void)?  // Navigate to history with pre-selected filter
 
     @State private var showingCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -1021,13 +1021,7 @@ struct FreePracticeView: View {
             }
         }
         .fullScreenCover(isPresented: $showingAnalysis) {
-            #if DEBUG
-            let _ = print("[FreePractice] fullScreenCover body - croppedImage is \(imageHolder.croppedImage == nil ? "nil" : "valid")")
-            #endif
             if let image = imageHolder.croppedImage {
-                #if DEBUG
-                let _ = print("[FreePractice] Rendering TargetMarkingView")
-                #endif
                 TargetMarkingView(
                     image: image,
                     onComplete: {
@@ -1130,10 +1124,8 @@ struct ScannedTarget: Identifiable {
         let avgY = holePositions.map { $0.y }.reduce(0, +) / Double(holePositions.count)
 
         var bias: [String] = []
-        if avgX < 0.4 { bias.append("Left") }
-        else if avgX > 0.6 { bias.append("Right") }
-        if avgY < 0.4 { bias.append("High") }
-        else if avgY > 0.6 { bias.append("Low") }
+        if avgX < 0.4 { bias.append("Left") } else if avgX > 0.6 { bias.append("Right") }
+        if avgY < 0.4 { bias.append("High") } else if avgY > 0.6 { bias.append("Low") }
 
         return bias.isEmpty ? "Centered" : bias.joined(separator: "-")
     }

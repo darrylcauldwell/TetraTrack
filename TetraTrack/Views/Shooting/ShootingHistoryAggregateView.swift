@@ -25,7 +25,7 @@ struct ShootingHistoryWrapperView: View {
 
 struct ShootingHistoryAggregateView: View {
     let onDismiss: () -> Void
-    var initialDateFilter: DateFilterOption? = nil
+    var initialDateFilter: DateFilterOption?
 
     @State private var historyManager = ShotPatternHistoryManager()
     @State private var historyService: ShootingHistoryService?

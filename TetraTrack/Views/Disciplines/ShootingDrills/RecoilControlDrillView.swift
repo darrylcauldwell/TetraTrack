@@ -24,7 +24,7 @@ struct RecoilControlDrillView: View {
     @State private var waitingForStable = false
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
@@ -444,7 +444,6 @@ struct RecoilControlDrillView: View {
         generator.notificationOccurred(.success)
     }
 }
-
 
 #Preview {
     RecoilControlDrillView()

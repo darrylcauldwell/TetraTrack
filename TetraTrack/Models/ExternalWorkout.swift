@@ -21,8 +21,8 @@ struct ExternalWorkout: Identifiable, Hashable {
     let totalEnergyBurned: Double?  // kcal
     let averageHeartRate: Double?
     let hasRoute: Bool
-    var name: String? = nil
-    var notes: String? = nil
+    var name: String?
+    var notes: String?
 
     var activityName: String {
         switch activityType {

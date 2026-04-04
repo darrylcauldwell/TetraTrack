@@ -29,7 +29,7 @@ struct CoreStabilityDrillView: View {
     @State private var results: [StabilityResult] = []
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.drillCore.opacity(Opacity.light).ignoresSafeArea()
 
@@ -52,7 +52,6 @@ struct CoreStabilityDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && !isRunning {

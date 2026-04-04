@@ -23,9 +23,8 @@ struct RiderStillnessDrillView: View {
     @State private var stabilityHistory: [Double] = []
     @State private var peakDeviation: Double = 0
 
-
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.riding.opacity(Opacity.light).ignoresSafeArea()
 
@@ -422,7 +421,6 @@ struct RiderStillnessDrillView: View {
         for skillScore in skillScores {
             modelContext.insert(skillScore)
         }
-
 
         try? modelContext.save()
 

@@ -322,7 +322,7 @@ struct EnrichedWorkoutDetailView: View {
             }
             .chartYScale(domain: max(0, minHR - 10)...(maxHR + 10))
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                     AxisValueLabel(format: .dateTime.hour().minute())
                 }
             }
@@ -1456,12 +1456,7 @@ struct EnrichedWorkoutDetailView: View {
             }(),
             tip: {
                 let baseTip: String
-                if swolf > 0 && swolf < 40 { baseTip = "Excellent SWOLF — elite-level efficiency per lap" }
-                else if swolf > 0 && swolf < 55 { baseTip = "Good SWOLF — maintain long, powerful strokes" }
-                else if swolf > 0 { baseTip = "High SWOLF — focus on fewer, longer strokes per lap" }
-                else if econScore > 70 { baseTip = "Efficient stroke count — good distance per pull" }
-                else if econScore > 0 { baseTip = "Try reducing strokes per length while maintaining speed" }
-                else { baseTip = "SWOLF = lap time + strokes (lower is more efficient)" }
+                if swolf > 0 && swolf < 40 { baseTip = "Excellent SWOLF — elite-level efficiency per lap" } else if swolf > 0 && swolf < 55 { baseTip = "Good SWOLF — maintain long, powerful strokes" } else if swolf > 0 { baseTip = "High SWOLF — focus on fewer, longer strokes per lap" } else if econScore > 70 { baseTip = "Efficient stroke count — good distance per pull" } else if econScore > 0 { baseTip = "Try reducing strokes per length while maintaining speed" } else { baseTip = "SWOLF = lap time + strokes (lower is more efficient)" }
                 let recentSwolf = recentSwimData.map { $0.averageSwolf }
                 let swolfFiltered = recentSwolf.filter { $0 > 0 }
                 let swolfAvg = swolfFiltered.isEmpty ? 0.0 : swolfFiltered.reduce(0, +) / Double(swolfFiltered.count)

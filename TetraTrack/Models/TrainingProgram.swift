@@ -240,10 +240,10 @@ nonisolated struct ProgramInterval: Codable, Identifiable, Sendable {
 }
 
 nonisolated enum IntervalPhase: String, Codable, Sendable {
-    case warmup = "warmup"
-    case walk = "walk"
-    case run = "run"
-    case cooldown = "cooldown"
+    case warmup
+    case walk
+    case run
+    case cooldown
 
     var displayName: String {
         switch self {
@@ -267,10 +267,10 @@ nonisolated enum IntervalPhase: String, Codable, Sendable {
 // MARK: - Enums
 
 nonisolated enum TrainingProgramType: String, Codable, CaseIterable, Identifiable {
-    case c25k = "c25k"
-    case c210k = "c210k"
-    case c2half = "c2half"
-    case marathon = "marathon"
+    case c25k
+    case c210k
+    case c2half
+    case marathon
 
     var id: String { rawValue }
 
@@ -321,10 +321,10 @@ nonisolated enum TrainingProgramType: String, Codable, CaseIterable, Identifiabl
 }
 
 nonisolated enum ProgramStatus: String, Codable, CaseIterable {
-    case active = "active"
-    case paused = "paused"
-    case completed = "completed"
-    case abandoned = "abandoned"
+    case active
+    case paused
+    case completed
+    case abandoned
 
     var displayName: String {
         rawValue.capitalized
@@ -341,10 +341,10 @@ nonisolated enum ProgramStatus: String, Codable, CaseIterable {
 }
 
 nonisolated enum ProgramSessionStatus: String, Codable, CaseIterable {
-    case upcoming = "upcoming"
-    case completed = "completed"
-    case skipped = "skipped"
-    case missed = "missed"
+    case upcoming
+    case completed
+    case skipped
+    case missed
 
     var icon: String {
         switch self {

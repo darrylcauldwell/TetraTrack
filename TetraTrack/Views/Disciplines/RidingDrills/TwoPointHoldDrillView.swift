@@ -22,7 +22,7 @@ struct TwoPointHoldDrillView: View {
     @State private var results: [StabilityResult] = []
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.running.opacity(Opacity.light).ignoresSafeArea()
 
@@ -45,7 +45,6 @@ struct TwoPointHoldDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && !isRunning {
@@ -373,7 +372,6 @@ struct TwoPointHoldDrillView: View {
         generator.notificationOccurred(.success)
     }
 }
-
 
 #Preview {
     TwoPointHoldDrillView()

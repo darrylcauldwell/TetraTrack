@@ -88,7 +88,6 @@ final class RunningSession: TrainingSessionProtocol, PaceBasedSessionProtocol, E
     var averagePower: Double? // watts
     var maxPower: Double?
 
-
     // Treadmill-specific properties
     var treadmillIncline: Double? // percentage (0-15%)
     var manualDistance: Bool = false // true if distance was manually entered

@@ -37,7 +37,7 @@ struct ReactionDrillView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 // Background changes with phase
                 phaseBackground
@@ -63,7 +63,6 @@ struct ReactionDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && phase == .idle {

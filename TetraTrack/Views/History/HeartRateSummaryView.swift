@@ -124,7 +124,7 @@ struct HeartRateZoneChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks { value in
+            AxisMarks { _ in
                 AxisValueLabel()
                     .font(.caption2)
             }
@@ -195,7 +195,7 @@ struct HeartRateTimelineChart: View {
             }
         }
         .chartYAxis {
-            AxisMarks { value in
+            AxisMarks { _ in
                 AxisValueLabel()
                     .font(.caption2)
                 AxisGridLine()

@@ -37,7 +37,7 @@ struct BreathingDrillView: View {
     private let exhaleDuration: TimeInterval = 4
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 // Background gradient based on phase
                 LinearGradient(
@@ -68,7 +68,6 @@ struct BreathingDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && phase == .ready {

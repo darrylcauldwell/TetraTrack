@@ -10,11 +10,11 @@ import Foundation
 // MARK: - Horse Size Categories
 
 nonisolated enum HorseSize: String, Codable, CaseIterable, Identifiable {
-    case small = "small"           // Under 14.2hh (ponies)
-    case medium = "medium"         // 14.2-15.2hh
-    case average = "average"       // 15.2-16.2hh (most common)
-    case large = "large"           // 16.2-17hh
-    case extraLarge = "extraLarge" // Over 17hh (warmbloods, drafts)
+    case small              // Under 14.2hh (ponies)
+    case medium             // 14.2-15.2hh
+    case average            // 15.2-16.2hh (most common)
+    case large              // 16.2-17hh
+    case extraLarge         // Over 17hh (warmbloods, drafts)
 
     var id: String { rawValue }
 
@@ -64,17 +64,17 @@ nonisolated enum HorseSize: String, Codable, CaseIterable, Identifiable {
 // MARK: - Pole Exercise Type
 
 nonisolated enum PoleExerciseType: String, Codable, CaseIterable, Identifiable {
-    case walkPoles = "walkPoles"
-    case trotPoles = "trotPoles"
-    case canterPoles = "canterPoles"
-    case raisedTrotPoles = "raisedTrotPoles"
-    case raisedCanterPoles = "raisedCanterPoles"
-    case cavaletti = "cavaletti"
-    case bounce = "bounce"
-    case oneStride = "oneStride"
-    case twoStride = "twoStride"
-    case grid = "grid"
-    case fanPoles = "fanPoles"
+    case walkPoles
+    case trotPoles
+    case canterPoles
+    case raisedTrotPoles
+    case raisedCanterPoles
+    case cavaletti
+    case bounce
+    case oneStride
+    case twoStride
+    case grid
+    case fanPoles
 
     var id: String { rawValue }
 
@@ -230,11 +230,11 @@ nonisolated struct PoleStrideCalculator {
 // MARK: - Grid Elements
 
 nonisolated enum GridElement: String, Codable, CaseIterable {
-    case pole = "pole"
-    case fence = "fence"
-    case bounce = "bounce"
-    case oneStride = "oneStride"
-    case twoStride = "twoStride"
+    case pole
+    case fence
+    case bounce
+    case oneStride
+    case twoStride
 
     var displayName: String {
         switch self {
@@ -270,12 +270,12 @@ nonisolated struct PoleLayoutConfig: Codable {
     let customSpacings: [Double]? // Override calculated spacings
 
     enum PoleArrangement: String, Codable {
-        case straight = "straight"
-        case curved = "curved"
-        case fan = "fan"
-        case diagonal = "diagonal"
-        case circle = "circle"
-        case serpentine = "serpentine"
+        case straight
+        case curved
+        case fan
+        case diagonal
+        case circle
+        case serpentine
     }
 
     init(

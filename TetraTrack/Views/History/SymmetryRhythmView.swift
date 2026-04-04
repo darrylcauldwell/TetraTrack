@@ -420,7 +420,7 @@ struct CircularGaugeView: View {
     let value: Double
     let maxValue: Double
     let title: String
-    var subtitle: String? = nil
+    var subtitle: String?
     let color: Color
 
     private var progress: Double {

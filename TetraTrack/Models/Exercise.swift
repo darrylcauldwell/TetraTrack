@@ -83,4 +83,3 @@ struct PoleSpacings {
     var formattedCanter: String { PoleSpacingCalculator.formatSpacing(canter) }
     var formattedBounce: String { PoleSpacingCalculator.formatSpacing(bounce) }
 }
-

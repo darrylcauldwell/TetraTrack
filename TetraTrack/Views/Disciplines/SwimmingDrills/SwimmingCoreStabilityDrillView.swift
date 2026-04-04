@@ -23,7 +23,7 @@ struct SwimmingCoreStabilityDrillView: View {
     @State private var cueSystem = RealTimeCueSystem()
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.swimming.opacity(Opacity.light).ignoresSafeArea()
 

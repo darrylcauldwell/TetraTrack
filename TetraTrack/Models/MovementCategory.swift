@@ -100,4 +100,3 @@ nonisolated enum MovementCategory: String, CaseIterable, Codable, Identifiable {
         }
     }
 }
-

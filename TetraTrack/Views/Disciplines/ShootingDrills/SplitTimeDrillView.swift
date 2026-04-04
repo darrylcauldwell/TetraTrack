@@ -24,7 +24,7 @@ struct SplitTimeDrillView: View {
     @State private var stabilityAtTransitions: [Double] = []
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 AppColors.shooting.opacity(Opacity.light).ignoresSafeArea()
 
@@ -472,7 +472,6 @@ extension Array {
         indices.contains(index) ? self[index] : nil
     }
 }
-
 
 #Preview {
     SplitTimeDrillView()

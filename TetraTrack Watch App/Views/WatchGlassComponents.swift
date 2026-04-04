@@ -69,7 +69,7 @@ extension View {
 struct WatchMetricCell: View {
     let value: String
     let unit: String
-    var icon: String? = nil
+    var icon: String?
     var iconColor: Color = .secondary
 
     var body: some View {

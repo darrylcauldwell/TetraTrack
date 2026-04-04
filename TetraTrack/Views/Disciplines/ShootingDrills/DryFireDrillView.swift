@@ -32,7 +32,7 @@ struct DryFireDrillView: View {
     private let sensorAnalyzer = WatchSensorAnalyzer.shared
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 (showFire ? AppColors.error : AppColors.riding.opacity(Opacity.light))
                     .ignoresSafeArea()
@@ -69,7 +69,6 @@ struct DryFireDrillView: View {
                         }
                     }
                     .padding()
-
 
                     // Watch status
                     if WatchConnectivityManager.shared.isPaired && !isRunning {

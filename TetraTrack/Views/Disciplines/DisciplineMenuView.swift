@@ -41,7 +41,7 @@ struct DisciplineMenuItem: Identifiable {
 
 struct DisciplineMenuView: View {
     let items: [DisciplineMenuItem]
-    var header: AnyView? = nil
+    var header: AnyView?
     @Environment(\.viewContext) private var viewContext
 
     /// Items filtered by current ViewContext.

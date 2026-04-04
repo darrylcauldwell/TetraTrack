@@ -27,7 +27,6 @@ struct MountedBreathingDrillView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var timerStartDate: Date?
 
-
     enum BreathPhase: String, CaseIterable {
         case instructions = "Instructions"
         case countdown = "Get Ready"
@@ -53,7 +52,7 @@ struct MountedBreathingDrillView: View {
     private let holdOutDuration: TimeInterval = 2
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 // Background gradient based on phase
                 LinearGradient(
@@ -665,7 +664,6 @@ struct MountedBreathingDrillView: View {
         for skillScore in skillScores {
             modelContext.insert(skillScore)
         }
-
 
         try? modelContext.save()
 
