@@ -2288,6 +2288,35 @@ struct ScreenshotDataGenerator {
     private static func generateCompetitions(in context: ModelContext, horse: Horse) {
         let calendar = Calendar.current
 
+        // Today's competition — full schedule for Competition Day + CarPlay screenshots
+        let today = Competition(
+            name: "Pony Club Area Tetrathlon",
+            date: Date(),
+            location: "Stonar School, Wiltshire",
+            competitionType: .tetrathlon,
+            level: .junior
+        )
+        today.horse = horse
+        today.isEntered = true
+        today.venue = "Stonar School"
+        today.venueLatitude = 51.3475
+        today.venueLongitude = -2.2456
+        today.travelRouteNotes = "Avoid low bridge on B3105 at Bradford-on-Avon. Take A363 instead."
+        today.estimatedTravelMinutes = 45
+        today.arriveAtYard = calendar.date(bySettingHour: 6, minute: 30, second: 0, of: Date())
+        today.departureFromYard = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: Date())
+        today.estimatedArrivalAtVenue = calendar.date(bySettingHour: 7, minute: 45, second: 0, of: Date())
+        today.courseWalkTime = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: Date())
+        today.shootingStartTime = calendar.date(bySettingHour: 9, minute: 15, second: 0, of: Date())
+        today.shootingLane = 3
+        today.swimWarmupTime = calendar.date(bySettingHour: 10, minute: 30, second: 0, of: Date())
+        today.swimStartTime = calendar.date(bySettingHour: 11, minute: 0, second: 0, of: Date())
+        today.swimmingLane = 4
+        today.runningStartTime = calendar.date(bySettingHour: 13, minute: 30, second: 0, of: Date())
+        today.runningCompetitorNumber = 42
+        today.prizeGivingTime = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: Date())
+        context.insert(today)
+
         // Upcoming competition - 12 days away
         let upcoming1 = Competition(
             name: "Area Tetrathlon Championships",
@@ -2300,6 +2329,8 @@ struct ScreenshotDataGenerator {
         upcoming1.isEntered = true
         upcoming1.entryDeadline = calendar.date(byAdding: .day, value: 5, to: Date())
         upcoming1.venue = "Badminton Horse Trials Venue"
+        upcoming1.venueLatitude = 51.5419
+        upcoming1.venueLongitude = -2.2872
         context.insert(upcoming1)
 
         // Add todos
@@ -2319,6 +2350,8 @@ struct ScreenshotDataGenerator {
         upcoming2.horse = horse
         upcoming2.isEntered = false
         upcoming2.entryDeadline = calendar.date(byAdding: .day, value: 14, to: Date())
+        upcoming2.venueLatitude = 52.6214
+        upcoming2.venueLongitude = -0.4133
         context.insert(upcoming2)
 
         // Completed competition - 21 days ago
