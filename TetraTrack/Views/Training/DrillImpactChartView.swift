@@ -480,7 +480,12 @@ struct DualAxisCorrelationChart: View {
     private var chartSummary: String {
         let drillAvg = drillData.isEmpty ? 0 : drillData.map(\.value).reduce(0, +) / Double(drillData.count)
         let perfAvg = performanceData.isEmpty ? 0 : performanceData.map(\.value).reduce(0, +) / Double(performanceData.count)
-        return "Correlation chart comparing \(drillLabel) (average \(String(format: "%.0f", drillAvg))) with \(performanceLabel) (average \(String(format: "%.0f", perfAvg))) over \(drillData.count) drill sessions and \(performanceData.count) performance records"
+        return "Correlation chart comparing \(drillLabel)" +
+            " (average \(String(format: "%.0f", drillAvg)))" +
+            " with \(performanceLabel)" +
+            " (average \(String(format: "%.0f", perfAvg)))" +
+            " over \(drillData.count) drill sessions" +
+            " and \(performanceData.count) performance records"
     }
 
     var body: some View {

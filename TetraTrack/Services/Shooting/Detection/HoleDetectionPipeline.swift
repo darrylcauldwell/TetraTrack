@@ -786,13 +786,11 @@ actor HoleDetectionPipeline {
         var sum = 0, count = 0
 
         for dy in -radius...radius {
-            for dx in -radius...radius {
-                if dx * dx + dy * dy <= radius * radius {
-                    let px = x + dx, py = y + dy
-                    if px >= 0 && px < width && py >= 0 && py < height {
-                        sum += Int(grayscale[py][px])
-                        count += 1
-                    }
+            for dx in -radius...radius where dx * dx + dy * dy <= radius * radius {
+                let px = x + dx, py = y + dy
+                if px >= 0 && px < width && py >= 0 && py < height {
+                    sum += Int(grayscale[py][px])
+                    count += 1
                 }
             }
         }
@@ -959,7 +957,9 @@ actor HoleDetectionPipeline {
                 featStr = "no features"
             }
             let icon = cand.classification == "accept" ? "✓" : (cand.classification == "flag" ? "⚠" : "✗")
-            print("   \(icon) (\(String(format: "%.2f", cand.position.x)),\(String(format: "%.2f", cand.position.y))) \(regionStr) | \(featStr) → \(String(format: "%.2f", cand.confidence)) \(cand.classification.uppercased())")
+            let posStr = "(\(String(format: "%.2f", cand.position.x)),\(String(format: "%.2f", cand.position.y)))"
+            let confStr = String(format: "%.2f", cand.confidence)
+            print("   \(icon) \(posStr) \(regionStr) | \(featStr) → \(confStr) \(cand.classification.uppercased())")
         }
 
         if diagnostics.allCandidates.count > 10 {

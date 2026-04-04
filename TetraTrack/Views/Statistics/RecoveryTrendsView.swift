@@ -114,7 +114,11 @@ struct RecoveryTrendsView: View {
                                 AxisMarks(position: .leading, values: [0, 25, 50, 75, 100])
                             }
                             .frame(height: 200)
-                            .accessibleChart("Readiness score trend over \(timeRange.rawValue.lowercased()). Average score: \(String(format: "%.0f", averageReadiness)), best score: \(String(format: "%.0f", bestReadiness))")
+                            .accessibleChart(
+                                "Readiness score trend over \(timeRange.rawValue.lowercased())." +
+                                " Average score: \(String(format: "%.0f", averageReadiness))," +
+                                " best score: \(String(format: "%.0f", bestReadiness))"
+                            )
                         }
 
                         // HRV trend

@@ -277,7 +277,10 @@ final class DrillTrendAnalyzer {
             if improvement > 10 {
                 insights.append("Your overall drill performance has improved +\(String(format: "%.0f", improvement))% recently (now averaging \(String(format: "%.0f", recentAvg)) pts).")
             } else if improvement < -10 {
-                insights.append("Your drill scores have declined \(String(format: "%.0f", abs(improvement)))% - now averaging \(String(format: "%.0f", recentAvg)) pts. Consider focusing on fundamentals.")
+                insights.append(
+                    "Your drill scores have declined \(String(format: "%.0f", abs(improvement)))%" +
+                    " - now averaging \(String(format: "%.0f", recentAvg)) pts. Consider focusing on fundamentals."
+                )
             }
         }
 

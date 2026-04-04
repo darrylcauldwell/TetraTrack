@@ -830,10 +830,8 @@ final class AIDataCollector {
         guard accelHistory.count > 10 else { return 0 }
         let mean = accelHistory.reduce(0, +) / Double(accelHistory.count)
         var crossings = 0
-        for i in 1..<accelHistory.count {
-            if (accelHistory[i-1] - mean) * (accelHistory[i] - mean) < 0 {
-                crossings += 1
-            }
+        for i in 1..<accelHistory.count where (accelHistory[i-1] - mean) * (accelHistory[i] - mean) < 0 {
+            crossings += 1
         }
         // Frequency = crossings / (2 * duration)
         let duration = Double(accelHistory.count) / 50.0  // 50Hz sampling

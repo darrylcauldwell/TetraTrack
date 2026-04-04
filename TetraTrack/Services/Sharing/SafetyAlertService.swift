@@ -186,21 +186,17 @@ actor SafetyAlertService {
         )
 
         // Clear warning alerts only for riders confirmed to be moving
-        for riderID in sentWarningAlerts {
-            if confirmedMovingRiderIDs.contains(riderID) {
-                sentWarningAlerts.remove(riderID)
-                notificationManager.clearNotificationsForRider(riderID)
-                Log.family.info("Cleared warning alert for \(riderID) - confirmed moving")
-            }
+        for riderID in sentWarningAlerts where confirmedMovingRiderIDs.contains(riderID) {
+            sentWarningAlerts.remove(riderID)
+            notificationManager.clearNotificationsForRider(riderID)
+            Log.family.info("Cleared warning alert for \(riderID) - confirmed moving")
         }
 
         // Clear urgent alerts only for riders confirmed to be moving
-        for riderID in sentUrgentAlerts {
-            if confirmedMovingRiderIDs.contains(riderID) {
-                sentUrgentAlerts.remove(riderID)
-                notificationManager.clearNotificationsForRider(riderID)
-                Log.family.info("Cleared urgent alert for \(riderID) - confirmed moving")
-            }
+        for riderID in sentUrgentAlerts where confirmedMovingRiderIDs.contains(riderID) {
+            sentUrgentAlerts.remove(riderID)
+            notificationManager.clearNotificationsForRider(riderID)
+            Log.family.info("Cleared urgent alert for \(riderID) - confirmed moving")
         }
     }
 

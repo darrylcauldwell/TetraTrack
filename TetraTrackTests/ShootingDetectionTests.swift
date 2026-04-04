@@ -717,12 +717,10 @@ private struct TestShot: ShotForAnalysis {
         let registry = TargetFixtureRegistry.shared
         let idealFixtures = registry.fixtures(in: .idealConditions)
 
-        for fixture in idealFixtures {
+        for fixture in idealFixtures where fixture.metadata.goldenMasterShots.count >= 3 {
             // Ideal fixtures should have expected analysis for validation
-            if fixture.metadata.goldenMasterShots.count >= 3 {
-                #expect(fixture.metadata.expectedAnalysis != nil,
-                       "Ideal fixture '\(fixture.name)' should have expectedAnalysis")
-            }
+            #expect(fixture.metadata.expectedAnalysis != nil,
+                   "Ideal fixture '\(fixture.name)' should have expectedAnalysis")
         }
     }
 

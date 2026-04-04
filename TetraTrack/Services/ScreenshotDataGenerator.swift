@@ -100,7 +100,8 @@ struct ScreenshotDataGenerator {
             color: "Grey",
             heightHands: 15.3,
             ageYears: 12,
-            notes: "The horse equivalent of a labrador - enthusiastic about everything, especially mud. Known for his 'creative interpretation' of dressage tests. Once spooked at his own shadow, twice.",
+            notes: "The horse equivalent of a labrador - enthusiastic about everything, especially mud." +
+                " Known for his 'creative interpretation' of dressage tests. Once spooked at his own shadow, twice.",
             in: context
         )
 
@@ -263,7 +264,8 @@ struct ScreenshotDataGenerator {
         ride.totalRightAngle = 1890
         ride.leftLeadDuration = 320
         ride.rightLeadDuration = 285
-        ride.notes = "Glorious morning hack! Biscuit Thief only tried to eat three different bushes today - personal best. The deer near the lake did NOT appreciate our canter. Pretty sure I now have twigs in places twigs shouldn't be."
+        ride.notes = "Glorious morning hack! Biscuit Thief only tried to eat three different bushes today - personal best." +
+            " The deer near the lake did NOT appreciate our canter. Pretty sure I now have twigs in places twigs shouldn't be."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 10, 1200),    // Warm up
@@ -278,7 +280,9 @@ struct ScreenshotDataGenerator {
 
         generateParklandRoute(for: ride, location: .badmintonEstate, in: context)
         addWeatherData(to: ride, temp: 14, condition: "Partly Cloudy")
-        addAISummary(to: ride, summary: "Fantastic hack covering 12.5km! Your turn balance was excellent at 46% left / 54% right. Biscuit Thief's enthusiasm for the gallop section was admirable, if slightly terrifying. Maybe pack fewer snacks next time - the bush-munching attempts are increasing.")
+        addAISummary(to: ride, summary: "Fantastic hack covering 12.5km! Your turn balance was excellent at 46% left / 54% right." +
+            " Biscuit Thief's enthusiasm for the gallop section was admirable, if slightly terrifying." +
+            " Maybe pack fewer snacks next time - the bush-munching attempts are increasing.")
     }
 
     private static func generateBurghleyXC(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -299,7 +303,8 @@ struct ScreenshotDataGenerator {
         ride.minHeartRate = 95
         ride.leftLeadDuration = 420
         ride.rightLeadDuration = 395
-        ride.notes = "XC schooling at Burghley! Jumped 18 fences including the water complex - Biscuit only splashed me SLIGHTLY on purpose. The corner was dramatic but we survived. My screaming may have been heard in the next county."
+        ride.notes = "XC schooling at Burghley! Jumped 18 fences including the water complex - Biscuit only splashed me SLIGHTLY on purpose." +
+            " The corner was dramatic but we survived. My screaming may have been heard in the next county."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 8, 900),       // Warm up
@@ -314,7 +319,9 @@ struct ScreenshotDataGenerator {
 
         generateXCRoute(for: ride, location: .burghleyHouse, in: context)
         addWeatherData(to: ride, temp: 16, condition: "Sunny")
-        addAISummary(to: ride, summary: "Epic XC session! Your heart rate peaked at 182bpm - possibly during 'the corner incident'. Lead balance was excellent at 52% left / 48% right. The water complex approach was... creative. Perhaps less screaming next time for optimal performance.")
+        addAISummary(to: ride, summary: "Epic XC session! Your heart rate peaked at 182bpm - possibly during 'the corner incident'." +
+            " Lead balance was excellent at 52% left / 48% right." +
+            " The water complex approach was... creative. Perhaps less screaming next time for optimal performance.")
     }
 
     private static func generateChatsworthHack(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -335,7 +342,8 @@ struct ScreenshotDataGenerator {
         ride.minHeartRate = 88
         ride.leftLeadDuration = 380
         ride.rightLeadDuration = 410
-        ride.notes = "Peak District adventure with Chaos Theory! 285m of climbing - my thighs may never forgive me. Chaos found three different mud puddles to 'accidentally' wade through. I'm now 40% mud. Worth it for the views though!"
+        ride.notes = "Peak District adventure with Chaos Theory! 285m of climbing - my thighs may never forgive me." +
+            " Chaos found three different mud puddles to 'accidentally' wade through. I'm now 40% mud. Worth it for the views though!"
 
         addGaitSegments(to: ride, segments: [
             (.walk, 15, 1800),     // Warm up on incline
@@ -349,7 +357,9 @@ struct ScreenshotDataGenerator {
 
         generateHillyRoute(for: ride, location: .chatsworthHouse, in: context)
         addWeatherData(to: ride, temp: 11, condition: "Cloudy")
-        addAISummary(to: ride, summary: "Outstanding endurance ride! You conquered 285m of climbing over 16.2km. Chaos Theory's mud-seeking behaviour added 'character' to the session. Your steady pace up the hills shows excellent fitness. Consider waterproof breeches next time.")
+        addAISummary(to: ride, summary: "Outstanding endurance ride! You conquered 285m of climbing over 16.2km." +
+            " Chaos Theory's mud-seeking behaviour added 'character' to the session." +
+            " Your steady pace up the hills shows excellent fitness. Consider waterproof breeches next time.")
     }
 
     private static func generateBlenheimFlatwork(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -378,7 +388,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 88
         ride.leftReinRhythm = 81
         ride.rightReinRhythm = 85
-        ride.notes = "Working on transitions with Biscuit Thief. Her idea of 'collection' is 'collecting treats'. The right bend is improving - she only tried to exit at C three times today. We're practically Charlotte Dujardin. Practically."
+        ride.notes = "Working on transitions with Biscuit Thief. Her idea of 'collection' is 'collecting treats'." +
+            " The right bend is improving - she only tried to exit at C three times today. We're practically Charlotte Dujardin. Practically."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 8, 500),       // Warm up
@@ -392,7 +403,9 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .blenheimPalace, in: context)
         addWeatherData(to: ride, temp: 15, condition: "Sunny")
-        addAISummary(to: ride, summary: "Productive schooling session! Turn balance of 52% is excellent - you're working both reins equally. Symmetry score improved to 88% on the right rein. The 'exit at C' attempts are decreasing. Charlotte Dujardin status: 78% achieved.")
+        addAISummary(to: ride, summary: "Productive schooling session! Turn balance of 52% is excellent - you're working both reins equally." +
+            " Symmetry score improved to 88% on the right rein." +
+            " The 'exit at C' attempts are decreasing. Charlotte Dujardin status: 78% achieved.")
     }
 
     private static func generateCastleHowardTrail(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -413,7 +426,8 @@ struct ScreenshotDataGenerator {
         ride.minHeartRate = 85
         ride.leftLeadDuration = 210
         ride.rightLeadDuration = 245
-        ride.notes = "Confidence-building hack with Drama Queen. She only spooked at TWO things today: a suspicious leaf and what I think was air. Major progress! The parkland views almost distracted me from my impending doom."
+        ride.notes = "Confidence-building hack with Drama Queen. She only spooked at TWO things today: a suspicious leaf and what I think was air." +
+            " Major progress! The parkland views almost distracted me from my impending doom."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 10, 1200),
@@ -426,7 +440,8 @@ struct ScreenshotDataGenerator {
 
         generateParklandRoute(for: ride, location: .castleHoward, in: context)
         addWeatherData(to: ride, temp: 13, condition: "Partly Cloudy")
-        addAISummary(to: ride, summary: "Excellent confidence-building session! Spook count down to 2 - a personal best for Drama Queen. Your steady pace and calm approach helped. The suspicious leaf has been officially survived. Progress: immense.")
+        addAISummary(to: ride, summary: "Excellent confidence-building session! Spook count down to 2 - a personal best for Drama Queen." +
+            " Your steady pace and calm approach helped. The suspicious leaf has been officially survived. Progress: immense.")
     }
 
     private static func generateAlthorpSchooling(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -455,7 +470,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 82
         ride.leftReinRhythm = 84
         ride.rightReinRhythm = 80
-        ride.notes = "Running through prelim test with Chaos Theory. His 'free walk on a long rein' was more 'chaotic jig towards the gate'. The canter serpentine was... interpretive. At least our halt was square-ish."
+        ride.notes = "Running through prelim test with Chaos Theory. His 'free walk on a long rein' was more 'chaotic jig towards the gate'." +
+            " The canter serpentine was... interpretive. At least our halt was square-ish."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 10, 600),
@@ -469,7 +485,9 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .althorp, in: context)
         addWeatherData(to: ride, temp: 12, condition: "Cloudy")
-        addAISummary(to: ride, summary: "Solid test practice! Your rhythm score of 84% is improving. The 'interpretive serpentine' showed creativity if not accuracy. Halt squareness: acceptable. Judges' sanity if they'd seen the free walk: questionable.")
+        addAISummary(to: ride, summary: "Solid test practice! Your rhythm score of 84% is improving." +
+            " The 'interpretive serpentine' showed creativity if not accuracy." +
+            " Halt squareness: acceptable. Judges' sanity if they'd seen the free walk: questionable.")
     }
 
     private static func generateArundelBeachRide(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -490,7 +508,8 @@ struct ScreenshotDataGenerator {
         ride.minHeartRate = 90
         ride.leftLeadDuration = 520
         ride.rightLeadDuration = 485
-        ride.notes = "BEACH DAY! Biscuit Thief transformed into a racehorse the moment her hooves hit the sand. Max speed 10.5m/s - I may have briefly lost my voice screaming 'WHEEEEE'. Sand in places sand shouldn't be. 10/10 would gallop again."
+        ride.notes = "BEACH DAY! Biscuit Thief transformed into a racehorse the moment her hooves hit the sand." +
+            " Max speed 10.5m/s - I may have briefly lost my voice screaming 'WHEEEEE'. Sand in places sand shouldn't be. 10/10 would gallop again."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 15, 1800),
@@ -505,7 +524,8 @@ struct ScreenshotDataGenerator {
 
         generateBeachRoute(for: ride, location: .arundelCastle, in: context)
         addWeatherData(to: ride, temp: 17, condition: "Sunny")
-        addAISummary(to: ride, summary: "Exhilarating beach session! Your max speed of 10.5m/s suggests Biscuit Thief may have Red Rum ancestors. Heart rate peaked at 175bpm - possibly from the joy of life. Lead balance excellent. Sand extraction from riding boots: expected.")
+        addAISummary(to: ride, summary: "Exhilarating beach session! Your max speed of 10.5m/s suggests Biscuit Thief may have Red Rum ancestors." +
+            " Heart rate peaked at 175bpm - possibly from the joy of life. Lead balance excellent. Sand extraction from riding boots: expected.")
     }
 
     private static func generateHicksteadJumping(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -526,7 +546,8 @@ struct ScreenshotDataGenerator {
         ride.minHeartRate = 92
         ride.leftLeadDuration = 280
         ride.rightLeadDuration = 310
-        ride.notes = "SJ practice at Hickstead! Jumped up to 1m - Biscuit cleared it by approximately 47 metres. Her enthusiasm is not matched by my core strength. The getaways are getting tidier - only one victory lap today."
+        ride.notes = "SJ practice at Hickstead! Jumped up to 1m - Biscuit cleared it by approximately 47 metres." +
+            " Her enthusiasm is not matched by my core strength. The getaways are getting tidier - only one victory lap today."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 8, 500),
@@ -539,7 +560,9 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .hickstead, in: context)
         addWeatherData(to: ride, temp: 15, condition: "Partly Cloudy")
-        addAISummary(to: ride, summary: "Strong jumping session! The 47-metre clearance over the 1m fence shows excellent scope (and possibly excessive enthusiasm). Victory lap frequency is decreasing. Your core strength may need attention - consider more sit-ups.")
+        addAISummary(to: ride, summary: "Strong jumping session! The 47-metre clearance over the 1m fence shows excellent scope" +
+            " (and possibly excessive enthusiasm). Victory lap frequency is decreasing." +
+            " Your core strength may need attention - consider more sit-ups.")
     }
 
     // MARK: - Additional Schooling Sessions
@@ -568,7 +591,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 85
         ride.leftReinRhythm = 78
         ride.rightReinRhythm = 82
-        ride.notes = "Raised poles and trot grids with Drama Queen. She's convinced the blue poles are more dangerous than the others. Counting strides has improved - we only launched into orbit twice today. Progress!"
+        ride.notes = "Raised poles and trot grids with Drama Queen. She's convinced the blue poles are more dangerous than the others." +
+            " Counting strides has improved - we only launched into orbit twice today. Progress!"
 
         addGaitSegments(to: ride, segments: [
             (.walk, 6, 400),
@@ -581,7 +605,8 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .hickstead, in: context)
         addWeatherData(to: ride, temp: 13, condition: "Cloudy")
-        addAISummary(to: ride, summary: "Great polework session! Your rhythm through the grids improved from 78% to 82% by the end. Drama Queen's suspicion of blue poles is noted. The 'orbit launches' are becoming more controlled.")
+        addAISummary(to: ride, summary: "Great polework session! Your rhythm through the grids improved from 78% to 82% by the end." +
+            " Drama Queen's suspicion of blue poles is noted. The 'orbit launches' are becoming more controlled.")
     }
 
     private static func generateGridworkSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -608,7 +633,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 86
         ride.leftReinRhythm = 85
         ride.rightReinRhythm = 83
-        ride.notes = "Bounce grids to one-stride combinations. Biscuit Thief has decided bounces are her favourite thing - she adds extra enthusiasm to every one. My back may disagree. The one-stride was... occasionally a no-stride."
+        ride.notes = "Bounce grids to one-stride combinations. Biscuit Thief has decided bounces are her favourite thing" +
+            " - she adds extra enthusiasm to every one. My back may disagree. The one-stride was... occasionally a no-stride."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 8, 500),
@@ -621,7 +647,9 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .blenheimPalace, in: context)
         addWeatherData(to: ride, temp: 14, condition: "Sunny")
-        addAISummary(to: ride, summary: "Excellent gridwork! Symmetry at 88% shows you're staying balanced over the fences. The 'extra enthusiasm' is building Biscuit's confidence. Consider the occasional no-stride as 'advanced scope demonstration'.")
+        addAISummary(to: ride, summary: "Excellent gridwork! Symmetry at 88% shows you're staying balanced over the fences." +
+            " The 'extra enthusiasm' is building Biscuit's confidence." +
+            " Consider the occasional no-stride as 'advanced scope demonstration'.")
     }
 
     private static func generateLungeSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -648,7 +676,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 88
         ride.leftReinRhythm = 86
         ride.rightReinRhythm = 84
-        ride.notes = "Lungeing Chaos Theory - which means I got more exercise than him trying to keep the circle actually circular. He's convinced lunge line = impromptu tug-of-war. Equal work both reins achieved through sheer determination."
+        ride.notes = "Lungeing Chaos Theory - which means I got more exercise than him trying to keep the circle actually circular." +
+            " He's convinced lunge line = impromptu tug-of-war. Equal work both reins achieved through sheer determination."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 5, 300),
@@ -661,7 +690,9 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .althorp, in: context)
         addWeatherData(to: ride, temp: 11, condition: "Partly Cloudy")
-        addAISummary(to: ride, summary: "Good lunge session! Turn balance is nearly perfect at 51%/49%. Chaos Theory's 'creative interpretation' of the circle improved as the session progressed. Your step count must have been impressive!")
+        addAISummary(to: ride, summary: "Good lunge session! Turn balance is nearly perfect at 51%/49%." +
+            " Chaos Theory's 'creative interpretation' of the circle improved as the session progressed." +
+            " Your step count must have been impressive!")
     }
 
     private static func generateLateralWorkSession(in context: ModelContext, horse: Horse, daysAgo: Int) {
@@ -690,7 +721,8 @@ struct ScreenshotDataGenerator {
         ride.rightReinSymmetry = 84
         ride.leftReinRhythm = 76
         ride.rightReinRhythm = 82
-        ride.notes = "Lateral work focus - leg yield improving! Shoulder-in left is still 'shoulder-somewhere-in-the-vicinity'. Biscuit's travers attempt was... a creative quarter pirouette. We'll call it intentional."
+        ride.notes = "Lateral work focus - leg yield improving! Shoulder-in left is still 'shoulder-somewhere-in-the-vicinity'." +
+            " Biscuit's travers attempt was... a creative quarter pirouette. We'll call it intentional."
 
         addGaitSegments(to: ride, segments: [
             (.walk, 10, 650),
@@ -702,7 +734,8 @@ struct ScreenshotDataGenerator {
 
         generateArenaRoute(for: ride, location: .chatsworthHouse, in: context)
         addWeatherData(to: ride, temp: 12, condition: "Cloudy")
-        addAISummary(to: ride, summary: "Solid lateral work! The 6% difference in symmetry between reins shows left is your weaker side - focus there next session. The 'creative quarter pirouette' shows Biscuit's athleticism. Glass half full!")
+        addAISummary(to: ride, summary: "Solid lateral work! The 6% difference in symmetry between reins shows left is your weaker side" +
+            " - focus there next session. The 'creative quarter pirouette' shows Biscuit's athleticism. Glass half full!")
     }
 
     // MARK: - Running Sessions
@@ -872,7 +905,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 2, visibility: 9000, pressure: 1008, precipitationChance: 0.40, isDaylight: true
         )
         longRun.endWeather = longRun.startWeather
-        longRun.notes = "10.5km Sunday long run. The first 5km felt amazing. The last 5km felt like a negotiation with my legs. Discovered three new blisters and one new appreciation for sofas. The pub at the end was motivational."
+        longRun.notes = "10.5km Sunday long run. The first 5km felt amazing. The last 5km felt like a negotiation with my legs." +
+            " Discovered three new blisters and one new appreciation for sofas. The pub at the end was motivational."
         longRun.averageBreathingRate = 24
         longRun.averageSpO2 = 97
         longRun.postureStability = 76
@@ -909,7 +943,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 4, visibility: 14000, pressure: 1020, precipitationChance: 0.10, isDaylight: true
         )
         tempo.endWeather = tempo.startWeather
-        tempo.notes = "Tempo pace practice - 'comfortably hard' they said. 'Uncomfortable and questioning life choices' is more accurate. Maintained pace for 4km though, which is a win. The voice coach was encouraging. Too encouraging."
+        tempo.notes = "Tempo pace practice - 'comfortably hard' they said. 'Uncomfortable and questioning life choices' is more accurate." +
+            " Maintained pace for 4km though, which is a win. The voice coach was encouraging. Too encouraging."
         tempo.averageBreathingRate = 26
         tempo.averageSpO2 = 96
         tempo.postureStability = 74
@@ -946,7 +981,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 3, visibility: 11000, pressure: 1016, precipitationChance: 0.20, isDaylight: true
         )
         pacer.endWeather = pacer.startWeather
-        pacer.notes = "Chasing my PB ghost on the 1500m. The ghost won by 42 seconds. The ghost is a show-off. Next time I'm setting a more achievable ghost. One that maybe takes a coffee break mid-run."
+        pacer.notes = "Chasing my PB ghost on the 1500m. The ghost won by 42 seconds. The ghost is a show-off." +
+            " Next time I'm setting a more achievable ghost. One that maybe takes a coffee break mid-run."
         pacer.averageBreathingRate = 27
         pacer.averageSpO2 = 96
         pacer.postureStability = 70
@@ -983,7 +1019,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 2, visibility: 7000, pressure: 1005, precipitationChance: 0.35, isDaylight: true
         )
         hills.endWeather = hills.startWeather
-        hills.notes = "6x hill repeats. By rep 4, the hill had become my nemesis. By rep 6, we had reached an uneasy truce. My quads are filing a formal complaint with HR. The views from the top were lovely, when I could see through the tears."
+        hills.notes = "6x hill repeats. By rep 4, the hill had become my nemesis. By rep 6, we had reached an uneasy truce." +
+            " My quads are filing a formal complaint with HR. The views from the top were lovely, when I could see through the tears."
         hills.averageBreathingRate = 28
         hills.averageSpO2 = 95
         hills.postureStability = 68
@@ -1020,7 +1057,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 5, visibility: 16000, pressure: 1025, precipitationChance: 0.05, isDaylight: true
         )
         recovery.endWeather = recovery.startWeather
-        recovery.notes = "Post-XC-schooling recovery jog. My legs had a team meeting and decided anything faster than a shuffle was unacceptable. Three pensioners overtook me. One offered encouragement. It was humbling."
+        recovery.notes = "Post-XC-schooling recovery jog. My legs had a team meeting and decided anything faster than a shuffle was unacceptable." +
+            " Three pensioners overtook me. One offered encouragement. It was humbling."
         recovery.averageBreathingRate = 20
         recovery.averageSpO2 = 98
         recovery.postureStability = 85
@@ -1057,7 +1095,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 3, visibility: 12000, pressure: 1014, precipitationChance: 0.15, isDaylight: true
         )
         race.endWeather = race.startWeather
-        race.notes = "Parkrun PB attempt! Went out too fast, died at 3km, somehow resurrected for the sprint finish. Overtook someone in the funnel - peak athletic achievement. Free banana made it all worthwhile. Official time: 27:00."
+        race.notes = "Parkrun PB attempt! Went out too fast, died at 3km, somehow resurrected for the sprint finish." +
+            " Overtook someone in the funnel - peak athletic achievement. Free banana made it all worthwhile. Official time: 27:00."
         race.averageBreathingRate = 30
         race.averageSpO2 = 95
         race.postureStability = 68
@@ -1094,7 +1133,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 4, visibility: 15000, pressure: 1021, precipitationChance: 0.08, isDaylight: true
         )
         fartlek.endWeather = fartlek.startWeather
-        fartlek.notes = "Fartlek = Swedish for 'speed play'. My version = sprint to the next lamppost, wheeze dramatically, jog to recover, repeat. The dog walker who kept appearing thought I was having a medical emergency. Best unstructured session yet!"
+        fartlek.notes = "Fartlek = Swedish for 'speed play'. My version = sprint to the next lamppost, wheeze dramatically, jog to recover, repeat." +
+            " The dog walker who kept appearing thought I was having a medical emergency. Best unstructured session yet!"
         fartlek.averageBreathingRate = 25
         fartlek.averageSpO2 = 96
         fartlek.postureStability = 74
@@ -1208,7 +1248,8 @@ struct ScreenshotDataGenerator {
             paceVsAverage: -43,
             durationVsAverage: -140
         )
-        walk1.notes = "Beautiful evening loop through the village. Stone walls, thatched cottages, and one very judgmental sheep. Pace improving each time — the legs are getting used to the hill by the pub. Biomechanics looking good!"
+        walk1.notes = "Beautiful evening loop through the village. Stone walls, thatched cottages, and one very judgmental sheep." +
+            " Pace improving each time — the legs are getting used to the hill by the pub. Biomechanics looking good!"
         context.insert(walk1)
         generateRunningHeartRateSamples(for: walk1, warmupHR: 88, peakHR: 125, sampleCount: 20)
         generateWalkingRoute(for: walk1, startLat: 51.7580, startLon: -1.5803, in: context)
@@ -1297,7 +1338,8 @@ struct ScreenshotDataGenerator {
             paceVsAverage: -25,
             durationVsAverage: -120
         )
-        walk2.notes = "Flat towpath walk along the canal. Narrowboat traffic was excellent entertainment. Lost count of the locks but gained a new appreciation for canal engineering. The resident heron gave me the side-eye. Again."
+        walk2.notes = "Flat towpath walk along the canal. Narrowboat traffic was excellent entertainment." +
+            " Lost count of the locks but gained a new appreciation for canal engineering. The resident heron gave me the side-eye. Again."
         context.insert(walk2)
         generateRunningHeartRateSamples(for: walk2, warmupHR: 92, peakHR: 130, sampleCount: 20)
         generateWalkingRoute(for: walk2, startLat: 52.2856, startLon: -1.5349, in: context)
@@ -1332,7 +1374,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 6, visibility: 18000, pressure: 1028, precipitationChance: 0.02, isDaylight: true
         )
         walk3.endWeather = walk3.startWeather
-        walk3.notes = "Just walked. No plan, no route, no pressure. Ended up at a farm shop and bought cheese. The walk home was slightly faster — possibly cheese-motivated. Sometimes the best training is no training."
+        walk3.notes = "Just walked. No plan, no route, no pressure. Ended up at a farm shop and bought cheese." +
+            " The walk home was slightly faster — possibly cheese-motivated. Sometimes the best training is no training."
         context.insert(walk3)
         generateRunningHeartRateSamples(for: walk3, warmupHR: 85, peakHR: 118, sampleCount: 18)
         generateWalkingRoute(for: walk3, startLat: 51.8413, startLon: -1.3618, in: context)
@@ -1383,7 +1426,8 @@ struct ScreenshotDataGenerator {
         training.endFatigueScore = 22
         training.trainingLoadScore = 48
         training.recoveryQuality = 75
-        training.notes = "1km of speed sets! SWOLF improving - apparently I'm more efficient when there's cake promised at the end. The lane rope and I had a minor disagreement on length 32. We've reconciled."
+        training.notes = "1km of speed sets! SWOLF improving - apparently I'm more efficient when there's cake promised at the end." +
+            " The lane rope and I had a minor disagreement on length 32. We've reconciled."
         context.insert(training)
         generateSwimmingHeartRateSamples(for: training, warmupHR: 125, peakHR: 175, sampleCount: 25)
 
@@ -1421,7 +1465,8 @@ struct ScreenshotDataGenerator {
             uvIndex: 5, visibility: 14000, pressure: 1020, precipitationChance: 0.10, isDaylight: true
         )
         openWater.endWeather = openWater.startWeather
-        openWater.notes = "First open water swim of the season! Water temperature: 'refreshing' (read: cold enough to reconsider life). Sighting practice went well - only swam into one buoy. The ducks were unimpressed by my technique."
+        openWater.notes = "First open water swim of the season! Water temperature: 'refreshing' (read: cold enough to reconsider life)." +
+            " Sighting practice went well - only swam into one buoy. The ducks were unimpressed by my technique."
         context.insert(openWater)
         generateSwimmingHeartRateSamples(for: openWater, warmupHR: 118, peakHR: 168, sampleCount: 20)
 
@@ -1440,7 +1485,8 @@ struct ScreenshotDataGenerator {
         fiftyPool.endFatigueScore = 25
         fiftyPool.trainingLoadScore = 52
         fiftyPool.recoveryQuality = 72
-        fiftyPool.notes = "50m pool - half the turns means twice the suffering per length. The extra distance between walls is psychological warfare. Flip turns are getting tidier though - only 60% of them involve mild panic now."
+        fiftyPool.notes = "50m pool - half the turns means twice the suffering per length. The extra distance between walls is psychological warfare." +
+            " Flip turns are getting tidier though - only 60% of them involve mild panic now."
         context.insert(fiftyPool)
         generateSwimmingHeartRateSamples(for: fiftyPool, warmupHR: 120, peakHR: 172, sampleCount: 25)
 
@@ -1470,7 +1516,9 @@ struct ScreenshotDataGenerator {
         technique.endFatigueScore = 12
         technique.trainingLoadScore = 30
         technique.recoveryQuality = 85
-        technique.notes = "Technique drills - catch-up drill, fingertip drag, fist swimming. Discovered I've been 'swimming' with more splash than propulsion. Coach said my catch was 'improving' with a very diplomatic expression."
+        technique.notes = "Technique drills - catch-up drill, fingertip drag, fist swimming." +
+            " Discovered I've been 'swimming' with more splash than propulsion." +
+            " Coach said my catch was 'improving' with a very diplomatic expression."
         context.insert(technique)
         generateSwimmingHeartRateSamples(for: technique, warmupHR: 112, peakHR: 155, sampleCount: 20)
 
@@ -1500,7 +1548,8 @@ struct ScreenshotDataGenerator {
         endurance.endFatigueScore = 30
         endurance.trainingLoadScore = 58
         endurance.recoveryQuality = 65
-        endurance.notes = "2km continuous swim! The first 500m were pleasant. The second 500m were okay. The third 500m involved counting tiles. The final 500m was powered by stubbornness and the promise of hot chocolate. Channel swim status: not yet."
+        endurance.notes = "2km continuous swim! The first 500m were pleasant. The second 500m were okay. The third 500m involved counting tiles." +
+            " The final 500m was powered by stubbornness and the promise of hot chocolate. Channel swim status: not yet."
         context.insert(endurance)
         generateSwimmingHeartRateSamples(for: endurance, warmupHR: 118, peakHR: 168, sampleCount: 30)
 
@@ -1600,7 +1649,8 @@ struct ScreenshotDataGenerator {
         training.postureStability = 72
         training.endFatigueScore = 15
         training.trainingLoadScore = 32
-        training.notes = "Focus on breathing today. Turns out holding your breath for 30 seconds is NOT the technique. Who knew? Dry fire stability improved - I can now remain motionless for almost 4 seconds."
+        training.notes = "Focus on breathing today. Turns out holding your breath for 30 seconds is NOT the technique. Who knew?" +
+            " Dry fire stability improved - I can now remain motionless for almost 4 seconds."
         context.insert(training)
         generateShootingHeartRateSamples(for: training, restingHR: 75, peakHR: 102, sampleCount: 20)
 
@@ -1645,7 +1695,8 @@ struct ScreenshotDataGenerator {
         dryFire.postureStability = 84
         dryFire.endFatigueScore = 8
         dryFire.trainingLoadScore = 18
-        dryFire.notes = "Dry fire stability practice. Hold time improving - managed 4.2 seconds without wobble! The Watch says my stance is 'stable'. In my imagination, all shots were 10s. Reality may differ when we add actual ammunition."
+        dryFire.notes = "Dry fire stability practice. Hold time improving - managed 4.2 seconds without wobble!" +
+            " The Watch says my stance is 'stable'. In my imagination, all shots were 10s. Reality may differ when we add actual ammunition."
         context.insert(dryFire)
         generateShootingHeartRateSamples(for: dryFire, restingHR: 72, peakHR: 95, sampleCount: 15)
 
@@ -1690,7 +1741,8 @@ struct ScreenshotDataGenerator {
         match.postureStability = 74
         match.endFatigueScore = 18
         match.trainingLoadScore = 38
-        match.notes = "Full competition simulation with time pressure! End 1 was shaky (nerves). End 2 was better (settled). End 3 was peak performance. End 4 was... character building. Total: 168 points. Improvement noted!"
+        match.notes = "Full competition simulation with time pressure! End 1 was shaky (nerves). End 2 was better (settled)." +
+            " End 3 was peak performance. End 4 was... character building. Total: 168 points. Improvement noted!"
         context.insert(match)
         generateShootingHeartRateSamples(for: match, restingHR: 80, peakHR: 115, sampleCount: 20)
 
@@ -1735,7 +1787,8 @@ struct ScreenshotDataGenerator {
         precision.postureStability = 82
         precision.endFatigueScore = 10
         precision.trainingLoadScore = 22
-        precision.notes = "Focus on the inner rings only. Aiming for the 10 exclusively. Results: mixed. Turns out 'aim better' isn't quite enough instruction. Sight picture was good though. Release needs work. Always needs work."
+        precision.notes = "Focus on the inner rings only. Aiming for the 10 exclusively. Results: mixed." +
+            " Turns out 'aim better' isn't quite enough instruction. Sight picture was good though. Release needs work. Always needs work."
         context.insert(precision)
         generateShootingHeartRateSamples(for: precision, restingHR: 74, peakHR: 98, sampleCount: 18)
 
@@ -1780,7 +1833,8 @@ struct ScreenshotDataGenerator {
         pressure.postureStability = 68
         pressure.endFatigueScore = 20
         pressure.trainingLoadScore = 35
-        pressure.notes = "Shot with dad watching. Discovered that being observed adds approximately 47% more wobble. Shot 3 of end 1 shall not be discussed. Managed to recover. Mental game: work in progress."
+        pressure.notes = "Shot with dad watching. Discovered that being observed adds approximately 47% more wobble." +
+            " Shot 3 of end 1 shall not be discussed. Managed to recover. Mental game: work in progress."
         context.insert(pressure)
         generateShootingHeartRateSamples(for: pressure, restingHR: 82, peakHR: 120, sampleCount: 15)
 
@@ -2020,7 +2074,8 @@ struct ScreenshotDataGenerator {
             averageWobble: 0.08
         )
         coreStability.startDate = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        coreStability.notes = "Good session! Discovered my core is stronger than my willpower to continue. The phone kept telling me to 'stay stable' - easier said than done when you're shaking like a leaf."
+        coreStability.notes = "Good session! Discovered my core is stronger than my willpower to continue." +
+            " The phone kept telling me to 'stay stable' - easier said than done when you're shaking like a leaf."
         context.insert(coreStability)
 
         // Two-Point - 3 days ago
@@ -2035,7 +2090,8 @@ struct ScreenshotDataGenerator {
             peakDeviation: 0.25
         )
         twoPoint.startDate = calendar.date(byAdding: .day, value: -3, to: Date()) ?? Date()
-        twoPoint.notes = "Two-point position practice. My thighs are filing a formal complaint. The endurance score declined sharply after 30 seconds - I prefer to think of it as 'strategic energy conservation'."
+        twoPoint.notes = "Two-point position practice. My thighs are filing a formal complaint." +
+            " The endurance score declined sharply after 30 seconds - I prefer to think of it as 'strategic energy conservation'."
         context.insert(twoPoint)
 
         // Heel Position - 5 days ago
@@ -2182,7 +2238,8 @@ struct ScreenshotDataGenerator {
             rhythmScore: 80
         )
         breathingRhythm.startDate = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        breathingRhythm.notes = "Bilateral breathing practice - 3 strokes right, 3 strokes left. No longer drowning on the left side! Symmetry is improving. The pool was cold but the session was worth it."
+        breathingRhythm.notes = "Bilateral breathing practice - 3 strokes right, 3 strokes left." +
+            " No longer drowning on the left side! Symmetry is improving. The pool was cold but the session was worth it."
         context.insert(breathingRhythm)
 
         // Kick Efficiency - 10 days ago
@@ -2281,7 +2338,9 @@ struct ScreenshotDataGenerator {
         completed.runningTime = 378
         completed.overallPlacing = 3
         completed.placement = "3rd"
-        completed.resultNotes = "THIRD PLACE! 🥉 Shooting PB! Swimming went surprisingly well given my fear of tumble turns. Run was powered by pure determination and the sight of the finish line cake stall. Biscuit Thief was perfect - only tried to eat one jump."
+        completed.resultNotes = "THIRD PLACE! 🥉 Shooting PB! Swimming went surprisingly well given my fear of tumble turns." +
+            " Run was powered by pure determination and the sight of the finish line cake stall." +
+            " Biscuit Thief was perfect - only tried to eat one jump."
         context.insert(completed)
 
         // Add completed todos

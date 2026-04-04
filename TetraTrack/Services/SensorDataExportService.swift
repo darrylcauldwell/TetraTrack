@@ -158,7 +158,8 @@ final class SensorDataExportService {
         # lead_confidence: Confidence of lead detection (0-1)
         # rhythm_score: Rhythm consistency during segment (0-100)
         #
-        segment_index,gait,start_time_iso,end_time_iso,duration_s,distance_m,avg_speed_m_s,stride_frequency_hz,h2_ratio,h3_ratio,spectral_entropy,vertical_yaw_coherence,lead,lead_confidence,rhythm_score
+        segment_index,gait,start_time_iso,end_time_iso,duration_s,distance_m,avg_speed_m_s,\
+        stride_frequency_hz,h2_ratio,h3_ratio,spectral_entropy,vertical_yaw_coherence,lead,lead_confidence,rhythm_score
 
         """
 

@@ -524,7 +524,17 @@ struct RideInsightsView: View {
             }(),
             tip: {
                 let baseTip: String
-                if !hasData { baseTip = "GPS measures how smoothly you maintain speed through gait transitions" } else if hasIMU && stabilityScore >= 80 { baseTip = "Excellent IMU stability — very steady seat throughout the ride" } else if stabilityScore >= 80 { baseTip = "Very smooth riding — excellent independent seat and soft hands" } else if stabilityScore >= 60 { baseTip = "Good stability — minor speed fluctuations during transitions" } else { baseTip = "Jerky transitions — focus on smooth half-halts and sitting deeper in the saddle" }
+                if !hasData {
+                    baseTip = "GPS measures how smoothly you maintain speed through gait transitions"
+                } else if hasIMU && stabilityScore >= 80 {
+                    baseTip = "Excellent IMU stability — very steady seat throughout the ride"
+                } else if stabilityScore >= 80 {
+                    baseTip = "Very smooth riding — excellent independent seat and soft hands"
+                } else if stabilityScore >= 60 {
+                    baseTip = "Good stability — minor speed fluctuations during transitions"
+                } else {
+                    baseTip = "Jerky transitions — focus on smooth half-halts and sitting deeper in the saddle"
+                }
                 guard hasData else { return baseTip }
                 let recent = recentRideValues { r in
                     let bl = r.riderStabilityBaseline
@@ -533,7 +543,13 @@ struct RideInsightsView: View {
                     if bl > 0 { return bl * 100 }
                     return 0
                 }
-                return baseTip + trendSuffix(current: stabilityScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+                let filtered = recent.filter { $0 > 0 }
+                let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+                return baseTip + trendSuffix(
+                    current: stabilityScore,
+                    recentValues: recent,
+                    metric: String(format: "%.0f%%", avg)
+                )
             }()
         )
     }
@@ -567,9 +583,29 @@ struct RideInsightsView: View {
             }(),
             tip: {
                 let baseTip: String
-                if hasGaitData && gaitRhythm >= 80 { baseTip = "Excellent gait rhythm — consistent tempo between horse and rider" } else if hasGaitData && gaitRhythm >= 60 { baseTip = "Good rhythm — work on maintaining consistent gait tempo" } else if hasGaitData { baseTip = "Variable rhythm — try using a metronome or music to steady your tempo" } else if rhythmScore >= 80 { baseTip = "Very consistent pace — steady connection with your horse" } else if rhythmScore >= 60 { baseTip = "Good pace consistency — minor fluctuations in speed" } else if rhythmScore > 0 { baseTip = "Variable pace — focus on maintaining steady speed through transitions" } else { return "Gait sensors measure rhythm through motion pattern regularity" }
+                if hasGaitData && gaitRhythm >= 80 {
+                    baseTip = "Excellent gait rhythm — consistent tempo between horse and rider"
+                } else if hasGaitData && gaitRhythm >= 60 {
+                    baseTip = "Good rhythm — work on maintaining consistent gait tempo"
+                } else if hasGaitData {
+                    baseTip = "Variable rhythm — try using a metronome or music to steady your tempo"
+                } else if rhythmScore >= 80 {
+                    baseTip = "Very consistent pace — steady connection with your horse"
+                } else if rhythmScore >= 60 {
+                    baseTip = "Good pace consistency — minor fluctuations in speed"
+                } else if rhythmScore > 0 {
+                    baseTip = "Variable pace — focus on maintaining steady speed through transitions"
+                } else {
+                    return "Gait sensors measure rhythm through motion pattern regularity"
+                }
                 let recent = recentRideValues { $0.overallRhythm }
-                return baseTip + trendSuffix(current: score, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+                let filtered = recent.filter { $0 > 0 }
+                let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+                return baseTip + trendSuffix(
+                    current: score,
+                    recentValues: recent,
+                    metric: String(format: "%.0f%%", avg)
+                )
             }()
         )
     }
@@ -599,9 +635,31 @@ struct RideInsightsView: View {
             }(),
             tip: {
                 let baseTip: String
-                if hasGaitData && gaitSymmetry >= 80 { baseTip = "Excellent symmetry — even work on both reins" } else if hasGaitData && gaitSymmetry >= 60 { baseTip = "Good symmetry — slight left/right difference" } else if hasGaitData { baseTip = "Noticeable asymmetry — spend more time on your weaker rein" } else if hasReinData && reinBal > 0.8 { baseTip = "Well-balanced rein contact — maintaining even connection" } else if hasReinData { baseTip = "Rein contact differs between sides — focus on equal pressure" } else if symmetryScore >= 80 { baseTip = "Smooth transitions between speed zones" } else if symmetryScore > 0 { baseTip = "Frequent zone changes — work on gradual gait transitions" } else { return "Gait sensors and rein analysis measure left/right balance" }
+                if hasGaitData && gaitSymmetry >= 80 {
+                    baseTip = "Excellent symmetry — even work on both reins"
+                } else if hasGaitData && gaitSymmetry >= 60 {
+                    baseTip = "Good symmetry — slight left/right difference"
+                } else if hasGaitData {
+                    baseTip = "Noticeable asymmetry — spend more time on your weaker rein"
+                } else if hasReinData && reinBal > 0.8 {
+                    baseTip = "Well-balanced rein contact — maintaining even connection"
+                } else if hasReinData {
+                    baseTip = "Rein contact differs between sides — focus on equal pressure"
+                } else if symmetryScore >= 80 {
+                    baseTip = "Smooth transitions between speed zones"
+                } else if symmetryScore > 0 {
+                    baseTip = "Frequent zone changes — work on gradual gait transitions"
+                } else {
+                    return "Gait sensors and rein analysis measure left/right balance"
+                }
                 let recent = recentRideValues { $0.overallSymmetry }
-                return baseTip + trendSuffix(current: score, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+                let filtered = recent.filter { $0 > 0 }
+                let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+                return baseTip + trendSuffix(
+                    current: score,
+                    recentValues: recent,
+                    metric: String(format: "%.0f%%", avg)
+                )
             }()
         )
     }
@@ -657,8 +715,22 @@ struct RideInsightsView: View {
                 let baseTip: String
                 if hasWatchData {
                     let intensity = ride.maxHeartRate > 0 ? (Double(ride.averageHeartRate) / Double(ride.maxHeartRate)) * 100 : 0
-                    if intensity >= 65 && intensity <= 80 { baseTip = "Ideal training zone — building cardiovascular fitness while riding" } else if intensity > 85 { baseTip = "High intensity ride — allow recovery before your next session" } else if intensity < 55 { baseTip = "Light session — good for horse and rider recovery" } else { baseTip = "Moderate effort — consider pushing a bit more" }
-                } else if physiologyScore >= 80 { baseTip = "Good training intensity — well-balanced zones" } else if physiologyScore >= 60 { baseTip = "Moderate intensity — consider more working trot" } else { baseTip = "Mostly easy pace — push into working zones for training effect" }
+                    if intensity >= 65 && intensity <= 80 {
+                        baseTip = "Ideal training zone — building cardiovascular fitness while riding"
+                    } else if intensity > 85 {
+                        baseTip = "High intensity ride — allow recovery before your next session"
+                    } else if intensity < 55 {
+                        baseTip = "Light session — good for horse and rider recovery"
+                    } else {
+                        baseTip = "Moderate effort — consider pushing a bit more"
+                    }
+                } else if physiologyScore >= 80 {
+                    baseTip = "Good training intensity — well-balanced zones"
+                } else if physiologyScore >= 60 {
+                    baseTip = "Moderate intensity — consider more working trot"
+                } else {
+                    baseTip = "Mostly easy pace — push into working zones for training effect"
+                }
                 let recent = recentRideValues { Double($0.averageHeartRate) }
                 let hrTrend = ride.averageHeartRate > 0 ? trendSuffix(
                     current: Double(ride.averageHeartRate),

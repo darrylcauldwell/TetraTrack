@@ -284,7 +284,9 @@ struct TrainingLoadDashboardView: View {
                     color: .blue,
                     abbreviation: "CTL",
                     title: "Chronic Training Load (Fitness)",
-                    description: "Your rolling 42-day average training stress. A higher CTL means greater fitness built over weeks of consistent training. It rises slowly and falls slowly, reflecting your long-term training base."
+                    description: "Your rolling 42-day average training stress. A higher CTL means greater fitness" +
+                        " built over weeks of consistent training. It rises slowly and falls slowly," +
+                        " reflecting your long-term training base."
                 )
 
                 Divider()
@@ -293,7 +295,9 @@ struct TrainingLoadDashboardView: View {
                     color: .red,
                     abbreviation: "ATL",
                     title: "Acute Training Load (Fatigue)",
-                    description: "Your rolling 7-day average training stress. ATL responds quickly to recent sessions — a hard week pushes it up, rest days bring it down. High ATL means your body is carrying recent fatigue."
+                    description: "Your rolling 7-day average training stress. ATL responds quickly to recent" +
+                        " sessions — a hard week pushes it up, rest days bring it down." +
+                        " High ATL means your body is carrying recent fatigue."
                 )
 
                 Divider()
@@ -302,7 +306,10 @@ struct TrainingLoadDashboardView: View {
                     color: .green,
                     abbreviation: "TSB",
                     title: "Training Stress Balance (Form)",
-                    description: "The difference between fitness and fatigue (CTL minus ATL). A positive TSB means you're fresh and ready to perform. A negative TSB means fatigue exceeds fitness — time to ease off or taper. The best performances come when TSB is slightly positive (+5 to +25)."
+                    description: "The difference between fitness and fatigue (CTL minus ATL)." +
+                        " A positive TSB means you're fresh and ready to perform." +
+                        " A negative TSB means fatigue exceeds fitness — time to ease off or taper." +
+                        " The best performances come when TSB is slightly positive (+5 to +25)."
                 )
             }
 

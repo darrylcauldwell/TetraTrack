@@ -183,8 +183,18 @@ struct WidgetDataProvider {
     func sampleCompetitions(limit: Int = 3) -> [WidgetCompetition] {
         let today = Date()
         return [
-            WidgetCompetition(id: UUID(), name: "Area Tetrathlon", date: Calendar.current.date(byAdding: .day, value: 12, to: today)!, location: "Regional Centre", competitionType: "Tetrathlon", level: "Junior", isEntered: true, daysUntil: 12),
-            WidgetCompetition(id: UUID(), name: "Spring Triathlon", date: Calendar.current.date(byAdding: .day, value: 28, to: today)!, location: "County Showground", competitionType: "Triathlon", level: "Open", isEntered: false, daysUntil: 28),
+            WidgetCompetition(
+                id: UUID(), name: "Area Tetrathlon",
+                date: Calendar.current.date(byAdding: .day, value: 12, to: today)!,
+                location: "Regional Centre", competitionType: "Tetrathlon",
+                level: "Junior", isEntered: true, daysUntil: 12
+            ),
+            WidgetCompetition(
+                id: UUID(), name: "Spring Triathlon",
+                date: Calendar.current.date(byAdding: .day, value: 28, to: today)!,
+                location: "County Showground", competitionType: "Triathlon",
+                level: "Open", isEntered: false, daysUntil: 28
+            ),
         ].prefix(limit).map { $0 }
     }
 

@@ -519,10 +519,8 @@ actor StagedPipelineExecutor {
         let distance = position.ellipticalDistance(aspectRatio: targetType.aspectRatio)
         let radii = targetType.normalizedScoringRadii
 
-        for (_, radius) in radii {
-            if abs(distance - radius) < tolerance {
-                return true
-            }
+        for (_, radius) in radii where abs(distance - radius) < tolerance {
+            return true
         }
         return false
     }

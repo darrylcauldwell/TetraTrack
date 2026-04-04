@@ -254,19 +254,17 @@ final class CoachingEngine {
         // Add universal drills for cross-training if no specific focus
         if prioritizeUniversal {
             let universalDrills: [UnifiedDrillType] = [.coreStability, .boxBreathing, .standingBalance]
-            for drill in universalDrills {
-                if !recommendations.contains(where: { $0.drillType == drill.rawValue }) {
-                    recommendations.append(DrillRecommendation(
-                        drillType: drill.rawValue,
-                        drillName: drill.displayName,
-                        reason: "Universal drill that benefits all disciplines.",
-                        priority: .low,
-                        suggestedDuration: drill.suggestedDuration,
-                        discipline: drill.primaryDiscipline,
-                        benefitsDisciplines: drill.benefitsDisciplines,
-                        crossTrainingNote: "Core training for all four disciplines."
-                    ))
-                }
+            for drill in universalDrills where !recommendations.contains(where: { $0.drillType == drill.rawValue }) {
+                recommendations.append(DrillRecommendation(
+                    drillType: drill.rawValue,
+                    drillName: drill.displayName,
+                    reason: "Universal drill that benefits all disciplines.",
+                    priority: .low,
+                    suggestedDuration: drill.suggestedDuration,
+                    discipline: drill.primaryDiscipline,
+                    benefitsDisciplines: drill.benefitsDisciplines,
+                    crossTrainingNote: "Core training for all four disciplines."
+                ))
             }
         }
 

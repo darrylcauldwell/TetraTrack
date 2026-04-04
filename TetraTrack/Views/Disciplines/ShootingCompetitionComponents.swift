@@ -236,7 +236,7 @@ struct ShootingCompetitionView: View {
                 Text("Card \(cardNumber)")
                     .font(.headline)
                 Spacer()
-                if let _ = scanAnalysisID {
+                if scanAnalysisID != nil {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)

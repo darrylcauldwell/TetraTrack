@@ -281,7 +281,11 @@ struct TrainingScaleInfoSheet: View {
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("The German Training Scale (Skala der Ausbildung) is the foundation of classical dressage training. Each element builds upon the previous ones, creating a pyramid of development.")
+                        Text(
+                            "The German Training Scale (Skala der Ausbildung) is the foundation of classical" +
+                            " dressage training. Each element builds upon the previous ones," +
+                            " creating a pyramid of development."
+                        )
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

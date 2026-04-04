@@ -96,7 +96,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 switch ckError.code {
                 case .unknownItem:
                     // CKError 11 — most common cause is environment mismatch
-                    errorMsg = "Share not found.\n\nThis usually means the share was created on a different build type. Both phones must use the same type:\n• Both from Xcode, OR\n• Both from TestFlight\n\nYour build: \(Self.buildEnvironmentDescription)"
+                    errorMsg = "Share not found.\n\nThis usually means the share was created on a different build type." +
+                        " Both phones must use the same type:\n• Both from Xcode, OR\n• Both from TestFlight" +
+                        "\n\nYour build: \(Self.buildEnvironmentDescription)"
                 case .alreadyShared:
                     errorMsg = "You're already connected with \(ownerName)."
                 case .networkUnavailable, .networkFailure:

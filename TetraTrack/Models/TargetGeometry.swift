@@ -345,10 +345,8 @@ nonisolated struct OlympicPistolTargetGeometry {
     /// Calculate score from position in millimeters from center
     nonisolated static func score(atX x: Double, atY y: Double) -> Int {
         let distance = sqrt(x * x + y * y) * 2  // Convert to diameter
-        for ring in scoringRings {
-            if distance <= ring.diameter {
-                return ring.score
-            }
+        for ring in scoringRings where distance <= ring.diameter {
+            return ring.score
         }
         return 0  // Miss
     }

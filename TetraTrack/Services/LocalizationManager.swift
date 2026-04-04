@@ -53,8 +53,8 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .system:
             let preferred = Locale.preferredLanguages.first ?? "en"
             let supported = ["de", "fr", "nl", "sv"]
-            for code in supported {
-                if preferred.hasPrefix(code) { return code }
+            for code in supported where preferred.hasPrefix(code) {
+                return code
             }
             return "en"
         case .english: return "en"

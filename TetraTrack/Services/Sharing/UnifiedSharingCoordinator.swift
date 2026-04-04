@@ -591,13 +591,11 @@ final class UnifiedSharingCoordinator {
 
             // Add new riders discovered from shares
             let existingRiderIDs = Set(updatedRiders.map { $0.riderID })
-            for session in sessions {
-                if !existingRiderIDs.contains(session.riderID) {
-                    var newRider = LinkedRider(riderID: session.riderID, name: session.riderName)
-                    newRider.isCurrentlyRiding = session.isActive
-                    newRider.currentSession = session
-                    updatedRiders.append(newRider)
-                }
+            for session in sessions where !existingRiderIDs.contains(session.riderID) {
+                var newRider = LinkedRider(riderID: session.riderID, name: session.riderName)
+                newRider.isCurrentlyRiding = session.isActive
+                newRider.currentSession = session
+                updatedRiders.append(newRider)
             }
 
             // Atomic replacement of the array
@@ -815,7 +813,7 @@ final class UnifiedSharingCoordinator {
     /// Fetch training artifacts shared by family members
     /// Returns artifacts from CloudKit shared database
     func fetchFamilyArtifacts() async -> [TrainingArtifact] {
-        guard isSignedIn, let _ = zoneID else { return [] }
+        guard isSignedIn, zoneID != nil else { return [] }
 
         do {
             let database = CKContainer.default().sharedCloudDatabase
@@ -876,7 +874,7 @@ final class UnifiedSharingCoordinator {
     /// Fetch competitions shared by family members
     /// Returns competitions from CloudKit shared database
     func fetchFamilyCompetitions() async -> [SharedCompetition] {
-        guard isSignedIn, let _ = zoneID else { return [] }
+        guard isSignedIn, zoneID != nil else { return [] }
 
         do {
             let database = CKContainer.default().sharedCloudDatabase

@@ -280,11 +280,9 @@ final class ImagePreprocessor {
                 let clipThreshold = Int(clipLimit * Double(tilePixels) / 256.0)
                 var clipped = 0
 
-                for i in 0..<256 {
-                    if histogram[i] > clipThreshold {
-                        clipped += histogram[i] - clipThreshold
-                        histogram[i] = clipThreshold
-                    }
+                for i in 0..<256 where histogram[i] > clipThreshold {
+                    clipped += histogram[i] - clipThreshold
+                    histogram[i] = clipThreshold
                 }
 
                 // Redistribute clipped pixels
@@ -350,10 +348,8 @@ final class ImagePreprocessor {
             for x in radius..<(width - radius) {
                 var minVal: UInt8 = 255
                 for dy in -radius...radius {
-                    for dx in -radius...radius {
-                        if dx * dx + dy * dy <= radius * radius {
-                            minVal = min(minVal, grayscale[y + dy][x + dx])
-                        }
+                    for dx in -radius...radius where dx * dx + dy * dy <= radius * radius {
+                        minVal = min(minVal, grayscale[y + dy][x + dx])
                     }
                 }
                 eroded[y][x] = minVal
@@ -367,10 +363,8 @@ final class ImagePreprocessor {
             for x in radius..<(width - radius) {
                 var maxVal: UInt8 = 0
                 for dy in -radius...radius {
-                    for dx in -radius...radius {
-                        if dx * dx + dy * dy <= radius * radius {
-                            maxVal = max(maxVal, eroded[y + dy][x + dx])
-                        }
+                    for dx in -radius...radius where dx * dx + dy * dy <= radius * radius {
+                        maxVal = max(maxVal, eroded[y + dy][x + dx])
                     }
                 }
                 opened[y][x] = maxVal

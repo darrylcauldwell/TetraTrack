@@ -1529,7 +1529,13 @@ struct ShootingSessionDetailView: View {
             baseTip = "Widen your stance to shoulder width and plant your feet before raising. Practice dry-fire with focus on a stable base."
         }
         let recent = recentShootValues { $0.stabilityScore }
-        return baseTip + trendSuffix(current: session.stabilityScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+        let filtered = recent.filter { $0 > 0 }
+        let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+        return baseTip + trendSuffix(
+            current: session.stabilityScore,
+            recentValues: recent,
+            metric: String(format: "%.0f%%", avg)
+        )
     }
 
     private var rhythmTip: String {
@@ -1543,7 +1549,13 @@ struct ShootingSessionDetailView: View {
             baseTip = "Variable timing between shots. Develop a pre-shot routine: breathe, raise, settle, commit."
         }
         let recent = recentShootValues { $0.rhythmScore }
-        return baseTip + trendSuffix(current: session.rhythmScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+        let filtered = recent.filter { $0 > 0 }
+        let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+        return baseTip + trendSuffix(
+            current: session.rhythmScore,
+            recentValues: recent,
+            metric: String(format: "%.0f%%", avg)
+        )
     }
 
     private var symmetryTip: String {
@@ -1557,7 +1569,13 @@ struct ShootingSessionDetailView: View {
             baseTip = "Your hold shows movement. Practice box breathing before each shot and strengthen your support arm."
         }
         let recent = recentShootValues { $0.symmetryScore }
-        return baseTip + trendSuffix(current: session.symmetryScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+        let filtered = recent.filter { $0 > 0 }
+        let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+        return baseTip + trendSuffix(
+            current: session.symmetryScore,
+            recentValues: recent,
+            metric: String(format: "%.0f%%", avg)
+        )
     }
 
     private var economyTip: String {
@@ -1571,7 +1589,13 @@ struct ShootingSessionDetailView: View {
             baseTip = "Trust your aim and commit to the shot sooner. Extended holds increase fatigue and tremor."
         }
         let recent = recentShootValues { $0.economyScore }
-        return baseTip + trendSuffix(current: session.economyScore, recentValues: recent, metric: String(format: "%.0f%%", recent.filter { $0 > 0 }.reduce(0, +) / Swift.max(1, Double(recent.filter { $0 > 0 }.count))))
+        let filtered = recent.filter { $0 > 0 }
+        let avg = filtered.reduce(0, +) / Swift.max(1, Double(filtered.count))
+        return baseTip + trendSuffix(
+            current: session.economyScore,
+            recentValues: recent,
+            metric: String(format: "%.0f%%", avg)
+        )
     }
 
     private var composureTip: String {

@@ -1966,7 +1966,9 @@ struct SessionInsightsView: View {
                         label: "Riding Rhythm",
                         value: String(format: "%.0f%%", result.recent),
                         trend: result.trend,
-                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%" : "Building baseline from \(rhythmValues.count) sessions"
+                        insight: result.previous > 0
+                            ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%"
+                            : "Building baseline from \(rhythmValues.count) sessions"
                     )
                 }
             }
@@ -1992,7 +1994,9 @@ struct SessionInsightsView: View {
                         label: "Running GCT",
                         value: String(format: "%.0f ms", result.recent),
                         trend: result.trend,
-                        insight: result.previous > 0 ? "Shorter is more efficient — recent \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous)) ms" : "Building baseline from \(gctValues.count) sessions"
+                        insight: result.previous > 0
+                            ? "Shorter is more efficient — recent \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous)) ms"
+                            : "Building baseline from \(gctValues.count) sessions"
                     )
                 }
             }
@@ -2006,7 +2010,9 @@ struct SessionInsightsView: View {
                         label: "Swimming SWOLF",
                         value: String(format: "%.0f", result.recent),
                         trend: result.trend,
-                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous))" : "Building baseline from \(swolfValues.count) sessions"
+                        insight: result.previous > 0
+                            ? "Recent avg \(String(format: "%.0f", result.recent)) vs previous \(String(format: "%.0f", result.previous))"
+                            : "Building baseline from \(swolfValues.count) sessions"
                     )
                 }
 
@@ -2018,7 +2024,9 @@ struct SessionInsightsView: View {
                         label: "Strokes/Lap",
                         value: String(format: "%.1f", result.recent),
                         trend: result.trend,
-                        insight: result.previous > 0 ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", result.recent)) vs previous \(String(format: "%.1f", result.previous))" : "Building baseline from \(strokeValues.count) sessions"
+                        insight: result.previous > 0
+                            ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", result.recent)) vs previous \(String(format: "%.1f", result.previous))"
+                            : "Building baseline from \(strokeValues.count) sessions"
                     )
                 }
             }
@@ -2032,7 +2040,9 @@ struct SessionInsightsView: View {
                         label: "Shooting Score",
                         value: String(format: "%.0f%%", result.recent),
                         trend: result.trend,
-                        insight: result.previous > 0 ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%" : "Building baseline from \(scoreValues.count) sessions"
+                        insight: result.previous > 0
+                            ? "Recent avg \(String(format: "%.0f", result.recent))% vs previous \(String(format: "%.0f", result.previous))%"
+                            : "Building baseline from \(scoreValues.count) sessions"
                     )
                 }
             }
@@ -2051,8 +2061,10 @@ struct SessionInsightsView: View {
 
         // Discipline balance in last 14 days
         let recent14Rides = rides.filter { $0.startDate >= fourteenDaysAgo }.count
-        let recent14Runs = (runningSessions.filter { $0.startDate >= fourteenDaysAgo }.count) + (externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && ($0.activityType == .running || $0.activityType == .hiking) }.count)
-        let recent14Swims = (swimmingSessions.filter { $0.startDate >= fourteenDaysAgo }.count) + (externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && $0.activityType == .swimming }.count)
+        let recent14Runs = runningSessions.filter { $0.startDate >= fourteenDaysAgo }.count
+            + externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && ($0.activityType == .running || $0.activityType == .hiking) }.count
+        let recent14Swims = swimmingSessions.filter { $0.startDate >= fourteenDaysAgo }.count
+            + externalWorkouts.filter { $0.startDate >= fourteenDaysAgo && $0.activityType == .swimming }.count
         let recent14Shoots = shootingSessions.filter { $0.startDate >= fourteenDaysAgo }.count
         let recent14Total = recent14Rides + recent14Runs + recent14Swims + recent14Shoots
 
@@ -2114,7 +2126,12 @@ struct SessionInsightsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
                     let disciplineCount = [recent14Rides, recent14Runs, recent14Swims, recent14Shoots].filter { $0 > 0 }.count
-                    Text(disciplineCount >= 3 ? "Well-rounded training across \(disciplineCount) disciplines" : (disciplineCount == 2 ? "Training in \(disciplineCount) disciplines — consider adding variety" : "Single-discipline focus — cross-training benefits recovery"))
+                    let disciplineText = disciplineCount >= 3
+                        ? "Well-rounded training across \(disciplineCount) disciplines"
+                        : (disciplineCount == 2
+                            ? "Training in \(disciplineCount) disciplines — consider adding variety"
+                            : "Single-discipline focus — cross-training benefits recovery")
+                    Text(disciplineText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -2140,7 +2157,9 @@ struct SessionInsightsView: View {
                     label: "Ride Fatigue",
                     value: String(format: "%.0f", ft.recent),
                     trend: ft.trend,
-                    insight: ft.previous > 0 ? "End-of-session fatigue: recent \(String(format: "%.0f", ft.recent)) vs previous \(String(format: "%.0f", ft.previous))" : "Tracking fatigue build-up across rides"
+                    insight: ft.previous > 0
+                        ? "End-of-session fatigue: recent \(String(format: "%.0f", ft.recent)) vs previous \(String(format: "%.0f", ft.previous))"
+                        : "Tracking fatigue build-up across rides"
                 )
             }
         }
@@ -2212,19 +2231,43 @@ struct SessionInsightsView: View {
 
             if rhythmValues.count >= 3 {
                 let r = computeTrend(values: rhythmValues)
-                InsightTrendRow(icon: "metronome", label: "Rhythm", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "metronome", label: "Rhythm",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
             if symmetryValues.count >= 3 {
                 let r = computeTrend(values: symmetryValues)
-                InsightTrendRow(icon: "arrow.left.and.right", label: "Symmetry", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "arrow.left.and.right", label: "Symmetry",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
             if stabilityValues.count >= 3 {
                 let r = computeTrend(values: stabilityValues)
-                InsightTrendRow(icon: "figure.equestrian.sports", label: "Rider Stability", value: String(format: "%.1f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))" : "Baseline: \(String(format: "%.1f", r.recent))")
+                InsightTrendRow(
+                    icon: "figure.equestrian.sports", label: "Rider Stability",
+                    value: String(format: "%.1f", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))"
+                        : "Baseline: \(String(format: "%.1f", r.recent))"
+                )
             }
             if fatigueValues.count >= 3 {
                 let r = computeTrend(values: fatigueValues, inverted: true)
-                InsightTrendRow(icon: "bolt.heart", label: "End Fatigue", value: String(format: "%.0f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))" : "Baseline: \(String(format: "%.0f", r.recent))")
+                InsightTrendRow(
+                    icon: "bolt.heart", label: "End Fatigue",
+                    value: String(format: "%.0f", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))"
+                        : "Baseline: \(String(format: "%.0f", r.recent))"
+                )
             }
         }
     }
@@ -2242,11 +2285,23 @@ struct SessionInsightsView: View {
 
             if cadenceValues.count >= 3 {
                 let r = computeTrend(values: cadenceValues)
-                InsightTrendRow(icon: "metronome", label: "Cadence", value: "\(Int(r.recent)) spm", trend: r.trend, insight: r.previous > 0 ? "Recent \(Int(r.recent)) vs previous \(Int(r.previous)) spm" : "Baseline: \(Int(r.recent)) spm")
+                InsightTrendRow(
+                    icon: "metronome", label: "Cadence",
+                    value: "\(Int(r.recent)) spm", trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(Int(r.recent)) vs previous \(Int(r.previous)) spm"
+                        : "Baseline: \(Int(r.recent)) spm"
+                )
             }
             if gctValues.count >= 3 {
                 let r = computeTrend(values: gctValues, inverted: true)
-                InsightTrendRow(icon: "timer", label: "Ground Contact", value: String(format: "%.0f ms", r.recent), trend: r.trend, insight: r.previous > 0 ? "Shorter is more efficient — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous)) ms" : "Baseline: \(String(format: "%.0f", r.recent)) ms")
+                InsightTrendRow(
+                    icon: "timer", label: "Ground Contact",
+                    value: String(format: "%.0f ms", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Shorter is more efficient — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous)) ms"
+                        : "Baseline: \(String(format: "%.0f", r.recent)) ms"
+                )
             }
             if voValues.count >= 3 {
                 let r = computeTrend(values: voValues, inverted: true)
@@ -2274,11 +2329,23 @@ struct SessionInsightsView: View {
 
             if swolfValues.count >= 3 {
                 let r = computeTrend(values: swolfValues, inverted: true)
-                InsightTrendRow(icon: "figure.pool.swim", label: "SWOLF", value: String(format: "%.0f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))" : "Baseline: \(String(format: "%.0f", r.recent))")
+                InsightTrendRow(
+                    icon: "figure.pool.swim", label: "SWOLF",
+                    value: String(format: "%.0f", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Lower is better — recent \(String(format: "%.0f", r.recent)) vs previous \(String(format: "%.0f", r.previous))"
+                        : "Baseline: \(String(format: "%.0f", r.recent))"
+                )
             }
             if strokeValues.count >= 3 {
                 let r = computeTrend(values: strokeValues, inverted: true)
-                InsightTrendRow(icon: "water.waves", label: "Strokes/Lap", value: String(format: "%.1f", r.recent), trend: r.trend, insight: r.previous > 0 ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))" : "Baseline: \(String(format: "%.1f", r.recent))")
+                InsightTrendRow(
+                    icon: "water.waves", label: "Strokes/Lap",
+                    value: String(format: "%.1f", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Fewer strokes = more efficient — recent \(String(format: "%.1f", r.recent)) vs previous \(String(format: "%.1f", r.previous))"
+                        : "Baseline: \(String(format: "%.1f", r.recent))"
+                )
             }
         }
     }
@@ -2297,19 +2364,43 @@ struct SessionInsightsView: View {
 
             if stabilityValues.count >= 3 {
                 let r = computeTrend(values: stabilityValues)
-                InsightTrendRow(icon: "scope", label: "Stability", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "scope", label: "Stability",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
             if rhythmValues.count >= 3 {
                 let r = computeTrend(values: rhythmValues)
-                InsightTrendRow(icon: "metronome", label: "Rhythm", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "metronome", label: "Rhythm",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
             if symmetryValues.count >= 3 {
                 let r = computeTrend(values: symmetryValues)
-                InsightTrendRow(icon: "arrow.left.and.right", label: "Symmetry", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "arrow.left.and.right", label: "Symmetry",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
             if economyValues.count >= 3 {
                 let r = computeTrend(values: economyValues)
-                InsightTrendRow(icon: "bolt", label: "Economy", value: String(format: "%.0f%%", r.recent), trend: r.trend, insight: r.previous > 0 ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%" : "Baseline: \(String(format: "%.0f", r.recent))%")
+                InsightTrendRow(
+                    icon: "bolt", label: "Economy",
+                    value: String(format: "%.0f%%", r.recent), trend: r.trend,
+                    insight: r.previous > 0
+                        ? "Recent \(String(format: "%.0f", r.recent))% vs previous \(String(format: "%.0f", r.previous))%"
+                        : "Baseline: \(String(format: "%.0f", r.recent))%"
+                )
             }
         }
     }

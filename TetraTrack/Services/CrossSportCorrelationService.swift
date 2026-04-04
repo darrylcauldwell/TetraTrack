@@ -229,7 +229,9 @@ final class CrossSportCorrelationService {
             let domain = SkillDomain(rawValue: correlation.sourceMetric.lowercased()) ?? .stability
             insights.append(TrainingInsight(
                 title: "Training Transfer Detected",
-                message: "Your \(correlation.sourceDiscipline.rawValue) \(correlation.sourceMetric.lowercased()) is strongly correlated with \(correlation.targetDiscipline.rawValue) performance. Keep up the cross-training!",
+                message: "Your \(correlation.sourceDiscipline.rawValue) \(correlation.sourceMetric.lowercased())" +
+                    " is strongly correlated with \(correlation.targetDiscipline.rawValue) performance." +
+                    " Keep up the cross-training!",
                 icon: "arrow.triangle.2.circlepath",
                 priority: .medium,
                 sourceDomains: [domain],
@@ -255,21 +257,19 @@ final class CrossSportCorrelationService {
         }
 
         // Declining domain + lagged correlation = warning
-        for domain in SkillDomain.allCases {
-            if profile.trend(for: domain) == -1 {
-                let laggedCorrelations = correlations.filter {
-                    $0.targetMetric.lowercased() == domain.rawValue && $0.lagWeeks > 0 && $0.isPositive
-                }
-                if let predictor = laggedCorrelations.first {
-                    insights.append(TrainingInsight(
-                        title: "\(domain.displayName) Declining",
-                        message: "Your \(domain.displayName) has been declining. Based on patterns, increasing \(predictor.sourceDiscipline.rawValue) training may help reverse this trend.",
-                        icon: "exclamationmark.triangle",
-                        priority: .high,
-                        sourceDomains: [domain],
-                        relatedDisciplines: [predictor.sourceDiscipline]
-                    ))
-                }
+        for domain in SkillDomain.allCases where profile.trend(for: domain) == -1 {
+            let laggedCorrelations = correlations.filter {
+                $0.targetMetric.lowercased() == domain.rawValue && $0.lagWeeks > 0 && $0.isPositive
+            }
+            if let predictor = laggedCorrelations.first {
+                insights.append(TrainingInsight(
+                    title: "\(domain.displayName) Declining",
+                    message: "Your \(domain.displayName) has been declining. Based on patterns, increasing \(predictor.sourceDiscipline.rawValue) training may help reverse this trend.",
+                    icon: "exclamationmark.triangle",
+                    priority: .high,
+                    sourceDomains: [domain],
+                    relatedDisciplines: [predictor.sourceDiscipline]
+                ))
             }
         }
 
@@ -301,7 +301,8 @@ final class CrossSportCorrelationService {
         if let strongest = profile.strongestDomain, profile.score(for: strongest) >= 80 {
             insights.append(TrainingInsight(
                 title: "Strength: \(strongest.displayName)",
-                message: "Your \(strongest.displayName) is excellent at \(String(format: "%.0f", profile.score(for: strongest)))! This strength likely transfers to better performance across all disciplines.",
+                message: "Your \(strongest.displayName) is excellent at \(String(format: "%.0f", profile.score(for: strongest)))!" +
+                    " This strength likely transfers to better performance across all disciplines.",
                 icon: "star.fill",
                 priority: .low,
                 sourceDomains: [strongest],
@@ -341,9 +342,13 @@ final class CrossSportCorrelationService {
         let correlationStr = String(format: "%.2f", strongest.correlationCoefficient)
 
         if strongest.isPositive {
-            return "Your \(strongest.sourceDiscipline.rawValue) \(strongest.sourceMetric.lowercased()) shows a \(strongest.significance.rawValue.lowercased()) positive correlation (r=\(correlationStr)) with \(strongest.targetDiscipline.rawValue). Cross-training is working!"
+            return "Your \(strongest.sourceDiscipline.rawValue) \(strongest.sourceMetric.lowercased())" +
+                " shows a \(strongest.significance.rawValue.lowercased()) positive correlation" +
+                " (r=\(correlationStr)) with \(strongest.targetDiscipline.rawValue). Cross-training is working!"
         } else {
-            return "Your \(strongest.sourceDiscipline.rawValue) \(strongest.sourceMetric.lowercased()) has an inverse relationship (r=\(correlationStr)) with \(strongest.targetDiscipline.rawValue). Consider varying your training approach."
+            return "Your \(strongest.sourceDiscipline.rawValue) \(strongest.sourceMetric.lowercased())" +
+                " has an inverse relationship (r=\(correlationStr)) with \(strongest.targetDiscipline.rawValue)." +
+                " Consider varying your training approach."
         }
     }
 
@@ -361,7 +366,9 @@ final class CrossSportCorrelationService {
             let correlationStr = String(format: "%.2f", correlation.correlationCoefficient)
             insights.append(TrainingInsight(
                 title: "Training Transfer Detected",
-                message: "Your \(correlation.sourceDiscipline.rawValue) \(correlation.sourceMetric.lowercased()) shows strong correlation (r=\(correlationStr)) with \(correlation.targetDiscipline.rawValue) performance. This is based on \(correlation.sampleSize) data points.",
+                message: "Your \(correlation.sourceDiscipline.rawValue) \(correlation.sourceMetric.lowercased())" +
+                    " shows strong correlation (r=\(correlationStr)) with \(correlation.targetDiscipline.rawValue) performance." +
+                    " This is based on \(correlation.sampleSize) data points.",
                 icon: "arrow.triangle.2.circlepath",
                 priority: .medium,
                 sourceDomains: [domain],
@@ -381,7 +388,10 @@ final class CrossSportCorrelationService {
             if let best = relevantCorrelations.first {
                 insights.append(TrainingInsight(
                     title: "Close the Gap: \(weakest.displayName)",
-                    message: "Your \(weakest.displayName) is at \(String(format: "%.0f", score)) pts, \(String(format: "%.0f", gap)) pts behind your strongest skill. \(best.sourceDiscipline.rawValue) training shows promise for improvement (r=\(String(format: "%.2f", best.correlationCoefficient))).",
+                    message: "Your \(weakest.displayName) is at \(String(format: "%.0f", score)) pts," +
+                        " \(String(format: "%.0f", gap)) pts behind your strongest skill." +
+                        " \(best.sourceDiscipline.rawValue) training shows promise for improvement" +
+                        " (r=\(String(format: "%.2f", best.correlationCoefficient))).",
                     icon: "arrow.up.right",
                     priority: .high,
                     sourceDomains: [weakest],
@@ -390,7 +400,9 @@ final class CrossSportCorrelationService {
             } else {
                 insights.append(TrainingInsight(
                     title: "Focus Area: \(weakest.displayName)",
-                    message: "Your \(weakest.displayName) is at \(String(format: "%.0f", score)) pts, \(String(format: "%.0f", gap)) pts behind your strongest skill. Target improvement through focused drills.",
+                    message: "Your \(weakest.displayName) is at \(String(format: "%.0f", score)) pts," +
+                        " \(String(format: "%.0f", gap)) pts behind your strongest skill." +
+                        " Target improvement through focused drills.",
                     icon: "target",
                     priority: .high,
                     sourceDomains: [weakest],
@@ -400,22 +412,22 @@ final class CrossSportCorrelationService {
         }
 
         // Declining domain with specific numbers
-        for domain in SkillDomain.allCases {
-            if profile.trend(for: domain) == -1 {
-                let currentScore = profile.score(for: domain)
-                let laggedCorrelations = correlations.filter {
-                    $0.targetMetric.lowercased() == domain.rawValue && $0.lagWeeks > 0 && $0.isPositive
-                }
-                if let predictor = laggedCorrelations.first {
-                    insights.append(TrainingInsight(
-                        title: "\(domain.displayName) Declining",
-                        message: "Your \(domain.displayName) has dropped to \(String(format: "%.0f", currentScore)) pts and trending down. Based on lagged correlations, increasing \(predictor.sourceDiscipline.rawValue) training may help reverse this in \(predictor.lagWeeks) week\(predictor.lagWeeks > 1 ? "s" : "").",
-                        icon: "exclamationmark.triangle",
-                        priority: .high,
-                        sourceDomains: [domain],
-                        relatedDisciplines: [predictor.sourceDiscipline]
-                    ))
-                }
+        for domain in SkillDomain.allCases where profile.trend(for: domain) == -1 {
+            let currentScore = profile.score(for: domain)
+            let laggedCorrelations = correlations.filter {
+                $0.targetMetric.lowercased() == domain.rawValue && $0.lagWeeks > 0 && $0.isPositive
+            }
+            if let predictor = laggedCorrelations.first {
+                insights.append(TrainingInsight(
+                    title: "\(domain.displayName) Declining",
+                    message: "Your \(domain.displayName) has dropped to \(String(format: "%.0f", currentScore)) pts and trending down." +
+                        " Based on lagged correlations, increasing \(predictor.sourceDiscipline.rawValue) training" +
+                        " may help reverse this in \(predictor.lagWeeks) week\(predictor.lagWeeks > 1 ? "s" : "").",
+                    icon: "exclamationmark.triangle",
+                    priority: .high,
+                    sourceDomains: [domain],
+                    relatedDisciplines: [predictor.sourceDiscipline]
+                ))
             }
         }
 
